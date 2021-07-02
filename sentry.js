@@ -1,14 +1,8 @@
-const http = require('http');
+var request = require('request');
 
-const hostname = '127.0.0.1';
-const port = 3000;
-
-const server = http.createServer((req, res) => {
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/plain');
-  res.end('Hello World!');
-});
-
-server.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}/`);
-});
+request('http//exmaple.com/sample_data.json', function (error, response, body) {
+  if (!error && response.statusCode == 200) {
+     var importedJSON = JSON.parse(body);
+     console.log(importedJSON);
+  }
+})
