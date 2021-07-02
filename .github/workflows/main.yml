@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy NodeJS app
-        uses: actions/ssh-action@v0.1.2
+        uses: actions/checkout@v2
         with:
           host: ${{secrets.SSH_HOST}}
           username: ${{ secrets.SSH_USERNAME }}
