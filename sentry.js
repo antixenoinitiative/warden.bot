@@ -1,10 +1,19 @@
+import zlib from 'zlib';
+import zmq from 'zeromq';
 
-/* Testing ED API pull */
-var request = require('request');
+const SOURCE_URL = 'tcp://eddn.edcd.io:9500';
 
-request('https://cms.zaonce.net/en-GB/jsonapi/node/galnet_article', function (error, response, body) {
-  if (!error && response.statusCode == 200) {
-     var importedJSON = JSON.parse(body);
-     console.log(importedJSON);
+async function run() {
+  const sock = new zmq.Subscriber;
+
+  sock.connect(SOURCE_URL);
+  sock.subscribe('');
+  console.log('EDDN listener connected to:', SOURCE_URL);
+
+  for await (const [src] of sock) {
+    const msg = JSON.parse(zlib.inflateSync(src));
+    console.log(msg);
   }
-})
+}
+
+run();
