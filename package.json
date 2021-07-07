@@ -1,15 +1,15 @@
 {
-  "name": "axisentry",
-  "version": "1.0.0",
+  "name": "eddn-listener",
+  "version": "0.0.0",
   "description": "",
-  "main": "sentry.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node ./sentry.js"
+    "watch": "node index.js"
   },
-  "keywords": [],
+  "type": "module",
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "request": "^2.88.2"
+    "zeromq": "^6.0.0-beta.6"
   }
 }
