@@ -29,9 +29,9 @@ async function run() {
         console.log(`${msg.message.timestamp}: ${targetstate} detected in system: ${msg.message.StarSystem}`);
         pool.query("SELECT * FROM systems where name = 'msg.message.StarSystem'", (err, res) => {
           if (res.rowCount == 1) {
-            console.log(`${msg.message.StarSystem} exists in the Database`)
+            console.log(`${msg.message.StarSystem} exists in the Database`);
           } else {
-            console.log(`${msg.message.StarSystem} does not exist in the Database`)
+            console.log(`${msg.message.StarSystem} does not exist in the Database`);
           }
         })
       }
