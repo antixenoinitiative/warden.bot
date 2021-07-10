@@ -1,7 +1,7 @@
 const zlib = require("zlib");
 const zmq = require("zeromq");
 const { Pool } = require('pg');
-const api = require('express')();
+const api = require('express')(); // Imports express and then creates an express object called api
 
 require("dotenv").config();
 
@@ -9,8 +9,6 @@ require("dotenv").config();
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetstate = "Boom"; //The current system state to check for (Incursion)
 let msg;
-
-console.log(mesAGE.header.timestamp);
 
 const pool = new Pool({ //credentials stored in .env file
   user: process.env.DBUSER,
@@ -53,16 +51,16 @@ api.listen(3000, () => {
 });
 
 api.get('/', (req, res) => res.json(  // When a request is made to the base dir, call the callback function json()
-  {
-    header: { // Contains data about the message
-      timestamp: `${new Date().toISOString()}`, // Sets timestamp to the current time in ISO8601 format.
-      softwareName: 'AXI Sentry', // Name of API
-      softwareVersion: '0.1',  // Arbituary number currently
-    },
-    message: { // The actual content of the message 
-      system: `${msg.message.timestamp}: ${targetstate} detected in system: ${msg.message.StarSystem}`   
+    {
+      header: { // Contains data about the message
+        timestamp: `${new Date().toISOString()}`, // Sets timestamp to the current time in ISO8601 format.
+        softwareName: 'AXI Sentry', // Name of API
+        softwareVersion: '0.1',  // Arbituary number currently
+      },
+      message: { // The actual content of the message 
+        system: `${msg.message.timestamp}: ${targetstate} detected in system: ${msg.message.StarSystem}`   
+      }
     }
-  }
   ),
 );
 
