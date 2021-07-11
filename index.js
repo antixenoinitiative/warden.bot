@@ -68,7 +68,7 @@ async function AddSystem (name) {
 // Returns the Database ID (integer) for the system name requested
 async function GetSysID (name) { 
   try {
-    const { rows } = await QuerySelect("system_id", "systems", "name", name)
+    const { rows } = QuerySelect("system_id", "systems", "name", name)
     return rows[0].system_id; // Return System_id
   } catch (err) {
     return 0; // Return 0 if system is not in the DB
@@ -82,21 +82,23 @@ async function run() {
   sock.subscribe('');
   console.log('EDDN listener connected to:', SOURCE_URL);
 
+  
+
   for await (const [src] of sock) {
     msg = JSON.parse(zlib.inflateSync(src));
+    const { StarSystem, StationFaction, timestamp } = msg.message;
     if (msg.$schemaRef == "https://eddn.edcd.io/schemas/journal/1") { //only process correct schema
-      const sysstate = msg.message.StationFaction?.FactionState;
+      const sysstate = StationFaction?.FactionState;
 
       if (sysstate == targetstate) {
-        console.log(`${msg.message.timestamp}: ${targetstate} detected in system: ${msg.message.StarSystem}`);
+        console.log(`${timestamp}: ${targetstate} detected in system: ${StarSystem}`);
 
-        if (await GetSysID(msg.message.StarSystem) == 0) { // Check if the system is in the DB
-          await AddSystem(msg.message.StarSystem); // Add the System to DB
-          console.log("System ID: " + await GetSysID(msg.message.StarSystem)); // Log the ID of the system added to DB
-
+        if (await GetSysID(StarSystem) == 0) { // Check if the system is in the DB
+          await AddSystem(StarSystem); // Add the System to DB
+          console.log("System ID: " + await GetSysID(StarSystem)); // Log the ID of the system added to DB
 
         } else {
-          console.log(msg.message.StarSystem + " exists in DB");
+          console.log(StarSystem + " exists in DB");
         }
       }
     }
