@@ -17,14 +17,14 @@ const pool = new Pool({ //credentials stored in .env file
   password: process.env.DBPASSWORD,
 })
 
-// Returns the Query for "SELECT criteria FROM table WHERE field = term"
-async function QuerySelect (criteria, table, field, term) {
+// Returns the Query for Select
+async function QuerySelect (column1, table, column2, value) {
   const client = await pool.connect();
   let res;
   try {
     await client.query('BEGIN');
     try {
-      res = await client.query("SELECT " + criteria + " FROM " + table + " WHERE " + field + " = '" + term + "'");
+      res = await client.query(`SELECT ${column1} FROM ${table} WHERE ${column2} = '${value}'`);
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -37,13 +37,13 @@ async function QuerySelect (criteria, table, field, term) {
 }
 
 // Create entry in table using three variables "INSERT INTO table (field) VALUES value" - NOT CURRENTLY IN USE
-async function QueryInsert (table, field, value) {
+async function QueryInsert (table, column, value) {
   const client = await pool.connect();
   let res;
   try {
     await client.query('BEGIN');
     try {
-      res = await client.query("INSERT INTO " + table + "(" + field + ") VALUES ('" + value + "')");
+      res = await client.query(`INSERT INTO ${table}(${column}) VALUES ('${value}')`);
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -57,8 +57,8 @@ async function QueryInsert (table, field, value) {
 }
 
 // Add a system to DB
-async function AddSystem (name) {
-  pool.query("INSERT INTO systems(name)VALUES('"+name+"')",(err, res) => {
+function AddSystem (name) {
+  pool.query(`INSERT INTO systems(name)VALUES('${name}')`,(err, res) => {
       console.log("System added to DB: " + name);
       // console.log(err + res);
     }
@@ -81,7 +81,7 @@ async function run() {
 
   sock.connect(SOURCE_URL);
   sock.subscribe('');
-  console.log('EDDN listener connected to:', SOURCE_URL);
+  console.log("[✔] EDDN Listener Connected: ", SOURCE_URL);
 
   for await (const [src] of sock) {
 
@@ -98,7 +98,7 @@ async function run() {
 
         if (await GetSysID(StarSystem) == 0) { // Check if the system is in the DB
 
-          await AddSystem(StarSystem); // Add the System to DB
+          AddSystem(StarSystem); // Add the System to DB
           console.log("System ID: " + await GetSysID(StarSystem)); // Log the ID of the system added to DB
 
         } else {
@@ -112,7 +112,7 @@ async function run() {
 
 // TEST API CODE
 api.listen(3000, () => { 
-  console.log('AXI Sentry is operational');  // Upon a successful connection will log to console
+  console.log('[✔] Sentry API Operational');  // Upon a successful connection will log to console
 });
 
 api.get('/', (req, res) => res.json(  // When a request is made to the base dir, call the callback function json()

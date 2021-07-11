@@ -6,7 +6,7 @@ This project is a work-in-progress
 ## How to use for development
 
 1. Download the repository and run `npm i`
-2. Create a PostgreSQL database
+2. Create a PostgreSQL database (Try https://customer.elephantsql.com/instance for a simple test server)
 3. Run the DB Query in [DBSETUP](/DBSETUP.md) to create the tables
 4. Create a file called `.env`, include your DB Secrets like so,
 
