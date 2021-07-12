@@ -5,7 +5,6 @@ const api = require('express')(); // Imports express and then creates an express
 
 require("dotenv").config();
 
-
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetState = "Boom"; //The current system state to check for (Incursion)
 let msg;
@@ -24,9 +23,10 @@ async function QuerySelect (column1, table, column2, value) {
   try {
     await client.query('BEGIN');
     try {
-      res = await client.query(`SELECT ${column1} FROM ${table} WHERE ${column2} = '${value}'`);
+      res = await client.query("SELECT "+ column1 +" FROM "+ table +" WHERE "+ column2 +" = '"+ value +"'");
       await client.query('COMMIT');
     } catch (err) {
+      console.log(err);
       await client.query('ROLLBACK');
       throw err;
     }
@@ -59,7 +59,6 @@ async function QueryInsert (table, column, value) {
 // Add a system to DB
 function AddSystem (name) {
   pool.query(`INSERT INTO systems(name)VALUES('${name}')`,(err, res) => {
-      console.log("System added to DB: " + name);
       // console.log(err + res);
     }
   );
@@ -94,16 +93,14 @@ async function run() {
 
       if (systemState == targetState) {
 
-        console.log(`${timestamp}: ${targetState} detected in system: ${StarSystem}`);
-
         if (await GetSysID(StarSystem) == 0) { // Check if the system is in the DB
 
           AddSystem(StarSystem); // Add the System to DB
-          console.log("System ID: " + await GetSysID(StarSystem)); // Log the ID of the system added to DB
+          console.log(`[${timestamp}] DETECTED: ${StarSystem} added to DB: ID: ` + await GetSysID(StarSystem)); // Log the ID of the system added to DB
 
         } else {
 
-          console.log(StarSystem + " exists in DB");
+          console.log(`[${timestamp}] DETECTED: ${StarSystem} exists in DB: ID: ` + await GetSysID(StarSystem));
         }
       }
     }
