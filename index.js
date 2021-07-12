@@ -74,7 +74,7 @@ async function GetSysID (name) {
   }
 }
 
-async function run() { 
+async function run() { // Main Function
 
   const sock = new zmq.Subscriber;
 
@@ -96,11 +96,11 @@ async function run() {
         if (await GetSysID(StarSystem) == 0) { // Check if the system is in the DB
 
           AddSystem(StarSystem); // Add the System to DB
-          console.log(`[${timestamp}] DETECTED: ${StarSystem} added to DB: ID: ` + await GetSysID(StarSystem)); // Log the ID of the system added to DB
+          console.log(`[${timestamp}]: [${StarSystem}] ADDED - ID: ` + await GetSysID(StarSystem)); // Log the ID of the system added to DB
 
         } else {
 
-          console.log(`[${timestamp}] DETECTED: ${StarSystem} exists in DB: ID: ` + await GetSysID(StarSystem));
+          console.log(`[${timestamp}]: [${StarSystem}] EXISTS - ID: ` + await GetSysID(StarSystem));
         }
       }
     }
