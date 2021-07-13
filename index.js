@@ -23,7 +23,7 @@ async function QuerySelect (column1, table, column2, value) {
   try {
     await client.query('BEGIN');
     try {
-      res = await client.query("SELECT "+ column1 +" FROM "+ table +" WHERE "+ column2 +" = '"+ value +"'");
+      res = await client.query(`SELECT ${column1} FROM ${table} WHERE ${column2} = $1`,[value]); //$1 is untrusted and sanitized
       await client.query('COMMIT');
     } catch (err) {
       console.log(err);
@@ -36,32 +36,11 @@ async function QuerySelect (column1, table, column2, value) {
   return res;
 }
 
-// Create entry in table using three variables "INSERT INTO table (field) VALUES value" - NOT CURRENTLY IN USE
-async function QueryInsert (table, column, value) {
-  const client = await pool.connect();
-  let res;
-  try {
-    await client.query('BEGIN');
-    try {
-      res = await client.query(`INSERT INTO ${table}(${column}) VALUES ('${value}')`);
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    }
-  } finally {
-    client.release();
-  }
-  console.log("Insert Result:" + res);
-  return res;
-}
-
 // Add a system to DB
 function AddSystem (name) {
-  pool.query(`INSERT INTO systems(name)VALUES('${name}')`,(err, res) => {
-      // console.log(err + res);
-    }
-  );
+  pool.query(`INSERT INTO systems(name)VALUES($1)`,[name],(err, res) => { //$1 is untrusted and sanitized
+    //console.log(err);
+  });
 }
 
 // Returns the Database ID (integer) for the system name requested
@@ -88,20 +67,20 @@ async function run() { // Main Function
     const { StarSystem, StationFaction, timestamp } = msg.message;
 
     if (msg.$schemaRef == "https://eddn.edcd.io/schemas/journal/1") { //only process correct schema
-
       const systemState = StationFaction?.FactionState;
-
       if (systemState == targetState) {
 
         if (await GetSysID(StarSystem) == 0) { // Check if the system is in the DB
 
-          AddSystem(StarSystem); // Add the System to DB
-          console.log(`[${timestamp}]: [${StarSystem}] ADDED - ID: ` + await GetSysID(StarSystem)); // Log the ID of the system added to DB
+          await AddSystem(StarSystem); // Add the System to DB
+          console.log(`[${timestamp}]: ADDED [${StarSystem}] ID: ` + await GetSysID(StarSystem)); // Log the ID of the system added to DB
 
         } else {
 
-          console.log(`[${timestamp}]: [${StarSystem}] EXISTS - ID: ` + await GetSysID(StarSystem));
+          console.log(`[${timestamp}]: EXISTS [${StarSystem}] ID: ` + await GetSysID(StarSystem));
         }
+      } else {
+        //console.log(`[${timestamp}]: SKIPPED [${StarSystem}]`);
       }
     }
   }
