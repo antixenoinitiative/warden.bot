@@ -1,14 +1,15 @@
+require("dotenv").config();
 const zlib = require("zlib");
 const zmq = require("zeromq");
 const { Pool } = require('pg');
 const api = require('express')(); // Imports express and then creates an express object called api
-
-require("dotenv").config();
-
-const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
-const targetState = "Boom"; //The current system state to check for (Incursion)
 let msg;
 
+// Settings
+const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
+const targetState = "Boom"; //The current system state to check for (Incursion)
+
+// Database Client Config
 const pool = new Pool({ //credentials stored in .env file
   user: process.env.DBUSER,
   host: process.env.DBHOST,
@@ -16,7 +17,7 @@ const pool = new Pool({ //credentials stored in .env file
   password: process.env.DBPASSWORD,
 })
 
-// Returns the Query for Select
+// Constructs and returns a SELECT query
 async function QuerySelect (column1, table, column2, value) {
   const client = await pool.connect();
   let res;
@@ -53,7 +54,8 @@ async function GetSysID (name) {
   }
 }
 
-async function run() { // Main Function
+// Primary Function
+async function run() {
 
   const sock = new zmq.Subscriber;
 
