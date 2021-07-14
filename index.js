@@ -35,10 +35,14 @@ async function querySelect (column1, table, column2, value) {
   try {
     await client.query('BEGIN');
     try {
-      res = await client.query(`SELECT ${column1} FROM ${table} WHERE ${column2} = $1`,[value]); //$1 is untrusted and sanitized
+      res = await client.query(
+        `SELECT ${column1} 
+        FROM ${table} 
+        WHERE ${column2} = $1`, [value] //$1 is untrusted and sanitized
+      ); 
       await client.query('COMMIT');
     } catch (err) {
-      console.log(err);
+      console.error(err);
       await client.query('ROLLBACK');
       throw err;
     }
@@ -50,17 +54,17 @@ async function querySelect (column1, table, column2, value) {
 
 // Add a system to DB
 async function addSystem (name) {
-  pool.query(`INSERT INTO systems(name)VALUES($1)`,[name],(err, res) => { //$1 is untrusted and sanitized
-    //console.log(err);
+  pool.query(`INSERT INTO systems(name)VALUES($1)`, [name], (err, res) => { //$1 is untrusted and sanitized
+    //console.error(err);
   });
 }
 
 // Add a incursion to DB
 function addIncursions (system_id) {
-  time = Math.floor(Date.now());
+  let time = Math.floor(new Date().getTime()); // Unix time
   //console.log(time);
-  pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`,[system_id,time],(err, res) => { //$1 is untrusted and sanitized
-    //console.log(err);
+  pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`, [system_id,time], (err, res) => { //$1 is untrusted and sanitized
+    //console.error(err);
   });
 }
 
@@ -90,7 +94,7 @@ async function getLastIncTime (system_id) {
     const { rows } = await querySelect("MAX(time)", "incursions", "system_id", system_id);
     return rows[0].max; // Return System_id
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 }
 
@@ -142,7 +146,13 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
 );
 
 api.get('/incursions', async function(req, res) {
-  const { rows } = await pool.query(`SELECT incursions.inc_id,systems.system_id,systems.name, incursions.time FROM incursions INNER JOIN systems ON incursions.system_id=systems.system_id;`);
+  const { rows } = 
+  await pool.query(
+    `SELECT incursions.inc_id,systems.system_id,systems.name, incursions.time 
+     FROM incursions 
+     INNER JOIN systems 
+     ON incursions.system_id=systems.system_id;`
+  );
   res.json(
     {
       header: {
@@ -174,4 +184,3 @@ api.get('/systems', async function(req, res) {
 );
 
 run();
-
