@@ -2,6 +2,7 @@ require("dotenv").config();
 const zlib = require("zlib");
 const zmq = require("zeromq");
 const { Pool } = require('pg');
+const { watch } = require("fs");
 const api = require('express')(); // Imports express and then creates an express object called api
 let msg;
 
@@ -17,17 +18,6 @@ const pool = new Pool({ //credentials stored in .env file
   password: process.env.DBPASSWORD,
 })
 
-// Returns the date for last x day
-function getLastDayOccurence (date, day) {
-  const d = new Date(date.getTime());
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat'];
-  if (days.includes(day)) {
-    const modifier = (d.getDay() + days.length - days.indexOf(day)) % 7 || 7;
-    d.setDate(d.getDate() - modifier);
-  }
-  return d;
-}
-
 // Constructs and returns a SELECT query
 async function querySelect (column1, table, column2, value) {
   const client = await pool.connect();
@@ -35,8 +25,8 @@ async function querySelect (column1, table, column2, value) {
   try {
     await client.query('BEGIN');
     try {
-      res = await client.query(
-        `SELECT ${column1} 
+      res = await client.query(`
+        SELECT ${column1} 
         FROM ${table} 
         WHERE ${column2} = $1`, [value] //$1 is untrusted and sanitized
       ); 
@@ -54,16 +44,26 @@ async function querySelect (column1, table, column2, value) {
 
 // Add a system to DB
 async function addSystem (name) {
-  pool.query(`INSERT INTO systems(name)VALUES($1)`, [name], (err, res) => { //$1 is untrusted and sanitized
+  pool.query(`INSERT INTO systems(name,status)VALUES($1,'1')`, [name], (err, res) => { //$1 is untrusted and sanitized
     //console.error(err);
   });
 }
 
 // Add a incursion to DB
-function addIncursions (system_id) {
+async function addIncursions (system_id) {
   let time = Math.floor(new Date().getTime()); // Unix time
   //console.log(time);
   pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`, [system_id,time], (err, res) => { //$1 is untrusted and sanitized
+    //console.error(err);
+  });
+}
+
+async function setStatus (name,status) {
+  pool.query(
+    `UPDATE systems
+    SET status = $1
+    WHERE name = $2;`
+    , [status,name], (err, res) => { //$1 is untrusted and sanitized
     //console.error(err);
   });
 }
@@ -98,29 +98,53 @@ async function getLastIncTime (system_id) {
   }
 }
 
+async function getWatchlist (name) { 
+  try {
+    let list = [];
+    const { rows } = await querySelect("name", "systems", "status", 1);
+    for (let i = 0; i < rows.length; i++) {
+      list.push(rows[i].name);
+    }
+    console.log(`Watchlist: ${list}`);
+    return list; // Return System_id
+  } catch (err) {
+    console.log(err); // Return 0 if system is not in the DB
+  }
+}
+
 // Primary Function
 async function run() {
   const sock = new zmq.Subscriber;
+
+  let watchlist = await getWatchlist();
 
   sock.connect(SOURCE_URL);
   sock.subscribe('');
   console.log("[✔] EDDN Listener Connected: ", SOURCE_URL);
 
-  for await (const [src] of sock) {
+  // ---- On Run() Testing
+  
+  // ----
+
+  for await (const [src] of sock) { // For each data packet
     msg = JSON.parse(zlib.inflateSync(src));
     const { StarSystem, StationFaction, timestamp } = msg.message;
     if (msg.$schemaRef == "https://eddn.edcd.io/schemas/journal/1") { //only process correct schema
-      if (StationFaction?.FactionState == targetState) {
-        if (await getSysID(StarSystem) == 0) { // Check if the system is in the DB
-          await addSystem(StarSystem); // Add the System to DB
-          console.log(`[${timestamp}]: ADDED SYSTEM: ${StarSystem}`);
-        }
-        let SysID = await getSysID(StarSystem);
-        if (await getLastIncTime(SysID) < getLastDayOccurence(new Date(), 'Thurs').getTime()) { // If the last logged incursion is before the last tick
-          addIncursions(SysID); // Log the Incursion to DB
-          console.log(`[${timestamp}]: LOGGED INCURSION ID: ` + await getIncID(SysID));
+
+      if (watchlist.includes(StarSystem)) { // Check in watchlist
+        if (StationFaction?.FactionState == targetState) { // Check if the system is under Incursion
+          await addIncursions(await getSysID(StarSystem));
+          watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         } else {
-          console.log(`[${timestamp}]: SKIPPED`);
+          setStatus(StarSystem,0);
+          console.log(`${StarSystem} removed from Watchlist`)
+          watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+        }
+      } else { // Not in watchlist
+        if (StationFaction?.FactionState == targetState) { // Check if the system is under Incursion
+          await addSystem(StarSystem);
+          await addIncursions(await getSysID(StarSystem));
+          watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         }
       }
     }
