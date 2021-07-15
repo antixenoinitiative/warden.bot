@@ -130,10 +130,12 @@ async function run() {
     msg = JSON.parse(zlib.inflateSync(src));
     const { StarSystem, StationFaction, timestamp } = msg.message;
     if (msg.$schemaRef == "https://eddn.edcd.io/schemas/journal/1") { //only process correct schema
+      console.log(`Checking: ${StarSystem}`);
 
       if (watchlist.includes(StarSystem)) { // Check in watchlist
         if (StationFaction?.FactionState == targetState) { // Check if the system is under Incursion
           await addIncursions(await getSysID(StarSystem));
+          console.log(`Incursion Logged: ${StarSystem}`);
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         } else {
           setStatus(StarSystem,0);
@@ -143,7 +145,9 @@ async function run() {
       } else { // Not in watchlist
         if (StationFaction?.FactionState == targetState) { // Check if the system is under Incursion
           await addSystem(StarSystem);
+          console.log(`System Logged: ${StarSystem}`);
           await addIncursions(await getSysID(StarSystem));
+          console.log(`Incursion Logged: ${StarSystem}`);
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         }
       }
