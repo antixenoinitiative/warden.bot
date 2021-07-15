@@ -8,7 +8,7 @@ let msg;
 
 // Settings
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
-const targetState = "Boom"; //The current system state to check for (Incursion)
+const targetState = "Incursion"; //The current system state to check for (Incursion)
 
 // Database Client Config
 const pool = new Pool({ //credentials stored in .env file
@@ -169,7 +169,7 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
   ),
 );
 
-api.get('/incursions', async function(req, res) {
+api.get('/allincursions', async function(req, res) {
   const { rows } = 
   await pool.query(
     `SELECT incursions.inc_id,systems.system_id,systems.name, incursions.time 
@@ -191,8 +191,8 @@ api.get('/incursions', async function(req, res) {
   },
 );
 
-api.get('/systems', async function(req, res) {
-  const { rows } = await pool.query(`SELECT * FROM systems`);
+api.get('/incursions', async function(req, res) {
+  const { rows } = await pool.query(`SELECT * FROM systems WHERE status = '1'`);
   res.json(
     {
       header: {
