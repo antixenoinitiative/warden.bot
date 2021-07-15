@@ -1,4 +1,4 @@
-# Sentry
+# AXI Sentry
 The AXI Sentry system monitors and records Thargoid Incursions in the game Elite: Dangerous.
 
 Sentry takes data from the [Elite Dangerous Data Network](https://github.com/EDCD/EDDN), the data is processed and filtered for certain system states and stores it in a PostgreSQL database.
