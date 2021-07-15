@@ -8,7 +8,7 @@ let msg;
 
 // Settings
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
-const targetState = "Boom"; //The current system state to check for (Incursion)
+const targetState = "Incursion"; //The current system state to check for (Incursion)
 
 // Database Client Config
 const pool = new Pool({ //credentials stored in .env file
