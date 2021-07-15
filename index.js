@@ -130,7 +130,6 @@ async function run() {
     msg = JSON.parse(zlib.inflateSync(src));
     const { StarSystem, StationFaction, timestamp } = msg.message;
     if (msg.$schemaRef == "https://eddn.edcd.io/schemas/journal/1") { //only process correct schema
-      console.log(`Checking: ${StarSystem}`);
 
       if (watchlist.includes(StarSystem)) { // Check in watchlist
         if (StationFaction?.FactionState == targetState) { // Check if the system is under Incursion
