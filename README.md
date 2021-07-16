@@ -15,7 +15,7 @@ The following diagram explains the flow of data through AXI Sentry:
 
 - http://sentry.antixenoinitiative.com:3000/
 - http://sentry.antixenoinitiative.com:3000/incursions
-- http://sentry.antixenoinitiative.com:3000/allincursions
+- http://sentry.antixenoinitiative.com:3000/incursionshistory
 
 ## How to use for development
 
