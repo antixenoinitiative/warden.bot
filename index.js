@@ -8,7 +8,8 @@ let msg;
 
 // Settings
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
-const targetState = "Incursion"; //The current system state to check for (Incursion)
+const targetAllegiance = "Thargoid"; //The current system state to check for (Incursion)
+const targetGovernment = "$government_Dictatorship;";
 
 // Database Client Config
 const pool = new Pool({ //credentials stored in .env file
@@ -128,11 +129,9 @@ async function run() {
 
   for await (const [src] of sock) { // For each data packet
     msg = JSON.parse(zlib.inflateSync(src));
-    const { StarSystem, StationFaction, timestamp } = msg.message;
-    if (msg.$schemaRef == "https://eddn.edcd.io/schemas/journal/1") { //only process correct schema
-
+    const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
       if (watchlist.includes(StarSystem)) { // Check in watchlist
-        if (StationFaction?.FactionState == targetState) { // Check if the system is under Incursion
+        if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
           await addIncursions(await getSysID(StarSystem));
           console.log(`Incursion Logged: ${StarSystem}`);
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
@@ -142,7 +141,7 @@ async function run() {
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         }
       } else { // Not in watchlist
-        if (StationFaction?.FactionState == targetState) { // Check if the system is under Incursion
+        if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
           await addSystem(StarSystem);
           console.log(`System Logged: ${StarSystem}`);
           await addIncursions(await getSysID(StarSystem));
@@ -150,7 +149,6 @@ async function run() {
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         }
       }
-    }
   }
 }
 
