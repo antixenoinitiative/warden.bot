@@ -166,13 +166,17 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
         softwareName: 'AXI Sentry', // Name of API
         softwareVersion: '0.1',  // Arbituary number currently
       },
-      message: { // The actual content of the message
+      message: {
+        endpoints: {
+          incursions: 'https://sentry.antixenoinitiative.com/incursions',
+          incursionshistory: 'https://sentry.antixenoinitiative.com/incursionshistory'
+        }
       }
     }
   ),
 );
 
-api.get('/allincursions', async function(req, res) {
+api.get('/incursionshistory', async function(req, res) {
   const { rows } = 
   await pool.query(
     `SELECT incursions.inc_id,systems.system_id,systems.name, incursions.time 
