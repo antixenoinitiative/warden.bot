@@ -168,8 +168,8 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
       },
       message: {
         endpoints: {
-          incursions: 'https://sentry.antixenoinitiative.com/incursions',
-          incursionshistory: 'https://sentry.antixenoinitiative.com/incursionshistory'
+          incursions: 'https://sentry.antixenoinitiative.com:3000/incursions',
+          incursionshistory: 'https://sentry.antixenoinitiative.com:3000/incursionshistory'
         }
       }
     }
