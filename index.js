@@ -131,7 +131,6 @@ async function run() {
     msg = JSON.parse(zlib.inflateSync(src));
     const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
       if (watchlist.includes(StarSystem)) { // Check in watchlist
-        console.log(`${StarSystem} detected in watchlist - [${SystemAllegiance}] - [${SystemGovernment}]`);
         if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
           addIncursions(await getSysID(StarSystem));
           console.log(`Incursion Logged: ${StarSystem}`);
