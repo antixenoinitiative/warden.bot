@@ -131,22 +131,31 @@ async function run() {
     msg = JSON.parse(zlib.inflateSync(src));
     const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
       if (watchlist.includes(StarSystem)) { // Check in watchlist
+        console.log(`${StarSystem} detected in watchlist - [${SystemAllegiance}] - [${SystemGovernment}]`);
         if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-          await addIncursions(await getSysID(StarSystem));
+          addIncursions(await getSysID(StarSystem));
           console.log(`Incursion Logged: ${StarSystem}`);
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         } else {
-          setStatus(StarSystem,0);
+          await setStatus(StarSystem,0);
           console.log(`${StarSystem} removed from Watchlist`)
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         }
       } else { // Not in watchlist
+        console.log(`${StarSystem} not in watchlist - [${SystemAllegiance}] - [${SystemGovernment}]`);
         if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-          await addSystem(StarSystem);
-          console.log(`System Logged: ${StarSystem}`);
-          await addIncursions(await getSysID(StarSystem));
-          console.log(`Incursion Logged: ${StarSystem}`);
-          watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+          if (await getSysID(StarSystem) == 0) {
+            await addSystem(StarSystem);
+            console.log(`System Logged: ${StarSystem}`);
+            addIncursions(await getSysID(StarSystem));
+            console.log(`Incursion Logged: ${StarSystem}`);
+            watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+          } else {
+            await setStatus(StarSystem, 1);
+            console.log(`Status set to active: ${StarSystem}`);
+            addIncursions(await getSysID(StarSystem));
+            watchlist = await getWatchlist();
+          }
         }
       }
   }
