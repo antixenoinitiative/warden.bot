@@ -219,4 +219,20 @@ api.get('/incursions', async function(req, res) {
   },
 );
 
+api.get('/systems', async function(req, res) {
+  const { rows } = await pool.query(`SELECT * FROM systems`);
+  res.json(
+    {
+      header: {
+        timestamp: `${new Date().toISOString()}`,
+        softwareName: 'AXI Sentry',
+        softwareVersion: '0.1',
+      },
+      message: {
+        systems: rows, // The actual content of the message
+      }
+    })
+  },
+);
+
 run();
