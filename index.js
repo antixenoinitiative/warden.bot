@@ -141,7 +141,6 @@ async function run() {
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         }
       } else { // Not in watchlist
-        console.log(`${StarSystem} not in watchlist - [${SystemAllegiance}] - [${SystemGovernment}]`);
         if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
           if (await getSysID(StarSystem) == 0) {
             await addSystem(StarSystem);
