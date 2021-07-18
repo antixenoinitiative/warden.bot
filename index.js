@@ -15,9 +15,9 @@ let msg;
 let watchlist;
 
 //------------------ DEV SWITCHES ------------------
-const enableSentry = 1; // Set to 0 to disable sentry listener from running
+const enableIncursionListener = 0; // Set to 0 to disable EDDN listener from running
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-const enableAPI = 1; // Set to 0 to disable API from running
+const enableAPI = 0; // Set to 0 to disable API from running
 
 //Discord client setup
 const discordClient = new Discord.Client()
@@ -52,10 +52,10 @@ async function querySelect (column1, table, column2, value) {
     await client.query('BEGIN');
     try {
       res = await client.query(`
-        SELECT ${column1} 
-        FROM ${table} 
+        SELECT ${column1}
+        FROM ${table}
         WHERE ${column2} = $1`, [value] //$1 is untrusted and sanitized
-      ); 
+      );
       await client.query('COMMIT');
     } catch (err) {
       console.error(err);
@@ -112,7 +112,7 @@ async function setStatus (name,status) {
 }
 
 // Returns the Database ID (integer) for the system name requested
-async function getSysID (name) { 
+async function getSysID (name) {
   try {
     const { rows } = await querySelect("system_id", "systems", "name", name);
     return rows[0].system_id; // Return System_id
@@ -122,7 +122,7 @@ async function getSysID (name) {
 }
 
 // Returns the IDs of all incursions for the system_id requested
-async function getIncID (system_id) { 
+async function getIncID (system_id) {
   try {
     const { rows } = await querySelect("inc_id", "incursions", "system_id", system_id);
     return rows[0].inc_id; // Return System_id
@@ -154,7 +154,7 @@ async function getPresence (system_id) {
 }
 
 // Fetch a new watchlist from the current incursion systems
-async function getWatchlist (name) { 
+async function getWatchlist (name) {
   try {
     let list = [];
     const { rows } = await querySelect("name", "systems", "status", 1);
@@ -220,7 +220,7 @@ async function run() {
 
 // API Code
 if (enableAPI == 1) {
-  api.listen(3000,() => { 
+  api.listen(3000,() => {
     console.log('[✔] Sentry API Operational');  // Upon a successful connection will log to console
   });
 } else { console.error(`WARN: API Disabled`)}
@@ -243,11 +243,11 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
 );
 
 api.get('/incursionshistory', async function(req, res) {
-  const { rows } = 
+  const { rows } =
   await pool.query(
-    `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time 
-     FROM incursions 
-     INNER JOIN systems 
+    `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time
+     FROM incursions
+     INNER JOIN systems
      ON incursions.system_id=systems.system_id;`
   );
   res.json(
@@ -368,9 +368,11 @@ discordClient.on("message", msg => {
       .textDetection(url)
       // .textDetection("./testImage.png")
       .then((results) => {
-        console.log("Reply recieved")
+        console.log("Reply recieved in " + Date.now() - msg.createdTimestamp + "ms")
+				msg.reactions.removeAll()
         if(results[0].error != null) {
           console.log("ERROR: " + results[0].error.message)
+					msg.react("❌")
           return
         }
         console.log(results[0])
@@ -402,6 +404,7 @@ discordClient.on("message", msg => {
           returnEmbed.addField(field.name, field.value)
         })
         msg.channel.send({ embed: returnEmbed })
+				msg.react("✔️")
       })
   }
 })
@@ -422,7 +425,7 @@ function parseIncursionSystems(text) {
   systemList.forEach((item) => {
     const system = item.substring(0, item.indexOf(":"))
     if(system.indexOf("[") != -1) {
-      returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 1) + "] <:tharg_r:417424014861008907>\n"
+      returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 2, item.length - 1) + "] <:tharg_r:417424014861008907>\n"
     }
     else {
       returnStr += "- " + system + " [Thargoid presence eliminated] <:tharg_g:417424014525333506>\n"
@@ -432,10 +435,15 @@ function parseIncursionSystems(text) {
 }
 
 function parseDamagedStarports(text) {
-  const starportList = text.substring(text.indexOf("Update") + 6)
-  return starportList
+  const starportList = text.substring(text.indexOf("Update") + 7).split("\n")
+	let returnStr = "The following stations have been attacked and may require assistance:"
+	console.log(starportList)
+	for(var i = 1; i < starportList.length - 1; i++) {
+		returnStr += "\n- " + starportList[i] + "🔥"
+	}
+  return returnStr
 }
 
 // Switch Statements
 if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
-if (enableSentry == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
+if (enableIncursionListener == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
