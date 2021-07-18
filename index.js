@@ -137,7 +137,7 @@ async function run() {
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         } else {
           await setStatus(StarSystem,0);
-          console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegience}], gov = [${SystemGovernment}]`)
+          console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
           watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
         }
       } else { // Not in watchlist
