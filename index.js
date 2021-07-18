@@ -1,15 +1,34 @@
 require("dotenv").config();
 const zlib = require("zlib");
-const zmq = require("zeromq");
+const fs = require('fs');
 const { Pool } = require('pg');
-const { watch } = require("fs");
+const zmq = require("zeromq");
 const api = require('express')(); // Imports express and then creates an express object called api
-let msg;
+const Discord = require("discord.js")
 
-// Settings
+//Discord client setup
+const discordClient = new Discord.Client()
+discordClient.commands = new Discord.Collection();
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+for (const file of commandFiles) {
+	const command = require(`./commands/${file}`);
+	// set a new item in the Collection
+	// with the key as the command name and the value as the exported module
+	discordClient.commands.set(command.name, command);
+}
+
+//Google Client
+const vision = require("@google-cloud/vision")
+const googleClient = new vision.ImageAnnotatorClient({
+  keyFilename: "./cloudAPIKey.json",
+})
+
+// Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetAllegiance = "Thargoid"; //The current system state to check for (Incursion)
 const targetGovernment = "$government_Dictatorship;";
+const prefix = "#"
+let msg;
 
 // Database Client Config
 const pool = new Pool({ //credentials stored in .env file
@@ -161,7 +180,7 @@ async function run() {
   }
 }
 
-// TEST API CODE
+// API Code
 api.listen(3000,() => { 
   console.log('[✔] Sentry API Operational: http://localhost:3000/');  // Upon a successful connection will log to console
 });
@@ -236,5 +255,133 @@ api.get('/systems', async function(req, res) {
     })
   },
 );
+
+//Discord client
+discordClient.on("ready", () => {
+  console.log(`Logged in as ${discordClient.user.tag}!`);
+})
+
+discordClient.on('message', message => {
+	if (!message.content.startsWith(prefix) || message.author.bot) return;
+
+	const args = message.content.slice(prefix.length).trim().split(/ +/);
+	const commandName = args.shift().toLowerCase();
+
+	if (!discordClient.commands.has(commandName)) return;
+
+  const command = discordClient.commands.get(commandName);
+
+  if (command.args && !args.length) {
+    let reply = `You didn't provide any arguments, ${message.author}!`;
+
+    if (command.usage) {
+      reply = `Expected usage: \`${prefix}${command.name} ${command.usage}\``;
+    }
+
+    return message.channel.send(reply);
+  }
+
+	try {
+		command.execute(message, args);
+	} catch (error) {
+		console.error(error);
+		message.reply('there was an error trying to execute that command!');
+	}
+});
+
+discordClient.on("message", msg => {
+  if (msg.author.bot) {return;}
+
+  // const command = msg.content
+  // const image = msg.attachments
+
+
+  if (msg.content === "ping") {
+    msg.channel.send("Pong")
+  }
+  if (msg.content === "die") {
+    console.log('Shutting down')
+    discordClient.destroy();
+  }
+  if(msg.attachments.size > 0 && msg.attachments.every(attachIsImage)) {
+    const attachment = msg.attachments.array()[0]
+    if(attachment.size > 4000000) return
+    // msg.channel.send("Processing...")
+		msg.react("🤔")
+    console.log("Sending image...")
+    const url = attachment.url
+    googleClient
+      .textDetection(url)
+      // .textDetection("./testImage.png")
+      .then((results) => {
+        console.log("Reply recieved")
+        if(results[0].error != null) {
+          console.log("ERROR: " + results[0].error.message)
+          return
+        }
+        console.log(results[0])
+        const visionText = results[0].textAnnotations[0].description
+        console.log(visionText.indexOf("\n"))
+        // console.log(visionText.indexOf("Startport Status Update"))
+        var fieldArray = []
+        let messageToReturn = "Confirmed Target Systems in order of priority (Top to Bottom)"
+        if(visionText.indexOf("no reports of") != -1) {
+          //No incursion case
+          messageToReturn += "\n \n Status: **CODE YELLOW** :yellow_square:"
+          fieldArray.push({ name: "**Incursions:**", value: "No Incursions detected. Please aid with starport repairs and standby for additional attacks."})
+        }
+        else {
+          //yes incursion case
+          messageToReturn += "\n \n Status: **CODE RED** :red_square:"
+          fieldArray.push({ name: "**Incursions:**", value: parseIncursionSystems(visionText)})
+        }
+        if(visionText.indexOf("Starport Status Update") != -1) {
+          fieldArray.push({ name: "**Evacuations:**", value: parseDamagedStarports(visionText)})
+        }
+        console.log(fieldArray)
+        const returnEmbed = new Discord.MessageEmbed()
+          .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+          .setTitle("**Defense Targets**")
+          .setDescription(messageToReturn)
+          .setTimestamp()
+        fieldArray.forEach((field) => {
+          returnEmbed.addField(field.name, field.value)
+        })
+        msg.channel.send({ embed: returnEmbed })
+      })
+  }
+})
+
+function attachIsImage(msgAttach) {
+  const url = msgAttach.url;
+  //True if this url is a png image.
+  return url.indexOf("png", url.length - "png".length /*or 3*/) !== -1 || url.indexOf("jpg", url.length - "jpg".length /*or 3*/) !== -1;
+}
+
+function parseIncursionSystems(text) {
+  let systemList = text.substring(text.indexOf(":\n") + 2)
+  if(systemList.indexOf("have been attacked") != -1) systemList = systemList.substring(0, systemList.indexOf("Starport"))
+  systemList = systemList.split("\n")
+	console.log(systemList)
+  let returnStr = "\n"
+	if(systemList[systemList.length-1] == '') systemList.pop()
+  systemList.forEach((item) => {
+    const system = item.substring(0, item.indexOf(":"))
+    if(system.indexOf("[") != -1) {
+      returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 1) + "] :tharg_r:\n"
+    }
+    else {
+      returnStr += "- " + system + " [Thargoid presence eliminated] :tharg_g:\n"
+    }
+  })
+  return returnStr
+}
+
+function parseDamagedStarports(text) {
+  const starportList = text.substring(text.indexOf("Update") + 6)
+  return starportList
+}
+
+discordClient.login(process.env.TOKEN)
 
 run();
