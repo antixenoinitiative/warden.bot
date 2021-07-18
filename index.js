@@ -6,10 +6,18 @@ const zmq = require("zeromq");
 const api = require('express')(); // Imports express and then creates an express object called api
 const Discord = require("discord.js")
 
+// Global Variables
+const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
+const targetAllegiance = "Thargoid"; //The current system state to check for (Incursion)
+const targetGovernment = "$government_Dictatorship;";
+const prefix = "-"
+let msg;
+let watchlist;
+
 //------------------ DEV SWITCHES ------------------
 const enableSentry = 0; // Set to 0 to disable sentry from running
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-const enableAPI = 0; // Set to 0 to disable API from running
+const enableAPI = 1; // Set to 0 to disable API from running
 
 //Discord client setup
 const discordClient = new Discord.Client()
@@ -27,13 +35,6 @@ const vision = require("@google-cloud/vision")
 const googleClient = new vision.ImageAnnotatorClient({
   keyFilename: "./cloudAPIKey.json",
 })
-
-// Global Variables
-const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
-const targetAllegiance = "Thargoid"; //The current system state to check for (Incursion)
-const targetGovernment = "$government_Dictatorship;";
-const prefix = "-"
-let msg;
 
 // Database Client Config
 const pool = new Pool({ //credentials stored in .env file
@@ -141,7 +142,7 @@ async function getWatchlist (name) {
 async function run() {
   const sock = new zmq.Subscriber;
 
-  let watchlist = await getWatchlist();
+  watchlist = await getWatchlist();
 
   sock.connect(SOURCE_URL);
   sock.subscribe('');
@@ -163,7 +164,7 @@ async function run() {
         } else {
           await setStatus(StarSystem,0);
           console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
-          watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+          watchlist = await getWatchlist();
         }
       } else { // Not in watchlist
         if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
@@ -172,7 +173,7 @@ async function run() {
             console.log(`System Logged: ${StarSystem}`);
             addIncursions(await getSysID(StarSystem));
             console.log(`Incursion Logged: ${StarSystem}`);
-            watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+            watchlist = await getWatchlist();
           } else {
             await setStatus(StarSystem, 1);
             console.log(`Status set to active: ${StarSystem}`);
@@ -188,7 +189,7 @@ async function run() {
 // API Code
 if (enableAPI == 1) {
   api.listen(3000,() => { 
-    console.log('[✔] Sentry API Operational: http://localhost:3000/');  // Upon a successful connection will log to console
+    console.log('[✔] Sentry API Operational');  // Upon a successful connection will log to console
   });
 } else { console.error(`WARN: API Disabled`)}
 
@@ -212,7 +213,7 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
 api.get('/incursionshistory', async function(req, res) {
   const { rows } = 
   await pool.query(
-    `SELECT incursions.inc_id,systems.system_id,systems.name, incursions.time 
+    `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time 
      FROM incursions 
      INNER JOIN systems 
      ON incursions.system_id=systems.system_id;`
@@ -306,10 +307,24 @@ discordClient.on("message", msg => {
   if (msg.content === "ping") {
     msg.channel.send("Pong")
   }
+  if (msg.content === `${prefix}getincursions`) {
+    pool.query(`SELECT * FROM systems WHERE status = '1'`).then((ans) => {
+      const returnEmbed = new Discord.MessageEmbed()
+          .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+          .setTitle("**Active Incursions**")
+          .setDescription("Current systems under incursion.")
+          .setTimestamp()
+          for (let i = 0; i < ans.rows.length; i++) {
+            returnEmbed.addField(ans.rows[i].name, `Active`)
+          }
+          msg.channel.send({ embed: returnEmbed })
+    });
+  }
+  /* Disabled - This will kill the entire process stack, including Sentry and API
   if (msg.content === "die") {
     console.log('Shutting down')
     discordClient.destroy();
-  }
+  }*/
   if(msg.attachments.size > 0 && msg.attachments.every(attachIsImage)) {
     const attachment = msg.attachments.array()[0]
     if(attachment.size > 4000000) return
