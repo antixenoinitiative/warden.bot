@@ -156,6 +156,7 @@ async function getWatchlist (name) {
   }
 }
 
+// System processing logic
 async function processSystem(msg) {
   const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
   if (SystemAllegiance != undefined) {
@@ -188,7 +189,7 @@ async function processSystem(msg) {
   }
 }
 
-// Listener
+// Sentry Listener
 async function run() {
   const sock = new zmq.Subscriber;
 
@@ -201,7 +202,7 @@ async function run() {
   // Data Stream Loop
   for await (const [src] of sock) { // For each data packet
     msg = JSON.parse(zlib.inflateSync(src));
-    processSystem(msg)
+    processSystem(msg);
   }
 }
 

@@ -12,3 +12,8 @@ CREATE TABLE incursions (
   system_id         int,
   time              bigint
 );
+CREATE TABLE presence (
+  system_id         int,
+  presence_lvl      int,
+  time              bigint
+);
