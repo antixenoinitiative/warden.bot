@@ -162,7 +162,7 @@ async function run() {
 }
 
 // TEST API CODE
-api.listen(3000, () => { 
+api.listen(80,() => { 
   console.log('[✔] Sentry API Operational: http://localhost:3000/');  // Upon a successful connection will log to console
 });
 
