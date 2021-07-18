@@ -7,9 +7,9 @@ const api = require('express')(); // Imports express and then creates an express
 const Discord = require("discord.js")
 
 //------------------ DEV SWITCHES ------------------
-const enableSentry = 0; // Set to 0 to disable sentry from running
-const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
-const enableAPI = 0; // Set to 0 to disable API from running
+const enableSentry = 1; // Set to 0 to disable sentry from running
+const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableAPI = 1; // Set to 0 to disable API from running
 
 //Discord client setup
 const discordClient = new Discord.Client()
