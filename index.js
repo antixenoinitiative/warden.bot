@@ -15,7 +15,7 @@ let msg;
 let watchlist;
 
 //------------------ DEV SWITCHES ------------------
-const enableSentry = 0; // Set to 0 to disable sentry from running
+const enableSentry = 1; // Set to 0 to disable sentry listener from running
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 const enableAPI = 1; // Set to 0 to disable API from running
 
@@ -75,7 +75,7 @@ async function addSystem (name) {
   });
 }
 
-// Add a incursion to DB
+// Add an incursion to DB
 async function addIncursions (system_id) {
   let time = Math.floor(new Date().getTime()); // Unix time
   //console.log(time);
@@ -84,6 +84,23 @@ async function addIncursions (system_id) {
   });
 }
 
+// Add a presence level to DB by name (system id, presence level as integer 0-5)
+async function addPresence (id, presence) {
+  let time = Math.floor(new Date().getTime()); // Unix time
+  //console.log(time);
+  pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [id,presence,time], (err, res) => { //$1 is untrusted and sanitized
+    //console.error(err + res);
+  });
+}
+
+// Add a presence level to DB by name (system name, presence level as integer 0-5)
+function addPresenceByName (name, presence) {
+  getSysID(name).then((res) => {
+    addPresence(res,presence);
+  })
+}
+
+// Set the current incursion status of a system (1 = active, 0 = inactive)
 async function setStatus (name,status) {
   pool.query(
     `UPDATE systems
@@ -114,7 +131,7 @@ async function getIncID (system_id) {
   }
 }
 
-//Gets the most recent incursion time for a system id.
+// Gets the most recent incursion time for a system id.
 async function getLastIncTime (system_id) {
   try {
     const { rows } = await querySelect("MAX(time)", "incursions", "system_id", system_id);
@@ -124,6 +141,7 @@ async function getLastIncTime (system_id) {
   }
 }
 
+// Fetch a new watchlist from the current incursion systems
 async function getWatchlist (name) { 
   try {
     let list = [];
@@ -138,7 +156,39 @@ async function getWatchlist (name) {
   }
 }
 
-// Primary Function
+async function processSystem(msg) {
+  const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
+  if (SystemAllegiance != undefined) {
+    if (watchlist.includes(StarSystem)) { // Check in watchlist
+      if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
+        addIncursions(await getSysID(StarSystem));
+        console.log(`Incursion Logged: ${StarSystem}`);
+        watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+      } else {
+        await setStatus(StarSystem,0);
+        console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
+        watchlist = await getWatchlist();
+      }
+    } else { // Not in watchlist
+      if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
+        if (await getSysID(StarSystem) == 0) {
+          await addSystem(StarSystem);
+          console.log(`System Logged: ${StarSystem}`);
+          addIncursions(await getSysID(StarSystem));
+          console.log(`Incursion Logged: ${StarSystem}`);
+          watchlist = await getWatchlist();
+        } else {
+          await setStatus(StarSystem, 1);
+          console.log(`Status set to active: ${StarSystem}`);
+          addIncursions(await getSysID(StarSystem));
+          watchlist = await getWatchlist();
+        }
+      }
+    }
+  }
+}
+
+// Listener
 async function run() {
   const sock = new zmq.Subscriber;
 
@@ -148,41 +198,10 @@ async function run() {
   sock.subscribe('');
   console.log("[✔] EDDN Listener Connected: ", SOURCE_URL);
 
-  // ---- On Run() Testing
-  
-  // ----
-
+  // Data Stream Loop
   for await (const [src] of sock) { // For each data packet
     msg = JSON.parse(zlib.inflateSync(src));
-    const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
-    if (SystemAllegiance != undefined) {
-      if (watchlist.includes(StarSystem)) { // Check in watchlist
-        if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-          addIncursions(await getSysID(StarSystem));
-          console.log(`Incursion Logged: ${StarSystem}`);
-          watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
-        } else {
-          await setStatus(StarSystem,0);
-          console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
-          watchlist = await getWatchlist();
-        }
-      } else { // Not in watchlist
-        if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-          if (await getSysID(StarSystem) == 0) {
-            await addSystem(StarSystem);
-            console.log(`System Logged: ${StarSystem}`);
-            addIncursions(await getSysID(StarSystem));
-            console.log(`Incursion Logged: ${StarSystem}`);
-            watchlist = await getWatchlist();
-          } else {
-            await setStatus(StarSystem, 1);
-            console.log(`Status set to active: ${StarSystem}`);
-            addIncursions(await getSysID(StarSystem));
-            watchlist = await getWatchlist();
-          }
-        }
-      }
-    }
+    processSystem(msg)
   }
 }
 
