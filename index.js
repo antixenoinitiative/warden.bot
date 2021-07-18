@@ -307,7 +307,7 @@ discordClient.on("message", msg => {
   if (msg.content === "ping") {
     msg.channel.send("Pong")
   }
-  if (msg.content === `${prefix}getincursions`) {
+  if (msg.content === `${prefix}getincursions`) { // This command cannot be moved to a command file due to dependancies.
     pool.query(`SELECT * FROM systems WHERE status = '1'`).then((ans) => {
       const returnEmbed = new Discord.MessageEmbed()
           .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
