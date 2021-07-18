@@ -130,6 +130,7 @@ async function run() {
   for await (const [src] of sock) { // For each data packet
     msg = JSON.parse(zlib.inflateSync(src));
     const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
+    if (SystemAllegiance != undefined) {
       if (watchlist.includes(StarSystem)) { // Check in watchlist
         if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
           addIncursions(await getSysID(StarSystem));
@@ -156,6 +157,7 @@ async function run() {
           }
         }
       }
+    }
   }
 }
 
