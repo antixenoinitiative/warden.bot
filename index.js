@@ -141,6 +141,18 @@ async function getLastIncTime (system_id) {
   }
 }
 
+// Gets the most recent system presence for a system id.
+async function getPresence (system_id) {
+  try {
+    let { rows } = await querySelect("MAX(time)", "presence", "system_id", system_id);
+    system_id = rows[0].max;
+    let result = await querySelect("presence_lvl", "presence", "time", system_id);
+    return result.rows[0].presence_lvl; // Return Presence
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 // Fetch a new watchlist from the current incursion systems
 async function getWatchlist (name) { 
   try {
@@ -423,6 +435,10 @@ function parseDamagedStarports(text) {
   const starportList = text.substring(text.indexOf("Update") + 6)
   return starportList
 }
+
+getPresence(1).then((ans) => {
+  console.log(ans);
+})
 
 // Switch Statements
 if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
