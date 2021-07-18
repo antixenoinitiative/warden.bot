@@ -15,7 +15,7 @@ let msg;
 let watchlist;
 
 //------------------ DEV SWITCHES ------------------
-const enableSentry = 1; // Set to 0 to disable sentry listener from running
+const enableListener = 1; // Set to 0 to disable listener from running
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 const enableAPI = 1; // Set to 0 to disable API from running
 
@@ -438,4 +438,4 @@ function parseDamagedStarports(text) {
 
 // Switch Statements
 if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
-if (enableSentry == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
+if (enableListener == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
