@@ -436,10 +436,6 @@ function parseDamagedStarports(text) {
   return starportList
 }
 
-getPresence(1).then((ans) => {
-  console.log(ans);
-})
-
 // Switch Statements
 if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
 if (enableSentry == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
