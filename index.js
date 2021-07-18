@@ -6,6 +6,11 @@ const zmq = require("zeromq");
 const api = require('express')(); // Imports express and then creates an express object called api
 const Discord = require("discord.js")
 
+//------------------ DEV SWITCHES ------------------
+const enableSentry = 0; // Set to 0 to disable sentry from running
+const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
+const enableAPI = 0; // Set to 0 to disable API from running
+
 //Discord client setup
 const discordClient = new Discord.Client()
 discordClient.commands = new Discord.Collection();
@@ -181,9 +186,11 @@ async function run() {
 }
 
 // API Code
-api.listen(3000,() => { 
-  console.log('[✔] Sentry API Operational: http://localhost:3000/');  // Upon a successful connection will log to console
-});
+if (enableAPI == 1) {
+  api.listen(3000,() => { 
+    console.log('[✔] Sentry API Operational: http://localhost:3000/');  // Upon a successful connection will log to console
+  });
+} else { console.error(`WARN: API Disabled`)}
 
 api.get('/', (req, res) => res.json(  // When a request is made to the base dir, call the callback function json()
     {
@@ -382,6 +389,6 @@ function parseDamagedStarports(text) {
   return starportList
 }
 
-discordClient.login(process.env.TOKEN)
-
-run();
+// Switch Statements
+if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
+if (enableSentry == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
