@@ -410,10 +410,10 @@ function parseIncursionSystems(text) {
   systemList.forEach((item) => {
     const system = item.substring(0, item.indexOf(":"))
     if(system.indexOf("[") != -1) {
-      returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 1) + "] :tharg_r:\n"
+      returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 1) + "] <:tharg_r:417424014861008907>\n"
     }
     else {
-      returnStr += "- " + system + " [Thargoid presence eliminated] :tharg_g:\n"
+      returnStr += "- " + system + " [Thargoid presence eliminated] <:tharg_g:417424014525333506>\n"
     }
   })
   return returnStr
