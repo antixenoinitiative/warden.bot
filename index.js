@@ -7,9 +7,9 @@ const api = require('express')(); // Imports express and then creates an express
 const Discord = require("discord.js")
 
 //------------------ DEV SWITCHES ------------------
-const enableSentry = 1; // Set to 0 to disable sentry from running
+const enableSentry = 0; // Set to 0 to disable sentry from running
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-const enableAPI = 1; // Set to 0 to disable API from running
+const enableAPI = 0; // Set to 0 to disable API from running
 
 //Discord client setup
 const discordClient = new Discord.Client()
@@ -32,7 +32,7 @@ const googleClient = new vision.ImageAnnotatorClient({
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetAllegiance = "Thargoid"; //The current system state to check for (Incursion)
 const targetGovernment = "$government_Dictatorship;";
-const prefix = "#"
+const prefix = "-"
 let msg;
 
 // Database Client Config
@@ -265,7 +265,7 @@ api.get('/systems', async function(req, res) {
 
 //Discord client
 discordClient.on("ready", () => {
-  console.log(`Logged in as ${discordClient.user.tag}!`);
+  console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
 })
 
 discordClient.on('message', message => {
