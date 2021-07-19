@@ -3,6 +3,7 @@ module.exports = {
 	description: 'Updates current repair target.',
 	args: true,
 	usage: '<stationName> <systemName>',
+	restricted: true,
 	execute(message, args) {
 		for(var i = 0; i < args.length; i++) {
 			args[i] = args[i].substring(0,1).toUpperCase() + args[i].substring(1)

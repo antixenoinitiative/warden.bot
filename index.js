@@ -52,10 +52,10 @@ async function querySelect (column1, table, column2, value) {
     await client.query('BEGIN');
     try {
       res = await client.query(`
-        SELECT ${column1} 
-        FROM ${table} 
+        SELECT ${column1}
+        FROM ${table}
         WHERE ${column2} = $1`, [value] //$1 is untrusted and sanitized
-      ); 
+      );
       await client.query('COMMIT');
     } catch (err) {
       console.error(err);
@@ -112,7 +112,7 @@ async function setStatus (name,status) {
 }
 
 // Returns the Database ID (integer) for the system name requested
-async function getSysID (name) { 
+async function getSysID (name) {
   try {
     const { rows } = await querySelect("system_id", "systems", "name", name);
     return rows[0].system_id; // Return System_id
@@ -122,7 +122,7 @@ async function getSysID (name) {
 }
 
 // Returns the IDs of all incursions for the system_id requested
-async function getIncID (system_id) { 
+async function getIncID (system_id) {
   try {
     const { rows } = await querySelect("inc_id", "incursions", "system_id", system_id);
     return rows[0].inc_id; // Return System_id
@@ -154,7 +154,7 @@ async function getPresence (system_id) {
 }
 
 // Fetch a new watchlist from the current incursion systems
-async function getWatchlist (name) { 
+async function getWatchlist (name) {
   try {
     let list = [];
     const { rows } = await querySelect("name", "systems", "status", 1);
@@ -220,7 +220,7 @@ async function run() {
 
 // API Code
 if (enableAPI == 1) {
-  api.listen(3000,() => { 
+  api.listen(3000,() => {
     console.log('[✔] Sentry API Operational');  // Upon a successful connection will log to console
   });
 } else { console.error(`WARN: API Disabled`)}
@@ -243,11 +243,11 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
 );
 
 api.get('/incursionshistory', async function(req, res) {
-  const { rows } = 
+  const { rows } =
   await pool.query(
-    `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time 
-     FROM incursions 
-     INNER JOIN systems 
+    `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time
+     FROM incursions
+     INNER JOIN systems
      ON incursions.system_id=systems.system_id;`
   );
   res.json(
@@ -307,9 +307,35 @@ discordClient.on('message', message => {
 	const args = message.content.slice(prefix.length).trim().split(/ +/);
 	const commandName = args.shift().toLowerCase();
 
-	if (!discordClient.commands.has(commandName)) return;
+	if (!discordClient.commands.has(commandName)) {
+		if (message.content === `${prefix}ping`) {
+			message.channel.send("Pong")
+		}
+		if (message.content === `${prefix}getincursions`) { // This command cannot be moved to a command file due to dependancies.
+			pool.query(`SELECT * FROM systems WHERE status = '1'`).then((ans) => {
+				const returnEmbed = new Discord.MessageEmbed()
+						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+						.setTitle("**Active Incursions**")
+						.setDescription("Current systems under incursion.")
+						.setTimestamp()
+						for (let i = 0; i < ans.rows.length; i++) {
+							returnEmbed.addField(ans.rows[i].name, `Active`)
+						}
+						message.channel.send({ embed: returnEmbed })
+			});
+		}
+		return;
+	}
 
   const command = discordClient.commands.get(commandName);
+
+	if(command.restricted) {
+		if (!message.guild) return;
+		const authorPerms = message.channel.permissionsFor(message.author);
+		if (!authorPerms || !authorPerms.has(command.permissions)) {
+			return message.reply("You don't have permission to use that command!")
+		}
+	}
 
   if (command.args && !args.length) {
     let reply = `You didn't provide any arguments, ${message.author}!`;
@@ -329,83 +355,6 @@ discordClient.on('message', message => {
 	}
 });
 
-discordClient.on("message", msg => {
-  if (msg.author.bot) {return;}
-
-  // const command = msg.content
-  // const image = msg.attachments
-
-
-  if (msg.content === "ping") {
-    msg.channel.send("Pong")
-  }
-  if (msg.content === `${prefix}getincursions`) { // This command cannot be moved to a command file due to dependancies.
-    pool.query(`SELECT * FROM systems WHERE status = '1'`).then((ans) => {
-      const returnEmbed = new Discord.MessageEmbed()
-          .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-          .setTitle("**Active Incursions**")
-          .setDescription("Current systems under incursion.")
-          .setTimestamp()
-          for (let i = 0; i < ans.rows.length; i++) {
-            returnEmbed.addField(ans.rows[i].name, `Active`)
-          }
-          msg.channel.send({ embed: returnEmbed })
-    });
-  }
-  /* Disabled - This will kill the entire process stack, including Sentry and API
-  if (msg.content === "die") {
-    console.log('Shutting down')
-    discordClient.destroy();
-  }*/
-  if(msg.attachments.size > 0 && msg.attachments.every(attachIsImage)) {
-    const attachment = msg.attachments.array()[0]
-    if(attachment.size > 4000000) return
-    // msg.channel.send("Processing...")
-		msg.react("🤔")
-    console.log("Sending image...")
-    const url = attachment.url
-    googleClient
-      .textDetection(url)
-      // .textDetection("./testImage.png")
-      .then((results) => {
-        console.log("Reply recieved")
-        if(results[0].error != null) {
-          console.log("ERROR: " + results[0].error.message)
-          return
-        }
-        console.log(results[0])
-        const visionText = results[0].textAnnotations[0].description
-        console.log(visionText.indexOf("\n"))
-        // console.log(visionText.indexOf("Startport Status Update"))
-        var fieldArray = []
-        let messageToReturn = "Confirmed Target Systems in order of priority (Top to Bottom)"
-        if(visionText.indexOf("no reports of") != -1) {
-          //No incursion case
-          messageToReturn += "\n \n Status: **CODE YELLOW** :yellow_square:"
-          fieldArray.push({ name: "**Incursions:**", value: "No Incursions detected. Please aid with starport repairs and standby for additional attacks."})
-        }
-        else {
-          //yes incursion case
-          messageToReturn += "\n \n Status: **CODE RED** :red_square:"
-          fieldArray.push({ name: "**Incursions:**", value: parseIncursionSystems(visionText)})
-        }
-        if(visionText.indexOf("Starport Status Update") != -1) {
-          fieldArray.push({ name: "**Evacuations:**", value: parseDamagedStarports(visionText)})
-        }
-        console.log(fieldArray)
-        const returnEmbed = new Discord.MessageEmbed()
-          .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-          .setTitle("**Defense Targets**")
-          .setDescription(messageToReturn)
-          .setTimestamp()
-        fieldArray.forEach((field) => {
-          returnEmbed.addField(field.name, field.value)
-        })
-        msg.channel.send({ embed: returnEmbed })
-      })
-  }
-})
-
 function attachIsImage(msgAttach) {
   const url = msgAttach.url;
   //True if this url is a png image.
@@ -416,13 +365,13 @@ function parseIncursionSystems(text) {
   let systemList = text.substring(text.indexOf(":\n") + 2)
   if(systemList.indexOf("have been attacked") != -1) systemList = systemList.substring(0, systemList.indexOf("Starport"))
   systemList = systemList.split("\n")
-	console.log(systemList)
+	// console.log(systemList)
   let returnStr = "\n"
 	if(systemList[systemList.length-1] == '') systemList.pop()
   systemList.forEach((item) => {
     const system = item.substring(0, item.indexOf(":"))
     if(system.indexOf("[") != -1) {
-      returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 1) + "] <:tharg_r:417424014861008907>\n"
+      returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 2, item.length - 1) + "] <:tharg_r:417424014861008907>\n"
     }
     else {
       returnStr += "- " + system + " [Thargoid presence eliminated] <:tharg_g:417424014525333506>\n"
@@ -432,8 +381,13 @@ function parseIncursionSystems(text) {
 }
 
 function parseDamagedStarports(text) {
-  const starportList = text.substring(text.indexOf("Update") + 6)
-  return starportList
+  const starportList = text.substring(text.indexOf("Update") + 7).split("\n")
+	let returnStr = "The following stations have been attacked and may require assistance:"
+	// console.log(starportList)
+	for(var i = 1; i < starportList.length - 1; i++) {
+		returnStr += "\n- " + starportList[i] + "🔥"
+	}
+  return returnStr
 }
 
 // Switch Statements
