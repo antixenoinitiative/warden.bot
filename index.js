@@ -1,6 +1,6 @@
 /**
 * AXI Sentry is a application which manages Thargoid Incursions via a database and discord bot which listens and interfaces with EDDN.
-* @author   CMDR Mgram, CMDR Airom, 
+* @author   CMDR Mgram, CMDR Airom 
 */
 
 //------------------ DEV SWITCHES ------------------
@@ -13,20 +13,21 @@ const enableAPI = 1; // Set to 0 to disable API from running
 require("dotenv").config();
 const zlib = require("zlib");
 const fs = require('fs');
-const Discord = require("discord.js")
+const Discord = require("discord.js");
 const { Pool } = require('pg');
 const zmq = require("zeromq");
-const api = require('express')(); // Imports express and then creates an express object called api
+const api = require('express')();
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
-const targetAllegiance = "Thargoid"; //The current system state to check for (Incursion)
+const targetAllegiance = "Thargoid";
 const targetGovernment = "$government_Dictatorship;";
 const prefix = "-"
 let msg;
 let watchlist;
 
-//Discord client setup
+
+// Discord client setup
 const discordClient = new Discord.Client()
 discordClient.commands = new Discord.Collection();
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
@@ -37,11 +38,27 @@ for (const file of commandFiles) {
 	discordClient.commands.set(command.name, command);
 }
 
-//Google Client
-const vision = require("@google-cloud/vision")
-const googleClient = new vision.ImageAnnotatorClient({
-  keyFilename: "./APIKey.json",
-})
+// Generate Google Key File from ENV varaiables then Connect Google Client
+var dict = {
+  "type": "service_account",
+  "project_id": "axi-sentry",
+  "private_key_id": process.env.GOOGLEKEYID,
+  "private_key": process.env.GOOGLEKEY,
+  "client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
+  "client_id": "105556351573320071528",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
+};
+var dictstring = JSON.stringify(dict, null, 2);
+console.log(dictstring);
+fs.writeFile("APIKey.json", dictstring, function(err, result) {
+  const vision = require("@google-cloud/vision")
+  const googleClient = new vision.ImageAnnotatorClient({
+    keyFilename: "./APIKey.json",
+  })
+});
 
 // Database Client Config
 const pool = new Pool({ //credentials stored in .env file
@@ -365,7 +382,7 @@ api.get('/incursionshistory', async function(req, res) {
         softwareVersion: '0.1',
       },
       message: {
-        incursions: rows, // The actual content of the message
+        incursions: rows,
       }
     })
   },
@@ -381,7 +398,7 @@ api.get('/incursions', async function(req, res) {
         softwareVersion: '0.1',
       },
       message: {
-        systems: rows, // The actual content of the message
+        incursions: rows,
       }
     })
   },
@@ -397,7 +414,7 @@ api.get('/systems', async function(req, res) {
         softwareVersion: '0.1',
       },
       message: {
-        systems: rows, // The actual content of the message
+        systems: rows,
       }
     })
   },
