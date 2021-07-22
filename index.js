@@ -18,17 +18,6 @@ const { Pool } = require('pg');
 const zmq = require("zeromq");
 const api = require('express')(); // Imports express and then creates an express object called api
 
-fs.readFile('cloudAPIKey.json', 'utf8', function (err,data) {
-  if (err) {
-    return console.log(err);
-  }
-  var result = data.replace(/REPLACEME/g, `${process.env.GOOGLEKEY}`);
-
-  fs.writeFile('cloudAPIKey.json', result, 'utf8', function (err) {
-     if (err) return console.log(err);
-  });
-});
-
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetAllegiance = "Thargoid"; //The current system state to check for (Incursion)
@@ -51,7 +40,7 @@ for (const file of commandFiles) {
 //Google Client
 const vision = require("@google-cloud/vision")
 const googleClient = new vision.ImageAnnotatorClient({
-  keyFilename: "./cloudAPIKey.json",
+  keyFilename: "./APIKey.json",
 })
 
 // Database Client Config
