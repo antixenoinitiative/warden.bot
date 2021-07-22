@@ -3,13 +3,31 @@
 * @author   CMDR Mgram, CMDR Airom, 
 */
 
+//------------------ DEV SWITCHES ------------------
+// To enable or disble components for testing purposes
+const enableListener = 1; // Set to 0 to disable listener from running
+const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableAPI = 1; // Set to 0 to disable API from running
+//--------------------------------------------------
+
 require("dotenv").config();
 const zlib = require("zlib");
 const fs = require('fs');
+const Discord = require("discord.js")
 const { Pool } = require('pg');
 const zmq = require("zeromq");
 const api = require('express')(); // Imports express and then creates an express object called api
-const Discord = require("discord.js")
+
+fs.readFile('cloudAPIKey.json', 'utf8', function (err,data) {
+  if (err) {
+    return console.log(err);
+  }
+  var result = data.replace(/REPLACEME/g, `${process.env.GOOGLEKEY}`);
+
+  fs.writeFile('cloudAPIKey.json', result, 'utf8', function (err) {
+     if (err) return console.log(err);
+  });
+});
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -18,11 +36,6 @@ const targetGovernment = "$government_Dictatorship;";
 const prefix = "-"
 let msg;
 let watchlist;
-
-//------------------ DEV SWITCHES ------------------
-const enableListener = 1; // Set to 0 to disable listener from running
-const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-const enableAPI = 1; // Set to 0 to disable API from running
 
 //Discord client setup
 const discordClient = new Discord.Client()
@@ -79,9 +92,11 @@ async function querySelect (column1, table, column2, value) {
 * @param    {String} name    Name of the Star System
 */
 async function addSystem (name) {
-  pool.query(`INSERT INTO systems(name,status)VALUES($1,'1')`, [name], (err, res) => { //$1 is untrusted and sanitized
-    //console.error(err);
-  });
+  try {
+    pool.query(`INSERT INTO systems(name,status)VALUES($1,'1')`, [name], (err, res) => {});
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 /**
@@ -90,10 +105,11 @@ async function addSystem (name) {
 * @param    {Int} system_id     Database ID of the Star System
 */
 async function addIncursions (system_id,time) {
-  //console.log(time);
-  pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`, [system_id,time], (err, res) => { //$1 is untrusted and sanitized
-    //console.error(err);
-  });
+  try {
+    pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`, [system_id,time], (err, res) => {});
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 /**
@@ -104,10 +120,11 @@ async function addIncursions (system_id,time) {
 */
 function addPresence (system_id, presence) {
   let time = Math.floor(new Date().getTime()); // Unix time
-  //console.log(time);
-  pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [system_id,presence,time], (err, res) => { //$1 is untrusted and sanitized
-    //console.error(err + res);
-  });
+  try {
+    pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [system_id,presence,time], (err, res) => {});
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 /**
@@ -117,9 +134,13 @@ function addPresence (system_id, presence) {
 * @param    {Int} presence   Presence level of the system (1-5) 5 = Massive, 1 = None
 */
 function addPresenceByName (name, presence) {
-  getSysID(name).then((res) => {
-    addPresence(res,presence);
-  })
+  try {
+    getSysID(name).then((res) => {
+      addPresence(res,presence);
+    })
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 /**
@@ -129,13 +150,17 @@ function addPresenceByName (name, presence) {
 * @param    {Int} status     (1 = active, 0 = inactive)
 */
 async function setStatus (name,status) {
-  pool.query(
-    `UPDATE systems
-    SET status = $1
-    WHERE name = $2;`
-    , [status,name], (err, res) => { //$1 is untrusted and sanitized
-    //console.error(err);
-  });
+  try {
+    pool.query(
+      `UPDATE systems
+      SET status = $1
+      WHERE name = $2;`
+      , [status,name], (err, res) => { //$1 is untrusted and sanitized
+      //console.error(err);
+    });
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 /**
@@ -206,13 +231,17 @@ async function getPresence (system_id) {
 * @return   {Int}       Returns map object with incursion system name:presence level
 */
 async function getIncList () {
-  let res = await querySelect("*", "systems", "status", 1);
-  let list = new Map();
-  for (let i = 0; i < res.rowCount; i++) {
-    let presence = await getPresence(res.rows[i].system_id);
-    list.set(res.rows[i].name,presence);
+  try {
+    let res = await querySelect("*", "systems", "status", 1);
+    let list = new Map();
+    for (let i = 0; i < res.rowCount; i++) {
+      let presence = await getPresence(res.rows[i].system_id);
+      list.set(res.rows[i].name,presence);
+    }
+    return list;
+  } catch (err) {
+    console.error(err);
   }
-  return list;
 }
 
 // Fetch a new watchlist from the current incursion systems
