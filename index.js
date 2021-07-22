@@ -1,3 +1,8 @@
+/**
+* AXI Sentry is a application which manages Thargoid Incursions via a database and discord bot which listens and interfaces with EDDN.
+* @author   CMDR Mgram, CMDR Airom, 
+*/
+
 require("dotenv").config();
 const zlib = require("zlib");
 const fs = require('fs');
@@ -68,39 +73,61 @@ async function querySelect (column1, table, column2, value) {
   return res;
 }
 
-// Add a system to DB
+/**
+* Function adds a Star System to the Database
+* @author   (Mgram) Marcus Ingram
+* @param    {String} name    Name of the Star System
+*/
 async function addSystem (name) {
   pool.query(`INSERT INTO systems(name,status)VALUES($1,'1')`, [name], (err, res) => { //$1 is untrusted and sanitized
     //console.error(err);
   });
 }
 
-// Add an incursion to DB
-async function addIncursions (system_id) {
-  let time = Math.floor(new Date().getTime()); // Unix time
+/**
+* Function adds an Incursion to the Database
+* @author   (Mgram) Marcus Ingram
+* @param    {Int} system_id     Database ID of the Star System
+*/
+async function addIncursions (system_id,time) {
   //console.log(time);
   pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`, [system_id,time], (err, res) => { //$1 is untrusted and sanitized
     //console.error(err);
   });
 }
 
-// Add a presence level to DB by name (system id, presence level as integer 0-5)
-async function addPresence (id, presence) {
+/**
+* Add a presence level to Database by ID
+* @author   (Mgram) Marcus Ingram
+* @param    {Int} system_id     Database ID of the Star System
+* @param    {Int} presence      Presence level of the system (0-5)
+*/
+function addPresence (system_id, presence) {
   let time = Math.floor(new Date().getTime()); // Unix time
   //console.log(time);
-  pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [id,presence,time], (err, res) => { //$1 is untrusted and sanitized
+  pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [system_id,presence,time], (err, res) => { //$1 is untrusted and sanitized
     //console.error(err + res);
   });
 }
 
-// Add a presence level to DB by name (system name, presence level as integer 0-5)
+/**
+* Add a presence level to Database by name
+* @author   (Mgram) Marcus Ingram
+* @param    {String} name    Name of the Star System
+* @param    {Int} presence   Presence level of the system (1-5) 5 = Massive, 1 = None
+*/
 function addPresenceByName (name, presence) {
   getSysID(name).then((res) => {
     addPresence(res,presence);
   })
 }
 
-// Set the current incursion status of a system (1 = active, 0 = inactive)
+/**
+* Set the current incursion status of a system by name
+* @author   (Mgram) Marcus Ingram
+* @param    {String} name    Name of the Star System
+* @param    {Int} status     (1 = active, 0 = inactive)
+*/
 async function setStatus (name,status) {
   pool.query(
     `UPDATE systems
@@ -111,7 +138,12 @@ async function setStatus (name,status) {
   });
 }
 
-// Returns the Database ID (integer) for the system name requested
+/**
+* Returns the Database ID for the system name requested
+* @author   (Mgram) Marcus Ingram
+* @param    {String} name    Name of the Star System
+* @return   {Int}            Star System Database ID
+*/
 async function getSysID (name) {
   try {
     const { rows } = await querySelect("system_id", "systems", "name", name);
@@ -121,7 +153,12 @@ async function getSysID (name) {
   }
 }
 
-// Returns the IDs of all incursions for the system_id requested
+/**
+* Returns all the Incursion ID's for the system name requested
+* @author   (Mgram) Marcus Ingram
+* @param    {Int} system_id     Database ID of the Star System
+* @return   {Int}               Incursion ID
+*/
 async function getIncID (system_id) {
   try {
     const { rows } = await querySelect("inc_id", "incursions", "system_id", system_id);
@@ -131,7 +168,12 @@ async function getIncID (system_id) {
   }
 }
 
-// Gets the most recent incursion time for a system id.
+/**
+* Gets the most recent incursion time for a system id.
+* @author   (Mgram) Marcus Ingram
+* @param    {Int} system_id     Database ID of the Star System
+* @return   {Int}               Returns time (UNIX EPOCH) of most recent incursion report
+*/
 async function getLastIncTime (system_id) {
   try {
     const { rows } = await querySelect("MAX(time)", "incursions", "system_id", system_id);
@@ -141,7 +183,12 @@ async function getLastIncTime (system_id) {
   }
 }
 
-// Gets the most recent system presence for a system id.
+/**
+* Gets the most recent system presence level for a system id.
+* @author   (Mgram) Marcus Ingram
+* @param    {Int} system_id     Database ID of the Star System
+* @return   {Int}               Returns presence level for Star System
+*/
 async function getPresence (system_id) {
   try {
     let { rows } = await querySelect("MAX(time)", "presence", "system_id", system_id);
@@ -151,6 +198,21 @@ async function getPresence (system_id) {
   } catch (err) {
     console.error(err);
   }
+}
+
+/**
+* Returns an object with current incursions and their presence levels (WORK IN PROGRESS)
+* @author   (Mgram) Marcus Ingram
+* @return   {Int}       Returns map object with incursion system name:presence level
+*/
+async function getIncList () {
+  let res = await querySelect("*", "systems", "status", 1);
+  let list = new Map();
+  for (let i = 0; i < res.rowCount; i++) {
+    let presence = await getPresence(res.rows[i].system_id);
+    list.set(res.rows[i].name,presence);
+  }
+  return list;
 }
 
 // Fetch a new watchlist from the current incursion systems
@@ -168,17 +230,42 @@ async function getWatchlist (name) {
   }
 }
 
+/**
+* Returns presence as string from lvl 
+* @author   (Mgram) Marcus Ingram
+* @param    {Int} presence_lvl    Input value of presence level          
+* @return   {String}              Returns the presence level as a string
+*/
+function convertPresence(presence_lvl) {
+  switch (presence_lvl) {
+    case 0:
+      return "No data available";
+    case 1:
+      return "No Thargoid Presence";
+    case 2:
+      return "Marginal Thargoid Presence";
+    case 3:
+      return "Moderate Thargoid Presence";
+    case 4:
+      return "Significant Thargoid Presence";
+    case 5:
+      return "Massive Thargoid Presence";
+  }
+}
+
 // System processing logic
 async function processSystem(msg) {
   const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
   if (SystemAllegiance != undefined) {
+    let date = new Date();
+    let time = date.getTime(timestamp);
     if (watchlist.includes(StarSystem)) { // Check in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-        addIncursions(await getSysID(StarSystem));
+        addIncursions(await getSysID(StarSystem),time);
         console.log(`Incursion Logged: ${StarSystem}`);
         watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
       } else {
-        await setStatus(StarSystem,0);
+        setStatus(StarSystem,0);
         console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
         watchlist = await getWatchlist();
       }
@@ -187,13 +274,15 @@ async function processSystem(msg) {
         if (await getSysID(StarSystem) == 0) {
           await addSystem(StarSystem);
           console.log(`System Logged: ${StarSystem}`);
-          addIncursions(await getSysID(StarSystem));
+          addIncursions(await getSysID(StarSystem),time);
           console.log(`Incursion Logged: ${StarSystem}`);
           watchlist = await getWatchlist();
         } else {
-          await setStatus(StarSystem, 1);
-          console.log(`Status set to active: ${StarSystem}`);
-          addIncursions(await getSysID(StarSystem));
+          if (time >= Date.now() - 86400000) { 
+            setStatus(StarSystem, 1);
+            console.log(`Status set to active: ${StarSystem}`);
+          } else { console.log(`Report ignored: Older than 1 day`) }
+          addIncursions(await getSysID(StarSystem),time);
           watchlist = await getWatchlist();
         }
       }
@@ -234,8 +323,8 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
       },
       message: {
         endpoints: {
-          incursions: 'https://sentry.antixenoinitiative.com:3000/incursions',
-          incursionshistory: 'https://sentry.antixenoinitiative.com:3000/incursionshistory'
+          incursions: 'http://sentry.antixenoinitiative.com:3000/incursions',
+          incursionshistory: 'http://sentry.antixenoinitiative.com:3000/incursionshistory'
         }
       }
     }
@@ -311,16 +400,20 @@ discordClient.on('message', message => {
 		if (message.content === `${prefix}ping`) {
 			message.channel.send("Pong")
 		}
+
 		if (message.content === `${prefix}getincursions`) { // This command cannot be moved to a command file due to dependancies.
-			pool.query(`SELECT * FROM systems WHERE status = '1'`).then((ans) => {
+			getIncList().then((list) => {
 				const returnEmbed = new Discord.MessageEmbed()
+            .setColor('#FF7100')
 						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 						.setTitle("**Active Incursions**")
 						.setDescription("Current systems under incursion.")
 						.setTimestamp()
-						for (let i = 0; i < ans.rows.length; i++) {
-							returnEmbed.addField(ans.rows[i].name, `Active`)
-						}
+            console.log(list);
+            for (let [system,presence] of list.entries()) {
+              console.log(`${system}: ${presence}`)
+              returnEmbed.addField(system, convertPresence(presence))
+            }
 						message.channel.send({ embed: returnEmbed })
 			});
 		}
