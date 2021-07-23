@@ -52,7 +52,6 @@ var dict = {
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
 };
 var dictstring = JSON.stringify(dict, null, 2);
-console.log(dictstring);
 fs.writeFile("APIKey.json", dictstring, function(err, result) {
   const vision = require("@google-cloud/vision")
   const googleClient = new vision.ImageAnnotatorClient({
@@ -145,7 +144,7 @@ function addPresenceByName (name, presence) {
       addPresence(res,presence);
     })
   } catch (err) {
-    console.error(err);
+    return(err);
   }
 }
 
@@ -306,14 +305,20 @@ async function processSystem(msg) {
       }
     } else { // Not in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-        if (await getSysID(StarSystem) == 0) {
+        if (await getSysID(StarSystem) == 0) { // Check if system is NOT in DB
           await addSystem(StarSystem);
+          getSysID(StarSystem).then((res) => {
+            addIncursions(res,time);
+            addPresence(res,0);
+          });
+          if (time >= Date.now() - 86400000) { // Check if the report is recent
+            setStatus(StarSystem, 1);
+            console.log(`Status set to active: ${StarSystem}`);
+          } else { console.log(`Report ignored: Older than 1 day`) }
           console.log(`System Logged: ${StarSystem}`);
-          addIncursions(await getSysID(StarSystem),time);
-          console.log(`Incursion Logged: ${StarSystem}`);
           watchlist = await getWatchlist();
         } else {
-          if (time >= Date.now() - 86400000) { 
+          if (time >= Date.now() - 86400000) {
             setStatus(StarSystem, 1);
             console.log(`Status set to active: ${StarSystem}`);
           } else { console.log(`Report ignored: Older than 1 day`) }
@@ -420,6 +425,22 @@ api.get('/systems', async function(req, res) {
   },
 );
 
+api.get('/presence', async function(req, res) {
+  const { rows } = await pool.query(`SELECT * FROM presence`);
+  res.json(
+    {
+      header: {
+        timestamp: `${new Date().toISOString()}`,
+        softwareName: 'AXI Sentry',
+        softwareVersion: '0.1',
+      },
+      message: {
+        systems: rows,
+      }
+    })
+  },
+);
+
 //Discord client
 discordClient.on("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
@@ -436,7 +457,7 @@ discordClient.on('message', message => {
 			message.channel.send("Pong")
 		}
 
-		if (message.content === `${prefix}getincursions`) { // This command cannot be moved to a command file due to dependancies.
+		if (message.content === `${prefix}getactive`) { // This command cannot be moved to a command file due to dependancies.
 			getIncList().then((list) => {
 				const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
@@ -452,6 +473,17 @@ discordClient.on('message', message => {
 						message.channel.send({ embed: returnEmbed })
 			});
 		}
+
+    if (message.content.startsWith(`${prefix}setpresence`)) { // This command cannot be moved to a command file due to dependancies.
+			try {
+        addPresence(args[0],args[1]);
+        message.channel.send("Setting Presence Level")
+      } 
+      catch {
+        message.channel.send("Something went wrong, please ensure the ID is correct")
+      }
+		}
+
 		return;
 	}
 
