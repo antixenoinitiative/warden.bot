@@ -344,7 +344,7 @@ async function run() {
 
 // API Code
 if (enableAPI == 1) {
-  api.listen(3000,() => {
+  api.listen(process.env.PORT,() => {
     console.log('[✔] Sentry API Operational');  // Upon a successful connection will log to console
   });
 } else { console.error(`WARN: API Disabled`)}
