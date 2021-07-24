@@ -6,7 +6,7 @@
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
 const enableListener = 1; // Set to 0 to disable listener from running
-const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
 const enableAPI = 1; // Set to 0 to disable API from running
 //--------------------------------------------------
 
@@ -25,7 +25,6 @@ const targetGovernment = "$government_Dictatorship;";
 const prefix = "-"
 let msg;
 let watchlist;
-
 
 // Discord client setup
 const discordClient = new Discord.Client()
@@ -287,22 +286,26 @@ function convertPresence(presence_lvl) {
   }
 }
 
-// System processing logic
+// Star System processing logic
 async function processSystem(msg) {
-  const { StarSystem, StationFaction, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
-  if (SystemAllegiance != undefined) {
-    let date = new Date();
-    let time = date.getTime(timestamp);
+  const { StarSystem, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
+  let date = new Date();
+  let time = date.getTime(timestamp);
+
+  if (SystemAllegiance != undefined && time >= Date.now() - 86400000) {
+    
     if (watchlist.includes(StarSystem)) { // Check in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
         addIncursions(await getSysID(StarSystem),time);
         console.log(`Incursion Logged: ${StarSystem}`);
         watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+
       } else {
         setStatus(StarSystem,0);
         console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
         watchlist = await getWatchlist();
       }
+
     } else { // Not in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
         if (await getSysID(StarSystem) == 0) { // Check if system is NOT in DB
@@ -311,20 +314,12 @@ async function processSystem(msg) {
             addIncursions(res,time);
             addPresence(res,0);
           });
-          if (time >= Date.now() - 86400000) { // Check if the report is recent
-            setStatus(StarSystem, 1);
-            console.log(`Status set to active: ${StarSystem}`);
-          } else { console.log(`Report ignored: Older than 1 day`) }
-          console.log(`System Logged: ${StarSystem}`);
-          watchlist = await getWatchlist();
         } else {
-          if (time >= Date.now() - 86400000) {
-            setStatus(StarSystem, 1);
-            console.log(`Status set to active: ${StarSystem}`);
-          } else { console.log(`Report ignored: Older than 1 day`) }
+          setStatus(StarSystem, 1);
           addIncursions(await getSysID(StarSystem),time);
-          watchlist = await getWatchlist();
         }
+        console.log(`System Logged: ${StarSystem}`);
+        watchlist = await getWatchlist();
       }
     }
   }
