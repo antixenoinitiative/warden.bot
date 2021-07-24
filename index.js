@@ -359,7 +359,9 @@ api.get('/', (req, res) => res.json(  // When a request is made to the base dir,
       message: {
         endpoints: {
           incursions: 'http://sentry.antixenoinitiative.com:3000/incursions',
-          incursionshistory: 'http://sentry.antixenoinitiative.com:3000/incursionshistory'
+          incursionshistory: 'http://sentry.antixenoinitiative.com:3000/incursionshistory',
+          systems: 'http://sentry.antixenoinitiative.com:3000/systems',
+          presence: 'http://sentry.antixenoinitiative.com:3000/presence'
         }
       }
     }
