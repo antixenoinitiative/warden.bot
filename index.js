@@ -1,13 +1,13 @@
 /**
 * AXI Sentry is a application which manages Thargoid Incursions via a database and discord bot which listens and interfaces with EDDN.
-* @author   CMDR Mgram, CMDR Airom 
+* @author   CMDR Mgram, CMDR Airom
 */
 
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
-const enableListener = 1; // Set to 0 to disable listener from running
-const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
-const enableAPI = 1; // Set to 0 to disable API from running
+const enableListener = 0; // Set to 0 to disable listener from running
+const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableAPI = 0; // Set to 0 to disable API from running
 //--------------------------------------------------
 
 require("dotenv").config();
@@ -38,25 +38,30 @@ for (const file of commandFiles) {
 }
 
 // Generate Google Key File from ENV varaiables then Connect Google Client
-var dict = {
-  "type": "service_account",
-  "project_id": "axi-sentry",
-  "private_key_id": process.env.GOOGLEKEYID,
-  "private_key": process.env.GOOGLEKEY,
-  "client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
-  "client_id": "105556351573320071528",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
-};
-var dictstring = JSON.stringify(dict, null, 2);
-fs.writeFile("APIKey.json", dictstring, function(err, result) {
-  const vision = require("@google-cloud/vision")
-  const googleClient = new vision.ImageAnnotatorClient({
-    keyFilename: "./APIKey.json",
-  })
-});
+// var dict = {
+//   "type": "service_account",
+//   "project_id": "axi-sentry",
+//   "private_key_id": process.env.GOOGLEKEYID,
+//   "private_key": process.env.GOOGLEKEY,
+//   "client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
+//   "client_id": "105556351573320071528",
+//   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+//   "token_uri": "https://oauth2.googleapis.com/token",
+//   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+//   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
+// };
+// var dictstring = JSON.stringify(dict, null, 2);
+// fs.writeFile("APIKey.json", dictstring, function(err, result) {
+//   const vision = require("@google-cloud/vision")
+//   const googleClient = new vision.ImageAnnotatorClient({
+//     keyFilename: "./APIKey.json",
+//   })
+// });
+
+const vision = require("@google-cloud/vision")
+const googleClient = new vision.ImageAnnotatorClient({
+	keyFilename: "./originalkey.json",
+})
 
 // Database Client Config
 const pool = new Pool({ //credentials stored in .env file
@@ -264,9 +269,9 @@ async function getWatchlist (name) {
 }
 
 /**
-* Returns presence as string from lvl 
+* Returns presence as string from lvl
 * @author   (Mgram) Marcus Ingram
-* @param    {Int} presence_lvl    Input value of presence level          
+* @param    {Int} presence_lvl    Input value of presence level
 * @return   {String}              Returns the presence level as a string
 */
 function convertPresence(presence_lvl) {
@@ -293,7 +298,7 @@ async function processSystem(msg) {
   let time = date.getTime(timestamp);
 
   if (SystemAllegiance != undefined && time >= Date.now() - 86400000) {
-    
+
     if (watchlist.includes(StarSystem)) { // Check in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
         addIncursions(await getSysID(StarSystem),time);
@@ -475,7 +480,7 @@ discordClient.on('message', message => {
 			try {
         addPresence(args[0],args[1]);
         message.channel.send("Setting Presence Level")
-      } 
+      }
       catch {
         message.channel.send("Something went wrong, please ensure the ID is correct")
       }
@@ -504,8 +509,15 @@ discordClient.on('message', message => {
     return message.channel.send(reply);
   }
 
+	const passArray = [
+		attachIsImage,
+		googleClient,
+		parseIncursionSystems,
+		parseDamagedStarports,
+		Discord
+	]
 	try {
-		command.execute(message, args);
+		command.execute(message, args, passArray);
 	} catch (error) {
 		console.error(error);
 		message.reply('there was an error trying to execute that command!');
@@ -542,7 +554,7 @@ function parseDamagedStarports(text) {
 	let returnStr = "The following stations have been attacked and may require assistance:"
 	// console.log(starportList)
 	for(var i = 1; i < starportList.length - 1; i++) {
-		returnStr += "\n- " + starportList[i] + "🔥"
+		returnStr += "\n- " + starportList[i] + " 🔥"
 	}
   return returnStr
 }

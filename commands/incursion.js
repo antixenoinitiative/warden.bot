@@ -2,7 +2,14 @@ module.exports = {
 	name: 'incursion',
 	description: 'Updates list of systems under incursion and/or damaged starports.',
 	restricted: true,
-	execute(message, args) {
+	execute(message, args, passArray) {
+		//importing functions and variables
+		attachIsImage = passArray[0]
+		googleClient = passArray[1]
+		parseIncursionSystems = passArray[2]
+		parseDamagedStarports = passArray[3]
+		Discord = passArray[4]
+
 		if(message.attachments.size > 0 && message.attachments.every(attachIsImage)) {
 			const attachment = message.attachments.array()[0]
 			if(attachment.size > 4000000) return
