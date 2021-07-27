@@ -277,7 +277,6 @@ async function processSystem(msg) {
     if (watchlist.includes(StarSystem)) { // Check in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
         addIncursions(id,time);
-        addPresence(id, 0);
         console.log(`Incursion Logged: ${StarSystem}`);
         watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
       } else {
@@ -315,8 +314,21 @@ async function run() {
   // Data Stream Loop
   for await (const [src] of sock) { // For each data packet
     msg = JSON.parse(zlib.inflateSync(src));
-    processSystem(msg, 0);
+    processSystem(msg);
   }
+}
+
+function Response(data) {
+  return ({
+    header: {
+      timestamp: `${new Date().toISOString()}`,
+      softwareName: 'AXI Sentry',
+      softwareVersion: '0.1',
+    },
+    message: {
+      rows: data,
+    }
+  })
 }
 
 // API Code
@@ -340,49 +352,19 @@ api.get('/incursionshistory', async function(req, res) {
      INNER JOIN systems
      ON incursions.system_id=systems.system_id;`
   );
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        incursions: rows,
-      }
-    })
+  res.json(Response(rows))
   },
 );
 
 api.get('/incursions', async function(req, res) {
   const { rows } = await pool.query(`SELECT * FROM systems WHERE status = '1'`);
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        incursions: rows,
-      }
-    })
+  res.json(Response(rows))
   },
 );
 
 api.get('/systems', async function(req, res) {
   const { rows } = await pool.query(`SELECT * FROM systems`);
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        systems: rows,
-      }
-    })
+  res.json(Response(rows))
   },
 );
 
@@ -391,17 +373,7 @@ api.get('/presence', async function(req, res) {
   FROM presence
   INNER JOIN systems
   ON presence.system_id=systems.system_id;`);
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        systems: rows,
-      }
-    })
+  res.json(Response(rows))
   },
 );
 
