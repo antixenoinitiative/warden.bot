@@ -17,6 +17,8 @@ const Discord = require("discord.js");
 const { Pool } = require('pg');
 const zmq = require("zeromq");
 const api = require('express')();
+const path = require('path');
+
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -349,24 +351,12 @@ if (enableAPI == 1) {
   });
 } else { console.error(`WARN: API Disabled`)}
 
-api.get('/', (req, res) => res.json(  // When a request is made to the base dir, call the callback function json()
-    {
-      header: { // Contains data about the message
-        timestamp: `${new Date().toISOString()}`, // Sets timestamp to the current time in ISO8601 format.
-        softwareName: 'AXI Sentry', // Name of API
-        softwareVersion: '0.1',  // Arbituary number currently
-      },
-      message: {
-        endpoints: {
-          incursions: 'http://sentry.antixenoinitiative.com/incursions',
-          incursionshistory: 'http://sentry.antixenoinitiative.com/incursionshistory',
-          systems: 'http://sentry.antixenoinitiative.com/systems',
-          presence: 'http://sentry.antixenoinitiative.com/presence'
-        }
-      }
-    }
-  ),
-);
+api.get('/', function(req, res) {
+  res.sendFile(path.join(__dirname, '/dist/index.html'));
+});
+api.get('/styles.css', function(req, res) {
+  res.sendFile(path.join(__dirname, '/dist/styles.css'));
+});
 
 api.get('/incursionshistory', async function(req, res) {
   const { rows } =
