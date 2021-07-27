@@ -180,7 +180,7 @@ async function getSysID (name) {
     const { rows } = await querySelect("system_id", "systems", "name", name);
     return rows[0].system_id; // Return System_id
   } catch (err) {
-    return err; // Return 0 if system is not in the DB
+    return 0; // Return 0 if system is not in the DB
   }
 }
 
