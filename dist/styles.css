@@ -7,6 +7,7 @@ html {
   padding: 30px;
   height: 100%;
   background-color: rgb(39, 39, 39);
+  font-family: 'Roboto', sans-serif;
 }
   
 h1 {
@@ -14,7 +15,14 @@ h1 {
 }
   
 p {
-  font-family: 'Roboto', sans-serif;
+  
+}
+
+#boxbanner {
+  position: relative;
+  margin: auto;
+  width: 60%;
+  height: 40px;
 }
 
 #boxmain {
@@ -26,8 +34,6 @@ p {
 }
 
 #boxtitle {
-  position: relative;
-  font-family: 'Roboto', sans-serif;
   font-size: 20px;
   letter-spacing: 1px;
 }
@@ -39,6 +45,6 @@ p {
   position: absolute;
   top: 0px;
   right: 0px;
-  width: 140px;
+  width: 100px;
   padding: 10px;
 }

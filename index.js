@@ -358,25 +358,6 @@ api.get('/styles.css', function(req, res) {
   res.sendFile(path.join(__dirname, '/dist/styles.css'));
 });
 
-api.get('/endpoints', (req, res) => res.json(  // When a request is made to the base dir, call the callback function json()
-    {
-      header: { // Contains data about the message
-        timestamp: `${new Date().toISOString()}`, // Sets timestamp to the current time in ISO8601 format.
-        softwareName: 'AXI Sentry', // Name of API
-        softwareVersion: '0.1',  // Arbituary number currently
-      },
-      message: {
-        endpoints: {
-          incursions: 'http://sentry.antixenoinitiative.com/incursions',
-          incursionshistory: 'http://sentry.antixenoinitiative.com/incursionshistory',
-          systems: 'http://sentry.antixenoinitiative.com/systems',
-          presence: 'http://sentry.antixenoinitiative.com/presence'
-        }
-      }
-    }
-  ),
-);
-
 api.get('/incursionshistory', async function(req, res) {
   const { rows } =
   await pool.query(
