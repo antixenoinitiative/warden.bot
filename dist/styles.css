@@ -1,0 +1,50 @@
+@font-face {
+  font-family: Century;
+  src: url(sansation_light.woff);
+}
+
+html {
+  padding: 30px;
+  height: 100%;
+  background-color: rgb(39, 39, 39);
+  font-family: 'Roboto', sans-serif;
+}
+  
+h1 {
+  margin: 0px;
+}
+  
+p {
+  
+}
+
+#boxbanner {
+  position: relative;
+  margin: auto;
+  width: 60%;
+  height: 40px;
+}
+
+#boxmain {
+  margin: auto;
+  width: 60%;
+  border-radius: 25px;
+  padding: 20px;
+  background-color: white;
+}
+
+#boxtitle {
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+#boxcontent {
+}
+
+#logo {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  width: 100px;
+  padding: 10px;
+}
