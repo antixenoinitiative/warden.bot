@@ -19,7 +19,6 @@ const zmq = require("zeromq");
 const api = require('express')();
 const path = require('path');
 
-
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetAllegiance = "Thargoid";
@@ -103,6 +102,12 @@ async function addSystem (name) {
   } catch (err) {
     console.error(err);
   }
+  try {
+    const { rows } = await querySelect("system_id", "systems", "name", name);
+    return rows[0].system_id; // Return System_id
+  } catch (err) {
+    return 0; // Return 0 if system is not in the DB
+  }
 }
 
 /**
@@ -124,7 +129,7 @@ async function addIncursions (system_id,time) {
 * @param    {Int} system_id     Database ID of the Star System
 * @param    {Int} presence      Presence level of the system (0-5)
 */
-function addPresence (system_id, presence) {
+async function addPresence (system_id, presence) {
   let time = Math.floor(new Date().getTime()); // Unix time
   try {
     pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [system_id,presence,time], (err, res) => {});
@@ -139,14 +144,17 @@ function addPresence (system_id, presence) {
 * @param    {String} name    Name of the Star System
 * @param    {Int} presence   Presence level of the system (1-5) 5 = Massive, 1 = None
 */
-function addPresenceByName (name, presence) {
-  try {
-    getSysID(name).then((res) => {
-      addPresence(res,presence);
-    })
-  } catch (err) {
-    return(err);
-  }
+async function addPresenceByName (name, presence) {
+  getSysID(name).then((res) => {
+    if (res == 0) {
+      addSystem(name).then((res) => {
+        addPresence(res, presence);
+      })
+    } else {
+      addPresence(res, presence);
+    }
+  });
+  watchlist = getWatchlist();
 }
 
 /**
@@ -162,7 +170,6 @@ async function setStatus (name,status) {
       SET status = $1
       WHERE name = $2;`
       , [status,name], (err, res) => { //$1 is untrusted and sanitized
-      //console.error(err);
     });
   } catch (err) {
     console.error(err);
@@ -181,36 +188,6 @@ async function getSysID (name) {
     return rows[0].system_id; // Return System_id
   } catch (err) {
     return 0; // Return 0 if system is not in the DB
-  }
-}
-
-/**
-* Returns all the Incursion ID's for the system name requested
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} system_id     Database ID of the Star System
-* @return   {Int}               Incursion ID
-*/
-async function getIncID (system_id) {
-  try {
-    const { rows } = await querySelect("inc_id", "incursions", "system_id", system_id);
-    return rows[0].inc_id; // Return System_id
-  } catch (err) {
-    return 0; // Return 0 if system is not in the DB
-  }
-}
-
-/**
-* Gets the most recent incursion time for a system id.
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} system_id     Database ID of the Star System
-* @return   {Int}               Returns time (UNIX EPOCH) of most recent incursion report
-*/
-async function getLastIncTime (system_id) {
-  try {
-    const { rows } = await querySelect("MAX(time)", "incursions", "system_id", system_id);
-    return rows[0].max; // Return System_id
-  } catch (err) {
-    console.error(err);
   }
 }
 
@@ -295,30 +272,28 @@ async function processSystem(msg) {
   let time = date.getTime(timestamp);
 
   if (SystemAllegiance != undefined && time >= Date.now() - 86400000) {
-    
+    id = await getSysID(StarSystem);
+
     if (watchlist.includes(StarSystem)) { // Check in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-        addIncursions(await getSysID(StarSystem),time);
+        addIncursions(id,time);
+        addPresence(id, 0);
         console.log(`Incursion Logged: ${StarSystem}`);
         watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
-
       } else {
         setStatus(StarSystem,0);
         console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
         watchlist = await getWatchlist();
       }
-
     } else { // Not in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-        if (await getSysID(StarSystem) == 0) { // Check if system is NOT in DB
-          await addSystem(StarSystem);
-          getSysID(StarSystem).then((res) => {
+        if (id == 0) { // Check if system is NOT in DB
+          addSystem(StarSystem).then((res) => {
             addIncursions(res,time);
-            addPresence(res,0);
           });
         } else {
           setStatus(StarSystem, 1);
-          addIncursions(await getSysID(StarSystem),time);
+          addIncursions(id,time);
         }
         console.log(`System Logged: ${StarSystem}`);
         watchlist = await getWatchlist();
@@ -340,7 +315,7 @@ async function run() {
   // Data Stream Loop
   for await (const [src] of sock) { // For each data packet
     msg = JSON.parse(zlib.inflateSync(src));
-    processSystem(msg);
+    processSystem(msg, 0);
   }
 }
 
@@ -359,8 +334,7 @@ api.get('/styles.css', function(req, res) {
 });
 
 api.get('/incursionshistory', async function(req, res) {
-  const { rows } =
-  await pool.query(
+  const { rows } = await pool.query(
     `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time
      FROM incursions
      INNER JOIN systems
@@ -464,16 +438,15 @@ discordClient.on('message', message => {
 			});
 		}
 
-    if (message.content.startsWith(`${prefix}setpresence`)) { // This command cannot be moved to a command file due to dependancies.
-			try {
-        addPresence(args[0],args[1]);
+    if (message.content.startsWith(`${prefix}setpresencebyname`)) { // This command cannot be moved to a command file due to dependancies.
+      console.log(typeof args[0] + typeof args[1])
+      try {
+        addPresenceByName(args[0],args[1]);
         message.channel.send("Setting Presence Level")
-      } 
-      catch {
+      } catch {
         message.channel.send("Something went wrong, please ensure the ID is correct")
       }
 		}
-
 		return;
 	}
 
