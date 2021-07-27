@@ -413,7 +413,7 @@ api.get('/systems', async function(req, res) {
 );
 
 api.get('/presence', async function(req, res) {
-  const { rows } = await pool.query(`SELECT presence.presence_id,systems.name,presence.presence_lvl,presence.time
+  const { rows } = await pool.query(`SELECT systems.name,presence.presence_lvl,presence.time
   FROM presence
   INNER JOIN systems
   ON presence.system_id=systems.system_id;`);
