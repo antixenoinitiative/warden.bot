@@ -13,9 +13,7 @@ The following diagram explains the flow of data through AXI Sentry:
 
 ## API Endpoints
 
-- http://sentry.antixenoinitiative.com:3000/
-- http://sentry.antixenoinitiative.com:3000/incursions
-- http://sentry.antixenoinitiative.com:3000/incursionshistory
+You can view the API Endpoints at [](http://sentry.antixenoinitiative.com/)
 
 ## How to use for development
 
