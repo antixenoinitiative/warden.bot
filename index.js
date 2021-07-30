@@ -17,6 +17,9 @@ const Discord = require("discord.js");
 const { Pool } = require('pg');
 const zmq = require("zeromq");
 const api = require('express')();
+const path = require('path');
+const db = require('./db/index');
+const endpoint = require('./api/index');
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -37,261 +40,38 @@ for (const file of commandFiles) {
 	discordClient.commands.set(command.name, command);
 }
 
-// Generate Google Key File from ENV varaiables then Connect Google Client
-//comment out if using your own cloud key
-// var dict = {
-//   "type": "service_account",
-//   "project_id": "axi-sentry",
-//   "private_key_id": process.env.GOOGLEKEYID,
-//   "private_key": process.env.GOOGLEKEY,
-//   "client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
-//   "client_id": "105556351573320071528",
-//   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-//   "token_uri": "https://oauth2.googleapis.com/token",
-//   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-//   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
-// };
-// var dictstring = JSON.stringify(dict, null, 2);
-// fs.writeFile("APIKey.json", dictstring, function(err, result) {
-//   const vision = require("@google-cloud/vision")
-//   const googleClient = new vision.ImageAnnotatorClient({
-//     keyFilename: "./APIKey.json",
-//   })
-// });
+// Generate Google Key from ENV varaiables then Connect Google Client
+const dict = `{
+  "type": "service_account",
+  "project_id": "axi-sentry",
+  "private_key_id": "${process.env.GOOGLEKEYID}",
+  "private_key": "${process.env.GOOGLEKEY}",
+  "client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
+  "client_id": "105556351573320071528",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
+}`;
+const privateKey = JSON.parse(dict);
+const vision = require("@google-cloud/vision");
+const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
 //Uncomment if using your own cloud API endpoint
+/*
 const vision = require("@google-cloud/vision")
 const googleClient = new vision.ImageAnnotatorClient({
 	keyFilename: "./originalkey.json",
-})
+})*/
 
 // Database Client Config
-const pool = new Pool({ //credentials stored in .env file
+const pool = new Pool({
   user: process.env.DBUSER,
   host: process.env.DBHOST,
   database: process.env.DBDATABASE,
   password: process.env.DBPASSWORD,
 })
 
-// Constructs and returns a SELECT query
-async function querySelect (column1, table, column2, value) {
-  const client = await pool.connect();
-  let res;
-  try {
-    await client.query('BEGIN');
-    try {
-      res = await client.query(`
-        SELECT ${column1}
-        FROM ${table}
-        WHERE ${column2} = $1`, [value] //$1 is untrusted and sanitized
-      );
-      await client.query('COMMIT');
-    } catch (err) {
-      console.error(err);
-      await client.query('ROLLBACK');
-      throw err;
-    }
-  } finally {
-    client.release();
-  }
-  return res;
-}
-
-/**
-* Function adds a Star System to the Database
-* @author   (Mgram) Marcus Ingram
-* @param    {String} name    Name of the Star System
-*/
-async function addSystem (name) {
-  try {
-    pool.query(`INSERT INTO systems(name,status)VALUES($1,'1')`, [name], (err, res) => {});
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-/**
-* Function adds an Incursion to the Database
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} system_id     Database ID of the Star System
-*/
-async function addIncursions (system_id,time) {
-  try {
-    pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`, [system_id,time], (err, res) => {});
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-/**
-* Add a presence level to Database by ID
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} system_id     Database ID of the Star System
-* @param    {Int} presence      Presence level of the system (0-5)
-*/
-function addPresence (system_id, presence) {
-  let time = Math.floor(new Date().getTime()); // Unix time
-  try {
-    pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [system_id,presence,time], (err, res) => {});
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-/**
-* Add a presence level to Database by name
-* @author   (Mgram) Marcus Ingram
-* @param    {String} name    Name of the Star System
-* @param    {Int} presence   Presence level of the system (1-5) 5 = Massive, 1 = None
-*/
-function addPresenceByName (name, presence) {
-  try {
-    getSysID(name).then((res) => {
-      addPresence(res,presence);
-    })
-  } catch (err) {
-    return(err);
-  }
-}
-
-/**
-* Set the current incursion status of a system by name
-* @author   (Mgram) Marcus Ingram
-* @param    {String} name    Name of the Star System
-* @param    {Int} status     (1 = active, 0 = inactive)
-*/
-async function setStatus (name,status) {
-  try {
-    pool.query(
-      `UPDATE systems
-      SET status = $1
-      WHERE name = $2;`
-      , [status,name], (err, res) => { //$1 is untrusted and sanitized
-      //console.error(err);
-    });
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-/**
-* Returns the Database ID for the system name requested
-* @author   (Mgram) Marcus Ingram
-* @param    {String} name    Name of the Star System
-* @return   {Int}            Star System Database ID
-*/
-async function getSysID (name) {
-  try {
-    const { rows } = await querySelect("system_id", "systems", "name", name);
-    return rows[0].system_id; // Return System_id
-  } catch (err) {
-    return 0; // Return 0 if system is not in the DB
-  }
-}
-
-/**
-* Returns all the Incursion ID's for the system name requested
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} system_id     Database ID of the Star System
-* @return   {Int}               Incursion ID
-*/
-async function getIncID (system_id) {
-  try {
-    const { rows } = await querySelect("inc_id", "incursions", "system_id", system_id);
-    return rows[0].inc_id; // Return System_id
-  } catch (err) {
-    return 0; // Return 0 if system is not in the DB
-  }
-}
-
-/**
-* Gets the most recent incursion time for a system id.
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} system_id     Database ID of the Star System
-* @return   {Int}               Returns time (UNIX EPOCH) of most recent incursion report
-*/
-async function getLastIncTime (system_id) {
-  try {
-    const { rows } = await querySelect("MAX(time)", "incursions", "system_id", system_id);
-    return rows[0].max; // Return System_id
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-/**
-* Gets the most recent system presence level for a system id.
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} system_id     Database ID of the Star System
-* @return   {Int}               Returns presence level for Star System
-*/
-async function getPresence (system_id) {
-  try {
-    let { rows } = await querySelect("MAX(time)", "presence", "system_id", system_id);
-    system_id = rows[0].max;
-    let result = await querySelect("presence_lvl", "presence", "time", system_id);
-    return result.rows[0].presence_lvl; // Return Presence
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-/**
-* Returns an object with current incursions and their presence levels (WORK IN PROGRESS)
-* @author   (Mgram) Marcus Ingram
-* @return   {Int}       Returns map object with incursion system name:presence level
-*/
-async function getIncList () {
-  try {
-    let res = await querySelect("*", "systems", "status", 1);
-    let list = new Map();
-    for (let i = 0; i < res.rowCount; i++) {
-      let presence = await getPresence(res.rows[i].system_id);
-      list.set(res.rows[i].name,presence);
-    }
-    return list;
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Fetch a new watchlist from the current incursion systems
-async function getWatchlist (name) {
-  try {
-    let list = [];
-    const { rows } = await querySelect("name", "systems", "status", 1);
-    for (let i = 0; i < rows.length; i++) {
-      list.push(rows[i].name);
-    }
-    console.log(`Watchlist: ${list}`);
-    return list; // Return System_id
-  } catch (err) {
-    console.log(err); // Return 0 if system is not in the DB
-  }
-}
-
-/**
-* Returns presence as string from lvl
-* @author   (Mgram) Marcus Ingram
-* @param    {Int} presence_lvl    Input value of presence level
-* @return   {String}              Returns the presence level as a string
-*/
-function convertPresence(presence_lvl) {
-  switch (presence_lvl) {
-    case 0:
-      return "No data available";
-    case 1:
-      return "No Thargoid Presence";
-    case 2:
-      return "Marginal Thargoid Presence";
-    case 3:
-      return "Moderate Thargoid Presence";
-    case 4:
-      return "Significant Thargoid Presence";
-    case 5:
-      return "Massive Thargoid Presence";
-  }
-}
 
 // Star System processing logic
 async function processSystem(msg) {
@@ -301,32 +81,33 @@ async function processSystem(msg) {
 
   if (SystemAllegiance != undefined && time >= Date.now() - 86400000) {
 
+    id = await db.getSysID(StarSystem);
+
     if (watchlist.includes(StarSystem)) { // Check in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-        addIncursions(await getSysID(StarSystem),time);
+        db.addIncursions(id,time);
         console.log(`Incursion Logged: ${StarSystem}`);
-        watchlist = await getWatchlist(); // Refresh the watchlist with the new systems to monitor
+        watchlist = await db.getWatchlist(); // Refresh the watchlist with the new systems to monitor
 
       } else {
-        setStatus(StarSystem,0);
+        db.setStatus(StarSystem,0);
         console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
-        watchlist = await getWatchlist();
+        watchlist = await db.getWatchlist();
       }
 
     } else { // Not in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
-        if (await getSysID(StarSystem) == 0) { // Check if system is NOT in DB
-          await addSystem(StarSystem);
-          getSysID(StarSystem).then((res) => {
-            addIncursions(res,time);
-            addPresence(res,0);
+        if (id == 0) { // Check if system is NOT in DB
+          db.addSystem(StarSystem).then((res) => {
+            db.addIncursions(res,time);
           });
+
         } else {
-          setStatus(StarSystem, 1);
-          addIncursions(await getSysID(StarSystem),time);
+          db.setStatus(StarSystem, 1);
+          db.addIncursions(id,time);
         }
         console.log(`System Logged: ${StarSystem}`);
-        watchlist = await getWatchlist();
+        watchlist = await db.getWatchlist();
       }
     }
   }
@@ -336,7 +117,7 @@ async function processSystem(msg) {
 async function run() {
   const sock = new zmq.Subscriber;
 
-  watchlist = await getWatchlist();
+  watchlist = await db.getWatchlist();
 
   sock.connect(SOURCE_URL);
   sock.subscribe('');
@@ -356,92 +137,42 @@ if (enableAPI == 1) {
   });
 } else { console.error(`WARN: API Disabled`)}
 
-api.get('/', (req, res) => res.json(  // When a request is made to the base dir, call the callback function json()
-    {
-      header: { // Contains data about the message
-        timestamp: `${new Date().toISOString()}`, // Sets timestamp to the current time in ISO8601 format.
-        softwareName: 'AXI Sentry', // Name of API
-        softwareVersion: '0.1',  // Arbituary number currently
-      },
-      message: {
-        endpoints: {
-          incursions: 'http://sentry.antixenoinitiative.com/incursions',
-          incursionshistory: 'http://sentry.antixenoinitiative.com/incursionshistory',
-          systems: 'http://sentry.antixenoinitiative.com/systems',
-          presence: 'http://sentry.antixenoinitiative.com/presence'
-        }
-      }
-    }
-  ),
-);
+api.get('/', function(req, res) {
+  res.sendFile(path.join(__dirname, '/dist/index.html'));
+});
+api.get('/styles.css', function(req, res) {
+  res.sendFile(path.join(__dirname, '/dist/styles.css'));
+});
 
 api.get('/incursionshistory', async function(req, res) {
-  const { rows } =
-  await pool.query(
+  const { rows } = await db.query(
     `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time
      FROM incursions
      INNER JOIN systems
      ON incursions.system_id=systems.system_id;`
   );
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        incursions: rows,
-      }
-    })
+  res.json(endpoint.Response(rows))
   },
 );
 
 api.get('/incursions', async function(req, res) {
-  const { rows } = await pool.query(`SELECT * FROM systems WHERE status = '1'`);
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        incursions: rows,
-      }
-    })
+  const { rows } = await db.query(`SELECT * FROM systems WHERE status = '1'`);
+  res.json(endpoint.Response(rows))
   },
 );
 
 api.get('/systems', async function(req, res) {
-  const { rows } = await pool.query(`SELECT * FROM systems`);
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        systems: rows,
-      }
-    })
+  const { rows } = await db.query(`SELECT * FROM systems`);
+  res.json(endpoint.Response(rows))
   },
 );
 
 api.get('/presence', async function(req, res) {
-  const { rows } = await pool.query(`SELECT * FROM presence`);
-  res.json(
-    {
-      header: {
-        timestamp: `${new Date().toISOString()}`,
-        softwareName: 'AXI Sentry',
-        softwareVersion: '0.1',
-      },
-      message: {
-        systems: rows,
-      }
-    })
+  const { rows } = await db.query(`SELECT systems.name,presence.presence_lvl,presence.time
+  FROM presence
+  INNER JOIN systems
+  ON presence.system_id=systems.system_id;`);
+  res.json(endpoint.Response(rows))
   },
 );
 
@@ -480,7 +211,7 @@ discordClient.on('message', message => {
 		}
 
 		if (message.content === `${prefix}getactive`) { // This command cannot be moved to a command file due to dependancies.
-			getIncList().then((list) => {
+			db.getIncList().then((list) => {
 				const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
 						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -489,22 +220,21 @@ discordClient.on('message', message => {
             console.log(list);
             for (let [system,presence] of list.entries()) {
               console.log(`${system}: ${presence}`)
-              returnEmbed.addField(system, convertPresence(presence))
+              returnEmbed.addField(system, db.convertPresence(presence))
             }
 						message.channel.send(returnEmbed.setTimestamp())
 			});
 		}
 
     if (message.content.startsWith(`${prefix}setpresence`)) { // This command cannot be moved to a command file due to dependancies.
-			try {
-        addPresence(args[0],args[1]);
+      console.log(typeof args[0] + typeof args[1])
+      try {
+        db.addPresence(args[0],args[1]);
         message.channel.send("Setting Presence Level")
-      }
-      catch {
+      } catch {
         message.channel.send("Something went wrong, please ensure the ID is correct")
       }
 		}
-
 		return;
 	}
   const command = discordClient.commands.get(commandName);
