@@ -6,7 +6,7 @@
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
 const enableListener = 0; // Set to 0 to disable listener from running
-const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
 const enableAPI = 0; // Set to 0 to disable API from running
 //--------------------------------------------------
 
@@ -14,7 +14,6 @@ require("dotenv").config();
 const zlib = require("zlib");
 const fs = require('fs');
 const Discord = require("discord.js");
-const { Pool } = require('pg');
 const zmq = require("zeromq");
 const api = require('express')();
 const path = require('path');
@@ -63,15 +62,6 @@ const vision = require("@google-cloud/vision")
 const googleClient = new vision.ImageAnnotatorClient({
 	keyFilename: "./originalkey.json",
 })*/
-
-// Database Client Config
-const pool = new Pool({
-  user: process.env.DBUSER,
-  host: process.env.DBHOST,
-  database: process.env.DBDATABASE,
-  password: process.env.DBPASSWORD,
-})
-
 
 // Star System processing logic
 async function processSystem(msg) {
