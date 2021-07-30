@@ -55,9 +55,10 @@ const dict = `{
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
 }`;
 const privateKey = JSON.parse(dict);
+console.log(privateKey);
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
-//Uncomment if using your own cloud API endpoint
+// Uncomment if using your own cloud API endpoint
 /*
 const vision = require("@google-cloud/vision")
 const googleClient = new vision.ImageAnnotatorClient({
@@ -66,12 +67,11 @@ const googleClient = new vision.ImageAnnotatorClient({
 
 // Star System processing logic
 async function processSystem(msg) {
-  const { StarSystem, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
+  const { StarSystem, timestamp, SystemAllegiance, SystemGovernment } = msg.message;  // Destructuring msg
   let date = new Date();
-  let time = date.getTime(timestamp);
+  let time = date.getTime(timestamp); // Converting msg timestamp to Unix Epoch
 
-  if (SystemAllegiance != undefined && time >= Date.now() - 86400000) {
-
+  if (SystemAllegiance != undefined && time >= Date.now() - 86400000) { // Checking if report is recent
     id = await db.getSysID(StarSystem);
 
     if (watchlist.includes(StarSystem)) { // Check in watchlist
