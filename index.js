@@ -130,39 +130,40 @@ if (enableAPI == 1) {
 api.get('/', function(req, res) {
   res.sendFile(path.join(__dirname, '/dist/index.html'));
 });
+
 api.get('/styles.css', function(req, res) {
   res.sendFile(path.join(__dirname, '/dist/styles.css'));
 });
 
 api.get('/incursionshistory', async function(req, res) {
-  const { rows } = await db.query(
-    `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time
-     FROM incursions
-     INNER JOIN systems
-     ON incursions.system_id=systems.system_id;`
-  );
-  res.json(endpoint.Response(rows))
+    const { rows } = await db.query(
+      `SELECT incursions.inc_id,systems.system_id,systems.name,incursions.time
+      FROM incursions
+      INNER JOIN systems
+      ON incursions.system_id=systems.system_id;`
+    );
+    res.json(endpoint.Response(rows))
   },
 );
 
 api.get('/incursions', async function(req, res) {
-  const { rows } = await db.query(`SELECT * FROM systems WHERE status = '1'`);
-  res.json(endpoint.Response(rows))
+    const { rows } = await db.query(`SELECT * FROM systems WHERE status = '1'`);
+    res.json(endpoint.Response(rows))
   },
 );
 
 api.get('/systems', async function(req, res) {
-  const { rows } = await db.query(`SELECT * FROM systems`);
-  res.json(endpoint.Response(rows))
+    const { rows } = await db.query(`SELECT * FROM systems`);
+    res.json(endpoint.Response(rows))
   },
 );
 
 api.get('/presence', async function(req, res) {
-  const { rows } = await db.query(`SELECT systems.name,presence.presence_lvl,presence.time
-  FROM presence
-  INNER JOIN systems
-  ON presence.system_id=systems.system_id;`);
-  res.json(endpoint.Response(rows))
+    const { rows } = await db.query(`SELECT systems.name,presence.presence_lvl,presence.time
+    FROM presence
+    INNER JOIN systems
+    ON presence.system_id=systems.system_id;`);
+    res.json(endpoint.Response(rows));
   },
 );
 
