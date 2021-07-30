@@ -5,9 +5,9 @@
 
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
-const enableListener = 0; // Set to 0 to disable listener from running
-const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
-const enableAPI = 0; // Set to 0 to disable API from running
+const enableListener = 1; // Set to 0 to disable listener from running
+const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableAPI = 1; // Set to 0 to disable API from running
 //--------------------------------------------------
 
 require("dotenv").config();
