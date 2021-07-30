@@ -1,13 +1,13 @@
 /**
 * AXI Sentry is a application which manages Thargoid Incursions via a database and discord bot which listens and interfaces with EDDN.
-* @author   CMDR Mgram, CMDR Airom 
+* @author   CMDR Mgram, CMDR Airom
 */
 
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
-const enableListener = 1; // Set to 0 to disable listener from running
-const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
-const enableAPI = 1; // Set to 0 to disable API from running
+const enableListener = 0; // Set to 0 to disable listener from running
+const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableAPI = 0; // Set to 0 to disable API from running
 //--------------------------------------------------
 
 require("dotenv").config();
@@ -32,7 +32,7 @@ let watchlist;
 // Discord client setup
 const discordClient = new Discord.Client()
 discordClient.commands = new Discord.Collection();
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js')); //commands stored in subfolders and imported here
 for (const file of commandFiles) {
 	const command = require(`./commands/${file}`);
 	// set a new item in the Collection
@@ -57,6 +57,13 @@ const privateKey = JSON.parse(dict);
 const vision = require("@google-cloud/vision");
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
+//Uncomment if using your own cloud API endpoint
+/*
+const vision = require("@google-cloud/vision")
+const googleClient = new vision.ImageAnnotatorClient({
+	keyFilename: "./originalkey.json",
+})*/
+
 // Database Client Config
 const pool = new Pool({
   user: process.env.DBUSER,
@@ -65,6 +72,7 @@ const pool = new Pool({
   password: process.env.DBPASSWORD,
 })
 
+
 // Star System processing logic
 async function processSystem(msg) {
   const { StarSystem, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
@@ -72,6 +80,7 @@ async function processSystem(msg) {
   let time = date.getTime(timestamp);
 
   if (SystemAllegiance != undefined && time >= Date.now() - 86400000) {
+
     id = await db.getSysID(StarSystem);
 
     if (watchlist.includes(StarSystem)) { // Check in watchlist
@@ -168,8 +177,25 @@ api.get('/presence', async function(req, res) {
 );
 
 //Discord client
-discordClient.on("ready", () => {
+const incursionsEmbed = new Discord.MessageEmbed()
+	.setColor('#FF7100')
+	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+	.setTitle("**Defense Targets**")
+let messageToUpdate
+discordClient.once("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
+	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
+		messageToUpdate = message
+		const currentEmbed = message.embeds[0]
+		incursionsEmbed.description = currentEmbed.description
+		currentEmbed.fields.forEach((field) => {
+			console.log(field)
+			incursionsEmbed.addField(field.name, field.value)
+		})
+	}).catch(err => {
+		console.log(err)
+	})
+	// discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").send(incursionsEmbed)
 })
 
 discordClient.on('message', message => {
@@ -178,6 +204,7 @@ discordClient.on('message', message => {
 	const args = message.content.slice(prefix.length).trim().split(/ +/);
 	const commandName = args.shift().toLowerCase();
 
+	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
 		if (message.content === `${prefix}ping`) {
 			message.channel.send("Pong")
@@ -189,14 +216,13 @@ discordClient.on('message', message => {
             .setColor('#FF7100')
 						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 						.setTitle("**Active Incursions**")
-						.setDescription("Current systems under incursion.")
-						.setTimestamp()
+						.setDescription("Current systems under incursion:")
             console.log(list);
             for (let [system,presence] of list.entries()) {
               console.log(`${system}: ${presence}`)
               returnEmbed.addField(system, db.convertPresence(presence))
             }
-						message.channel.send({ embed: returnEmbed })
+						message.channel.send(returnEmbed.setTimestamp())
 			});
 		}
 
@@ -211,9 +237,9 @@ discordClient.on('message', message => {
 		}
 		return;
 	}
-
   const command = discordClient.commands.get(commandName);
 
+	//checks for proper permissions
 	if(command.restricted) {
 		if (!message.guild) return;
 		const authorPerms = message.channel.permissionsFor(message.author);
@@ -231,21 +257,32 @@ discordClient.on('message', message => {
 
     return message.channel.send(reply);
   }
-
 	try {
-		command.execute(message, args);
+		command.execute(message, args, passArray);
 	} catch (error) {
 		console.error(error);
 		message.reply('there was an error trying to execute that command!');
 	}
 });
 
+/**
+* Returns whether or not an attachment is an .jpg or .png
+* @author
+* @param    {Attachment} msgAttach    Input attachment
+* @return   {String}              Returns if the attachment is an image
+*/
 function attachIsImage(msgAttach) {
   const url = msgAttach.url;
   //True if this url is a png image.
   return url.indexOf("png", url.length - "png".length /*or 3*/) !== -1 || url.indexOf("jpg", url.length - "jpg".length /*or 3*/) !== -1;
 }
 
+/**
+* Returns formatted incursion text for use in embed
+* @author   Airom
+* @param    {String} text    Input value of message text
+* @return   {String}              Returns the formatted incursion field
+*/
 function parseIncursionSystems(text) {
   let systemList = text.substring(text.indexOf(":\n") + 2)
   if(systemList.indexOf("have been attacked") != -1) systemList = systemList.substring(0, systemList.indexOf("Starport"))
@@ -265,16 +302,65 @@ function parseIncursionSystems(text) {
   return returnStr
 }
 
+/**
+* Returns formatted damaged starport text for use in embed
+* @author   Airom
+* @param    {String} text    Input value of message text
+* @return   {String}              Returns the formatted station field
+*/
 function parseDamagedStarports(text) {
   const starportList = text.substring(text.indexOf("Update") + 7).split("\n")
 	let returnStr = "The following stations have been attacked and may require assistance:"
 	// console.log(starportList)
 	for(var i = 1; i < starportList.length - 1; i++) {
-		returnStr += "\n- " + starportList[i] + "🔥"
+		returnStr += "\n- " + starportList[i] + " 🔥"
 	}
   return returnStr
+}
+
+/**
+* Updates or adds a single field to the stored embed and updates the message
+* @author   Airom
+* @param    {Array} field    {name: nameOfField, value: valueOfField}
+*/
+function updateEmbedField(field) {
+	if(field.name == null) return messageToUpdate.edit(incursionsEmbed.setDescription(field.value).setTimestamp())
+	const temp = new Discord.MessageEmbed()
+		.setColor('#FF7100')
+		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+		.setTitle("**Defense Targets**")
+		.setDescription(incursionsEmbed.description)
+	let isUpdated = false
+	for(var i = 0; i < incursionsEmbed.fields.length; i++) {
+		if(incursionsEmbed.fields[i].name == field.name) {
+			if(field.value) {
+				temp.addField(field.name, field.value)
+			}
+			isUpdated = true
+			console.log("Updated existing field: " + field.name)
+		} else {
+			temp.addField(incursionsEmbed.fields[i].name, incursionsEmbed.fields[i].value)
+			console.log("Copied existing field: " + incursionsEmbed.fields[i].name)
+		}
+	}
+	if(!isUpdated && field.value){
+		temp.addField(field.name, field.value)
+		console.log("Added new field: " + field.name)
+	}
+	incursionsEmbed.fields = temp.fields
+	messageToUpdate.edit(incursionsEmbed.setTimestamp())
+	console.log(messageToUpdate.embeds[0].fields)
 }
 
 // Switch Statements
 if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
 if (enableListener == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
+
+//Array used to pass variables and functions through the command handler
+const passArray = [
+	attachIsImage,
+	googleClient,
+	parseIncursionSystems,
+	parseDamagedStarports,
+	updateEmbedField
+]
