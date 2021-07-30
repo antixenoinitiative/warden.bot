@@ -20,6 +20,7 @@ const path = require('path');
 const db = require('./db/index');
 const endpoint = require('./api/index');
 
+
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetAllegiance = "Thargoid";
@@ -78,13 +79,11 @@ async function processSystem(msg) {
         db.addIncursions(id,time);
         console.log(`Incursion Logged: ${StarSystem}`);
         watchlist = await db.getWatchlist(); // Refresh the watchlist with the new systems to monitor
-
       } else {
         db.setStatus(StarSystem,0);
         console.log(`${StarSystem} removed from Watchlist because alli = [${SystemAllegiance}], gov = [${SystemGovernment}]`)
         watchlist = await db.getWatchlist();
       }
-
     } else { // Not in watchlist
       if (SystemAllegiance == targetAllegiance && SystemGovernment == targetGovernment) { // Check if the system is under Incursion
         if (id == 0) { // Check if system is NOT in DB
@@ -118,6 +117,19 @@ async function run() {
     msg = JSON.parse(zlib.inflateSync(src));
     processSystem(msg);
   }
+}
+
+function Response(data) {
+  return ({
+    header: {
+      timestamp: `${new Date().toISOString()}`,
+      softwareName: 'AXI Sentry',
+      softwareVersion: '0.1',
+    },
+    message: {
+      rows: data,
+    }
+  })
 }
 
 // API Code
