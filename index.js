@@ -6,7 +6,7 @@
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
 const enableListener = 1; // Set to 0 to disable listener from running
-const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
+const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 const enableAPI = 1; // Set to 0 to disable API from running
 //--------------------------------------------------
 
@@ -17,9 +17,10 @@ const Discord = require("discord.js");
 const zmq = require("zeromq");
 const api = require('express')();
 const path = require('path');
+const vision = require("@google-cloud/vision");
 const db = require('./db/index');
 const endpoint = require('./api/index');
-
+const { adminRoles } = require('./permissions');
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -54,7 +55,6 @@ const dict = `{
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
 }`;
 const privateKey = JSON.parse(dict);
-const vision = require("@google-cloud/vision");
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
 //Uncomment if using your own cloud API endpoint
