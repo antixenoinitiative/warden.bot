@@ -6,7 +6,7 @@
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
 const enableListener = 1; // Set to 0 to disable listener from running
-const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
 const enableAPI = 1; // Set to 0 to disable API from running
 //--------------------------------------------------
 
@@ -19,7 +19,6 @@ const api = require('express')();
 const path = require('path');
 const db = require('./db/index');
 const endpoint = require('./api/index');
-
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -55,6 +54,7 @@ const dict = `{
 }`;
 const privateKey = JSON.parse(dict);
 const vision = require("@google-cloud/vision");
+const { getIncursionsByDate } = require("./db/index");
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
 //Uncomment if using your own cloud API endpoint
@@ -238,6 +238,7 @@ discordClient.on('message', message => {
         message.channel.send("Something went wrong, please ensure the ID is correct")
       }
 		}
+
 		return;
 	}
   const command = discordClient.commands.get(commandName);
