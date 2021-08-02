@@ -1,7 +1,8 @@
 module.exports = {
 	name: 'removefield',
 	description: 'Manually removes a field',
-  args: true,
+	format: '',
+  	args: true,
 	restricted: true,
 	execute(message, args, passArray) {
 		updateEmbedField = passArray[4]

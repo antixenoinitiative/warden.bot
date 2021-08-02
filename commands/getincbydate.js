@@ -3,6 +3,7 @@ const db = require('./../db/index');
 module.exports = {
 	name: 'getincbydate',
 	description: 'Gets a list of systems under incursion on a specified date',
+    format: 'YYYY-MM-DD',
 	restricted: true,
 	execute(message, args) {
 		try {

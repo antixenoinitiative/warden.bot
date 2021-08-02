@@ -5,9 +5,9 @@
 
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
-const enableListener = 1; // Set to 0 to disable listener from running
+const enableListener = 0; // Set to 0 to disable listener from running
 const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
-const enableAPI = 1; // Set to 0 to disable API from running
+const enableAPI = 0; // Set to 0 to disable API from running
 //--------------------------------------------------
 
 require("dotenv").config();
@@ -19,6 +19,13 @@ const api = require('express')();
 const path = require('path');
 const db = require('./db/index');
 const endpoint = require('./api/index');
+const wiki = require('./graphql/index');
+
+async function test() {
+  console.log(await wiki.search("Guardian"));
+}
+
+test();
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -185,6 +192,7 @@ const incursionsEmbed = new Discord.MessageEmbed()
 	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 	.setTitle("**Defense Targets**")
 let messageToUpdate
+
 discordClient.once("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
 	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
@@ -204,44 +212,28 @@ discordClient.once("ready", () => {
 discordClient.on('message', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-	const args = message.content.slice(prefix.length).trim().split(/ +/);
-	const commandName = args.shift().toLowerCase();
+	const args = message.content.slice(prefix.length).trim().split(/ +/);     // Format Arguments
+	const commandName = args.shift().toLowerCase();                           // Convert command to lowercase
+  const command = discordClient.commands.get(commandName);                  // Gets the command inf
 
 	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
-		if (message.content === `${prefix}ping`) {
-			message.channel.send("Pong")
-		}
-
-		if (message.content === `${prefix}getactive`) { // This command cannot be moved to a command file due to dependancies.
-			db.getIncList().then((list) => {
-				const returnEmbed = new Discord.MessageEmbed()
-            .setColor('#FF7100')
-						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-						.setTitle("**Active Incursions**")
-						.setDescription("Current systems under incursion:")
-            console.log(list);
-            for (let [system,presence] of list.entries()) {
-              console.log(`${system}: ${presence}`)
-              returnEmbed.addField(system, db.convertPresence(presence))
-            }
-						message.channel.send(returnEmbed.setTimestamp())
-			});
-		}
-
-    if (message.content.startsWith(`${prefix}setpresence`)) { // This command cannot be moved to a command file due to dependancies.
-      console.log(typeof args[0] + typeof args[1])
-      try {
-        db.addPresence(args[0],args[1]);
-        message.channel.send("Setting Presence Level")
-      } catch {
-        message.channel.send("Something went wrong, please ensure the ID is correct")
-      }
+		// Basic Command Testing
+    if (message.content === `${prefix}help`) { // This command cannot be moved to a command file due to dependancies.
+			const returnEmbed = new Discord.MessageEmbed()
+        .setColor('#FF7100')
+				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+				.setTitle("**Commands**")
+				.setDescription("List of current bot commands:")
+        for (const file of commandFiles) {
+          const command = require(`./commands/${file}`);
+          returnEmbed.addField(`${prefix}${command.name} ${command.format}`, command.description)
+        }
+				message.channel.send(returnEmbed.setTimestamp())
 		}
 
 		return;
 	}
-  const command = discordClient.commands.get(commandName);
 
 	//checks for proper permissions
 	if(command.restricted) {

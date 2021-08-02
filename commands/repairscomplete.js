@@ -1,6 +1,7 @@
 module.exports = {
 	name: 'repairscomplete',
 	description: 'Changes repair target to a standby message',
+	format: '',
 	restricted: true,
 	execute(message, args, passArray) {
 		updateEmbedField = passArray[4]

@@ -1,6 +1,7 @@
 module.exports = {
 	name: 'updatefield',
 	description: 'Manually updates a field',
+	format: '',
 	args: true,
 	restricted: true,
 	execute(message, args, passArray) {

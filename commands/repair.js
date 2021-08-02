@@ -1,6 +1,7 @@
 module.exports = {
 	name: 'repair',
 	description: 'Updates current repair target.',
+	format: '',
 	args: true,
 	usage: '<stationName> <systemName>',
 	restricted: true,
