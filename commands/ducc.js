@@ -5,6 +5,6 @@ module.exports = {
     permlvl: 0,
     restricted: true,
     execute (message, args, passArray) {
-        message.channel.send(`You summoneth the ducc! ${message.author.toString()} https://c.tenor.com/N3GVRxPTh-4AAAAM/duck-lmao.gif`);
+        message.channel.send(`You summoneth the ducc! <@Mgram#6610> https://c.tenor.com/N3GVRxPTh-4AAAAM/duck-lmao.gif`);
     }
 }
