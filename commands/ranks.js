@@ -2,7 +2,7 @@ const Discord = require("discord.js");
 
 module.exports = {
 	name: 'ranks',
-	description: 'Get rank statistics. **Arguments:** challenge, progression',
+	description: 'Get rank statistics (Arguments: challenge, progression, other)',
     format: 'argument',
 	permlvl: 0,
 	restricted: false,
