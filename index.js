@@ -17,7 +17,6 @@ const Discord = require("discord.js");
 const zmq = require("zeromq");
 const api = require('express')();
 const path = require('path');
-const vision = require("@google-cloud/vision");
 const db = require('./db/index');
 const endpoint = require('./api/index');
 const wiki = require('./graphql/index');
