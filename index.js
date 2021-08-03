@@ -233,7 +233,7 @@ discordClient.on('message', message => {
 				.setDescription("List of current **Restricted** bot commands:")
         for (const file of commandFiles) {
           const command = require(`./commands/${file}`);
-          if (command.restricted == true) {
+          if (command.restricted == true && command.hidden != true) {
             returnEmbed.addField(`${prefix}${command.name} <${command.format}>`, command.description)
           }
         }
