@@ -1,6 +1,8 @@
 module.exports = {
 	name: 'incursion',
 	description: 'Updates list of systems under incursion and/or damaged starports.',
+	format: '',
+	permlvl: 1,
 	restricted: true,
 	execute(message, args, passArray) {
 		//importing functions and variables

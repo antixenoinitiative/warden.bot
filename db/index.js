@@ -1,5 +1,6 @@
 require("dotenv").config();
 const { Pool } = require('pg');
+const weeks = require("./weeks/weeks.json");
 
 const pool = new Pool({ //credentials stored in .env file
     user: process.env.DBUSER,
@@ -7,6 +8,26 @@ const pool = new Pool({ //credentials stored in .env file
     database: process.env.DBDATABASE,
     password: process.env.DBPASSWORD,
 })
+
+/**
+     * Returns Week Object for given Timestamp (UTC)
+     * @author   (Mgram) Marcus Ingram
+     * @param    {number} timestamp         Unix Timestamp
+     * @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
+     */
+function getWeek(timestamp) {
+    let result;
+    try {
+        for(var i=0; i<weeks.length; i++) {
+            if (timestamp >= weeks[i].start && timestamp <= weeks[i].end) {
+                return weeks[i];
+            }
+        }
+        throw "Timestamp not found in weeks.json"
+    } catch (err) {
+        console.log(err);
+    }
+}
 
 module.exports = {
     query: async (text, params, callback) => {
@@ -177,5 +198,23 @@ module.exports = {
         case 5:
             return "Massive Thargoid Presence";
         }
+    },
+    /**
+     * Returns Incursions active on input date 
+     * @author   (Mgram) Marcus Ingram
+     * @param    {String} date          Input date format "YYYY-MM-DDTHH:MM:SS"
+     * @return   {Object}               Returns Incursions Objects
+     */
+    getIncursionsByDate: async (date) => {
+        let timestamp = Date.parse(date);
+        let week = getWeek(timestamp);
+        let incursions = await pool.query(`SELECT * FROM incursions WHERE time < '${week.end}' AND time > '${week.start}'`);
+        let system_ids = incursions.rows.map(item => item.system_id).filter((value, index, self) => self.indexOf(value) === index)
+        let systems = [];
+        for (let i = 0; i < system_ids.length; i++) {
+            let sysname = await pool.query(`SELECT name FROM systems WHERE system_id = '${system_ids[i]}'`);
+            systems.push(sysname.rows[0].name);
+        }
+        return systems;
     }
 }
