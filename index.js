@@ -20,6 +20,7 @@ const path = require('path');
 const db = require('./db/index');
 const endpoint = require('./api/index');
 const perm = require('./permissions');
+const vision = require("@google-cloud/vision");
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -52,8 +53,6 @@ const dict = `{
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
 }`;
 const privateKey = JSON.parse(dict);
-const vision = require("@google-cloud/vision");
-const { getIncursionsByDate } = require("./db/index");
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
 // Uncomment if using your own cloud API endpoint
@@ -192,7 +191,7 @@ discordClient.once("ready", () => {
 		const currentEmbed = message.embeds[0]
 		incursionsEmbed.description = currentEmbed.description
 		currentEmbed.fields.forEach((field) => {
-			console.log(field)
+			//console.log(field)
 			incursionsEmbed.addField(field.name, field.value)
 		})
 	}).catch(err => {
@@ -248,7 +247,6 @@ discordClient.on('message', message => {
   if (allowedRoles != 0) {
     let allowed = 0;
     for (i=0; i < allowedRoles.length; i++) {
-      console.log(message.member.roles.cache.has(allowedRoles[i]))
       if (message.member.roles.cache.has(allowedRoles[i])) {
         allowed++;
       }
@@ -256,14 +254,15 @@ discordClient.on('message', message => {
     if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
   }
 
+  /*
 	if(command.restricted) {
 		if (!message.guild) return;
 		const authorPerms = message.channel.permissionsFor(message.author);
-    console.log(authorPerms);
 		if (!authorPerms || !authorPerms.has(command.permissions)) {
 			return message.reply("You don't have permission to use that command!")
 		}
 	}
+  */
 
   if (command.args && !args.length) {
     let reply = `You didn't provide any arguments, ${message.author}!`;

@@ -16,7 +16,6 @@ const pool = new Pool({ //credentials stored in .env file
      * @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
      */
 function getWeek(timestamp) {
-    let result;
     try {
         for(var i=0; i<weeks.length; i++) {
             if (timestamp >= weeks[i].start && timestamp <= weeks[i].end) {
