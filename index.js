@@ -6,7 +6,7 @@
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
 const enableListener = 1; // Set to 0 to disable listener from running
-const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
 const enableAPI = 1; // Set to 0 to disable API from running
 //--------------------------------------------------
 
@@ -17,10 +17,12 @@ const Discord = require("discord.js");
 const zmq = require("zeromq");
 const api = require('express')();
 const path = require('path');
+const vision = require("@google-cloud/vision");
 const db = require('./db/index');
 const endpoint = require('./api/index');
 const wiki = require('./graphql/index');
 const perm = require('./permissions');
+
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -59,7 +61,7 @@ const vision = require("@google-cloud/vision");
 const { getIncursionsByDate } = require("./db/index");
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
-//Uncomment if using your own cloud API endpoint
+// Uncomment if using your own cloud API endpoint
 /*
 const vision = require("@google-cloud/vision")
 const googleClient = new vision.ImageAnnotatorClient({
@@ -68,12 +70,11 @@ const googleClient = new vision.ImageAnnotatorClient({
 
 // Star System processing logic
 async function processSystem(msg) {
-  const { StarSystem, timestamp, SystemAllegiance, SystemGovernment } = msg.message;
+  const { StarSystem, timestamp, SystemAllegiance, SystemGovernment } = msg.message;  // Destructuring msg
   let date = new Date();
-  let time = date.getTime(timestamp);
+  let time = date.getTime(timestamp); // Converting msg timestamp to Unix Epoch
 
-  if (SystemAllegiance != undefined && time >= Date.now() - 86400000) {
-
+  if (SystemAllegiance != undefined && time >= Date.now() - 86400000) { // Checking if report is recent
     id = await db.getSysID(StarSystem);
 
     if (watchlist.includes(StarSystem)) { // Check in watchlist
