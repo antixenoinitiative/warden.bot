@@ -211,8 +211,10 @@ discordClient.on('message', message => {
 	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
+
     if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			const returnEmbed = new Discord.MessageEmbed()
+			try {
+      const returnEmbed = new Discord.MessageEmbed()
         .setColor('#FF7100')
 				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 				.setTitle("**Commands**")
@@ -224,7 +226,11 @@ discordClient.on('message', message => {
           }
         }
 				message.channel.send(returnEmbed.setTimestamp())
-		}
+      } catch (error) {
+        console.error(error);
+        message.reply(`there was an error trying to execute that command!: ${error}`);
+      }
+    }
 
     if (message.content === `${prefix}help -r`) { // Restricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
@@ -240,9 +246,9 @@ discordClient.on('message', message => {
         }
 				message.channel.send(returnEmbed.setTimestamp())
 		}
-
-		return;
 	}
+
+  // Process Command Files
 
 	//checks for proper permissions by role against permissions.js
   let allowedRoles = perm.getRoles(command.permlvl);
@@ -279,7 +285,7 @@ discordClient.on('message', message => {
 		command.execute(message, args, passArray);
 	} catch (error) {
 		console.error(error);
-		message.reply('there was an error trying to execute that command!');
+		message.reply(`there was an error trying to execute that command!: ${error}`);
 	}
 });
 
