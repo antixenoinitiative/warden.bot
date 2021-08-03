@@ -6,6 +6,8 @@ module.exports = {
     restricted: true,
     hidden: true,
     execute (message, args, passArray) {
-        message.channel.send(`You summoneth the Manti! <@119167263730434048>`);
+        messageslist = [`You summoneth the Manti! <@119167263730434048>`,`<@119167263730434048> Stagger your gauss! :angry:`,`C'mon! <@119167263730434048>, stagger your Gauss :cry:`]
+        num = Math.floor(Math.random()*3)
+        message.channel.send(messageslist[num]);
     }
 }
