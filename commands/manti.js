@@ -5,7 +5,7 @@ module.exports = {
     permlvl: 0,
     restricted: true,
     hidden: true,
-    execute (message, args, passArray) {
+    execute (message) {
         message.channel.send(`You summoneth the Manti! <@119167263730434048>`);
     }
 }
