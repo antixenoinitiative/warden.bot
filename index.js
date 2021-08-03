@@ -5,9 +5,9 @@
 
 //------------------ DEV SWITCHES ------------------
 // To enable or disble components for testing purposes
-const enableListener = 0; // Set to 0 to disable listener from running
-const enableDiscordBot = 0; // Set to 0 to disable discord bot from running
-const enableAPI = 0; // Set to 0 to disable API from running
+const enableListener = 1; // Set to 0 to disable listener from running
+const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
+const enableAPI = 1; // Set to 0 to disable API from running
 //--------------------------------------------------
 
 require("dotenv").config();
@@ -20,12 +20,7 @@ const path = require('path');
 const db = require('./db/index');
 const endpoint = require('./api/index');
 const wiki = require('./graphql/index');
-
-async function test() {
-  console.log(await wiki.search("Guardian"));
-}
-
-test();
+const perm = require('./permissions');
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -227,7 +222,7 @@ discordClient.on('message', message => {
 				.setDescription("List of current bot commands:")
         for (const file of commandFiles) {
           const command = require(`./commands/${file}`);
-          returnEmbed.addField(`${prefix}${command.name} ${command.format}`, command.description)
+          returnEmbed.addField(`${prefix}${command.name} <${command.format}>`, command.description)
         }
 				message.channel.send(returnEmbed.setTimestamp())
 		}
@@ -235,10 +230,27 @@ discordClient.on('message', message => {
 		return;
 	}
 
-	//checks for proper permissions
+
+	//checks for proper permissions by role against permissions.js
+  let allowedRoles = perm.getRoles(command.permlvl);
+  if (allowedRoles != 0) {
+    let allowed = 0;
+    for (i=0; i < allowedRoles.length; i++) {
+      console.log(message.member.roles.cache.has(allowedRoles[i]))
+      if (message.member.roles.cache.has(allowedRoles[i])) {
+        allowed++;
+      }
+    }
+    if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
+  }
+
+  
+
+
 	if(command.restricted) {
 		if (!message.guild) return;
 		const authorPerms = message.channel.permissionsFor(message.author);
+    console.log(authorPerms);
 		if (!authorPerms || !authorPerms.has(command.permissions)) {
 			return message.reply("You don't have permission to use that command!")
 		}

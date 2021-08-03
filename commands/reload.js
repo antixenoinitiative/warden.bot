@@ -4,6 +4,7 @@ module.exports = {
 	name: 'reload',
 	description: 'Reloads a command',
 	format: '',
+	permlvl: 1,
 	args: true,
   	usage: '<commandName>',
   	restricted: true,

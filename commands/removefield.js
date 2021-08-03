@@ -2,6 +2,7 @@ module.exports = {
 	name: 'removefield',
 	description: 'Manually removes a field',
 	format: '',
+	permlvl: 1,
   	args: true,
 	restricted: true,
 	execute(message, args, passArray) {

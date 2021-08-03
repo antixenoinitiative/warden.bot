@@ -4,6 +4,7 @@ module.exports = {
 	name: 'getincbydate',
 	description: 'Gets a list of systems under incursion on a specified date',
     format: 'YYYY-MM-DD',
+	permlvl: 1,
 	restricted: true,
 	execute(message, args) {
 		try {

@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 
+// Perform graphQL Query to wiki.antixenoinitiative.com
 async function query(querystring) {
     let response;
     await fetch('https://wiki.antixenoinitiative.com/graphql', {
@@ -19,15 +20,18 @@ module.exports = {
     search: async (searchstring) => {
         let results = await query(`{ pages { search(query: "${searchstring}") { results { id, title, description, path, locale } } } }`)
         answer = JSON.parse(results).data.pages.search.results;
-        let EnOnly = {};
+        let EnOnly = [];
         for (let i = 0; i < answer.length; i++) {
-            console.log(answer[i].locale);
             if (answer[i].locale == "en") {
-                EnOnly[i] = answer[i];
+                var result = {
+                  "id": answer[i].id,
+                  "title": answer[i].title,
+                  "description": answer[i].description,
+                  "path": answer[i].path,
+                  "locale": answer[i].locale
+                }
+                EnOnly.push(result);
             }
-        }
-        for (key in EnOnly) {
-            console.log(EnOnly[key].title)
         }
         return EnOnly;
     }
