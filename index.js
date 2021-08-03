@@ -187,13 +187,6 @@ let messageToUpdate
 discordClient.once("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
   discordClient.channels.cache.get("470640516430823445").send(`Sentry is now Online!`)
-  discordClient.user.setPresence({
-    game: {
-        name: 'Sentry Bot | -help',
-        type: "PLAYING",
-        url: "http://sentry.antixenoinitiative.com"
-    }
-  });
 	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
@@ -218,9 +211,7 @@ discordClient.on('message', message => {
 	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
-
     if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			try {
       const returnEmbed = new Discord.MessageEmbed()
         .setColor('#FF7100')
 				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -233,12 +224,7 @@ discordClient.on('message', message => {
           }
         }
 				message.channel.send(returnEmbed.setTimestamp())
-      } catch (error) {
-        console.error(error);
-        message.reply(`there was an error trying to execute that command!: ${error}`);
-      }
-    }
-
+		}
     if (message.content === `${prefix}help -r`) { // Restricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
         .setColor('#FF7100')
@@ -253,9 +239,9 @@ discordClient.on('message', message => {
         }
 				message.channel.send(returnEmbed.setTimestamp())
 		}
-	}
 
-  // Process Command Files
+		return;
+	}
 
 	//checks for proper permissions by role against permissions.js
   let allowedRoles = perm.getRoles(command.permlvl);
