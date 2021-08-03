@@ -19,9 +19,7 @@ const api = require('express')();
 const path = require('path');
 const db = require('./db/index');
 const endpoint = require('./api/index');
-const wiki = require('./graphql/index');
 const perm = require('./permissions');
-
 
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
@@ -36,9 +34,7 @@ const discordClient = new Discord.Client()
 discordClient.commands = new Discord.Collection();
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js')); //commands stored in subfolders and imported here
 for (const file of commandFiles) {
-	const command = require(`./commands/${file}`);
-	// set a new item in the Collection
-	// with the key as the command name and the value as the exported module
+	const command = require(`./commands/${file}`); // set a new item in the Collection with the key as the command name and the value as the exported module
 	discordClient.commands.set(command.name, command);
 }
 
@@ -213,8 +209,8 @@ discordClient.on('message', message => {
 
 	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
-		// Basic Command Testing
-    if (message.content === `${prefix}help`) { // This command cannot be moved to a command file due to dependancies.
+		// Basic Commands
+    if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
         .setColor('#FF7100')
 				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -222,14 +218,30 @@ discordClient.on('message', message => {
 				.setDescription("List of current bot commands:")
         for (const file of commandFiles) {
           const command = require(`./commands/${file}`);
-          returnEmbed.addField(`${prefix}${command.name} <${command.format}>`, command.description)
+          if (command.restricted == false) {
+            returnEmbed.addField(`${prefix}${command.name} <${command.format}>`, command.description)
+          }
+        }
+				message.channel.send(returnEmbed.setTimestamp())
+		}
+
+    if (message.content === `${prefix}help -r`) { // Restricted Commands.
+			const returnEmbed = new Discord.MessageEmbed()
+        .setColor('#FF7100')
+				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+				.setTitle("**Commands**")
+				.setDescription("List of current bot commands:")
+        for (const file of commandFiles) {
+          const command = require(`./commands/${file}`);
+          if (command.restricted == true) {
+            returnEmbed.addField(`${prefix}${command.name} <${command.format}>`, command.description)
+          }
         }
 				message.channel.send(returnEmbed.setTimestamp())
 		}
 
 		return;
 	}
-
 
 	//checks for proper permissions by role against permissions.js
   let allowedRoles = perm.getRoles(command.permlvl);
@@ -243,9 +255,6 @@ discordClient.on('message', message => {
     }
     if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
   }
-
-  
-
 
 	if(command.restricted) {
 		if (!message.guild) return;

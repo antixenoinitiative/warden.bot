@@ -6,7 +6,7 @@ module.exports = {
 	description: 'Search the AXI Wiki',
     format: 'Search Term',
 	permlvl: 0,
-	restricted: true,
+	restricted: false,
 	execute(message, args) {
 		if (args == "") { message.channel.send("**The Anti-Xeno Wiki:** https://wiki.antixenoinitiative.com/"); return; }
 		try {
