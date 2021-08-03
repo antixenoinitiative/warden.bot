@@ -22,10 +22,10 @@ module.exports = {
                     returnEmbed.addField("100% Club", guild.roles.get("477645690630307841").members.size)
                     returnEmbed.addField("Myrmidon", guild.roles.get("810410728023916554").members.size)
                     returnEmbed.addField("Vanguard", guild.roles.get("642840616694317104").members.size)
-                    message.channel.send(returnEmbed.setTimestamp())
+                    message.channel.send(returnEmbed.setTimestamp());
                 })
-            } catch {
-                message.channel.send("Something went wrong, please try again later")
+            } catch (err) {
+                message.channel.send(`Something went wrong. Error: ${err}`);
             }
         } else if (args == "progression") {
 
