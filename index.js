@@ -187,6 +187,13 @@ let messageToUpdate
 discordClient.once("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
   discordClient.channels.cache.get("470640516430823445").send(`Sentry is now Online!`)
+  discordClient.user.setPresence({
+    game: {
+        name: 'Sentry Bot | -help',
+        type: "PLAYING",
+        url: "http://sentry.antixenoinitiative.com"
+    }
+  });
 	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
