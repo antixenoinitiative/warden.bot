@@ -8,6 +8,19 @@ module.exports = {
 	execute(message, args) {
 		try {
 			count = 0
+			// Function to remove any ASCII characters that are not helpful, eg. - Magic spaces after progression ranks
+			function cleanString(input)
+			{
+				var output = "";
+				for(var i=0;i<input.length;i++)
+				{
+					if(input.charCodeAt(i)<=127)
+					{
+						output+=input.charAt(i);
+					}
+				}
+				return output;
+			}
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -16,11 +29,15 @@ module.exports = {
 			roles_name = {}
 			message.guild.roles.cache
 			.forEach(role => {
-				roles[role.name.toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,"")] = role.id
-				roles_name[role.name.toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,"")] = role.name
+				roles[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = role.id
+				roles_name[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = cleanString(role.name)
 			})
-			role1 = args[0].replace(/["']/g,"")
-			role2 = args[1].replace(/["']/g,"")
+			//Following commented lines prints the whole dictionary/object created in above code.
+			//console.log(roles)
+			//console.log(roles_name)
+			var role1 = args[0].toLowerCase().replace(/["'”“]/g,"")
+			var role2 = args[1].toLowerCase().replace(/["'”“]/g,"")
+			console.log(role1,role2)
 			let memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
 			let memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
 			memberwithrole1.map( m => {
