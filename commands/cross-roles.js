@@ -43,7 +43,7 @@ module.exports = {
 			returnEmbed.addField("Members with rank " + args[0] + " having rank " + args[1] + ":", count, true)
 			message.channel.send(returnEmbed.setTimestamp());
 		} catch(err) {
-			message.channel.send(`${err}`)
+			message.channel.send(`Something went wrong: -cross ${args[0]} ${args[1]} ERROR: ${err}`)
 		}
 	},
 };
