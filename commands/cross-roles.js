@@ -1,8 +1,8 @@
 const Discord = require("discord.js");
 module.exports = {
 	name: 'cross',
-	description: 'How many people with X rank also have Y rank?',
-    format: 'X Y',
+	description: 'How many people with rank1 also have rank2?',
+    format: '"role1" "role2"',
 	permlvl: 0,
 	restricted: true,
 	execute(message, args) {
@@ -12,12 +12,17 @@ module.exports = {
 			.setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle("**Count**")
-			
-			let role1 = args[0]
-			let role2 = args[1]
-
-			let memberwithrole1 = message.guild.roles.cache.get(role1).members
-			let memberwithrole2 = message.guild.roles.cache.get(role2).members
+			roles = {}
+			roles_name = {}
+			message.guild.roles.cache
+			.forEach(role => {
+				roles[role.name.toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,"")] = role.id
+				roles_name[role.name.toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,"")] = role.name
+			})
+			role1 = args[0].replace(/["']/g,"")
+			role2 = args[1].replace(/["']/g,"")
+			let memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
+			let memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
 			memberwithrole1.map( m => {
 				memberwithrole2.map( n =>{
 					if(m.user.username == n.user.username)
@@ -26,24 +31,10 @@ module.exports = {
 					}
 				})
 			})
-			// try 1 of the code, shit doesn't work :(
-			// const ar1 = message.guild.roles.cache.get(args[0]).members
-			// console.log(ar1.size)
-			// const ar2 = message.guild.roles.cache.get(args[1]).members
-			// console.log(ar2.size)
-			// ar1.forEach( member => function(member){
-			// 	console.log(member.user.username)
-			// 	var username = member.user.username
-			// 	ar2.forEach(member => function(member,username){
-			// 		console.log(member.user.username)
-			// 		if(member.user.username == username)
-			// 			count=count+1
-			// 	})
-			// })
-			returnEmbed.addField("Members with rank " + args[0] + " having rank " + args[1] + ":", count, true)
+			returnEmbed.addField("Members with rank " + roles_name[role1] + " having rank " + roles_name[role2] + ":", count, true)
 			message.channel.send(returnEmbed.setTimestamp());
 		} catch(err) {
-			message.channel.send(`Something went wrong: -cross ${args[0]} ${args[1]} ERROR: ${err}`)
+			message.channel.send(`Something went wrong: -cross ${role1} ${role2} \n ERROR: ${err}`)
 		}
 	},
 };
