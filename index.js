@@ -219,7 +219,7 @@ discordClient.on('message', message => {
         for (const file of commandFiles) {
           const command = require(`./commands/${file}`);
           if (command.restricted == false) {
-            returnEmbed.addField(`${prefix}${command.name} <${command.format}>`, command.description)
+            returnEmbed.addField(`${prefix}${command.name} ${command.format}`, command.description)
           }
         }
 				message.channel.send(returnEmbed.setTimestamp())
@@ -233,7 +233,7 @@ discordClient.on('message', message => {
         for (const file of commandFiles) {
           const command = require(`./commands/${file}`);
           if (command.restricted == true && command.hidden != true) {
-            returnEmbed.addField(`${prefix}${command.name} <${command.format}>`, command.description)
+            returnEmbed.addField(`${prefix}${command.name} ${command.format}`, command.description)
           }
         }
 				message.channel.send(returnEmbed.setTimestamp())
