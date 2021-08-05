@@ -9,10 +9,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@babel/core": "^7.14.8",
-    "@babel/preset-react": "^7.14.5",
     "@google-cloud/vision": "^2.3.6",
-    "babel-loader": "^8.2.2",
     "discord.js": "^12.5.3",
     "dotenv": "^8.6.0",
     "express": "^4.17.1",
