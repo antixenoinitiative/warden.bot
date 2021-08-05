@@ -88,20 +88,30 @@ module.exports = {
             let Premium50 = thargoids[target].hp / (premiumTotal / 2 - thargoids[target].regen)
             let Premium75 = thargoids[target].hp / (premiumTotal / 4 * 3 - thargoids[target].regen)
 
-
-
             let result = { 
-                "basic": Basic.toFixed(2), 
-                "standard": Standard.toFixed(2), 
-                "premium": Premium.toFixed(2), 
-                "basic50": Basic50.toFixed(2), 
-                "standard50": Standard50.toFixed(2), 
-                "premium50": Premium50.toFixed(2), 
-                "basic75": Basic75.toFixed(2), 
-                "standard75": Standard75.toFixed(2), 
-                "premium75": Premium75.toFixed(2) 
+                "basic": Basic.toFixed(2) + "sec", 
+                "standard": Standard.toFixed(2) + "sec", 
+                "premium": Premium.toFixed(2) + "sec", 
+                "basic50": Basic50.toFixed(2) + "sec", 
+                "standard50": Standard50.toFixed(2) + "sec", 
+                "premium50": Premium50.toFixed(2) + "sec", 
+                "basic75": Basic75.toFixed(2) + "sec", 
+                "standard75": Standard75.toFixed(2) + "sec", 
+                "premium75": Premium75.toFixed(2) + "sec" 
             }
-            console.log(result)
+
+            if (result.basic.includes("-")) { result.basic = "Impossible" }
+            if (result.basic50.includes("-")) { result.basic50 = "Impossible" }
+            if (result.basic75.includes("-")) { result.basic75 = "Impossible" }
+
+            if (result.standard.includes("-")) { result.standard = "Impossible" }
+            if (result.standard50.includes("-")) { result.standard50 = "Impossible" }
+            if (result.standard75.includes("-")) { result.standard75 = "Impossible" }
+
+            if (result.premium.includes("-")) { result.premium = "Impossible" }
+            if (result.premium50.includes("-")) { result.premium50 = "Impossible" }
+            if (result.premium75.includes("-")) { result.premium75 = "Impossible" }
+            
             return result
 
         } catch (err) {
