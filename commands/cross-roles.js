@@ -9,6 +9,7 @@ module.exports = {
 		try {
 			count = 0
 			// Function to remove any ASCII characters that are not helpful, eg. - Magic spaces after progression ranks
+			// Also trims the spaces now.
 			function cleanString(input)
 			{
 				var output = "";
@@ -19,7 +20,7 @@ module.exports = {
 						output+=input.charAt(i);
 					}
 				}
-				return output;
+				return output.trim();
 			}
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
@@ -35,8 +36,8 @@ module.exports = {
 			//Following commented lines prints the whole dictionary/object created in above code.
 			//console.log(roles)
 			//console.log(roles_name)
-			var role1 = args[0].toLowerCase().replace(/["'”“]/g,"")
-			var role2 = args[1].toLowerCase().replace(/["'”“]/g,"")
+			var role1 = args[0].toLowerCase().replace(/["'”“]/g,"").trim()
+			var role2 = args[1].toLowerCase().replace(/["'”“]/g,"").trim()
 			console.log(role1,role2)
 			let memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
 			let memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
