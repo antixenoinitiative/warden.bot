@@ -75,11 +75,32 @@ module.exports = {
             let standardTotal = arrayTotal(standard);
             let premiumTotal = arrayTotal(premium);
 
-            let mttotBasic = thargoids[target].hp / (basicTotal - thargoids[target].regen)
-            let mttotStandard = thargoids[target].hp / (standardTotal - thargoids[target].regen)
-            let mttotPremium = thargoids[target].hp / (premiumTotal - thargoids[target].regen)
+            let Basic = thargoids[target].hp / (basicTotal - thargoids[target].regen)
+            let Standard = thargoids[target].hp / (standardTotal - thargoids[target].regen)
+            let Premium = thargoids[target].hp / (premiumTotal - thargoids[target].regen)
 
-            let result = { "basic": mttotBasic.toFixed(2), "standard": mttotStandard.toFixed(2), "premium": mttotPremium.toFixed(2) }
+            let Basic50 = thargoids[target].hp / (basicTotal / 2 - thargoids[target].regen)
+            let Basic75 = thargoids[target].hp / (basicTotal / 4 * 3 - thargoids[target].regen)
+
+            let Standard50 = thargoids[target].hp / (standardTotal / 2 - thargoids[target].regen)
+            let Standard75 = thargoids[target].hp / (standardTotal / 4 * 3 - thargoids[target].regen)
+
+            let Premium50 = thargoids[target].hp / (premiumTotal / 2 - thargoids[target].regen)
+            let Premium75 = thargoids[target].hp / (premiumTotal / 4 * 3 - thargoids[target].regen)
+
+
+
+            let result = { 
+                "basic": Basic.toFixed(2), 
+                "standard": Standard.toFixed(2), 
+                "premium": Premium.toFixed(2), 
+                "basic50": Basic50.toFixed(2), 
+                "standard50": Standard50.toFixed(2), 
+                "premium50": Premium50.toFixed(2), 
+                "basic75": Basic75.toFixed(2), 
+                "standard75": Standard75.toFixed(2), 
+                "premium75": Premium75.toFixed(2) 
+            }
             console.log(result)
             return result
 
