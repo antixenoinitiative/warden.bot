@@ -4,7 +4,7 @@ module.exports = {
 	description: 'How many people with rank1 also have rank2?',
     format: '"role1" "role2"',
 	permlvl: 0,
-	restricted: true,
+	restricted: false,
 	execute(message, args) {
 		try {
 			count = 0
