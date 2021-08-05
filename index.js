@@ -22,6 +22,8 @@ const endpoint = require('./api/index');
 const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
 
+const mttot = require("./mttot/index");
+
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetAllegiance = "Thargoid";
@@ -203,9 +205,9 @@ discordClient.once("ready", () => {
 discordClient.on('message', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-	const args = message.content.slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g);     // Format Arguments
-	const commandName = args.shift().toLowerCase();                           // Convert command to lowercase
-  const command = discordClient.commands.get(commandName);                  // Gets the command inf
+	const args = message.content.slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
+	const commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
+  const command = discordClient.commands.get(commandName); // Gets the command inf
 
 	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
