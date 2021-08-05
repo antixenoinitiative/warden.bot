@@ -2,7 +2,7 @@ const Discord = require("discord.js");
 
 module.exports = {
     name: 'nhss',
-    description: 'All you need to know about NHSS',
+    description: 'All you need to know about Non-Human Signal Sources',
     permlvl: 0,
     format: '',
     restricted: false,

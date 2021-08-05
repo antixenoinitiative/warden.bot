@@ -64,6 +64,7 @@ module.exports = {
             let standard = [];
             let premium = [];
 
+            // Calculate each weapon adjDPS
             for (let i = 0; i < weapons.length; i++) {
                 let ans = calcDPS(target, weapons[i], range)
                 basic.push(ans.basic)
@@ -117,6 +118,5 @@ module.exports = {
         } catch (err) {
             console.log(err);
         }
-            
     }
 }
