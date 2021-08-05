@@ -14,7 +14,7 @@ module.exports = {
 				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 				.setTitle("**MTTOT Calculator**")
 				.setDescription('To use the MTTOT Calculator, format `-mttot "medusa" "1mfaxmc,2sfgc" "1500"`. For multiple weapons of the same type, include a multiplyer eg: `2` before the weapon code. Weapon format examples below:')
-                returnEmbed.addField("Size 2 Fixed AXMC",`mfaxmc`)
+                returnEmbed.addField("2 Medium + 2 Small Gauss",`2m,2s`)
                 returnEmbed.addField("2x Size 3 Turret AXMC",`2ltaxmc`)
                 returnEmbed.addField("4x Size 3 Fixed AXMR",`4lfaxmr`)
                 returnEmbed.addField("Size 1 Fixed Plasma Charger",`sfpc`)
