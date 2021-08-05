@@ -78,8 +78,16 @@ module.exports = {
             let mttotBasic = thargoids[target].hp / (basicTotal - thargoids[target].regen)
             let mttotStandard = thargoids[target].hp / (standardTotal - thargoids[target].regen)
             let mttotPremium = thargoids[target].hp / (premiumTotal - thargoids[target].regen)
+            
+            If (mttotBasic < 0) { mttotBasic = "Impossible" }
+            If (mttotStandard < 0) { mttotStandard = "Impossible" }
+            If (mttotPremium < 0) { mttotPremium = "Impossible" }
 
-            let result = { "basic": mttotBasic.toFixed(2), "standard": mttotStandard.toFixed(2), "premium": mttotPremium.toFixed(2) }
+            If (!isNaN(mttotBasic)) { mttotBasic = mttotBasic.toFixed(2) }
+            If (!isNaN(mttotStandard)) { mttotStandard = mttotStandard.toFixed(2) }
+            If (!isNaN(mttotPremium)) { mttotPremium = mttotPremium.toFixed(2) }
+
+            let result = { "basic": mttotBasic, "standard": mttotStandard, "premium": mttotPremium }
             console.log(result)
             return result
 
