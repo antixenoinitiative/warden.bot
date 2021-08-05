@@ -41,6 +41,8 @@ module.exports = {
 			console.log(role1,role2)
 			let memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
 			let memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
+			let countrole1 = memberwithrole1.size
+			let countrole2 = memberwithrole2.size
 			memberwithrole1.map( m => {
 				memberwithrole2.map( n =>{
 					if(m.user.username == n.user.username)
@@ -49,7 +51,9 @@ module.exports = {
 					}
 				})
 			})
-			returnEmbed.addField("Members with rank " + roles_name[role1] + " having rank " + roles_name[role2] + ":", count, true)
+			returnEmbed.addField("Members with rank " + roles_name[role1],countrole1,true)
+			returnEmbed.addField("Members with rank " + roles_name[role2],countrole2,true)
+			returnEmbed.addField("Members with rank " + roles_name[role1] + " having rank " + roles_name[role2], count)
 			message.channel.send(returnEmbed.setTimestamp());
 		} catch(err) {
 			message.channel.send(`Something went wrong: -cross ${role1} ${role2} \n ERROR: ${err}`)
