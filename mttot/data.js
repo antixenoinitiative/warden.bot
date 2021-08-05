@@ -26,7 +26,7 @@ module.exports = {
   },
   weapondata: () => {
     let data = {
-      "c2faxmc": {
+      "mfaxmc": {
         "weapon": "AXMC",
         "type": "Fixed",
         "size": 2,
@@ -50,7 +50,7 @@ module.exports = {
         "premammopercent": 1.10,
         "clopshullsdps": ""
       },
-      "c3faxmc": {
+      "lfaxmc": {
         "weapon": "AXMC",
         "type": "Fixed",
         "size": 3,
@@ -74,7 +74,7 @@ module.exports = {
         "premammopercent": 1.10,
         "clopshullsdps": ""
       },
-      "c3taxmc": {
+      "ltaxmc": {
         "weapon": "AXMC",
         "type": "Turreted",
         "size": 3,
@@ -98,7 +98,7 @@ module.exports = {
         "premammopercent": 1.10,
         "clopshullsdps": ""
       },
-      "c2faxmr": {
+      "mfaxmr": {
         "weapon": "AXMR",
         "type": "Dumbfire, Fixed",
         "size": 2,
@@ -122,7 +122,7 @@ module.exports = {
         "premammopercent": 1.10,
         "clopshullsdps": ""
       },
-      "c3faxmr": {
+      "lfaxmr": {
         "weapon": "AXMR",
         "type": "Dumbfire, Fixed",
         "size": 3,
@@ -146,7 +146,7 @@ module.exports = {
         "premammopercent": 1.10,
         "clopshullsdps": ""
       },
-      "c1gfrag": {
+      "sgfrag": {
         "weapon": "Frag RF/SS",
         "type": "Gimballed",
         "size": 1,
@@ -170,7 +170,7 @@ module.exports = {
         "premammopercent": 1.10,
         "clopshullsdps": ""
       },
-      "c1frailsros": {
+      "sfrailsros": {
         "weapon": "Railgun SR/OS",
         "type": "Fixed",
         "size": 1,
@@ -194,7 +194,7 @@ module.exports = {
         "premammopercent": 1.10,
         "clopshullsdps": ""
       },
-      "c3fpc": {
+      "lfpc": {
         "weapon": "Plasma Charger",
         "type": "Fixed",
         "size": 3,
@@ -218,7 +218,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": ""
       },
-      "c1fsc": {
+      "sfsc": {
         "weapon": "Shards",
         "type": "Fixed",
         "size": 1,
@@ -242,7 +242,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": ""
       },
-      "c2fsc": {
+      "mfsc": {
         "weapon": "Shards",
         "type": "Fixed",
         "size": 2,
@@ -266,7 +266,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": ""
       },
-      "c3fsc": {
+      "lfsc": {
         "weapon": "Shards",
         "type": "Fixed",
         "size": 3,
@@ -290,7 +290,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": ""
       },
-      "c1fpc": {
+      "sfpc": {
         "weapon": "Plasma",
         "type": "Fixed",
         "size": 1,
@@ -314,7 +314,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": ""
       },
-      "c1fgc": {
+      "sfgc": {
         "weapon": "Guardian Gauss",
         "type": "Fixed",
         "size": 1,
@@ -338,7 +338,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": ""
       },
-      "c2fgc": {
+      "mfgc": {
         "weapon": "Guardian Gauss",
         "type": "Fixed",
         "size": 2,
@@ -362,7 +362,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": ""
       },
-      "c1frailsroc": {
+      "sfrailsroc": {
         "weapon": "Small Rail / SR-OC",
         "type": "Fixed",
         "size": 1,
@@ -386,7 +386,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": 0.508215168
       },
-      "c2frailsroc": {
+      "mfrailsroc": {
         "weapon": "Medium Rail / SR-OC",
         "type": "Fixed",
         "size": 2,
@@ -410,7 +410,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": 0.285607963
       },
-      "c2fraillrps": {
+      "mfraillrps": {
         "weapon": "Medium Rail / LR-PS",
         "type": "Fixed",
         "size": 2,
@@ -434,7 +434,7 @@ module.exports = {
         "premammopercent": 1.30,
         "clopshullsdps": 0.255330718
       },
-      "c3fpacirfss": {
+      "lfpacirfss": {
         "weapon": "Large Pacifier RF / SS",
         "type": "Fixed",
         "size": 3,
