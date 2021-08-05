@@ -17,6 +17,28 @@ function calcDPS(target, inputcode, range) {
             multi = inputcode.charAt(0); // Get Multiplier
             inputcode = inputcode.substring(1); // Remove Multiplier from code
         }
+
+        switch (inputcode) {
+            case "mgauss":
+                inputcode = "mfgc";
+                break;
+            case "sgauss":
+                inputcode = "sfgc";
+                break;
+            case "mfgauss":
+                inputcode = "mfgc";
+                break;
+            case "sfgauss":
+                inputcode = "sfgc";
+                break;
+            case "m":
+                inputcode = "mfgc";
+                break;
+            case "s":
+                inputcode = "sfgc";
+                break;
+        }
+
         let nDPS = weapons[inputcode].sustaxdps * multi;
         let DPS = nDPS * weapons[inputcode].ap / thargoids[target].ar;
         let finaldamage = DPS * Math.min((1 - ((range - weapons[inputcode].falloff) / (weapons[inputcode].maxrange - weapons[inputcode].falloff))), 1)
