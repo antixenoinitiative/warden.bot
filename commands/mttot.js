@@ -38,7 +38,7 @@ module.exports = {
                 .setColor('#FF7100')
 				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 				.setTitle("**MTTOT Calculator**")
-				.setDescription(`Results for Perfect Accuracy - Input: Variant: **${target}**, Weapons: **${weapons}**, Range: ${range}`)
+				.setDescription(`Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
                 returnEmbed.addField("Basic 100%",`${result.basic} sec`,true)
                 returnEmbed.addField("Standard 100%",`${result.standard} sec`,true)
                 returnEmbed.addField("Premium 100%",`${result.premium} sec`,true)
