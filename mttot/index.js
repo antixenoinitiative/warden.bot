@@ -36,6 +36,8 @@ function calcDPS(target, inputcode, range) {
 module.exports = {
     calcMTTOT: (target, weapons, range) => {
         try {
+            if (range == undefined) { range = 1500 }
+
             let basic = [];
             let standard = [];
             let premium = [];
