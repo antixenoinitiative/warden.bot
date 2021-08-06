@@ -20,6 +20,7 @@ const path = require('path');
 const db = require('./db/index');
 const endpoint = require('./api/index');
 const perm = require('./permissions');
+const vision = require("@google-cloud/vision");
 
 const mttot = require("./mttot/index");
 
@@ -41,7 +42,6 @@ for (const file of commandFiles) {
 }
 
 // Generate Google Key from ENV varaiables then Connect Google Client
-/*
 const builtkey = `{
   "type": "service_account",
   "project_id": "axi-sentry",
@@ -54,27 +54,15 @@ const builtkey = `{
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
 }`;
-const vision = require("@google-cloud/vision");
 const privateKey = JSON.parse(builtkey);
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
-*/
 
 // Uncomment if using your own cloud API endpoint
-
-let googleClient;
-let { key } = require("./encryptedkey.json")
-
-async function makeKey() {
-  try {
-    await fs.writeFile('keyfile.json', key + process.env.KEYSEGMENT, { encoding: 'base64' }, function (err, data) { console.log(err) });
-    const vision = require("@google-cloud/vision")
-    googleClient = new vision.ImageAnnotatorClient({ keyFilename: "./keyfile.json", })
-    console.log("Google Key Created!")
-  } catch (err) {
-    console.error('Error creating key file', err);
-  }
-}
-makeKey();
+/*
+const vision = require("@google-cloud/vision")
+const googleClient = new vision.ImageAnnotatorClient({
+	keyFilename: "./originalkey.json",
+})*/
 
 // Star System processing logic
 async function processSystem(msg) {

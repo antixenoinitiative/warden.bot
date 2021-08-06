@@ -3,4 +3,3 @@ node_modules
 .vscode
 APIKey.json
 originalkey.json
-keyfile.json
