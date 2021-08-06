@@ -11,10 +11,10 @@ function isValid(args) {
 }
 
 module.exports = {
-    name: 'graph',
+    name: 'graphic',
     description: 'Request a graphic, diagram or resource from a repository, use "-graphic" to get a list.',
     permlvl: 0,
-    format: '"graphname"',
+    format: '"graphicname"',
     restricted: false,
     execute(message, args) {
         let response;
@@ -25,7 +25,7 @@ module.exports = {
             .setTitle("Graphics")
             .setDescription("List of valid graphic commands")
             for (i=0;i < data.length; i++) {
-                returnEmbed.addField(`-graph ${data[i].argument}`, data[i].title);
+                returnEmbed.addField(`-graphic ${data[i].argument}`, data[i].title);
             }
             return message.channel.send(returnEmbed.setTimestamp());
         }

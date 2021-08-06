@@ -2,12 +2,7 @@ require("dotenv").config();
 const { Pool } = require('pg');
 const weeks = require("./weeks/weeks.json");
 
-const pool = new Pool({ //credentials stored in .env file
-    user: process.env.DBUSER,
-    host: process.env.DBHOST,
-    database: process.env.DBDATABASE,
-    password: process.env.DBPASSWORD,
-})
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) //credentials from Heroku
 
 /**
      * Returns Week Object for given Timestamp (UTC)

@@ -1,6 +1,7 @@
 module.exports = {
     name: "ducc",
     description: "Summons the holy ducc",
+    format: '',
     args: false,
     permlvl: 0,
     restricted: true,

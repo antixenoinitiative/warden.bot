@@ -4,7 +4,7 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'wiki',
 	description: 'Search the AXI Wiki',
-    format: 'search term',
+    format: '"term"',
 	permlvl: 0,
 	restricted: false,
 	execute(message, args) {

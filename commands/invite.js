@@ -1,6 +1,7 @@
 module.exports = {
     name: "invite",
     description: "Get a server invite link",
+    format: '',
     args: false,
     permlvl: 0,
     restricted: false,

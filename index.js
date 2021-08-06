@@ -22,8 +22,6 @@ const endpoint = require('./api/index');
 const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
 
-const mttot = require("./mttot/index");
-
 // Global Variables
 const SOURCE_URL = 'tcp://eddn.edcd.io:9500'; //EDDN Data Stream URL
 const targetAllegiance = "Thargoid";
@@ -241,7 +239,7 @@ discordClient.on('message', message => {
 				message.channel.send(returnEmbed.setTimestamp())
 		}
     if (message.content === `${prefix}ping`) {  
-      message.channel.send(`🏓Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
+      message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
     }
 
 		return;
