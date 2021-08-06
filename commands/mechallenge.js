@@ -31,5 +31,6 @@ Challenge:\n${challenges[challenge]}\n\nHave fun! :smiling_imp:`
 				message.channel.send(`Something went wrong!\nERROR: ${err}`);
 			}
 		}
+		
 	},
 };
