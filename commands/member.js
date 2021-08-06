@@ -30,7 +30,6 @@ module.exports = {
 				roles_name[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = cleanString(role.name)
 			})
             var role = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
-            console.log(role)
             var mode = ""
             if(args[1] == undefined)
             {

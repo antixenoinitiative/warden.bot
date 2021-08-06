@@ -38,7 +38,6 @@ module.exports = {
 			//console.log(roles_name)
 			var role1 = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			var role2 = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
-			console.log(role1,role2)
 			let memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
 			let memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
 			let countrole1 = memberwithrole1.size
