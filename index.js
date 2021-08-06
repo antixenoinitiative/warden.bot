@@ -42,7 +42,7 @@ for (const file of commandFiles) {
 }
 
 // Generate Google Key from ENV varaiables then Connect Google Client
-const dict = `{
+const builtkey = `{
   "type": "service_account",
   "project_id": "axi-sentry",
   "private_key_id": "${process.env.GOOGLEKEYID}",
@@ -54,7 +54,7 @@ const dict = `{
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
 }`;
-const privateKey = JSON.parse(dict);
+const privateKey = JSON.parse(builtkey);
 const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
 // Uncomment if using your own cloud API endpoint
