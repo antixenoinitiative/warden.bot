@@ -13,7 +13,7 @@ The following diagram explains the flow of data through AXI Sentry:
 
 ## API Endpoints
 
-You can view the API Endpoints at [http://sentry.antixenoinitiative.com/](http://sentry.antixenoinitiative.com/)
+You can view the API Endpoints at [https://sentry.antixenoinitiative.com/](http://sentry.antixenoinitiative.com/)
 
 ## How to use for development (Listener)
 
