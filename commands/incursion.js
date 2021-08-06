@@ -22,37 +22,43 @@ module.exports = {
 					.textDetection(attachment.url)
 					// .textDetection("./testImage.png")
 					.then((results) => {
-						console.log("Reply recieved in " + (Date.now() - message.createdTimestamp) + "ms")
-						message.reactions.removeAll()
-						if(results[0].error != null) {
-							console.log("ERROR: " + results[0].error.message)
-							message.reply("ERROR: " + results[0].error.message)
-							message.react("❌")
-							return
+						try {
+							console.log("Reply recieved in " + (Date.now() - message.createdTimestamp) + "ms")
+							message.reactions.removeAll()
+							if(results[0].error != null) {
+								console.log("ERROR: " + results[0].error.message)
+								message.reply("ERROR: " + results[0].error.message)
+								message.react("❌")
+								return
+							}
+							const visionText = results[0].textAnnotations[0].description
+							var fieldArray = []
+							let descriptionText = "Confirmed Target Systems in order of priority (Top to Bottom)"
+							if(visionText.indexOf("no reports of") != -1) {
+								//No incursion case
+								descriptionText += "\n \n Status: **CODE YELLOW** :yellow_square:"
+								updateEmbedField({ name: "**Incursions:**", value: "No Incursions detected. Please aid with starport repairs and standby for additional attacks."})
+							}
+							else {
+								//yes incursion case
+								descriptionText += "\n \n Status: **CODE RED** :red_square:"
+								updateEmbedField({ name: "**Incursions:**", value: parseIncursionSystems(visionText)})
+							}
+							if(visionText.indexOf("have been attacked") != -1) {
+								updateEmbedField({ name: "**Evacuations:**", value: parseDamagedStarports(visionText)})
+							}
+							updateEmbedField({ name: null, value: descriptionText})
+							message.react("✅")
+						} catch (err) {
+							console.log(err);
+							message.reply(`there was an error trying to execute that command!: ${err}`);
 						}
-						const visionText = results[0].textAnnotations[0].description
-						var fieldArray = []
-						let descriptionText = "Confirmed Target Systems in order of priority (Top to Bottom)"
-						if(visionText.indexOf("no reports of") != -1) {
-							//No incursion case
-							descriptionText += "\n \n Status: **CODE YELLOW** :yellow_square:"
-							updateEmbedField({ name: "**Incursions:**", value: "No Incursions detected. Please aid with starport repairs and standby for additional attacks."})
-						}
-						else {
-							//yes incursion case
-							descriptionText += "\n \n Status: **CODE RED** :red_square:"
-							updateEmbedField({ name: "**Incursions:**", value: parseIncursionSystems(visionText)})
-						}
-						if(visionText.indexOf("have been attacked") != -1) {
-							updateEmbedField({ name: "**Evacuations:**", value: parseDamagedStarports(visionText)})
-						}
-						updateEmbedField({ name: null, value: descriptionText})
-						message.react("✅")
 					})
 			} else {
 				message.reply("Please attach an image")
 			}
 		} catch (err) {
+			console.log(err);
 			message.reply(`there was an error trying to execute that command!: ${err}`);
 		}
 	},
