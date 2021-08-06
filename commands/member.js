@@ -29,7 +29,8 @@ module.exports = {
 				roles[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = role.id
 				roles_name[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = cleanString(role.name)
 			})
-            var role = args[0].toLowerCase().replace(/["'”“]/g,"").trim()
+            var role = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
+            console.log(role)
             var mode = ""
             if(args[1] == undefined)
             {
@@ -37,7 +38,7 @@ module.exports = {
             }
             else
             {
-                mode = args[1].toLowerCase().replace(/["'”“]/g,"").trim()
+                mode = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
             }
             let memberwithrole = message.guild.roles.cache.get(roles[role]).members
             memberList = ""
@@ -50,7 +51,7 @@ module.exports = {
                 }
                 else
                 {
-                    type = args[2].toLowerCase().replace(/["'”“]/g,"").trim()
+                    type = args[2].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
                 }
                 var highlength = 0
                 if(args[3] == undefined)
@@ -59,7 +60,7 @@ module.exports = {
                 }
                 else
                 {
-                    highlength = parseInt(args[3].replace(/["'”“]/g,"").trim())
+                    highlength = parseInt(args[3].replace(/["'”`‛′’‘]/g,"").trim())
                 }
                 memberwithrole.map(m => 
                 {

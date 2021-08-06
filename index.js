@@ -205,7 +205,7 @@ discordClient.once("ready", () => {
 discordClient.on('message', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-	const args = message.content.slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
+	const args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
 	const commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
   const command = discordClient.commands.get(commandName); // Gets the command inf
 
