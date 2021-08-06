@@ -36,9 +36,8 @@ module.exports = {
 			//Following commented lines prints the whole dictionary/object created in above code.
 			//console.log(roles)
 			//console.log(roles_name)
-			var role1 = args[0].toLowerCase().replace(/["'”“]/g,"").trim()
-			var role2 = args[1].toLowerCase().replace(/["'”“]/g,"").trim()
-			console.log(role1,role2)
+			var role1 = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
+			var role2 = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			let memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
 			let memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
 			let countrole1 = memberwithrole1.size
