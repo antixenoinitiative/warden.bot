@@ -30,7 +30,15 @@ module.exports = {
 				roles_name[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = cleanString(role.name)
 			})
             var role = args[0].toLowerCase().replace(/["'”“]/g,"").trim()
-            var mode = args[1].toLowerCase().replace(/["'”“]/g,"").trim()
+            var mode = ""
+            if(args[1] == undefined)
+            {
+                mode = "txt"
+            }
+            else
+            {
+                mode = args[1].toLowerCase().replace(/["'”“]/g,"").trim()
+            }
             let memberwithrole = message.guild.roles.cache.get(roles[role]).members
             memberList = ""
             if(mode == "txt")
@@ -101,7 +109,6 @@ module.exports = {
                                 memberList = memberList + m.user.tag + "," + m.user.username + "," + m.user.id + "," +  m.displayName + "\n"
  
                         })
-                    console.log(memberList)
                     fs.writeFileSync('tmp/memberlist.csv',memberList)
                     message.channel.send("Here's your CSV file:",{
                         files:[
