@@ -1,4 +1,4 @@
-const { getRoleID } = require("../discord/roles");
+const { getRoleID } = require("../discord/getRoleID");
 
 module.exports = {
 	name: 'roleinfo',

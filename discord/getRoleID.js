@@ -1,4 +1,5 @@
 const compare = require("string-similarity");
+const cleanString = require("./cleanString");
 
 module.exports = {
     /**

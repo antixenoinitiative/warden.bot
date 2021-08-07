@@ -1,4 +1,7 @@
 const Discord = require("discord.js");
+const cleanString = require("../discord/cleanString");
+
+
 module.exports = {
 	name: 'cross',
 	description: 'How many people with rank1 also have rank2?',
@@ -10,18 +13,7 @@ module.exports = {
 			count = 0
 			// Function to remove any ASCII characters that are not helpful, eg. - Magic spaces after progression ranks
 			// Also trims the spaces now.
-			function cleanString(input)
-			{
-				var output = "";
-				for(var i=0;i<input.length;i++)
-				{
-					if(input.charCodeAt(i)<=127)
-					{
-						output+=input.charAt(i);
-					}
-				}
-				return output.trim();
-			}
+
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
