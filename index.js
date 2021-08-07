@@ -186,7 +186,6 @@ let messageToUpdate
 discordClient.once("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
   discordClient.channels.cache.get("860453324959645726").send(`Sentry is now Online!`)
-  discordClient.user.setNickname("Sentry");
 	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
