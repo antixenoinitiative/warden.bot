@@ -2,8 +2,8 @@ module.exports = {
 	name: "mechallenge",
 	description: "Challenges @user to do the Mechan Challenge! :smiling_imp:",
 	format: '"@user"',
-  	permlvl: 0,
- 	 	restricted: false,
+  	permlvl: 1,
+ 	restricted: false,
   	execute(message, args) {
     	let challenges = [
       		`Do a Multigoid kill assigned by EuanAB`,
