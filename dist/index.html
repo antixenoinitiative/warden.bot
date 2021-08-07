@@ -22,21 +22,30 @@
             </div>
             <div id="boxcontent">
                 <p>Welcome to the AXI Sentry API.</p>
-                <p>The Sentry API is a system which monitors information gathered by Commanders in Elite: Dangerous using the Elite: Dangerous Data Network. 
-                </p>
+                <p>The Sentry API gathers information gathered by Commanders in Elite: Dangerous using the <a href="https://github.com/EDCD/EDDN">Elite: Dangerous Data Network</a> and monitors it for Thargoid Activity.</p> 
+                <p>Recorded data is available through the following API Endpoints:</p>
                 <h2>
                     API Endpoints
                 </h2>
                 <ul>
-                    <li><a href="https://sentry.antixenoinitiative.com/systems" >http://sentry.antixenoinitiative.com/systems</a></li>
-                    <li><a href="https://sentry.antixenoinitiative.com/incursions" >http://sentry.antixenoinitiative.com/incursions</a></li>
-                    <li><a href="https://sentry.antixenoinitiative.com/incursionshistory" >http://sentry.antixenoinitiative.com/incursionshistory</a></li>
-                    <li><a href="https://sentry.antixenoinitiative.com/presence" >http://sentry.antixenoinitiative.com/presence</a></li>
+                    <li>Systems - <a href="https://sentry.antixenoinitiative.com/systems" >http://sentry.antixenoinitiative.com/systems</a><br>
+                        <p id="listdesc">Returns all recorded systems and current activity status.</p></li>
+                    <li>Incursions - <a href="https://sentry.antixenoinitiative.com/incursions" >http://sentry.antixenoinitiative.com/incursions</a><br>
+                        <p id="listdesc">Returns current active incursions.</p></li></li>
+                    <li>Incursions History - <a href="https://sentry.antixenoinitiative.com/incursionshistory" >http://sentry.antixenoinitiative.com/incursionshistory</a><br>
+                        <p id="listdesc">Returns all recorded Incursion encounters from EDDN.</p></li></li>
+                    <li>Presence - <a href="https://sentry.antixenoinitiative.com/presence" >http://sentry.antixenoinitiative.com/presence</a><br>
+                        <p id="listdesc">Returns all recorded Presence levels.</p></li></li>
                 </ul>
+                <p>NOTE: Presence level data is submitted manually via the AXI discord as this is not available in Journal Data.</p>
                 <h2>
                     Github
                 </h2>
-                <a href="https://github.com/antixenoinitiative/axisentry" >Join the project on Github</a>
+                <a href="https://github.com/antixenoinitiative/axisentry" style="margin:10px">Join the project on Github</a>
+                <h2>
+                    Discord
+                </h2>
+                <a href="https://discord.gg/bqmDxdm" style="margin:10px">Join the AXI Discord</a>
 
             </div>
 

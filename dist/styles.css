@@ -13,9 +13,28 @@ html {
 h1 {
   margin: 0px;
 }
+
+h2 {
+  margin-top: 13px;
+  margin-bottom: 13px;
+}
   
 p {
   
+}
+
+li {
+
+}
+
+#listdesc {
+  margin: 5px;
+  font-size: 14px;
+}
+
+#listtitle {
+  margin: 0px;
+  font-size: 14px;
 }
 
 #boxbanner {
