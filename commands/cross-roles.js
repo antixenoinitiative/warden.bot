@@ -38,8 +38,24 @@ module.exports = {
 			//console.log(roles_name)
 			var role1 = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			var role2 = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
-			let memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
-			let memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
+			let memberwithrole1 = null
+			try
+			{
+				memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
+			}
+			catch(TypeError)
+			{
+				throw("Role 1 may have errors, please check and retry.")
+			}
+			let memberwithrole2 = null
+			try
+			{
+				memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
+			}
+			catch(TypeError)
+			{
+				throw("Role 2 may have errors, please check and retry.")
+			}
 			let countrole1 = memberwithrole1.size
 			let countrole2 = memberwithrole2.size
 			memberwithrole1.map( m => {
@@ -55,7 +71,7 @@ module.exports = {
 			returnEmbed.addField("Members with rank " + roles_name[role1] + " having rank " + roles_name[role2], count)
 			message.channel.send(returnEmbed.setTimestamp());
 		} catch(err) {
-			message.channel.send(`Something went wrong: -cross ${role1} ${role2} \n ERROR: ${err}`)
+			message.channel.send(`ERROR! Something went wrong:\n${err}`)
 		}
 	},
 };
