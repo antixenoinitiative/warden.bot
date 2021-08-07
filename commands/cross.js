@@ -1,7 +1,6 @@
 const Discord = require("discord.js");
-const cleanString = require("../discord/cleanString");
-
-
+const { cleanString } = require("../discord/cleanString");
+const { getRoleID } = require("../discord/getRoleID");
 module.exports = {
 	name: 'cross',
 	description: 'How many people with rank1 also have rank2?',
@@ -11,29 +10,22 @@ module.exports = {
 	execute(message, args) {
 		try {
 			count = 0
-			// Function to remove any ASCII characters that are not helpful, eg. - Magic spaces after progression ranks
-			// Also trims the spaces now.
-
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle("**Count**")
 			roles = {}
 			roles_name = {}
-			message.guild.roles.cache
-			.forEach(role => {
-				roles[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = role.id
-				roles_name[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = cleanString(role.name)
-			})
-			//Following commented lines prints the whole dictionary/object created in above code.
-			//console.log(roles)
-			//console.log(roles_name)
 			var role1 = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			var role2 = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
+			let actualrole1 = ""
+			let actualrole2 = ""
 			let memberwithrole1 = null
 			try
 			{
-				memberwithrole1 = message.guild.roles.cache.get(roles[role1]).members
+				roleID = getRoleID(message,role1)
+				memberwithrole1 = message.guild.roles.cache.get(roleID).members
+				actualrole1 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
 			{
@@ -42,7 +34,9 @@ module.exports = {
 			let memberwithrole2 = null
 			try
 			{
-				memberwithrole2 = message.guild.roles.cache.get(roles[role2]).members
+				roleID = getRoleID(message,role2)
+				memberwithrole2 = message.guild.roles.cache.get(roleID).members
+				actualrole2 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
 			{
@@ -58,9 +52,9 @@ module.exports = {
 					}
 				})
 			})
-			returnEmbed.addField("Members with rank " + roles_name[role1],countrole1,true)
-			returnEmbed.addField("Members with rank " + roles_name[role2],countrole2,true)
-			returnEmbed.addField("Members with rank " + roles_name[role1] + " having rank " + roles_name[role2], count)
+			returnEmbed.addField("Members with rank " + actualrole1,"```" + countrole1 + "```",true)
+			returnEmbed.addField("Members with rank " + actualrole2,"```" + countrole2 + "```",true)
+			returnEmbed.addField("Members with rank " + actualrole1 + " having rank " + actualrole2, "```" + count + "```")
 			message.channel.send(returnEmbed.setTimestamp());
 		} catch(err) {
 			message.channel.send(`ERROR! Something went wrong:\n${err}`)
