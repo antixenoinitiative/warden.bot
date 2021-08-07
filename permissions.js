@@ -6,6 +6,7 @@ module.exports = {
                     "380249268818018304",   // Overseer
                     "380248896385056769",   // Coordinator
                     "380248192534577152",   // Director
+                    "552271351172431893"    // Retiree
                 ];
             case 1: // Contributor
                 return [  
