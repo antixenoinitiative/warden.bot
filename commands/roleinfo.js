@@ -1,4 +1,6 @@
+const { cleanString } = require("../discord/cleanString");
 const { getRoleID } = require("../discord/getRoleID");
+const Discord = require("discord.js");
 
 module.exports = {
 	name: 'roleinfo',
@@ -13,12 +15,17 @@ module.exports = {
             {
                 throw("Role name too short. Add more letters to role names for best results.")
             }
-            console.log(role)
             roleID = getRoleID(message,role)
-            console.log(roleID)
-            console.log(message.guild.roles.cache)
-            actualrole = message.guild.roles.cache.find(role => role.id == roleID).name
-            message.channel.send(`input = ${role}, bestMatch role = ${actualrole}, bestMatch role id = ${roleID}`)
+            actualrole = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
+            
+            const returnEmbed = new Discord.MessageEmbed()
+            .setColor('#FF7100')
+            .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+            .setTitle(`**Role Info - ${actualrole}**`)
+            returnEmbed.addField("Name", "```" + actualrole + "```", true)
+            returnEmbed.addField("ID", "```" + roleID + "```", true)
+            message.channel.send(returnEmbed.setTimestamp());
+
         }
         catch(err)
         {
