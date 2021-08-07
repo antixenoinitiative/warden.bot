@@ -14,7 +14,8 @@ module.exports = {
                 throw("Role name too short. Add more letters to role names for best results.")
             }
             roleID = getRoleID(message,args[0])
-            message.channel.send(`Best Match ID: ${roleID}`)
+            console.log(roleID)
+            console.log(message.guild.roles.cache)
             actualrole = message.guild.roles.cache.find(role => role.id == roleID).name
             message.channel.send(`input = ${role}, bestMatch role = ${actualrole}, bestMatch role id = ${roleID}`)
         }
