@@ -11,8 +11,9 @@ module.exports = {
             let roleinput = args.join(" ");
             let role = getRoleID(message, roleinput);
             message.channel.send(`${role}`)
-		} catch {
-			message.channel.send("Something went wrong, please you entered a correct term")
+		} catch (err) {
+			message.channel.send("Something went wrong, please you entered a correct term");
+            console.log(err);
 		}
 	},
 };
