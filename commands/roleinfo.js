@@ -13,6 +13,7 @@ module.exports = {
             {
                 throw("Role name too short. Add more letters to role names for best results.")
             }
+            console.log(role)
             roleID = getRoleID(message,role)
             console.log(roleID)
             console.log(message.guild.roles.cache)

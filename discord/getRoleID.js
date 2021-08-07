@@ -9,6 +9,7 @@ module.exports = {
      * @returns {string}            Returns the Role ID
      */
     getRoleID: (message, name) => {
+        try {
         let roleList = []
         message.guild.roles.cache.forEach(role => {
             if (role.name !='@everyone' && role.name != '@here') {
@@ -17,5 +18,8 @@ module.exports = {
         });
         let best = compare.findBestMatch(name, roleList);
         return message.guild.roles.cache.find(role => role.name == roleList[best["bestMatchIndex"]]).id.toString()
+        } catch (err) {
+            console.log(err);
+        }
     }
 }
