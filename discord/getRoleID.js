@@ -10,14 +10,14 @@ module.exports = {
      */
     getRoleID: (message, name) => {
         try {
-        let roleList = []
-        message.guild.roles.cache.forEach(role => {
-            if (role.name !='@everyone' && role.name != '@here') {
-                roleList.push(cleanString(role.name));
-            }
-        });
-        let best = compare.findBestMatch(name, roleList);
-        return message.guild.roles.cache.find(role => role.name == roleList[best["bestMatchIndex"]]).id.toString()
+            let roleList = []
+            message.guild.roles.cache.forEach(role => {
+                if (role.name !='@everyone' && role.name != '@here') {
+                    roleList.push(cleanString(role.name));
+                }
+            });
+            let best = compare.findBestMatch(name, roleList);
+            return message.guild.roles.cache.find(role => cleanString(role.name) == roleList[best["bestMatchIndex"]]).id.toString()
         } catch (err) {
             console.log(err);
         }
