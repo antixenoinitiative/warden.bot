@@ -5,8 +5,8 @@ module.exports = {
 	name: 'inchistory',
 	description: 'Gets a list of systems under incursion on a specified date',
     format: '"YYYY-MM-DD"',
-	permlvl: 1,
-	restricted: true,
+	permlvl: 0,
+	restricted: false,
 	execute(message, args) {
 		try {
 			db.getIncursionsByDate(args[0]).then((res) => {
