@@ -8,12 +8,18 @@ module.exports = {
 	restricted: false,
 	execute(message, args) {
 		try {
-            let roleinput = args.join(" ");
-            let role = getRoleID(message, roleinput);
-            message.channel.send(`${role}`)
-		} catch (err) {
-			message.channel.send("Something went wrong, please you entered a correct term");
-            console.log(err);
-		}
+            role = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
+            if(role.length < 2)
+            {
+                throw("Role name too short. Add more letters to role names for best results.")
+            }
+            roleID = getRoleID(message,args[0])
+            actualrole = message.guild.roles.cache.find(role => role.id == roleID).name
+            message.channel.send(`input = ${role}, bestMatch role = ${actualrole}, bestMatch role id = ${roleID}`)
+        }
+        catch(err)
+        {
+            message.channel.send(`Err ${err}`)
+        }
 	},
 };
