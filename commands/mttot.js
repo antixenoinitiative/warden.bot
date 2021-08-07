@@ -20,7 +20,7 @@ module.exports = {
                 returnEmbed.addField("Size 1 Fixed Plasma Charger",`sfpc`)
                 returnEmbed.addField("Size 2 Fixed Shard Cannon",`mfsc`)
                 returnEmbed.addField("3x Size 2 Fixed Gauss Cannon",`3mfgc`)
-                returnEmbed.setFooter("https://wiki.antixenoinitiative.com/en/min-tot-calculator")
+                returnEmbed.addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
 				message.channel.send(returnEmbed.setTimestamp()) 
             return; 
         }
