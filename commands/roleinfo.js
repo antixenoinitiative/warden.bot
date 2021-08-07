@@ -31,7 +31,7 @@ module.exports = {
         }
         catch(err)
         {
-            message.channel.send(`Err ${err}`)
+            message.channel.send(`Something went wrong, please try again!`)
         }
 	},
 };
