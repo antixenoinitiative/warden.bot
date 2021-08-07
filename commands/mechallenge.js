@@ -12,25 +12,27 @@ module.exports = {
       		`Help Xarionn with his excruciating research projects`,
       		`Do weekly updates marathon review like Avasa used do to`,
     	];
-    	if (message.mentions.roles) {  // If the array of roles pinged contains a value then exit early 
-			return;
-		}
-		else if (args[0] == "@everyone" || args[0] == "@here") {
-			return;
-		}
-		else {
-			try {
-				let challenge = parseInt(Math.floor(Math.random() * challenges.length));
-				message.channel.send(
-				`${message.author.username} has publicly challenged ${args[0]}  to participate in the mechallenge and test their skill against the very best CMDRs!\n\n
-Should ${args[0]} not submit an entry in the next two weeks ${args[0]} shall be assigned a challenge! BUT if ${args[0]} beats their current record (or scores at least one point of no record) then it will be ${message.author} who shall be assigned a challenge!\n\n
-Challenge:\n${challenges[challenge]}\n\nHave fun! :smiling_imp:`
-				);
-				//`${challenges[challenge]}`
-			} catch (err) {
-				message.channel.send(`Something went wrong!\nERROR: ${err}`);
+		try 
+		{
+    		if (args[0] == "@everyone" || args[0] == "@here") 
+			{
+				throw("You have @ an illegal role.")
 			}
+			if(message.mentions.members.first() == undefined)
+			{
+				throw("You have @ a rank or `@user` is empty!")
+			}
+			else {
+				let challenge = parseInt(Math.floor(Math.random() * challenges.length));
+				let challenged = message.mentions.members.first();
+				message.channel.send(
+					`${message.member} has publicly challenged ${challenged} to participate in the mechallenge and test their skill against the very best CMDRs!\n\nShould ${challenged.nickname} not submit an entry in the next two weeks ${challenged.nickname} shall be assigned a challenge! BUT if ${challenged.nickname} beats their current record (or scores at least one point if no record) then it will be ${message.member.nickname} who shall be assigned a challenge!\n\nYour Challenge:\n${challenges[challenge]}\n\nHave fun! :smiling_imp:`
+					);
+				}
 		}
-		
+		catch (err) 
+		{
+			message.channel.send(`Something went wrong!\nERROR: ${err}`);
+		}
 	},
 };
