@@ -69,3 +69,13 @@ li {
   width: 100px;
   padding: 10px;
 }
+
+@media only screen and (max-width: 600px) {
+  html {
+    padding: 0px;
+  }
+  #boxmain {
+    width: 100%;
+    border-radius: 0px;
+  }
+}
