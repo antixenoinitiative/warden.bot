@@ -1,4 +1,6 @@
 const Discord = require("discord.js");
+const { cleanString } = require("../discord/cleanString");
+const { getRoleID } = require("../discord/getRoleID");
 const fs = require('fs')
 module.exports = {
 	name: 'member',
@@ -8,8 +10,6 @@ module.exports = {
 	restricted: false,
     execute (message, args) {
         try {
-			// Function to remove any ASCII characters that are not helpful, eg. - Magic spaces after progression ranks
-			// Also trims the spaces now.
 			function cleanString(input)
 			{
 				var output = "";
@@ -22,14 +22,7 @@ module.exports = {
 				}
 				return output.trim();
 			}
-			roles = {}
-			roles_name = {}
-			message.guild.roles.cache
-			.forEach(role => {
-				roles[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = role.id
-				roles_name[cleanString(role.name.trim().toLowerCase().replace(/[.,\/#!$\^&\*;:{}=\-_`'~()]/g,""))] = cleanString(role.name)
-			})
-            var role = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
+            var roleID = getRoleID(message,args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim())
             var mode = ""
             if(args[1] == undefined)
             {
@@ -39,7 +32,8 @@ module.exports = {
             {
                 mode = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
             }
-            let memberwithrole = message.guild.roles.cache.get(roles[role]).members
+            let memberwithrole = message.guild.roles.cache.get(roleID).members
+            let actualrole = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
             memberList = ""
             if(mode == "txt")
             {
@@ -86,7 +80,7 @@ module.exports = {
 			        .setColor('#FF7100')
                     .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                     .setTitle("**Member List**")
-                    returnEmbed.addField("List of members holding rank " + roles_name[role] +":",memberList)
+                    returnEmbed.addField("List of members holding rank " + actualrole +":","```"+memberList+"```")
                     message.channel.send(returnEmbed.setTimestamp());
                 }
                 else
