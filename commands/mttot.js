@@ -54,7 +54,7 @@ module.exports = {
                 returnEmbed.addField("Basic 50%",`${result.basic50}`,true)
                 returnEmbed.addField("Standard 50%",`${result.standard50}`,true)
                 returnEmbed.addField("Premium 50%",`${result.premium50}`,true)
-                returnEmbed.setFooter("https://wiki.antixenoinitiative.com/en/min-tot-calculator")
+                returnEmbed.addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
 				message.channel.send(returnEmbed.setTimestamp())
 
 		} catch (err) {
