@@ -249,7 +249,6 @@ function updateEmbedField(field) {
 
 // Switch Statements
 if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
-if (enableListener == 1) { run(); } else { console.error(`WARN: Sentry Disabled`)}
 
 //Array used to pass variables and functions through the command handler
 const passArray = [
