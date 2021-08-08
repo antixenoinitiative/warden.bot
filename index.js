@@ -1,5 +1,5 @@
 /**
-* AXI Sentry is a application which manages Thargoid Incursions via a database and discord bot which listens and interfaces with EDDN.
+* AXI Warden is a discord bot for the Anti-Xeno Initiative Discord Server.
 * @author   CMDR Mgram, CMDR Airom
 */
 
@@ -56,7 +56,7 @@ let messageToUpdate
 
 discordClient.once("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-  discordClient.channels.cache.get("860453324959645726").send(`Sentry is now Online!`)
+  discordClient.channels.cache.get("860453324959645726").send(`Warden is now Online!`)
   /*
 	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
 		messageToUpdate = message

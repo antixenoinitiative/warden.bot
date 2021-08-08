@@ -5,7 +5,7 @@ module.exports = {
 	permlvl: 2,
 	restricted: true,
 	execute(message, args) {
-        message.channel.send("Killing Sentry Bot! 💀")
+        message.channel.send("Killing Warden Bot! 💀")
 		message.client.destroy();
 	},
 };
