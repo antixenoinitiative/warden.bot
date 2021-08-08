@@ -14,6 +14,8 @@ const Discord = require("discord.js");
 const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
 
+const prefix = "-"
+
 // Discord client setup
 const discordClient = new Discord.Client()
 discordClient.commands = new Discord.Collection();
