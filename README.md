@@ -1,27 +1,20 @@
-# AXI Sentry
-The AXI Sentry system monitors and records Thargoid Incursions in the game Elite: Dangerous.
+<p align="center">
+<img src="https://user-images.githubusercontent.com/85346345/128631152-1b2fb9d3-b5cf-4451-a287-a6a7124e1818.png" width="250">
+</p>
 
-Sentry takes data from the [Elite Dangerous Data Network](https://github.com/EDCD/EDDN), the data is processed and filtered for certain system states and stores it in a PostgreSQL database.
+# Warden
 
-The information is then published through multiple API endpoints in the form of JSON.
+Warden is a discord bot for the Anti-Xeno Initiative Discord Server.
 
-## Data Flow
+Join the AXI Discord here: https://discord.gg/bqmDxdm
 
-The following diagram explains the flow of data through AXI Sentry:
+## How to use for development (Discord Bot)
 
-![image](https://user-images.githubusercontent.com/85346345/125729589-67d6b3a4-118a-436b-a12a-b0badc0388fd.png)
+1. Download the repository and run `npm i` and `npm install discord.js`
+2. Create a discord bot and paste the key into a .env file, TOKEN=DISCORD_BOT_TOKEN
+3. Register a google cloud vision account and download the JSON key. Name this key cloudAPIKey and place it in the repository
+4. Use `npm run start` to start AXISentry
 
-## API Endpoints
-
-You can view the API Endpoints at [https://sentry.antixenoinitiative.com/](http://sentry.antixenoinitiative.com/)
-
-## How to use for development (Listener)
-
-1. Download the repository and run `npm i`
-2. Create a PostgreSQL database (Try https://customer.elephantsql.com/instance for a simple test server)
-3. Run the DB Query in [DBSETUP](/DBSETUP.md) to create the tables
-4. Create a file called `.env`, include your DB Secrets like so,
-
-![image](https://user-images.githubusercontent.com/85346345/125184809-26c53f00-e264-11eb-9ee3-62c678161ad7.png)
-
-5. Use `npm run start` to start AXISentry
+## Useful Links
+https://discordjs.guide/preparations/setting-up-a-bot-application.html#creating-your-bot
+https://medium.com/analytics-vidhya/setting-up-google-cloud-vision-api-with-node-js-db29d1b6fbe2
