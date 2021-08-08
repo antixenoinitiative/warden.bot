@@ -13,7 +13,6 @@ const fs = require('fs');
 const Discord = require("discord.js");
 const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
-
 const prefix = "-"
 
 // Discord client setup
@@ -58,6 +57,7 @@ let messageToUpdate
 discordClient.once("ready", () => {
   console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
   discordClient.channels.cache.get("860453324959645726").send(`Sentry is now Online!`)
+  /*
 	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
@@ -69,6 +69,7 @@ discordClient.once("ready", () => {
 	}).catch(err => {
 		console.log(err)
 	})
+  */
 	// discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").send(incursionsEmbed)
 })
 
