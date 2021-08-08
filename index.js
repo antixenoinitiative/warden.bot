@@ -9,14 +9,8 @@ const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 //--------------------------------------------------
 
 require("dotenv").config();
-
 const fs = require('fs');
 const Discord = require("discord.js");
-const zmq = require("zeromq");
-const api = require('express')();
-const path = require('path');
-const db = require('./db/index');
-const endpoint = require('./api/index');
 const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
 
