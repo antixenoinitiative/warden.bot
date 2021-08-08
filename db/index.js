@@ -5,11 +5,11 @@ const weeks = require("./weeks/weeks.json");
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) //credentials from Heroku
 
 /**
-     * Returns Week Object for given Timestamp (UTC)
-     * @author   (Mgram) Marcus Ingram
-     * @param    {number} timestamp         Unix Timestamp
-     * @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
-     */
+* Returns Week Object for given Timestamp (UTC)
+* @author   (Mgram) Marcus Ingram
+* @param    {number} timestamp         Unix Timestamp
+* @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
+*/
 function getWeek(timestamp) {
     try {
         for(var i=0; i<weeks.length; i++) {
