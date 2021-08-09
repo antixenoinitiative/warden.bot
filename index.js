@@ -86,9 +86,9 @@ discordClient.on('message', message => {
 		}
 	}
 
+	let args;
 	let commandName;
 	let command;
-	let args;
 	try {
 		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
 		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
