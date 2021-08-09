@@ -3,8 +3,8 @@ const fs = require('fs');
 module.exports = {
 	name: 'reload',
 	description: 'Reloads a command',
-	format: '',
-	permlvl: 1,
+	usage: '',
+	permissions: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
   	usage: '<commandName>',
   	restricted: true,
