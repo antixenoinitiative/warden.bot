@@ -2,7 +2,7 @@ module.exports = {
 	name: 'incursion',
 	description: 'Updates list of systems under incursion and/or damaged starports.',
 	usage: '',
-	permissions: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: true,
 	execute(message, args, passArray) {
 		try {

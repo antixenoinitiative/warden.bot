@@ -3,7 +3,7 @@ module.exports = {
     description: "Summons the holy ducc",
     usage: '',
     args: false,
-    permissions: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
+    permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
     restricted: true,
     hidden: true,
     execute (message, args, passArray) {

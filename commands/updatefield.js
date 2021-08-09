@@ -2,7 +2,7 @@ module.exports = {
 	name: 'updatefield',
 	description: 'Manually updates a field',
 	usage: '',
-	permissions: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	restricted: true,
 	execute(message, args, passArray) {

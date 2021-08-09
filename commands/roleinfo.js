@@ -6,7 +6,7 @@ module.exports = {
 	name: 'roleinfo',
 	description: 'Get information about a role',
     usage: '"role name"',
-	permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
 		try {

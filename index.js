@@ -96,7 +96,7 @@ discordClient.on('message', message => {
   	const command = discordClient.commands.get(commandName); // Gets the command info
 
 	// checks for proper permissions by role against permissions.js
-	let allowedRoles = perm.getRoles(command.permissions);
+	let allowedRoles = perm.getRoles(command.permlvl);
 	if (allowedRoles != 0) {
 	  let allowed = 0;
 	  for (i=0; i < allowedRoles.length; i++) {

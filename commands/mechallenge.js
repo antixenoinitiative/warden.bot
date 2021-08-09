@@ -2,7 +2,7 @@ module.exports = {
 	name: "mechallenge",
 	description: "Challenges @user to do the Mechan Challenge! :smiling_imp:",
 	usage: '"@user"',
-  	permissions: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
  	restricted: false,
   	execute(message, args) {
     	let challenges = [

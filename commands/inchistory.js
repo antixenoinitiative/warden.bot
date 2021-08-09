@@ -5,7 +5,7 @@ module.exports = {
 	name: 'inchistory',
 	description: 'Gets a list of systems under incursion on a specified date',
     usage: '"YYYY-MM-DD"',
-	permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
 		try {

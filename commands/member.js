@@ -6,7 +6,7 @@ module.exports = {
 	name: 'member',
 	description: 'Lists the tag/username/id/nickname(default = nickname) of members with given role, limited to maxlength(default = 10) in embed if txt is used. CSV will not embed and gives all of the types, ignores further arguments.',
     usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
-	permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
     execute (message, args) {
         try {

@@ -5,7 +5,7 @@ module.exports = {
 	name: 'cross',
 	description: 'How many people with rank1 also have rank2?',
     usage: '"role1" "role2"',
-	permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
 		try {

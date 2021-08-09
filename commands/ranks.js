@@ -4,7 +4,7 @@ module.exports = {
 	name: 'ranks',
 	description: 'Get rank statistics (Arguments: challenge, progression, other)',
     usage: 'arguments',
-	permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
         if (args == "challenge") {

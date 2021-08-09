@@ -3,7 +3,7 @@ const Discord = require("discord.js");
 module.exports = {
     name: 'builds',
     description: 'Useful Information and links for AX Ship Builds',
-    permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+    permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     usage: '',
     restricted: false,
     execute(message, args) {
