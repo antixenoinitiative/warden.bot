@@ -1,8 +1,8 @@
 module.exports = {
 	name: 'repair',
 	description: 'Updates current repair target.',
-	format: '',
-	permlvl: 1,
+  usage: '',
+	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	usage: '<stationName> <systemName>',
 	restricted: true,

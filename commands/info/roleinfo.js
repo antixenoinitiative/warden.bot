@@ -5,9 +5,10 @@ const { getRoleID } = require("../../discord/getRoleID");
 module.exports = {
 	name: 'roleinfo',
 	description: 'Get information about a role',
-    format: '"role name"',
-	permlvl: 0,
+    usage: '"role name"',
+	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
+    args: true,
 	execute(message, args) {
 		try {
             role = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()

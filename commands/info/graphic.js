@@ -13,8 +13,8 @@ function isValid(args) {
 module.exports = {
     name: 'graphic',
     description: 'Request a graphic, diagram or resource from a repository, use "-graphic" to get a list.',
-    permlvl: 0,
-    format: '"graphicname"',
+    permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+    usage: '"graphicname"',
     restricted: false,
     execute(message, args) {
         let response;
@@ -47,7 +47,7 @@ module.exports = {
             .setImage(response.link)
             message.channel.send(returnEmbed.setTimestamp());
         } else {
-
+            
         }
     }
 };

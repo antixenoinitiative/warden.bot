@@ -1,9 +1,10 @@
 module.exports = {
 	name: "mechallenge",
 	description: "Challenges @user to do the Mechan Challenge! :smiling_imp:",
-	format: '"@user"',
-  	permlvl: 1,
+	usage: '"@user"',
+	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
  	restricted: false,
+	args: true,
   	execute(message, args) {
     	let challenges = [
       		`Do a Multigoid kill assigned by EuanAB`,
@@ -14,10 +15,6 @@ module.exports = {
     	];
 		try 
 		{
-    		if (args[0] == "@everyone" || args[0] == "@here") 
-			{
-				throw("You have @ an illegal role.")
-			}
 			if(message.mentions.members.first() == undefined)
 			{
 				throw("You have @ a rank or `@user` is empty!")

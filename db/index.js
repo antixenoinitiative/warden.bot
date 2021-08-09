@@ -4,25 +4,6 @@ const weeks = require("./weeks/weeks.json");
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) //credentials from Heroku
 
-/**
-* Returns Week Object for given Timestamp (UTC)
-* @author   (Mgram) Marcus Ingram
-* @param    {number} timestamp         Unix Timestamp
-* @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
-*/
-function getWeek(timestamp) {
-    try {
-        for(var i=0; i<weeks.length; i++) {
-            if (timestamp >= weeks[i].start && timestamp <= weeks[i].end) {
-                return weeks[i];
-            }
-        }
-        throw "Timestamp not found in weeks.json"
-    } catch (err) {
-        console.log(err);
-    }
-}
-
 module.exports = {
     query: async (text, params, callback) => {
         try {
@@ -30,38 +11,6 @@ module.exports = {
             return res;
         } catch {
             return "Failed";
-        }
-    },
-
-    /**
-    * Function adds a Star System to the Database
-    * @author   (Mgram) Marcus Ingram
-    * @param    {String} name    Name of the Star System
-    */
-    addSystem: async (name) => {
-        try {
-            pool.query(`INSERT INTO systems(name,status)VALUES($1,'1')`, [name]);
-        } catch (err) {
-            console.error(err);
-        }
-        try {
-            let res = await pool.query(`INSERT INTO systems(name,status)VALUES($1,'1')`, [name]);
-            return rows[0].system_id; // Return System_id
-        } catch {
-            return 0; // Return 0 if system is not in the DB
-        }
-    },
-
-    /**
-     * Function adds an Incursion to the Database
-     * @author   (Mgram) Marcus Ingram
-     * @param    {Int} system_id     Database ID of the Star System
-     */
-    addIncursions: async (system_id,time) => {
-        try {
-            pool.query(`INSERT INTO incursions(system_id,time)VALUES($1,$2)`, [system_id, time], (err, res) => { });
-        } catch (err) {
-            console.error(err);
         }
     },
 
@@ -84,21 +33,7 @@ module.exports = {
         }
         try { await pool.query(`INSERT INTO presence(system_id,presence_lvl,time)VALUES($1,$2,$3)`, [id, presence, time]) } catch (err) { console.log(err) }
     },
-  
-    /**
-     * Set the current incursion status of a system by name
-     * @author   (Mgram) Marcus Ingram
-     * @param    {String} name    Name of the Star System
-     * @param    {Int} status     (1 = active, 0 = inactive)
-     */
-    setStatus: async (name,status) => {
-        try {
-            pool.query(`UPDATE systems SET status = $1 WHERE name = $2;`, [status, name], (err, res) => {});
-        } catch (err) {
-            console.error(err);
-        }
-    },
-    
+
     /**
      * Returns the Database ID for the system name requested
      * @author   (Mgram) Marcus Ingram
@@ -156,21 +91,6 @@ module.exports = {
         }
     },
   
-    // Fetch a new watchlist from the current incursion systems
-    getWatchlist: async (name) => {
-        try {
-            let list = [];
-            const { rows } = await pool.query("SELECT name FROM systems WHERE status = '1'");
-        for (let i = 0; i < rows.length; i++) {
-            list.push(rows[i].name);
-        }
-            console.log(`Watchlist: ${list}`);
-        return list; // Return System_id
-        } catch (err) {
-            console.log(err); // Return 0 if system is not in the DB
-        }
-    },
-  
     /**
      * Returns presence as string from lvl 
      * @author   (Mgram) Marcus Ingram
@@ -194,21 +114,21 @@ module.exports = {
         }
     },
     /**
-     * Returns Incursions active on input date 
-     * @author   (Mgram) Marcus Ingram
-     * @param    {String} date          Input date format "YYYY-MM-DDTHH:MM:SS"
-     * @return   {Object}               Returns Incursions Objects
-     */
-    getIncursionsByDate: async (date) => {
-        let timestamp = Date.parse(date);
-        let week = getWeek(timestamp);
-        let incursions = await pool.query(`SELECT * FROM incursions WHERE time < '${week.end}' AND time > '${week.start}'`);
-        let system_ids = incursions.rows.map(item => item.system_id).filter((value, index, self) => self.indexOf(value) === index)
-        let systems = [];
-        for (let i = 0; i < system_ids.length; i++) {
-            let sysname = await pool.query(`SELECT name FROM systems WHERE system_id = '${system_ids[i]}'`);
-            systems.push(sysname.rows[0].name);
+    * Returns Week Object for given Timestamp (UTC)
+    * @author   (Mgram) Marcus Ingram
+    * @param    {number} timestamp         Unix Timestamp
+    * @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
+    */
+    getWeek: (timestamp) => {
+        try {
+            for(var i=0; i<weeks.length; i++) {
+                if (timestamp >= weeks[i].start && timestamp <= weeks[i].end) {
+                    return weeks[i];
+                }
+            }
+            throw "Timestamp not found in weeks.json"
+        } catch (err) {
+            console.log(err);
         }
-        return systems;
     }
 }
