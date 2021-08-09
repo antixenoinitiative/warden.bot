@@ -3,25 +3,13 @@ const { cleanString } = require("../discord/cleanString");
 const { getRoleID } = require("../discord/getRoleID");
 const fs = require('fs')
 module.exports = {
-	name: 'member',
+	name: 'members',
 	description: 'Lists the tag/username/id/nickname(default = nickname) of members with given role, limited to maxlength(default = 10) in embed if txt is used. CSV will not embed and gives all of the types, ignores further arguments.',
     usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
     execute (message, args) {
         try {
-			function cleanString(input)
-			{
-				var output = "";
-				for(var i=0;i<input.length;i++)
-				{
-					if(input.charCodeAt(i)<=127)
-					{
-						output+=input.charAt(i);
-					}
-				}
-				return output.trim();
-			}
             var roleID = getRoleID(message,args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim())
             var mode = ""
             if(args[1] == undefined)
@@ -74,6 +62,15 @@ module.exports = {
                         memberList = memberList + m.displayName + "\n"
                     }
                 })
+                var membercount
+                try
+                {
+                    membercount = memberList.match(/[\n]/g).length
+                }
+                catch(TypeError)
+                {
+                    throw(`No members found with role ${actualrole}`)
+                }
                 if(memberList.match(/[\n]/g).length <= highlength)
                 {
                     const returnEmbed = new Discord.MessageEmbed()

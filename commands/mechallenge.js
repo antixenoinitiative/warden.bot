@@ -14,10 +14,6 @@ module.exports = {
     	];
 		try 
 		{
-    		if (args[0] == "@everyone" || args[0] == "@here") 
-			{
-				throw("You have @ an illegal role.")
-			}
 			if(message.mentions.members.first() == undefined)
 			{
 				throw("You have @ a rank or `@user` is empty!")
