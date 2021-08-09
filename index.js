@@ -28,8 +28,6 @@ for (const folder of commandFolders) {
 	}
 }
 
-console.log(discordClient.commands.entries());
-
 // Generate Google Key from ENV varaiables then Connect Google Client
 const builtkey = `{
 "type": "service_account",

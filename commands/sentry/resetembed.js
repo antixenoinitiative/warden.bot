@@ -1,7 +1,7 @@
 module.exports = {
 	name: 'resetembed',
 	description: 'Resets embed to Code Yellow Status',
-	format: '',
+	usage: '',
 	permlvl: 1,
 	restricted: true,
 	execute(message, args, passArray) {

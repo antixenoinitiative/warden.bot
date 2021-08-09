@@ -3,7 +3,7 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'ranks',
 	description: 'Get rank statistics (Arguments: challenge, progression, other)',
-  usage: 'arguments',
+  usage: '"challenge/progression/other"',
 	permlvl: 0,
 	restricted: false,
 	execute(message, args) {

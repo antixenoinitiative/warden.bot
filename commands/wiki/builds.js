@@ -4,7 +4,7 @@ module.exports = {
     name: 'builds',
     description: 'Useful Information and links for AX Ship Builds',
     permlvl: 0,
-    format: '',
+    usage: '',
     restricted: false,
     execute(message, args) {
       const returnEmbed = new Discord.MessageEmbed()
