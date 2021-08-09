@@ -29,24 +29,20 @@ try {
 }
 
 // Generate Google Key from ENV varaiables then Connect Google Client
-try {
-		const builtkey = `{
-	"type": "service_account",
-	"project_id": "axi-sentry",
-	"private_key_id": "${process.env.GOOGLEKEYID}",
-	"private_key": "${process.env.GOOGLEKEY}",
-	"client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
-	"client_id": "105556351573320071528",
-	"auth_uri": "https://accounts.google.com/o/oauth2/auth",
-	"token_uri": "https://oauth2.googleapis.com/token",
-	"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-	"client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
-	}`;
-	const privateKey = JSON.parse(builtkey);
-	const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
-} catch (err) {
-	console.error(`Error Creating Google Cloud Key: ${err}`);
-}
+const builtkey = `{
+"type": "service_account",
+"project_id": "axi-sentry",
+"private_key_id": "${process.env.GOOGLEKEYID}",
+"private_key": "${process.env.GOOGLEKEY}",
+"client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
+"client_id": "105556351573320071528",
+"auth_uri": "https://accounts.google.com/o/oauth2/auth",
+"token_uri": "https://oauth2.googleapis.com/token",
+"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+"client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
+}`;
+const privateKey = JSON.parse(builtkey);
+const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
 
 // Uncomment if using your own cloud API endpoint
 /*
@@ -57,15 +53,15 @@ const googleClient = new vision.ImageAnnotatorClient({
 
 //Discord client
 const incursionsEmbed = new Discord.MessageEmbed()
-	.setColor('#FF7100')
-	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-	.setTitle("**Defense Targets**")
+.setColor('#FF7100')
+.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+.setTitle("**Defense Targets**")
 let messageToUpdate
 
 discordClient.once("ready", () => {
-  console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-  discordClient.channels.cache.get("860453324959645726").send(`Warden is now Online!`)
-  /*
+  	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
+  	discordClient.channels.cache.get("860453324959645726").send(`Warden is now Online!`)
+  	/*
 	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
@@ -77,7 +73,7 @@ discordClient.once("ready", () => {
 	}).catch(err => {
 		console.log(err)
 	})
-  */
+  	*/
 	// discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").send(incursionsEmbed)
 })
 
@@ -89,7 +85,7 @@ discordClient.on('message', message => {
 		if (message.content.includes(forbiddenWords[i])) {
 		  	// message.content contains a forbidden word;
 		  	// delete message, log, etc.
-		  	return message.channel.reply(`Command contains forbidden words.`)
+		  	return message.channel.send(`❗ Command contains forbidden words.`)
 		}
 	}
 
