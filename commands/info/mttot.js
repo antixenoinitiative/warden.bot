@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const { calcMTTOT } = require("../mttot");
+const { calcMTTOT } = require("../../mttot");
 
 module.exports = {
 	name: 'mttot',
@@ -8,7 +8,7 @@ module.exports = {
 	permlvl: 0,
 	restricted: false,
 	execute(message, args) {
-		if (args == "") { 
+		if (args == "") {
             const returnEmbed = new Discord.MessageEmbed()
                 .setColor('#FF7100')
 				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -17,8 +17,8 @@ module.exports = {
                 returnEmbed.addField("Weapon Code Example #1",`2 Medium + 2 Small Gauss = 2m,2s`)
                 returnEmbed.addField("Weapon Code Example #2",`2x Size 3 Turret AXMC = 2ltaxmc`)
                 returnEmbed.addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
-				message.channel.send(returnEmbed.setTimestamp()) 
-            return; 
+				message.channel.send(returnEmbed.setTimestamp())
+            return;
         }
 		try {
 

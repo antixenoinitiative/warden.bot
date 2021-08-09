@@ -47,7 +47,7 @@ module.exports = {
             .setImage(response.link)
             message.channel.send(returnEmbed.setTimestamp());
         } else {
-            
+
         }
     }
 };

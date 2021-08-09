@@ -1,6 +1,6 @@
 const Discord = require("discord.js");
-const { cleanString } = require("../discord/cleanString");
-const { getRoleID } = require("../discord/getRoleID");
+const { cleanString } = require("../../discord/cleanString");
+const { getRoleID } = require("../../discord/getRoleID");
 const fs = require('fs')
 module.exports = {
 	name: 'member',
@@ -55,7 +55,7 @@ module.exports = {
                 {
                     highlength = parseInt(args[3].replace(/["'”`‛′’‘]/g,"").trim())
                 }
-                memberwithrole.map(m => 
+                memberwithrole.map(m =>
                 {
                     if(type == 'tag')
                     {
@@ -85,7 +85,7 @@ module.exports = {
                 }
                 else
                 {
-                    fs.writeFileSync('tmp/memberlist.txt', memberList); 
+                    fs.writeFileSync('tmp/memberlist.txt', memberList);
                     message.channel.send("Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",{
                         files:[
                             "tmp/memberlist.txt"
@@ -98,10 +98,10 @@ module.exports = {
                 if(mode == "csv")
                 {
                     memberList = "Discord tag,Discord Username,Discord Id,Server Nickname/displayName\n"
-                    memberwithrole.map(m => 
+                    memberwithrole.map(m =>
                         {
                                 memberList = memberList + m.user.tag + "," + m.user.username + "," + m.user.id + "," +  m.displayName + "\n"
- 
+
                         })
                     fs.writeFileSync('tmp/memberlist.csv',memberList)
                     message.channel.send("Here's your CSV file:",{

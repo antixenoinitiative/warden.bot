@@ -1,6 +1,6 @@
-const { cleanString } = require("../discord/cleanString");
-const { getRoleID } = require("../discord/getRoleID");
 const Discord = require("discord.js");
+const { cleanString } = require("../../discord/cleanString");
+const { getRoleID } = require("../../discord/getRoleID");
 
 module.exports = {
 	name: 'roleinfo',
@@ -20,12 +20,14 @@ module.exports = {
             let membercount = message.guild.roles.cache.get(roleID).members.size
 
             const returnEmbed = new Discord.MessageEmbed()
-            .setColor('#FF7100')
-            .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-            .setTitle(`**Role Info - ${actualrole}**`)
-            returnEmbed.addField("Name", "```" + actualrole + "```", true)
-            returnEmbed.addField("ID", "```" + roleID + "```", true)
-            returnEmbed.addField("Total Members", "```" + membercount + "```", true)
+            	.setColor('#FF7100')
+            	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+            	.setTitle(`**Role Info - ${actualrole}**`)
+							.addFields(
+								{name: "Name", value: "```" + actualrole + "```", inline: true},
+								{name: "ID", value: "```" + roleID + "```", inline: true},
+								{name: "Total Members", value: "```" + membercount + "```", inline: true},
+							)
             message.channel.send(returnEmbed.setTimestamp());
 
         }

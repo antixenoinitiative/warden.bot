@@ -13,6 +13,7 @@ module.exports = {
 		if(fieldName === 'incursion') updateEmbedField({ name: "**Incursions:**", value: arguments})
 		else if(fieldName === 'starport') updateEmbedField({ name: "**Evacuations:**", value: arguments})
 		else if(fieldName === 'repair') updateEmbedField({ name: "**Repairs:**", value: arguments})
+		else if(fieldName === 'description') updateEmbedField({ name: null, value: arguments})
 		else updateEmbedField({ name: fieldName, value: arguments})
 		message.react("✅")
 	},

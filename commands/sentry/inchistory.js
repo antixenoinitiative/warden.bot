@@ -1,4 +1,4 @@
-const db = require('./../db/index');
+const db = require('.././../db/index');
 const Discord = require("discord.js");
 
 module.exports = {
@@ -14,13 +14,13 @@ module.exports = {
 					return message.channel.send(`No incursions found on ${args[0]} 🙁`);
 				}
 				const returnEmbed = new Discord.MessageEmbed()
-                .setColor('#FF7100')
-				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-				.setTitle("**Incursion History**")
-				.setDescription(`Found **${res.length}** incursions for the week of "${args[0]}"`)
-                for (let i = 0; i < res.length; i++) {
-                    returnEmbed.addField(`Incursion #${i+1}`,res[i]);
-                }
+          .setColor('#FF7100')
+					.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+					.setTitle("**Incursion History**")
+					.setDescription(`Found **${res.length}** incursions for the week of "${args[0]}"`)
+        for (let i = 0; i < res.length; i++) {
+          returnEmbed.addField(`Incursion #${i+1}`,res[i]);
+      	}
 				message.channel.send(returnEmbed.setTimestamp())
 			})
 		} catch {
