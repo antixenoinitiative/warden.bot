@@ -1,5 +1,5 @@
-const { cleanString } = require("../discord/cleanString");
-const { getRoleID } = require("../discord/getRoleID");
+const { cleanString } = require("../../discord/cleanString");
+const { getRoleID } = require("../../discord/getRoleID");
 const Discord = require("discord.js");
 
 module.exports = {

@@ -1,6 +1,6 @@
-const db = require('./../db/index');
+const db = require('../../db/index');
 const Discord = require("discord.js");
-const weekdata = require("./../db/weeks/weeks.json");
+const weekdata = require("../../db/weeks/weeks.json");
 
 /**
      * Returns Incursions active on input date 

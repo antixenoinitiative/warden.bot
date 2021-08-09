@@ -1,6 +1,6 @@
 const Discord = require("discord.js");
-const { cleanString } = require("../discord/cleanString");
-const { getRoleID } = require("../discord/getRoleID");
+const { cleanString } = require("../../discord/cleanString");
+const { getRoleID } = require("../../discord/getRoleID");
 const fs = require('fs')
 module.exports = {
 	name: 'members',

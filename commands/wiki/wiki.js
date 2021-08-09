@@ -1,4 +1,4 @@
-const wiki = require('./../graphql/index');
+const wiki = require('../../graphql/index');
 const Discord = require("discord.js");
 
 module.exports = {

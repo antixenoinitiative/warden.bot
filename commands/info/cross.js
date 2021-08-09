@@ -1,6 +1,6 @@
 const Discord = require("discord.js");
-const { cleanString } = require("../discord/cleanString");
-const { getRoleID } = require("../discord/getRoleID");
+const { cleanString } = require("../../discord/cleanString");
+const { getRoleID } = require("../../discord/getRoleID");
 module.exports = {
 	name: 'cross',
 	description: 'How many people with rank1 also have rank2?',
