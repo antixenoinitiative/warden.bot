@@ -4,6 +4,7 @@ module.exports = {
 	usage: '"@user"',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
  	restricted: false,
+	args: true,
   	execute(message, args) {
     	let challenges = [
       		`Do a Multigoid kill assigned by EuanAB`,

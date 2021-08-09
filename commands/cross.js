@@ -7,6 +7,7 @@ module.exports = {
     usage: '"role1" "role2"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
+	args: true,
 	execute(message, args) {
 		try {
 			count = 0

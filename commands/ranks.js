@@ -2,10 +2,11 @@ const Discord = require("discord.js");
 
 module.exports = {
 	name: 'ranks',
-	description: 'Get rank statistics (Arguments: challenge, progression, other)',
+	description: 'Get rank statistics, include an argument: `-ranks challenge`, `-ranks progression` or `-ranks other`',
     usage: '"challenge/progression/other"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
+    args: true,
 	execute(message, args) {
         if (args == "challenge") {
             try {
@@ -74,7 +75,6 @@ module.exports = {
                 message.channel.send(`Something went wrong. Error: ${err}`);
             }
         } else {
-            message.channel.send("Please include an argument: `-ranks challenge`, `-ranks progression` or `-ranks other`"); 
             return;
         }
 	},

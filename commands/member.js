@@ -8,6 +8,7 @@ module.exports = {
     usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
+    args: true,
     execute (message, args) {
         try {
 			function cleanString(input)

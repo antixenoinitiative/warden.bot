@@ -146,14 +146,11 @@ discordClient.on('message', message => {
 	  }
 	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
 	}
-
   	if (command.args && !args.length) {
     	let reply = `You didn't provide any arguments, ${message.author}!`;
-
 		if (command.usage) {
 			reply = `Expected usage: \`${prefix}${command.name} ${command.usage}\``;
 		}
-
 		return message.channel.send(reply);
   	}
 	try {

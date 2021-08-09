@@ -7,6 +7,7 @@ module.exports = {
     usage: '"YYYY-MM-DD"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
+	args: true,
 	execute(message, args) {
 		try {
 			db.getIncursionsByDate(args[0]).then((res) => {
