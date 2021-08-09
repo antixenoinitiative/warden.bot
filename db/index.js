@@ -4,25 +4,6 @@ const weeks = require("./weeks/weeks.json");
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) //credentials from Heroku
 
-/**
-* Returns Week Object for given Timestamp (UTC)
-* @author   (Mgram) Marcus Ingram
-* @param    {number} timestamp         Unix Timestamp
-* @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
-*/
-function getWeek(timestamp) {
-    try {
-        for(var i=0; i<weeks.length; i++) {
-            if (timestamp >= weeks[i].start && timestamp <= weeks[i].end) {
-                return weeks[i];
-            }
-        }
-        throw "Timestamp not found in weeks.json"
-    } catch (err) {
-        console.log(err);
-    }
-}
-
 module.exports = {
     query: async (text, params, callback) => {
         try {
@@ -133,21 +114,21 @@ module.exports = {
         }
     },
     /**
-     * Returns Incursions active on input date 
-     * @author   (Mgram) Marcus Ingram
-     * @param    {String} date          Input date format "YYYY-MM-DDTHH:MM:SS"
-     * @return   {Object}               Returns Incursions Objects
-     */
-    getIncursionsByDate: async (date) => {
-        let timestamp = Date.parse(date);
-        let week = getWeek(timestamp);
-        let incursions = await pool.query(`SELECT * FROM incursionV2 WHERE week = $1`, [week.week]);
-        let system_ids = incursions.rows.map(item => item.system_id).filter((value, index, self) => self.indexOf(value) === index)
-        let systems = [];
-        for (let i = 0; i < system_ids.length; i++) {
-            let sysname = await pool.query(`SELECT name FROM systems WHERE system_id = '${system_ids[i]}'`);
-            systems.push(sysname.rows[0].name);
+    * Returns Week Object for given Timestamp (UTC)
+    * @author   (Mgram) Marcus Ingram
+    * @param    {number} timestamp         Unix Timestamp
+    * @returns  {Object}                   Object { week: <number>, start: <unix>, end: <unix> }
+    */
+    getWeek: (timestamp) => {
+        try {
+            for(var i=0; i<weeks.length; i++) {
+                if (timestamp >= weeks[i].start && timestamp <= weeks[i].end) {
+                    return weeks[i];
+                }
+            }
+            throw "Timestamp not found in weeks.json"
+        } catch (err) {
+            console.log(err);
         }
-        return systems;
     }
 }
