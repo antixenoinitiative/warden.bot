@@ -95,17 +95,6 @@ discordClient.on('message', message => {
 	const commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
   	const command = discordClient.commands.get(commandName); // Gets the command info
 
-	// checks for proper permissions by role against permissions.js
-	let allowedRoles = perm.getRoles(command.permlvl);
-	if (allowedRoles != 0) {
-	  let allowed = 0;
-	  for (i=0; i < allowedRoles.length; i++) {
-		  if (message.member.roles.cache.has(allowedRoles[i])) {
-			  allowed++;
-		  }
-	  }
-	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
-	}
 
 	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
@@ -142,6 +131,18 @@ discordClient.on('message', message => {
 			message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
 		}
 		return;
+	}
+
+	// checks for proper permissions by role against permissions.js
+	let allowedRoles = perm.getRoles(command.permlvl);
+	if (allowedRoles != 0) {
+	  let allowed = 0;
+	  for (i=0; i < allowedRoles.length; i++) {
+		  if (message.member.roles.cache.has(allowedRoles[i])) {
+			  allowed++;
+		  }
+	  }
+	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
 	}
 
   	if (command.args && !args.length) {
