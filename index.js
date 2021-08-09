@@ -28,6 +28,8 @@ for (const folder of commandFolders) {
 	}
 }
 
+console.log(discordClient.commands.entries());
+
 // Generate Google Key from ENV varaiables then Connect Google Client
 const builtkey = `{
 "type": "service_account",
@@ -104,17 +106,16 @@ discordClient.on('message', message => {
 	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
-		/*
+		
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
 			.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 			.setTitle("**Commands**")
 			.setDescription("List of current bot commands:")
-			for (const file of commandFiles) {
-				const command = require(`./commands/${file}`);
-				if (command.restricted == false) {
-					returnEmbed.addField(`${prefix}${command.name} ${command.usage}`, command.description)
+			for (const [key, value] of discordClient.commands.entries()) {
+				if (value.restricted == false) {
+					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
 				}
 			}
 			message.channel.send(returnEmbed.setTimestamp())
@@ -125,15 +126,14 @@ discordClient.on('message', message => {
 			.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 			.setTitle("**Restricted Commands**")
 			.setDescription("List of current **Restricted** bot commands:")
-			for (const file of commandFiles) {
-				const command = require(`./commands/${file}`);
-				if (command.restricted == true && command.hidden != true) {
-					returnEmbed.addField(`${prefix}${command.name} ${command.usage}`, command.description)
+			for (const [key, value] of discordClient.commands.entries()) {
+				if (value.restricted == true && value.hidden != true) {
+					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
 				}
 			}
 			message.channel.send(returnEmbed.setTimestamp())
 		}
-		*/
+		
 		if (message.content === `${prefix}ping`) {  
 			message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
 		}
