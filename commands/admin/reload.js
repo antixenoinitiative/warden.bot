@@ -17,14 +17,14 @@ module.exports = {
 			return message.channel.send(`There is no command with name or alias \`${commandName}\`, ${message.author}!`);
 		}
 
-    	// const commandFolders = fs.readdirSync('./commands');
-    	// const folderName = commandFolders.find(folder => fs.readdirSync(`./commands/${folder}`).includes(`${command.name}.js`));
+		const commandFolders = fs.readdirSync('./commands');
+		const folderName = commandFolders.find(folder => fs.readdirSync(`./commands/${folder}`).includes(`${command.name}.js`));
 
-		delete require.cache[require.resolve(`./${command.name}.js`)];
-		// delete require.cache[require.resolve(`../${folderName}/${command.name}.js`)];
+		// delete require.cache[require.resolve(`./${command.name}.js`)];
+		delete require.cache[require.resolve(`../${folderName}/${command.name}.js`)];
 
 		try {
-			const newCommand = require(`./${command.name}.js`);
+			const newCommand = require(`../${folderName}/${command.name}.js`);
 			message.client.commands.set(newCommand.name, newCommand);
 			message.channel.send(`Command \`${newCommand.name}\` was reloaded!`);
 		} catch (error) {

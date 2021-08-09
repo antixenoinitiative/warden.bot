@@ -17,11 +17,15 @@ const vision = require("@google-cloud/vision");
 
 // Discord client setup
 const discordClient = new Discord.Client()
+//Command detection
 discordClient.commands = new Discord.Collection();
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js')); //commands stored in subfolders and imported here
-for (const file of commandFiles) {
-	const command = require(`./commands/${file}`); // set a new item in the Collection with the key as the command name and the value as the exported module
-	discordClient.commands.set(command.name, command);
+const commandFolders = fs.readdirSync('./commands');
+for (const folder of commandFolders) {
+	const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+	for (const file of commandFiles) {
+		const command = require(`./commands/${folder}/${file}`);
+		discordClient.commands.set(command.name, command);
+	}
 }
 
 // Generate Google Key from ENV varaiables then Connect Google Client
@@ -55,10 +59,11 @@ const incursionsEmbed = new Discord.MessageEmbed()
 let messageToUpdate
 
 discordClient.once("ready", () => {
-  	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-  	discordClient.channels.cache.get("860453324959645726").send(`Warden is now Online!`)
-  	/*
-	discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").messages.fetch("869034577119809577").then(message =>{
+
+  console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
+  discordClient.channels.cache.get("860453324959645726").send(`Warden is now Online!`)
+	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
+	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
 		incursionsEmbed.description = currentEmbed.description
@@ -69,8 +74,7 @@ discordClient.once("ready", () => {
 	}).catch(err => {
 		console.log(err)
 	})
-  	*/
-	// discordClient.guilds.cache.get("380246809076826112").channels.cache.get("869030649959428166").send(incursionsEmbed)
+
 })
 
 discordClient.on('message', message => {
@@ -132,6 +136,7 @@ discordClient.on('message', message => {
 		if (message.content === `${prefix}ping`) {  
 			message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
 		}
+
 		return;
 	}
 
@@ -145,6 +150,7 @@ discordClient.on('message', message => {
 		  }
 	  }
 	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
+    
 	}
   	if (command.args && !args.length) {
     	let reply = `You didn't provide any arguments, ${message.author}!`;
@@ -219,6 +225,7 @@ function parseDamagedStarports(text) {
 * @param    {Array} field    {name: nameOfField, value: valueOfField}
 */
 function updateEmbedField(field) {
+	if(!messageToUpdate) return
 	if(field.name == null) return messageToUpdate.edit(incursionsEmbed.setDescription(field.value).setTimestamp())
 	const temp = new Discord.MessageEmbed()
 	.setColor('#FF7100')

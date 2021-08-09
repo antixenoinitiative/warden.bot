@@ -4,7 +4,7 @@ const { calcMTTOT } = require("../../mttot");
 module.exports = {
 	name: 'mttot',
 	description: 'Calculate Theoretical Time on Target',
-    usage: '"variant" "weapon codes" "range"',
+  usage: '"variant" "weapon codes" "range"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
