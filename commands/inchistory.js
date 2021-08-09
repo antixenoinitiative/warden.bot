@@ -23,7 +23,7 @@ module.exports = {
                 }
 				message.channel.send(returnEmbed.setTimestamp())
 			})
-		} catch {
+		} catch (err) {
 			message.channel.send("Something went wrong, please ensure the date format is correct 'YYYY-MM-DD'")
 		}
 	},
