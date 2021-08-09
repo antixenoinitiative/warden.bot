@@ -18,15 +18,10 @@ const vision = require("@google-cloud/vision");
 // Discord client setup
 const discordClient = new Discord.Client()
 discordClient.commands = new Discord.Collection();
-const commandFiles;
-try {
-	commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js')); //commands stored in subfolders and imported here
-	for (const file of commandFiles) {
-		const command = require(`./commands/${file}`); // set a new item in the Collection with the key as the command name and the value as the exported module
-		discordClient.commands.set(command.name, command);
-	}
-} catch (err) {
-	console.error(`Error loading command files: ${err}`);
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js')); //commands stored in subfolders and imported here
+for (const file of commandFiles) {
+	const command = require(`./commands/${file}`); // set a new item in the Collection with the key as the command name and the value as the exported module
+	discordClient.commands.set(command.name, command);
 }
 
 // Generate Google Key from ENV varaiables then Connect Google Client
