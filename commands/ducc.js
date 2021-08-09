@@ -1,9 +1,9 @@
 module.exports = {
     name: "ducc",
     description: "Summons the holy ducc",
-    format: '',
+    usage: '',
     args: false,
-    permlvl: 0,
+    permissions: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
     restricted: true,
     hidden: true,
     execute (message, args, passArray) {

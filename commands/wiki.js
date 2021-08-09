@@ -4,8 +4,8 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'wiki',
 	description: 'Search the AXI Wiki',
-    format: '"term"',
-	permlvl: 0,
+    usage: '"term"',
+	permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
 		if (args == "") { message.channel.send("**The Anti-Xeno Wiki:** https://wiki.antixenoinitiative.com/"); return; }

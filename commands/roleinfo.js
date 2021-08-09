@@ -5,8 +5,8 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'roleinfo',
 	description: 'Get information about a role',
-    format: '"role name"',
-	permlvl: 0,
+    usage: '"role name"',
+	permissions: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
 		try {
@@ -23,9 +23,9 @@ module.exports = {
             .setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle(`**Role Info - ${actualrole}**`)
-            returnEmbed.addField("Name", "```" + actualrole + "```", true)
-            returnEmbed.addField("ID", "```" + roleID + "```", true)
-            returnEmbed.addField("Total Members", "```" + membercount + "```", true)
+            .addField("Name", "```" + actualrole + "```", true)
+            .addField("ID", "```" + roleID + "```", true)
+            .addField("Total Members", "```" + membercount + "```", true)
             message.channel.send(returnEmbed.setTimestamp());
 
         }

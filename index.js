@@ -80,7 +80,8 @@ discordClient.once("ready", () => {
 discordClient.on('message', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-	const forbiddenWords = [ "@everyone", "@here", "everyone", "here", "recruit" ];
+	// Check if arguments contains forbidden words
+	const forbiddenWords = [ "@everyone", "@here", "everyone", "here" ];
 	for (var i = 0; i < forbiddenWords.length; i++) {
 		if (message.content.includes(forbiddenWords[i])) {
 		  	// message.content contains a forbidden word;
@@ -90,8 +91,21 @@ discordClient.on('message', message => {
 	}
 
 	const args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
+
 	const commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
-  	const command = discordClient.commands.get(commandName); // Gets the command inf
+  	const command = discordClient.commands.get(commandName); // Gets the command info
+
+	// checks for proper permissions by role against permissions.js
+	let allowedRoles = perm.getRoles(command.permissions);
+	if (allowedRoles != 0) {
+	  let allowed = 0;
+	  for (i=0; i < allowedRoles.length; i++) {
+		  if (message.member.roles.cache.has(allowedRoles[i])) {
+			  allowed++;
+		  }
+	  }
+	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
+	}
 
 	//checks if command exists, then goes to non-subfiled commands
 	if (!discordClient.commands.has(commandName)) {
@@ -105,7 +119,7 @@ discordClient.on('message', message => {
 			for (const file of commandFiles) {
 				const command = require(`./commands/${file}`);
 				if (command.restricted == false) {
-					returnEmbed.addField(`${prefix}${command.name} ${command.format}`, command.description)
+					returnEmbed.addField(`${prefix}${command.name} ${command.usage}`, command.description)
 				}
 			}
 			message.channel.send(returnEmbed.setTimestamp())
@@ -119,7 +133,7 @@ discordClient.on('message', message => {
 			for (const file of commandFiles) {
 				const command = require(`./commands/${file}`);
 				if (command.restricted == true && command.hidden != true) {
-					returnEmbed.addField(`${prefix}${command.name} ${command.format}`, command.description)
+					returnEmbed.addField(`${prefix}${command.name} ${command.usage}`, command.description)
 				}
 			}
 			message.channel.send(returnEmbed.setTimestamp())
@@ -129,28 +143,6 @@ discordClient.on('message', message => {
 		}
 		return;
 	}
-
-	//checks for proper permissions by role against permissions.js
-  	let allowedRoles = perm.getRoles(command.permlvl);
-  	if (allowedRoles != 0) {
-		let allowed = 0;
-		for (i=0; i < allowedRoles.length; i++) {
-			if (message.member.roles.cache.has(allowedRoles[i])) {
-				allowed++;
-			}
-		}
-		if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
-  	}
-
-  	/*
-	if(command.restricted) {
-		if (!message.guild) return;
-		const authorPerms = message.channel.permissionsFor(message.author);
-		if (!authorPerms || !authorPerms.has(command.permissions)) {
-			return message.reply("You don't have permission to use that command!")
-		}
-	}
-  	*/
 
   	if (command.args && !args.length) {
     	let reply = `You didn't provide any arguments, ${message.author}!`;
