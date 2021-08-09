@@ -101,10 +101,10 @@ discordClient.on('message', message => {
 		console.log(`Invalid command input`)
 	}
 
-
 	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
+		/*
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
@@ -133,6 +133,7 @@ discordClient.on('message', message => {
 			}
 			message.channel.send(returnEmbed.setTimestamp())
 		}
+		*/
 		if (message.content === `${prefix}ping`) {  
 			message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
 		}
