@@ -86,13 +86,19 @@ discordClient.on('message', message => {
 		}
 	}
 
-	const args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
+	let commandName;
+	let command;
+	let args;
+	try {
+		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
+		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
+		command = discordClient.commands.get(commandName); // Gets the command info
+	} catch (err) {
+		console.log(`Invalid command input`)
+	}
 
-	const commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
-  	const command = discordClient.commands.get(commandName); // Gets the command info
 
-
-	//checks if command exists, then goes to non-subfiled commands
+	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
