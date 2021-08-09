@@ -5,7 +5,6 @@ module.exports = {
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	usage: '<stationName> <systemName>',
-	restricted: true,
 	execute(message, args, passArray) {
 		updateEmbedField = passArray[4]
 		for(var i = 0; i < args.length; i++) {

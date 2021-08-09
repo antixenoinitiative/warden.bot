@@ -104,7 +104,7 @@ discordClient.on('message', message => {
 	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
-		
+
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
@@ -112,7 +112,8 @@ discordClient.on('message', message => {
 			.setTitle("**Commands**")
 			.setDescription("List of current bot commands:")
 			for (const [key, value] of discordClient.commands.entries()) {
-				if (value.restricted == false) {
+				//Only commands with permlvl zero are considered unrestricted
+				if (value.permlvl == 0 && !value.hidden) {
 					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
 				}
 			}
@@ -125,14 +126,15 @@ discordClient.on('message', message => {
 			.setTitle("**Restricted Commands**")
 			.setDescription("List of current **Restricted** bot commands:")
 			for (const [key, value] of discordClient.commands.entries()) {
-				if (value.restricted == true && value.hidden != true) {
+				//No permlvl is treated as restricted
+				if (value.permlvl != 0 && !value.hidden) {
 					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
 				}
 			}
 			message.channel.send(returnEmbed.setTimestamp())
 		}
-		
-		if (message.content === `${prefix}ping`) {  
+
+		if (message.content === `${prefix}ping`) {
 			message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
 		}
 
@@ -148,8 +150,8 @@ discordClient.on('message', message => {
 			  allowed++;
 		  }
 	  }
-	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
-    
+	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role)
+
 	}
   	if (command.args && !args.length) {
     	let reply = `You didn't provide any arguments, ${message.author}!`;

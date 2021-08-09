@@ -3,7 +3,6 @@ module.exports = {
 	description: 'Resets embed to Code Yellow Status',
 	usage: '',
 	permlvl: 1,
-	restricted: true,
 	execute(message, args, passArray) {
     updateEmbedField = passArray[4]
     updateEmbedField({ name: "**Incursions:**"})

@@ -3,7 +3,6 @@ module.exports = {
 	description: 'Updates list of systems under incursion and/or damaged starports with an attached image.',
 	usage: '',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: true,
 	execute(message, args, passArray) {
 		try {
 			//importing functions and variables

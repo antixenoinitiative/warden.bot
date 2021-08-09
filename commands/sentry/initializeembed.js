@@ -5,7 +5,6 @@ module.exports = {
     format: '',
     args: false,
     permlvl: 1,
-    restricted: true,
     hidden: true,
     execute (message, args) {
        const newEmbed = new Discord.MessageEmbed()
