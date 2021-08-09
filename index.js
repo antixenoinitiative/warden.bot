@@ -82,8 +82,8 @@ discordClient.on('message', message => {
 
 	// Check if arguments contains forbidden words
 	const forbiddenWords = [ "@everyone", "@here", "everyone", "here" ];
-	for (var i = 0; i < forbiddenWords.length; i++) {
-		if (message.content.includes(forbiddenWords[i])) {
+	for (let value of forbiddenWords) {
+		if (message.content.includes(value)) {
 		  	// message.content contains a forbidden word;
 		  	// delete message, log, etc.
 		  	return message.channel.send(`❗ Command contains forbidden words.`)
@@ -112,7 +112,7 @@ discordClient.on('message', message => {
 			.setTitle("**Commands**")
 			.setDescription("List of current bot commands:")
 			for (const [key, value] of discordClient.commands.entries()) {
-				if (value.restricted == false) {
+				if (!value.restricted) {
 					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
 				}
 			}
@@ -125,7 +125,7 @@ discordClient.on('message', message => {
 			.setTitle("**Restricted Commands**")
 			.setDescription("List of current **Restricted** bot commands:")
 			for (const [key, value] of discordClient.commands.entries()) {
-				if (value.restricted == true && value.hidden != true) {
+				if (value.restricted && !value.hidden) {
 					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
 				}
 			}
@@ -143,8 +143,8 @@ discordClient.on('message', message => {
 	let allowedRoles = perm.getRoles(command.permlvl);
 	if (allowedRoles != 0) {
 	  let allowed = 0;
-	  for (i=0; i < allowedRoles.length; i++) {
-		  if (message.member.roles.cache.has(allowedRoles[i])) {
+	  for (const value of allowedRoles) {
+		  if (message.member.roles.cache.has(value)) {
 			  allowed++;
 		  }
 	  }
@@ -212,8 +212,8 @@ function parseDamagedStarports(text) {
   	const starportList = text.substring(text.indexOf("Update") + 7).split("\n")
 	let returnStr = "The following stations have been attacked and may require assistance:"
 	// console.log(starportList)
-	for(var i = 1; i < starportList.length - 1; i++) {
-		returnStr += "\n- " + starportList[i] + " 🔥"
+	for(let value of starportList) {
+		returnStr += "\n- " + value + " 🔥"
 	}
   	return returnStr
 }
@@ -232,16 +232,16 @@ function updateEmbedField(field) {
 	.setTitle("**Defense Targets**")
 	.setDescription(incursionsEmbed.description)
 	let isUpdated = false
-	for(var i = 0; i < incursionsEmbed.fields.length; i++) {
-		if(incursionsEmbed.fields[i].name == field.name) {
+	for(const value of incursionsEmbed.fields) {
+		if(value.name == field.name) {
 			if(field.value) {
 				temp.addField(field.name, field.value)
 			}
 			isUpdated = true
 			console.log("Updated existing field: " + field.name)
 		} else {
-			temp.addField(incursionsEmbed.fields[i].name, incursionsEmbed.fields[i].value)
-			console.log("Copied existing field: " + incursionsEmbed.fields[i].name)
+			temp.addField(value.name, value.value)
+			console.log("Copied existing field: " + value.name)
 		}
 	}
 	if(!isUpdated && field.value){

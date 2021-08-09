@@ -2,8 +2,8 @@ const Discord = require("discord.js");
 const data = require("./graphdata.json");
 
 function isValid(args) {
-    for (i=0;i < data.length; i++) {
-        if (args == data[i].argument) {
+    for (const value of data) {
+        if (args == value.argument) {
             return true;
         }
     }
