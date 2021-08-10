@@ -5,9 +5,7 @@ module.exports = {
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	usage: '<stationName> <systemName>',
-	restricted: true,
-	execute(message, args, passArray) {
-		updateEmbedField = passArray[4]
+	execute(message, args, updateEmbedField) {
 		for(var i = 0; i < args.length; i++) {
 			args[i] = args[i].substring(0,1).toUpperCase() + args[i].substring(1)
 		}

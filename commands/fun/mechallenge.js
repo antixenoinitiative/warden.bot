@@ -3,7 +3,6 @@ module.exports = {
 	description: "Challenges @user to do the Mechan Challenge! :smiling_imp:",
 	usage: '"@user"',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
- 	restricted: false,
 	args: true,
   	execute(message, args) {
     	let challenges = [
@@ -13,7 +12,7 @@ module.exports = {
       		`Help Xarionn with his excruciating research projects`,
       		`Do weekly updates marathon review like Avasa used do to`,
     	];
-		try 
+		try
 		{
 			if(message.mentions.members.first() == undefined)
 			{
@@ -27,7 +26,7 @@ module.exports = {
 					);
 				}
 		}
-		catch (err) 
+		catch (err)
 		{
 			message.channel.send(`Something went wrong!\nERROR: ${err}`);
 		}

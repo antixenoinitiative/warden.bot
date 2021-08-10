@@ -3,7 +3,7 @@ const Discord = require("discord.js");
 const weekdata = require("../../db/weeks/weeks.json");
 
 /**
-     * Returns Incursions active on input date 
+     * Returns Incursions active on input date
      * @author   (Mgram) Marcus Ingram
      * @param    {String} date          Input date format "YYYY-MM-DDTHH:MM:SS"
      * @return   {Object}               Returns Incursions Objects
@@ -52,7 +52,6 @@ module.exports = {
 	description: 'Request data about incursions',
     usage: '"system/week/date" "name/week/YYYY-MM-DD"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
 	args: true,
 	execute(message, args) {
 		const type = args[0];
@@ -88,7 +87,7 @@ module.exports = {
 						}
 						message.channel.send(returnEmbed.setTimestamp())
 					} catch (err) { console.error(err) }
-				}	
+				}
 				return getSysByWeek()
 			case "week":
 				if (param === undefined) { return message.channel.send(`Please include a Week Number, eg: "177"`) }
@@ -111,7 +110,7 @@ module.exports = {
 						}
 						message.channel.send(returnEmbed.setTimestamp())
 					} catch (err) { console.error(err) }
-				}	
+				}
 				return getIncByWeek()
 			case "date":
 				if (param === undefined) { return message.channel.send(`Please include a date, eg: "YYYY-MM-DD"`) }

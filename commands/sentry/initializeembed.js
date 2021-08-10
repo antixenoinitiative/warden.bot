@@ -5,7 +5,6 @@ module.exports = {
     format: '',
     args: false,
     permlvl: 1,
-    restricted: true,
     hidden: true,
     execute (message, args) {
        const newEmbed = new Discord.MessageEmbed()
@@ -16,5 +15,6 @@ module.exports = {
       message.channel.send(newEmbed).then(message => {
         message.channel.send("Server ID: " + message.guild.id + "\nChannel ID: " + message.channel.id + "\nMessage ID: " + message.id)
       })
+      message.react("✅")
     }
 }

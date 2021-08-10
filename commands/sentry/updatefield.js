@@ -4,9 +4,7 @@ module.exports = {
 	usage: '',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
-	restricted: true,
-	execute(message, args, passArray) {
-		updateEmbedField = passArray[4]
+	execute(message, args, updateEmbedField) {
 		fieldName = args[0]
 		let arguments = args[1]
 		for(var i = 2; i < args.length; i++) arguments += " " + args[i]

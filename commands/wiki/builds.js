@@ -5,7 +5,6 @@ module.exports = {
     description: 'Useful Information and links for AX Ship Builds',
     permlvl: 0,
     usage: '',
-    restricted: false,
     execute(message, args) {
       const returnEmbed = new Discord.MessageEmbed()
         .setColor('#FF7100')
