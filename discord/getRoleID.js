@@ -16,6 +16,13 @@ module.exports = {
                     roleList.push(cleanString(role.name));
                 }
             });
+            switch(name.toLowerCase())
+            {
+                case "pc": return '428260067901571073'; break;
+                case "xb": return '533774176478035991'; break;
+                case "ps": return '428259777206812682'; break;
+                default: break;
+            }
             let best = compare.findBestMatch(name, roleList);
             return message.guild.roles.cache.find(role => cleanString(role.name) == roleList[best["bestMatchIndex"]]).id.toString()
         } catch (err) {
