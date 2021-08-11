@@ -25,7 +25,7 @@ module.exports = {
             case 1:
                 return "**(Mentor Only)**"
             default:
-                return " "
+                return "  "
         }
     }
 }
