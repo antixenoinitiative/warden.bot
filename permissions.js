@@ -21,9 +21,9 @@ module.exports = {
     getAllowedName: (permlvl) => {
         switch (permlvl) {
             case 2:
-                return "(Staff Only)"
+                return "**(Staff Only)**"
             case 1:
-                return "(Mentor Only)"
+                return "**(Mentor Only)**"
             default:
                 return " "
         }
