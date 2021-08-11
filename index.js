@@ -81,7 +81,6 @@ discordClient.on('message', message => {
 	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
-
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
@@ -91,7 +90,7 @@ discordClient.on('message', message => {
 			for (const [key, value] of discordClient.commands.entries()) {
 				//Only commands with permlvl zero are considered unrestricted
 				if (value.permlvl == 0 && !value.hidden) {
-					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
+					returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
 				}
 			}
 			message.channel.send(returnEmbed.setTimestamp())
@@ -105,7 +104,7 @@ discordClient.on('message', message => {
 			for (const [key, value] of discordClient.commands.entries()) {
 				//No permlvl is treated as restricted
 				if (value.permlvl != 0 && !value.hidden) {
-					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
+					returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
 				}
 			}
 			message.channel.send(returnEmbed.setTimestamp())
