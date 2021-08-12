@@ -62,7 +62,7 @@ discordClient.once("ready", async() => {
 	})
 	*/
 
-	console.log("Getting Embed")
+	if(!process.env.PLATFORMEMBEDID) return console.log("ERROR: No platform embed detected")
 
 	const platformEmbed = await discordClient.channels.cache.find(x => x.id == "533765786502823946").messages.fetch(process.env.PLATFORMEMBEDID)
 
