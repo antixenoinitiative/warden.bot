@@ -4,7 +4,7 @@ module.exports = {
   usage: '',
 	permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	execute(message) {
-    message.channel.send("Killing Warden Bot! 💀")
+    message.channel.send({ content: "Killing Warden Bot! 💀" })
 		message.client.destroy();
 	},
 };

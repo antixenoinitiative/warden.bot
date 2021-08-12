@@ -78,7 +78,7 @@ module.exports = {
                     .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                     .setTitle("**Member List**")
                     returnEmbed.addField("List of members holding rank " + actualrole +":","```"+memberList+"```")
-                    message.channel.send(returnEmbed.setTimestamp());
+                    message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
                 }
                 else
                 {

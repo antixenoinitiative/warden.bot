@@ -118,15 +118,15 @@ module.exports = {
 							message.react("✅")
 						} catch (err) {
 							console.log(err);
-							message.reply(`there was an error trying to execute that command!: ${err}`);
+							message.reply({ content: `there was an error trying to execute that command!: ${err}` });
 						}
 					})
 			} else {
-				message.reply("Please attach an image")
+				message.reply({ content: "Please attach an image" })
 			}
 		} catch (err) {
 			console.log(err);
-			message.reply(`there was an error trying to execute that command!: ${err}`);
+			message.reply({ content: `there was an error trying to execute that command!: ${err}` });
 		}
 	},
 };

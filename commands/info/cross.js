@@ -55,9 +55,9 @@ module.exports = {
 			returnEmbed.addField("Members with rank " + actualrole1,"```" + countrole1 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole2,"```" + countrole2 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole1 + " having rank " + actualrole2, "```" + count + "```")
-			message.channel.send(returnEmbed.setTimestamp());
+			message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 		} catch(err) {
-			message.channel.send(`ERROR! Something went wrong:\n${err}`)
+			message.channel.send({ content: `ERROR! Something went wrong:\n${err}` })
 		}
 	},
 };

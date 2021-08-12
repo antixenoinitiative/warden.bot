@@ -16,7 +16,7 @@ module.exports = {
                 .addField("Weapon Code Example #1",`2 Medium + 2 Small Gauss = 2m,2s`)
                 .addField("Weapon Code Example #2",`2x Size 3 Turret AXMC = 2ltaxmc`)
                 .addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
-				message.channel.send(returnEmbed.setTimestamp())
+				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
             return;
         }
 		try {
@@ -50,7 +50,7 @@ module.exports = {
                 .addField("Standard 50%",`${result.standard50}`,true)
                 .addField("Premium 50%",`${result.premium50}`,true)
                 .addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
-				message.channel.send(returnEmbed.setTimestamp())
+				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 
 		} catch (err) {
             console.log(err)

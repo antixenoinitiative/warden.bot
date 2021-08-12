@@ -13,7 +13,7 @@ module.exports = {
 			// || message.client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
 
 		if (!command) {
-			return message.channel.send(`There is no command with name or alias \`${commandName}\`, ${message.author}!`);
+			return message.channel.send({ content: `There is no command with name or alias \`${commandName}\`, ${message.author}!` });
 		}
 
 		const commandFolders = fs.readdirSync('./commands');
@@ -25,10 +25,10 @@ module.exports = {
 		try {
 			const newCommand = require(`../${folderName}/${command.name}.js`);
 			message.client.commands.set(newCommand.name, newCommand);
-			message.channel.send(`Command \`${newCommand.name}\` was reloaded!`);
+			message.channel.send({ content: `Command \`${newCommand.name}\` was reloaded!` });
 		} catch (error) {
 			console.error(error);
-			message.channel.send(`There was an error while reloading a command \`${command.name}\`:\n\`${error.message}\``);
+			message.channel.send({ content: `There was an error while reloading a command \`${command.name}\`:\n\`${error.message}\`` });
 		}
 	},
 };

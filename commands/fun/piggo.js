@@ -6,7 +6,7 @@ module.exports = {
     permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: true,
     execute (message) {
-        message.channel.send(`You summoneth the piggo! <@352201261971668992>`);
-        message.channel.send("https://tenor.com/view/waddles-pig-blink-gravity-falls-animal-gif-17396160");
+        message.channel.send({ content: `You summoneth the piggo! <@352201261971668992>` });
+        message.channel.send({ content: "https://tenor.com/view/waddles-pig-blink-gravity-falls-animal-gif-17396160" });
     }
 }

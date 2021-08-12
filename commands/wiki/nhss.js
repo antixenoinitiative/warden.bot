@@ -14,6 +14,6 @@ module.exports = {
       	.addField("**NOTE:** If a Nonhuman Signal Source has a Salvage Icon (cylinder) in the navigation panel, it will always be a solo Thargoid Interceptor.", "[*Click here for more info*](https://wiki.antixenoinitiative.com/en/nhss)")
       	.addField("Always get interceptors using Full Spectrum System (FSS) Scanner:", "When using the FSS, you are able to filter which kind of instance you will get based on where you put your tuner, shown in the picutre below:")
       	.setImage("https://cdn.discordapp.com/attachments/860453324959645726/872241770614882334/SignalSourcesBoth.png")
-    	message.channel.send(returnEmbed.setTimestamp());
+    	message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
     }
 };

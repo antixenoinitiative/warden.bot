@@ -26,7 +26,7 @@ module.exports = {
             for (i=0;i < data.length; i++) {
                 returnEmbed.addField(`-graphic ${data[i].argument}`, data[i].title);
             }
-            return message.channel.send(returnEmbed.setTimestamp());
+            return message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         }
 
         for (i=0;i < data.length; i++) {
@@ -44,7 +44,7 @@ module.exports = {
             .setTitle(response.title)
             .setDescription(response.description)
             .setImage(response.link)
-            message.channel.send(returnEmbed.setTimestamp());
+            message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         } else {
 
         }

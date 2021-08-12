@@ -28,12 +28,12 @@ module.exports = {
 								{name: "ID", value: "```" + roleID + "```", inline: true},
 								{name: "Total Members", value: "```" + membercount + "```", inline: true},
 							)
-            message.channel.send(returnEmbed.setTimestamp());
+            message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 
         }
         catch(err)
         {
-            message.channel.send(`Something went wrong, please try again!`)
+            message.channel.send({ content: `Something went wrong, please try again!` })
         }
 	},
 };
