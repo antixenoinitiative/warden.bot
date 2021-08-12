@@ -52,7 +52,7 @@ module.exports = {
                     {name:"Members with the following roles:",value:"```" + role_names + "```"},
                     {name:"Count",value:"```" + count + "```"}
                 )
-                message.channel.send(returnEmbed.setTimestamp())
+                message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
             }
             else
             {
@@ -63,7 +63,7 @@ module.exports = {
                         {name:"Members with the following roles:",value:"```" + role_names + "```"},
                         {name:"No members were found!",value:"** **"},
                     )
-                    message.channel.send(returnEmbed.setTimestamp()) 
+                    message.channel.send({ embeds: [returnEmbed.setTimestamp()] }) 
                 }
                 else
                 {
@@ -72,13 +72,13 @@ module.exports = {
                         {name:"Members with the following roles:",value:"```" + role_names + "```"},
                         {name:"Nicknames",value:"```" + memberList + "```"},
                     )
-                    message.channel.send(returnEmbed.setTimestamp())  
+                    message.channel.send({ embeds: [returnEmbed.setTimestamp()] })  
                 }
             }
         }
         catch(err)
         {
-            message.channel.send(`An error occured!\n${err}`)
+            message.channel.send({ content: `An error occured!\n${err}` })
         }
     },
 };

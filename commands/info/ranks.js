@@ -3,7 +3,7 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'ranks',
 	description: 'Get rank statistics (Arguments: challenge, progression, other)',
-  usage: '"challenge/progression/other"',
+  	usage: '"challenge/progression/other"',
 	permlvl: 0,
 	execute(message, args) {
 		const roleCache = message.guild.roles.cache
@@ -25,9 +25,9 @@ module.exports = {
 						{name: "Myrmidon", value: roleCache.get("810410728023916554").members.size, inline: true},
 						{name: "Vanguard", value: roleCache.get("642840616694317104").members.size, inline: true},
 					)
-				message.channel.send(returnEmbed.setTimestamp());
+				message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 			} catch (err) {
-					message.channel.send(`Something went wrong. Error: ${err}`);
+					message.channel.send({ content: `Something went wrong. Error: ${err}` });
 			}
 		} else if(args == "progression") {
 				try {
@@ -48,7 +48,7 @@ module.exports = {
 							{name: "Quadrivial Vestige", value: roleCache.get("406986080953434115").members.size, inline: true},
 							{name: "Recruit", value: roleCache.get("380247760668065802").members.size, inline: true},
 						)
-					message.channel.send(returnEmbed.setTimestamp());
+					message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 				} catch (err) {
 						message.channel.send(`Something went wrong. Error: ${err}`);
 				}
@@ -75,12 +75,12 @@ module.exports = {
 							{name: "Avower", value: roleCache.get("439500275280117760").members.size, inline: true},
 							{name: "Old Guard", value: roleCache.get("427304200737783810").members.size, inline: true},
 						)
-					message.channel.send(returnEmbed.setTimestamp());
+					message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 				} catch (err) {
-						message.channel.send(`Something went wrong. Error: ${err}`);
+						message.channel.send({ content: `Something went wrong. Error: ${err}` });
 				}
 		} else {
-			message.channel.send("Please include an argument: `-ranks challenge`, `-ranks progression` or `-ranks other`");
+			message.channel.send({ content: "Please include an argument: `-ranks challenge`, `-ranks progression` or `-ranks other`" });
 		}
 	}
 }

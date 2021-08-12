@@ -70,7 +70,7 @@ discordClient.on('messageCreate', message => {
 		if (message.content.includes(forbiddenWords[i])) {
 		  	// message.content contains a forbidden word;
 		  	// delete message, log, etc.
-		  	return message.channel.send(`❗ Command contains forbidden words.`)
+		  	return message.channel.send({ content: `❗ Command contains forbidden words.` })
 		}
 	}
 
@@ -118,7 +118,7 @@ discordClient.on('messageCreate', message => {
 		}
 
 		if (message.content === `${prefix}ping`) {
-			message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
+			message.channel.send({ content: `🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms` });
 		}
 
 		return;
@@ -182,7 +182,7 @@ function updateEmbedField(field) {
 		console.log("Added new field: " + field.name)
 	}
 	incursionsEmbed.fields = temp.fields
-	messageToUpdate.edit({ embed: [incursionsEmbed.setTimestamp()] })
+	messageToUpdate.edit({ embeds: [incursionsEmbed.setTimestamp()] })
 	console.log(messageToUpdate.embeds[0].fields)
 }
 
