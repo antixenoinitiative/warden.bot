@@ -46,7 +46,7 @@ let messageToUpdate
 discordClient.once("ready", async() => {
 	discordClient.channels.cache.find(x => x.id == process.env.STARTUPCHANNEL).send({ content: `Warden is now Online!`, })
   	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-	/*if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
+	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
@@ -58,7 +58,6 @@ discordClient.once("ready", async() => {
 	}).catch(err => {
 		console.log(err)
 	})
-	*/
 
 	if(!process.env.PLATFORMEMBEDID) return console.log("ERROR: No platform embed detected")
 
