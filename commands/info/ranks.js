@@ -6,20 +6,19 @@ module.exports = {
   	usage: '"challenge/progression/other"',
 	permlvl: 0,
 	async execute(message, args) {
+
+		// Build the initial message
 		const roleCache = message.guild.roles.cache
 		const row = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setCustomId('challenge').setLabel('Challenge Ranks').setStyle('SECONDARY'),)
-        .addComponents(new Discord.MessageButton().setCustomId('progression').setLabel('Progression Ranks').setStyle('SECONDARY'),)
-        .addComponents(new Discord.MessageButton().setCustomId('other').setLabel('Other Ranks').setStyle('SECONDARY'),)
-
+        .addComponents(new Discord.MessageButton().setCustomId('challenge').setLabel('Challenge Ranks').setStyle('PRIMARY'),)
+        .addComponents(new Discord.MessageButton().setCustomId('progression').setLabel('Progression Ranks').setStyle('PRIMARY'),)
+        .addComponents(new Discord.MessageButton().setCustomId('other').setLabel('Other Ranks').setStyle('PRIMARY'),)
         message.channel.send({ content: "Select which ranks to list:", components: [row] });
 
+		// Recieve the button response
 		const filter = i => i.user.id === message.author.id;
-
 		const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
-
 		collector.on('collect', async i => {
-			console.log(roleCache)
 			if (i.customId === 'challenge') {
 				i.deferUpdate();
 				try {
