@@ -15,7 +15,6 @@ const Discord = require("discord.js");
 const perm = require('./permissions');
 const Git = require('git-fs');
 const vision = require("@google-cloud/vision");
-const util = require('util');
 
 // Discord client setup
 const discordClient = new Discord.Client()
@@ -38,13 +37,7 @@ const incursionsEmbed = new Discord.MessageEmbed()
 let messageToUpdate
 
 discordClient.once("ready", () => {
-	try {
-		util.promisify(fs.readFile)('.git/refs/heads/main').then((hash) => {
-			console.log(`Git commit: ${hash.toString().trim().substring(0,7)}`);
-			discordClient.channels.cache.get(process.env.STARTUPCHANNEL).send('Warden is now Online! Git: `' + hash.toString().trim().substring(0,7) + '`')
-		});
-	} catch { discordClient.channels.cache.get(process.env.STARTUPCHANNEL).send(`Warden is now Online! Git: *Hash not found!*`) }
-
+	discordClient.channels.cache.get(process.env.STARTUPCHANNEL).send(`Warden is now Online!`)
   	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
