@@ -5,7 +5,7 @@ module.exports = {
 	description: 'Get rank statistics (Arguments: challenge, progression, other)',
   	usage: '"challenge/progression/other"',
 	permlvl: 0,
-	execute(message, args) {
+	async execute(message, args) {
 		const roleCache = message.guild.roles.cache
 		if (args == "challenge") {
 			try {

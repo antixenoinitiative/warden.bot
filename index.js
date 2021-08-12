@@ -14,6 +14,8 @@ const fs = require('fs');
 const Discord = require("discord.js");
 const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
 
 // Discord client setup
 const myIntents = new Discord.Intents();
@@ -46,7 +48,7 @@ let messageToUpdate
 discordClient.once("ready", async() => {
 	discordClient.channels.cache.find(x => x.id == process.env.STARTUPCHANNEL).send({ content: `Warden is now Online!`, })
   	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
+	/*if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
@@ -58,6 +60,32 @@ discordClient.once("ready", async() => {
 	}).catch(err => {
 		console.log(err)
 	})
+	*/
+
+	console.log("Getting Embed")
+
+	const platformEmbed = await discordClient.channels.cache.find(x => x.id == "533765786502823946").messages.fetch(process.env.PLATFORMEMBEDID)
+
+	const collector = platformEmbed.createMessageComponentCollector({ componentType: 'BUTTON' });
+	try {		
+		collector.on("collect", (b) => {
+			if (b.customId === "platformpc") {
+				b.deferUpdate();
+				b.member.roles.add("428260067901571073")
+				b.member.roles.add("380247760668065802")
+			} else if (b.customId === "platformxb") {
+				b.deferUpdate();
+				b.member.roles.add("533774176478035991")
+				b.member.roles.add("380247760668065802")
+			} else if (b.customId === "platformps") {
+				b.deferUpdate();
+				b.member.roles.add("428259777206812682")
+				b.member.roles.add("380247760668065802")
+			}
+		})
+	} catch (err) {
+		console.error(err);
+	}
 
 })
 
@@ -158,7 +186,7 @@ discordClient.on('messageCreate', message => {
 */
 function updateEmbedField(field) {
 	if(!messageToUpdate) return
-	if(field.name == null) return messageToUpdate.edit(incursionsEmbed.setDescription(field.value).setTimestamp())
+	if(field.name == null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
 	const temp = new Discord.MessageEmbed()
 	.setColor('#FF7100')
 	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
