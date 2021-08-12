@@ -58,32 +58,6 @@ discordClient.once("ready", async() => {
 	}).catch(err => {
 		console.log(err)
 	})
-
-	if(!process.env.PLATFORMEMBEDID) return console.log("ERROR: No platform embed detected")
-
-	const platformEmbed = await discordClient.channels.cache.find(x => x.id == "533765786502823946").messages.fetch(process.env.PLATFORMEMBEDID)
-
-	const collector = platformEmbed.createMessageComponentCollector({ componentType: 'BUTTON' });
-	try {		
-		collector.on("collect", (b) => {
-			if (b.customId === "platformpc") {
-				b.deferUpdate();
-				b.member.roles.add("428260067901571073")
-				b.member.roles.add("380247760668065802")
-			} else if (b.customId === "platformxb") {
-				b.deferUpdate();
-				b.member.roles.add("533774176478035991")
-				b.member.roles.add("380247760668065802")
-			} else if (b.customId === "platformps") {
-				b.deferUpdate();
-				b.member.roles.add("428259777206812682")
-				b.member.roles.add("380247760668065802")
-			}
-		})
-	} catch (err) {
-		console.error(err);
-	}
-
 })
 
 discordClient.on('messageCreate', message => {
@@ -173,6 +147,24 @@ discordClient.on('messageCreate', message => {
 	} catch (error) {
 		console.error(error);
 		message.reply(`there was an error trying to execute that command!: ${error}`);
+	}
+});
+
+discordClient.on('interactionCreate', b => {
+	if (!b.isButton()) return;
+	
+	if (b.customId === "platformpc") {
+		b.deferUpdate();
+		b.member.roles.add("428260067901571073")
+		b.member.roles.add("380247760668065802")
+	} else if (b.customId === "platformxb") {
+		b.deferUpdate();
+		b.member.roles.add("533774176478035991")
+		b.member.roles.add("380247760668065802")
+	} else if (b.customId === "platformps") {
+		b.deferUpdate();
+		b.member.roles.add("428259777206812682")
+		b.member.roles.add("380247760668065802")
 	}
 });
 
