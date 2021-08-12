@@ -83,10 +83,11 @@ module.exports = {
                 else
                 {
                     fs.writeFileSync('tmp/memberlist.txt', memberList);
-                    message.channel.send("Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",{
+                    message.channel.send({
+                        content:"Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",
                         files:[
-                            "tmp/memberlist.txt"
-                        ]
+                                "tmp/memberlist.txt"
+                              ]
                     })
                 }
             }
@@ -101,10 +102,11 @@ module.exports = {
 
                         })
                     fs.writeFileSync('tmp/memberlist.csv',memberList)
-                    message.channel.send("Here's your CSV file:",{
-                        files:[
-                            "tmp/memberlist.csv"
-                        ]
+                    message.channel.send({
+                                content:"Here's your CSV file:",
+                                files:[
+                                        "tmp/memberlist.csv"
+                                      ]
                     })
                 }
                 else

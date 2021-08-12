@@ -4,21 +4,34 @@ const { getRoleID } = require("../../discord/getRoleID");
 module.exports = {
 	name: 'crossn',
 	description: 'How many people with rank1 also have rank2... also have rankn?',
-  	usage: '"count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
+  	usage: '"club7/count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
     execute(message,args)
     {
         try
         {
+            if(message.mentions.roles.length != undefined || message.mentions.members.length != undefined)
+                throw("Illegal input detected!")
             roles = []
             count = 0
-            memberList = "\n"
+            memberList = []
             mode = ""
             if(args[0]!= "count" && args[0]!= "nickname")
             {
                 mode = "nickname"
-                args.forEach(arg => roles.push(getRoleID(message,arg)))
+                if(args[0].toLowerCase() == "club7")
+                    roles = [
+                                '477645690630307841', //100club
+                                '528577192746287104', //annihi
+                                '868809340788834324', // Astreas clarity
+                                '810410728023916554', //Myr
+                                '508638571565940736', //snake
+                                '603345251192537098', //soaring
+                                '642840616694317104' //vang
+                            ]
+                else
+                    args.forEach(arg => roles.push(getRoleID(message,arg)))
             }
             else
             {
@@ -38,18 +51,28 @@ module.exports = {
                 if(checker(memberroles,roles))
                 {
                     count+=1
-                    memberList = memberList + member.displayName + "\n"
+                    memberList.push(member.displayName)
                 }
             })
-            role_names = "\n"
+            memberList.sort()
+            role_names_unsorted_list = []
+            role_names_sorted_string = "\n"
             roles.forEach(rolein => {
-                role_names = role_names + cleanString(message.guild.roles.cache.find(role => role.id == rolein).name) + "\n"
+                role_names_unsorted_list.push(cleanString(message.guild.roles.cache.find(role => role.id == rolein).name))
+            })
+            role_names_unsorted_list.sort()
+            role_names_unsorted_list.forEach(rolein =>{
+                role_names_sorted_string = role_names_sorted_string + rolein + "\n"
+            })
+            memberList_sorted_string = "\n"
+            memberList.forEach(name =>{
+                memberList_sorted_string = memberList_sorted_string + name + "\n"
             })
             if(mode == "count")
             {
                 returnEmbed.setTitle(`**Count of Cross of N roles**`)
                 returnEmbed.addFields(
-                    {name:"Members with the following roles:",value:"```" + role_names + "```"},
+                    {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                     {name:"Count",value:"```" + count + "```"}
                 )
                 message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
@@ -57,10 +80,10 @@ module.exports = {
             else
             {
                 returnEmbed.setTitle(`**Names of Cross of N roles**`)
-                if(memberList == "\n")
+                if(memberList_sorted_string == "\n")
                 {
                     returnEmbed.addFields(
-                        {name:"Members with the following roles:",value:"```" + role_names + "```"},
+                        {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         {name:"No members were found!",value:"** **"},
                     )
                     message.channel.send({ embeds: [returnEmbed.setTimestamp()] }) 
@@ -69,8 +92,8 @@ module.exports = {
                 {
                     
                     returnEmbed.addFields(
-                        {name:"Members with the following roles:",value:"```" + role_names + "```"},
-                        {name:"Nicknames",value:"```" + memberList + "```"},
+                        {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
+                        {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},
                     )
                     message.channel.send({ embeds: [returnEmbed.setTimestamp()] })  
                 }
