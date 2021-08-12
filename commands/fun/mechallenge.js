@@ -21,14 +21,14 @@ module.exports = {
 			else {
 				let challenge = parseInt(Math.floor(Math.random() * challenges.length));
 				let challenged = message.mentions.members.first();
-				message.channel.send(
+				message.channel.send({ content: 
 					`${message.member} has publicly challenged ${challenged} to participate in the mechallenge and test their skill against the very best CMDRs!\n\nShould ${challenged.nickname} not submit an entry in the next two weeks ${challenged.nickname} shall be assigned a challenge! BUT if ${challenged.nickname} beats their current record (or scores at least one point if no record) then it will be ${message.member.nickname} who shall be assigned a challenge!\n\nYour Challenge:\n${challenges[challenge]}\n\nHave fun! :smiling_imp:`
-					);
+					});
 				}
 		}
 		catch (err)
 		{
-			message.channel.send(`Something went wrong!\nERROR: ${err}`);
+			message.channel.send({ content: `Something went wrong!\nERROR: ${err}` });
 		}
 	},
 };

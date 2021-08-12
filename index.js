@@ -13,11 +13,18 @@ require("dotenv").config();
 const fs = require('fs');
 const Discord = require("discord.js");
 const perm = require('./permissions');
-const Git = require('git-fs');
 const vision = require("@google-cloud/vision");
 
 // Discord client setup
-const discordClient = new Discord.Client()
+const myIntents = new Discord.Intents();
+myIntents.add(
+	Discord.Intents.FLAGS.GUILDS,
+	Discord.Intents.FLAGS.GUILD_PRESENCES, 
+	Discord.Intents.FLAGS.GUILD_MEMBERS, 
+	Discord.Intents.FLAGS.GUILD_MESSAGES, 
+	Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
+	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS);
+const discordClient = new Discord.Client({ intents: myIntents })
 //Command detection
 discordClient.commands = new Discord.Collection();
 const commandFolders = fs.readdirSync('./commands');
@@ -36,8 +43,8 @@ const incursionsEmbed = new Discord.MessageEmbed()
 .setTitle("**Defense Targets**")
 let messageToUpdate
 
-discordClient.once("ready", () => {
-	discordClient.channels.cache.get(process.env.STARTUPCHANNEL).send(`Warden is now Online!`)
+discordClient.once("ready", async() => {
+	discordClient.channels.cache.find(x => x.id == process.env.STARTUPCHANNEL).send({ content: `Warden is now Online!`, })
   	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
@@ -54,7 +61,7 @@ discordClient.once("ready", () => {
 
 })
 
-discordClient.on('message', message => {
+discordClient.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
 	// Check if arguments contains forbidden words
@@ -93,7 +100,7 @@ discordClient.on('message', message => {
 					returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
 				}
 			}
-			message.channel.send(returnEmbed.setTimestamp())
+			message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 		}
 		if (message.content === `${prefix}help -r`) { // Restricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
@@ -107,7 +114,7 @@ discordClient.on('message', message => {
 					returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
 				}
 			}
-			message.channel.send(returnEmbed.setTimestamp())
+			message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 		}
 
 		if (message.content === `${prefix}ping`) {
@@ -126,7 +133,7 @@ discordClient.on('message', message => {
 			  allowed++;
 		  }
 	  }
-	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role)
+	  if (allowed == 0) { return message.reply({ content: "You don't have permission to use that command!" }) } // returns true if the member has the role)
 
 	}
   	if (command.args && !args.length) {
@@ -134,7 +141,7 @@ discordClient.on('message', message => {
 		if (command.usage) {
 			reply = `Expected usage: \`${prefix}${command.name} ${command.usage}\``;
 		}
-		return message.channel.send(reply);
+		return message.channel.send({ content: `${reply}` });
   	}
 	try {
 		command.execute(message, args, updateEmbedField);
@@ -175,7 +182,7 @@ function updateEmbedField(field) {
 		console.log("Added new field: " + field.name)
 	}
 	incursionsEmbed.fields = temp.fields
-	messageToUpdate.edit(incursionsEmbed.setTimestamp())
+	messageToUpdate.edit({ embed: [incursionsEmbed.setTimestamp()] })
 	console.log(messageToUpdate.embeds[0].fields)
 }
 
