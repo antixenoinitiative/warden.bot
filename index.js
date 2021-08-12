@@ -14,8 +14,6 @@ const fs = require('fs');
 const Discord = require("discord.js");
 const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
 
 // Discord client setup
 const myIntents = new Discord.Intents();
