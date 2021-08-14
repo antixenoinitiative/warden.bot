@@ -47,8 +47,8 @@ let messageToUpdate
 /**
  * Log a discord bot event in Bot Log
  * @author  (Mgram) Marcus Ingram
- * @param	{string} event		Log Message
- * @param	{string} severity	Message severity ("low", "medium", "high")
+ * @param	{string} event		The message to send.
+ * @param	{string} severity	Message severity ("low", "medium", "high").
  */
 function botLog(event, severity) {
 	const logEmbed = new Discord.MessageEmbed()
@@ -71,7 +71,7 @@ function botLog(event, severity) {
 }
 
 discordClient.once("ready", async() => {
-	discordClient.channels.cache.find(x => x.id == process.env.STARTUPCHANNEL).send({ content: `Warden is now Online!`, })
+	botLog(`Warden is now online! ⚡`, `high`);
   	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
@@ -154,13 +154,16 @@ discordClient.on('messageCreate', message => {
 	// checks for proper permissions by role against permissions.js
 	let allowedRoles = perm.getRoles(command.permlvl);
 	if (allowedRoles != 0) {
-	  let allowed = 0;
-	  for (i=0; i < allowedRoles.length; i++) {
-		  if (message.member.roles.cache.has(allowedRoles[i])) {
-			  allowed++;
-		  }
-	  }
-	  if (allowed == 0) { return message.reply({ content: "You don't have permission to use that command!" }) } // returns true if the member has the role)
+		let allowed = 0;
+		for (i=0; i < allowedRoles.length; i++) {
+			if (message.member.roles.cache.has(allowedRoles[i])) {
+				allowed++;
+			}
+		}
+		if (allowed == 0) { 
+			botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")
+			return message.reply({ content: "You don't have permission to use that command!" }) 
+		} // returns false if the member has the role)
 
 	}
   	if (command.args && !args.length) {
