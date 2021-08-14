@@ -45,7 +45,7 @@ const incursionsEmbed = new Discord.MessageEmbed()
 let messageToUpdate
 
 /**
- * Log a discord bot event in Bot Log
+ * Log a discord bot event in the Log Channel
  * @author  (Mgram) Marcus Ingram
  * @param	{string} event		The message to send.
  * @param	{string} severity	Message severity ("low", "medium", "high").
