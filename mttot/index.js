@@ -64,6 +64,8 @@ module.exports = {
             let standard = [];
             let premium = [];
 
+
+
             // Calculate each weapon adjDPS
             for (let i = 0; i < weapons.length; i++) {
                 let ans = calcDPS(target, weapons[i], range)
@@ -71,47 +73,37 @@ module.exports = {
                 standard.push(ans.standard)
                 premium.push(ans.premium)
             }
-
+            
             let basicTotal = arrayTotal(basic);
             let standardTotal = arrayTotal(standard);
             let premiumTotal = arrayTotal(premium);
+            
+            let mttotArray = [] // [ basic100, std100, prem100, basic75, std75, prem75, basic50, std50, prem50 ]
 
-            let Basic = thargoids[target].hp / (basicTotal - thargoids[target].regen)
-            let Standard = thargoids[target].hp / (standardTotal - thargoids[target].regen)
-            let Premium = thargoids[target].hp / (premiumTotal - thargoids[target].regen)
+            mttotArray.push(thargoids[target].hp / (basicTotal - thargoids[target].regen))              // basic100
+            mttotArray.push(thargoids[target].hp / (standardTotal - thargoids[target].regen))           // std100 
+            mttotArray.push(thargoids[target].hp / (premiumTotal - thargoids[target].regen))            // prem100
+            mttotArray.push(thargoids[target].hp / (basicTotal / 4 * 3 - thargoids[target].regen))      // basic75
+            mttotArray.push(thargoids[target].hp / (standardTotal / 4 * 3 - thargoids[target].regen))   // std75
+            mttotArray.push(thargoids[target].hp / (premiumTotal / 4 * 3 - thargoids[target].regen))    // prem75
+            mttotArray.push(thargoids[target].hp / (basicTotal / 2 - thargoids[target].regen))          // basic50
+            mttotArray.push(thargoids[target].hp / (standardTotal / 2 - thargoids[target].regen))       // std50
+            mttotArray.push(thargoids[target].hp / (premiumTotal / 2 - thargoids[target].regen))        // prem50
 
-            let Basic50 = thargoids[target].hp / (basicTotal / 2 - thargoids[target].regen)
-            let Basic75 = thargoids[target].hp / (basicTotal / 4 * 3 - thargoids[target].regen)
+            let result = []
+            for (i=0; i < mttotArray.length; i++) {
+                if (mttotArray[i] >= 50) {
+                    result[i] = `🟥 ${mttotArray[i].toFixed(2)}sec`
+                } else if (mttotArray[i] >= 30) {
+                    result[i] = `🟨 ${mttotArray[i].toFixed(2)}sec`
+                } else {
+                    result[i] = `🟩 ${mttotArray[i].toFixed(2)}sec`
+                }
 
-            let Standard50 = thargoids[target].hp / (standardTotal / 2 - thargoids[target].regen)
-            let Standard75 = thargoids[target].hp / (standardTotal / 4 * 3 - thargoids[target].regen)
-
-            let Premium50 = thargoids[target].hp / (premiumTotal / 2 - thargoids[target].regen)
-            let Premium75 = thargoids[target].hp / (premiumTotal / 4 * 3 - thargoids[target].regen)
-
-            let result = { 
-                "basic": Basic.toFixed(2) + "sec", 
-                "standard": Standard.toFixed(2) + "sec", 
-                "premium": Premium.toFixed(2) + "sec", 
-                "basic50": Basic50.toFixed(2) + "sec", 
-                "standard50": Standard50.toFixed(2) + "sec", 
-                "premium50": Premium50.toFixed(2) + "sec", 
-                "basic75": Basic75.toFixed(2) + "sec", 
-                "standard75": Standard75.toFixed(2) + "sec", 
-                "premium75": Premium75.toFixed(2) + "sec" 
+                if (result[i].includes("-")) {
+                    result[i] = `Insufficient DPS`
+                }
             }
-
-            if (result.basic.includes("-")) { result.basic = "Impossible" }
-            if (result.basic50.includes("-")) { result.basic50 = "Impossible" }
-            if (result.basic75.includes("-")) { result.basic75 = "Impossible" }
-
-            if (result.standard.includes("-")) { result.standard = "Impossible" }
-            if (result.standard50.includes("-")) { result.standard50 = "Impossible" }
-            if (result.standard75.includes("-")) { result.standard75 = "Impossible" }
-
-            if (result.premium.includes("-")) { result.premium = "Impossible" }
-            if (result.premium50.includes("-")) { result.premium50 = "Impossible" }
-            if (result.premium75.includes("-")) { result.premium75 = "Impossible" }
             
             return result
 

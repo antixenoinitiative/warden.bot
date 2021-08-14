@@ -34,7 +34,7 @@ module.exports = {
             message.channel.send(`Calculating - Target: **${target}** Weapon Codes: **${weapons}** Range: **${range}**`);
 
             // Get Data
-            result = calcMTTOT(target, weapons, range);
+            result = calcMTTOT(target, weapons, range); // [ basic100, std100, prem100, basic75, std75, prem75, basic50, std50, prem50 ]
 
             // Build the initial message
             const row = new Discord.MessageActionRow()
@@ -55,9 +55,9 @@ module.exports = {
                         .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                         .setTitle("**MTTOT Calculator**")
                         .setDescription(`**100%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                        .addField("Basic",`${result.basic}`,true)
-                        .addField("Standard",`${result.standard}`,true)
-                        .addField("Premium",`${result.premium}`,true)
+                        .addField("Basic",`${result[0]}`,true)
+                        .addField("Standard",`${result[1]}`,true)
+                        .addField("Premium",`${result[2]}`,true)
                         i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
                     } catch (err) {
                         i.channel.send({ content: "Something went wrong, please you entered the correct format" });
@@ -71,9 +71,9 @@ module.exports = {
                         .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                         .setTitle("**MTTOT Calculator**")
                         .setDescription(`**75%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                        .addField("Basic",`${result.basic75}`,true)
-                        .addField("Standard",`${result.standard75}`,true)
-                        .addField("Premium",`${result.premium75}`,true)
+                        .addField("Basic",`${result[3]}`,true)
+                        .addField("Standard",`${result[4]}`,true)
+                        .addField("Premium",`${result[5]}`,true)
                         i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
                     } catch (err) {
                         i.channel.send({ content: "Something went wrong, please you entered the correct format" });
@@ -87,9 +87,9 @@ module.exports = {
                         .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                         .setTitle("**MTTOT Calculator**")
                         .setDescription(`**50%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                        .addField("Basic",`${result.basic50}`,true)
-                        .addField("Standard",`${result.standard50}`,true)
-                        .addField("Premium",`${result.premium50}`,true)
+                        .addField("Basic",`${result[6]}`,true)
+                        .addField("Standard",`${result[7]}`,true)
+                        .addField("Premium",`${result[8]}`,true)
                         i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
                     } catch (err) {
                         i.channel.send({ content: "Something went wrong, please you entered the correct format" });
