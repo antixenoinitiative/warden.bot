@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const { calcMTTOT } = require("../../mttot");
+const { calcMTTOT } = require("./index");
 
 module.exports = {
 	name: 'mttot',

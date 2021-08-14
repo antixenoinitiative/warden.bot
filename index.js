@@ -25,6 +25,7 @@ myIntents.add(
 	Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
 	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS);
 const discordClient = new Discord.Client({ intents: myIntents })
+
 //Command detection
 discordClient.commands = new Discord.Collection();
 const commandFolders = fs.readdirSync('./commands');
