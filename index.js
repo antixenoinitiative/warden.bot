@@ -44,6 +44,32 @@ const incursionsEmbed = new Discord.MessageEmbed()
 .setTitle("**Defense Targets**")
 let messageToUpdate
 
+/**
+ * Log a discord bot event in Bot Log
+ * @author  (Mgram) Marcus Ingram
+ * @param	{string} event		Log Message
+ * @param	{string} severity	Message severity ("low", "medium", "high")
+ */
+function botLog(event, severity) {
+	const logEmbed = new Discord.MessageEmbed()
+	.setAuthor('Warden', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png");
+	switch (severity) {
+		case "low":
+			logEmbed.setColor('#42f569')
+			logEmbed.setDescription(`${event}`)
+			break;
+		case "medium":
+			logEmbed.setColor('#f5bf42')
+			logEmbed.setDescription(`${event}`)
+			break;
+		case "high":
+			logEmbed.setColor('#f55142')
+			logEmbed.setDescription(`${event}`)
+			break;
+	}
+	discordClient.channels.cache.find(x => x.id == process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+}
+
 discordClient.once("ready", async() => {
 	discordClient.channels.cache.find(x => x.id == process.env.STARTUPCHANNEL).send({ content: `Warden is now Online!`, })
   	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
@@ -146,6 +172,7 @@ discordClient.on('messageCreate', message => {
   	}
 	try {
 		command.execute(message, args, updateEmbedField);
+		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
 	} catch (error) {
 		console.error(error);
 		message.reply(`there was an error trying to execute that command!: ${error}`);
@@ -159,14 +186,17 @@ discordClient.on('interactionCreate', b => {
 		b.deferUpdate();
 		b.member.roles.add("428260067901571073")
 		b.member.roles.add("380247760668065802")
+		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
 	} else if (b.customId === "platformxb") {
 		b.deferUpdate();
 		b.member.roles.add("533774176478035991")
 		b.member.roles.add("380247760668065802")
+		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
 	} else if (b.customId === "platformps") {
 		b.deferUpdate();
 		b.member.roles.add("428259777206812682")
 		b.member.roles.add("380247760668065802")
+		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
 	}
 });
 
