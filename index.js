@@ -68,11 +68,13 @@ function botLog(event, severity) {
 			break;
 	}
 	discordClient.channels.cache.find(x => x.id == process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+	return console.log(`${event}`);
 }
 
 discordClient.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
   	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
+
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
