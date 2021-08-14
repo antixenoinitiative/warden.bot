@@ -19,6 +19,8 @@ module.exports = {
 				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
             return;
         }
+
+        let result;
 		try {
 
             // Format Input
@@ -32,29 +34,76 @@ module.exports = {
             message.channel.send(`Calculating - Target: **${target}** Weapon Codes: **${weapons}** Range: **${range}**`);
 
             // Get Data
-            let result = calcMTTOT(target, weapons, range);
+            result = calcMTTOT(target, weapons, range);
 
-            // Send Embed
-            const returnEmbed = new Discord.MessageEmbed()
-                .setColor('#FF7100')
-				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-				.setTitle("**MTTOT Calculator**")
-				.setDescription(`Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                .addField("Basic 100%",`${result.basic}`,true)
-                .addField("Standard 100%",`${result.standard}`,true)
-                .addField("Premium 100%",`${result.premium}`,true)
-                .addField("Basic 75%",`${result.basic75}`,true)
-                .addField("Standard 75%",`${result.standard75}`,true)
-                .addField("Premium 75%",`${result.premium75}`,true)
-                .addField("Basic 50%",`${result.basic50}`,true)
-                .addField("Standard 50%",`${result.standard50}`,true)
-                .addField("Premium 50%",`${result.premium50}`,true)
-                .addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
-				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
+            // Build the initial message
+            const row = new Discord.MessageActionRow()
+            .addComponents(new Discord.MessageButton().setCustomId('mttot100').setLabel('100%').setStyle('PRIMARY'),)
+            .addComponents(new Discord.MessageButton().setCustomId('mttot75').setLabel('75%').setStyle('PRIMARY'),)
+            .addComponents(new Discord.MessageButton().setCustomId('mttot50').setLabel('50%').setStyle('PRIMARY'),)
+            message.channel.send({ content: "Please select accuracy rating:", components: [row] });
+
+            // Recieve the button response
+            const filter = i => i.user.id === message.author.id;
+            const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
+            collector.on('collect', async i => {
+                if (i.customId === 'mttot100') {
+                    i.deferUpdate();
+                    try {
+                        const returnEmbed = new Discord.MessageEmbed()
+                        .setColor('#FF7100')
+                        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+                        .setTitle("**MTTOT Calculator**")
+                        .setDescription(`**100%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
+                        .addField("Basic",`${result.basic}`,true)
+                        .addField("Standard",`${result.standard}`,true)
+                        .addField("Premium",`${result.premium}`,true)
+                        i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+                    } catch (err) {
+                        i.channel.send({ content: "Something went wrong, please you entered the correct format" });
+                    }
+                }
+                if (i.customId === 'mttot75') {
+                    i.deferUpdate();
+                    try {
+                        const returnEmbed = new Discord.MessageEmbed()
+                        .setColor('#FF7100')
+                        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+                        .setTitle("**MTTOT Calculator**")
+                        .setDescription(`**75%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
+                        .addField("Basic",`${result.basic75}`,true)
+                        .addField("Standard",`${result.standard75}`,true)
+                        .addField("Premium",`${result.premium75}`,true)
+                        i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+                    } catch (err) {
+                        i.channel.send({ content: "Something went wrong, please you entered the correct format" });
+                    }
+                }
+                if (i.customId === 'mttot50') {
+                    i.deferUpdate();
+                    try {
+                        const returnEmbed = new Discord.MessageEmbed()
+                        .setColor('#FF7100')
+                        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+                        .setTitle("**MTTOT Calculator**")
+                        .setDescription(`**50%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
+                        .addField("Basic",`${result.basic50}`,true)
+                        .addField("Standard",`${result.standard50}`,true)
+                        .addField("Premium",`${result.premium50}`,true)
+                        i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+                    } catch (err) {
+                        i.channel.send({ content: "Something went wrong, please you entered the correct format" });
+                    }
+                }
+		    });
+
+		    collector.on('end', collected => console.log(`Collected ${collected.size} items`));
 
 		} catch (err) {
             console.log(err)
-			message.channel.send("Something went wrong, please you entered the correct format")
+			message.channel.send({ content: "Something went wrong, please you entered the correct format" })
 		}
+
+        
 	},
 };
