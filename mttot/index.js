@@ -92,7 +92,9 @@ module.exports = {
 
             let result = []
             for (i=0; i < mttotArray.length; i++) {
-                if (mttotArray[i] >= 50) {
+                if (mttotArray[i] >= 120) {
+                    result[i] = `☠️ ${mttotArray[i].toFixed(2)}sec`
+                } else if (mttotArray[i] >= 50) {
                     result[i] = `🟥 ${mttotArray[i].toFixed(2)}sec`
                 } else if (mttotArray[i] >= 30) {
                     result[i] = `🟨 ${mttotArray[i].toFixed(2)}sec`
