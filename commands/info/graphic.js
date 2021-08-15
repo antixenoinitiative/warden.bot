@@ -3,7 +3,7 @@ const data = require("./graphdata.json");
 
 function isValid(args) {
     for (const value of data) {
-        if (args == value.argument) {
+        if (args === value.argument) {
             return true;
         }
     }
@@ -23,15 +23,15 @@ module.exports = {
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle("Graphics")
             .setDescription("List of valid graphic commands")
-            for (i=0;i < data.length; i++) {
-                returnEmbed.addField(`-graphic ${data[i].argument}`, data[i].title);
+            for (const value of data) {
+                returnEmbed.addField(`-graphic ${value.argument}`, value.title);
             }
             return message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         }
 
-        for (i=0;i < data.length; i++) {
-            if (args == data[i].argument) {
-                response = data[i];
+        for (const value of data) {
+            if (args === value.argument) {
+                response = value;
             }
         }
 
@@ -46,7 +46,7 @@ module.exports = {
             .setImage(response.link)
             message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         } else {
-
+            //NOTE is something supposed to go here ?
         }
     }
 };

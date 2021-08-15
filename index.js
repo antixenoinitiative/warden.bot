@@ -67,8 +67,12 @@ function botLog(event, severity) {
 			logEmbed.setDescription(`${event}`)
 			break;
 	}
-	discordClient.channels.cache.find(x => x.id == process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
-	return console.log(`${event}`);
+	if (process.env.LOGCHANNEL !== undefined) {
+		discordClient.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+	} else {
+		console.log("The environment variable LOGCHANNEL is not defined.")
+	}
+	
 }
 
 discordClient.once("ready", async() => {
@@ -153,14 +157,14 @@ discordClient.on('messageCreate', message => {
 
 	// checks for proper permissions by role against permissions.js
 	let allowedRoles = perm.getRoles(command.permlvl);
-	if (allowedRoles != 0) {
+	if (allowedRoles !== 0) {
 	let allowed = 0;
 	for (const value of allowedRoles) {
 		if (message.member.roles.cache.has(value)) {
 			allowed++;
 		}
 	}
-	if (allowed == 0) { 
+	if (allowed === 0) { 
 	botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
 	return message.reply("You don't have permission to use that command!") 
 } // returns false if the member has the role) 
@@ -210,7 +214,7 @@ discordClient.on('interactionCreate', b => {
 */
 function updateEmbedField(field) {
 	if(!messageToUpdate) return
-	if(field.name == null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
+	if(field.name === null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
 	const temp = new Discord.MessageEmbed()
 	.setColor('#FF7100')
 	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -218,7 +222,7 @@ function updateEmbedField(field) {
 	.setDescription(incursionsEmbed.description)
 	let isUpdated = false
 	for(const value of incursionsEmbed.fields) {
-		if(value.name == field.name) {
+		if(value.name === field.name) {
 			if(field.value) {
 				temp.addField(field.name, field.value)
 			}
@@ -239,4 +243,4 @@ function updateEmbedField(field) {
 }
 
 // Switch Statements
-if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
+if (enableDiscordBot === 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
