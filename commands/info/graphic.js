@@ -15,7 +15,6 @@ module.exports = {
     description: 'Request a graphic, diagram or resource from a repository, use "-graphic" to get a list.',
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     usage: '"graphicname"',
-    restricted: false,
     execute(message, args) {
         let response;
         if (!isValid(args)) {
@@ -27,7 +26,7 @@ module.exports = {
             for (i=0;i < data.length; i++) {
                 returnEmbed.addField(`-graphic ${data[i].argument}`, data[i].title);
             }
-            return message.channel.send(returnEmbed.setTimestamp());
+            return message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         }
 
         for (i=0;i < data.length; i++) {
@@ -45,9 +44,9 @@ module.exports = {
             .setTitle(response.title)
             .setDescription(response.description)
             .setImage(response.link)
-            message.channel.send(returnEmbed.setTimestamp());
+            message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         } else {
-            
+
         }
     }
 };

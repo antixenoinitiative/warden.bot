@@ -4,11 +4,11 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'wiki',
 	description: 'Search the AXI Wiki',
-  usage: '"term"',
+    usage: '"term"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	execute(message, args) {
-		if (args == "") { message.channel.send("**The Anti-Xeno Wiki:** https://wiki.antixenoinitiative.com/"); return; }
+		if (args == "") { message.channel.send({ content: "**The Anti-Xeno Wiki:** https://wiki.antixenoinitiative.com/" }); return; }
 		try {
 			wiki.search(args).then((res) => {
         const returnEmbed = new Discord.MessageEmbed()
@@ -19,10 +19,10 @@ module.exports = {
         for (let i = 0; i < res.length; i++) {
           returnEmbed.addField(res[i].title,`https://wiki.antixenoinitiative.com/en/${res[i].path}`)
         }
-				message.channel.send(returnEmbed.setTimestamp())
+				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
       })
 		} catch {
-			message.channel.send("Something went wrong, please you entered a correct term")
+			message.channel.send({ content: "Something went wrong, please you entered a correct term" })
 		}
 	},
 };

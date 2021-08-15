@@ -4,9 +4,8 @@ const { getRoleID } = require("../../discord/getRoleID");
 module.exports = {
 	name: 'cross',
 	description: 'How many people with rank1 also have rank2?',
-    usage: '"role1" "role2"',
+  	usage: '"role1" "role2"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
 	args: true,
 	execute(message, args) {
 		try {
@@ -56,9 +55,9 @@ module.exports = {
 			returnEmbed.addField("Members with rank " + actualrole1,"```" + countrole1 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole2,"```" + countrole2 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole1 + " having rank " + actualrole2, "```" + count + "```")
-			message.channel.send(returnEmbed.setTimestamp());
+			message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 		} catch(err) {
-			message.channel.send(`ERROR! Something went wrong:\n${err}`)
+			message.channel.send({ content: `ERROR! Something went wrong:\n${err}` })
 		}
 	},
 };

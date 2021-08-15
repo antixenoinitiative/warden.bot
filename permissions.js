@@ -1,6 +1,6 @@
 module.exports = {
-    getRoles: (permissions) => {
-        switch (permissions) {
+    getRoles: (permlvl) => {
+        switch (permlvl) {
             case 2: // Admin
                 return [  
                     "380249268818018304",   // Overseer
@@ -16,6 +16,16 @@ module.exports = {
                 ];
             default: // Everyone
                 return 0;
+        }
+    },
+    getAllowedName: (permlvl) => {
+        switch (permlvl) {
+            case 2:
+                return "**(Staff Only)**"
+            case 1:
+                return "**(Mentor Only)**"
+            default:
+                return " "
         }
     }
 }

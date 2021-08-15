@@ -5,10 +5,9 @@ const { getRoleID } = require("../../discord/getRoleID");
 module.exports = {
 	name: 'roleinfo',
 	description: 'Get information about a role',
-    usage: '"role name"',
+  usage: '"role name"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
-    args: true,
+  args: true,
 	execute(message, args) {
 		try {
             role = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
@@ -29,12 +28,11 @@ module.exports = {
 								{name: "ID", value: "```" + roleID + "```", inline: true},
 								{name: "Total Members", value: "```" + membercount + "```", inline: true},
 							)
-            message.channel.send(returnEmbed.setTimestamp());
+            message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 
         }
-        catch(err)
-        {
-            message.channel.send(`Something went wrong, please try again!`)
+        catch(err) {
+            message.channel.send({ content: `Something went wrong, please try again!` })
         }
 	},
 };

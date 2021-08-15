@@ -16,7 +16,16 @@ const perm = require('./permissions');
 const vision = require("@google-cloud/vision");
 
 // Discord client setup
-const discordClient = new Discord.Client()
+const myIntents = new Discord.Intents();
+myIntents.add(
+	Discord.Intents.FLAGS.GUILDS,
+	Discord.Intents.FLAGS.GUILD_PRESENCES, 
+	Discord.Intents.FLAGS.GUILD_MEMBERS, 
+	Discord.Intents.FLAGS.GUILD_MESSAGES, 
+	Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
+	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS);
+const discordClient = new Discord.Client({ intents: myIntents })
+
 //Command detection
 discordClient.commands = new Discord.Collection();
 const commandFolders = fs.readdirSync('./commands');
@@ -28,29 +37,6 @@ for (const folder of commandFolders) {
 	}
 }
 
-// Generate Google Key from ENV varaiables then Connect Google Client
-const builtkey = `{
-"type": "service_account",
-"project_id": "axi-sentry",
-"private_key_id": "${process.env.GOOGLEKEYID}",
-"private_key": "${process.env.GOOGLEKEY}",
-"client_email": "sentry@axi-sentry.iam.gserviceaccount.com",
-"client_id": "105556351573320071528",
-"auth_uri": "https://accounts.google.com/o/oauth2/auth",
-"token_uri": "https://oauth2.googleapis.com/token",
-"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-"client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sentry%40axi-sentry.iam.gserviceaccount.com"
-}`;
-const privateKey = JSON.parse(builtkey);
-const googleClient = new vision.ImageAnnotatorClient({ credentials: privateKey, });
-
-// Uncomment if using your own cloud API endpoint
-/*
-const vision = require("@google-cloud/vision")
-const googleClient = new vision.ImageAnnotatorClient({
-	keyFilename: "./originalkey.json",
-})*/
-
 //Discord client
 const incursionsEmbed = new Discord.MessageEmbed()
 .setColor('#FF7100')
@@ -58,10 +44,37 @@ const incursionsEmbed = new Discord.MessageEmbed()
 .setTitle("**Defense Targets**")
 let messageToUpdate
 
-discordClient.once("ready", () => {
+/**
+ * Log a discord bot event in the Log Channel
+ * @author  (Mgram) Marcus Ingram
+ * @param	{string} event		The message to send.
+ * @param	{string} severity	Message severity ("low", "medium", "high").
+ */
+function botLog(event, severity) {
+	const logEmbed = new Discord.MessageEmbed()
+	.setAuthor('Warden', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png");
+	switch (severity) {
+		case "low":
+			logEmbed.setColor('#42f569')
+			logEmbed.setDescription(`${event}`)
+			break;
+		case "medium":
+			logEmbed.setColor('#f5bf42')
+			logEmbed.setDescription(`${event}`)
+			break;
+		case "high":
+			logEmbed.setColor('#f55142')
+			logEmbed.setDescription(`${event}`)
+			break;
+	}
+	discordClient.channels.cache.find(x => x.id == process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+	return console.log(`${event}`);
+}
 
-  console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-  discordClient.channels.cache.get("860453324959645726").send(`Warden is now Online!`)
+discordClient.once("ready", async() => {
+	botLog(`Warden is now online! ⚡`, `high`);
+  	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
+
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
@@ -74,10 +87,9 @@ discordClient.once("ready", () => {
 	}).catch(err => {
 		console.log(err)
 	})
-
 })
 
-discordClient.on('message', message => {
+discordClient.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
 	// Check if arguments contains forbidden words
@@ -86,15 +98,16 @@ discordClient.on('message', message => {
 		if (message.content.includes(value)) {
 		  	// message.content contains a forbidden word;
 		  	// delete message, log, etc.
-		  	return message.channel.send(`❗ Command contains forbidden words.`)
+		  	return message.channel.send({ content: `❗ Command contains forbidden words.` })
 		}
 	}
 
+	// Argument Handler and commands
 	let args;
 	let commandName;
 	let command;
 	try {
-		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments
+		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments - Split by spaces, except where there are quotes.
 		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
 		command = discordClient.commands.get(commandName); // Gets the command info
 	} catch (err) {
@@ -104,7 +117,6 @@ discordClient.on('message', message => {
 	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
-		
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
@@ -116,7 +128,7 @@ discordClient.on('message', message => {
 					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
 				}
 			}
-			message.channel.send(returnEmbed.setTimestamp())
+			message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 		}
 		if (message.content === `${prefix}help -r`) { // Restricted Commands.
 			const returnEmbed = new Discord.MessageEmbed()
@@ -126,14 +138,14 @@ discordClient.on('message', message => {
 			.setDescription("List of current **Restricted** bot commands:")
 			for (const [key, value] of discordClient.commands.entries()) {
 				if (value.restricted && !value.hidden) {
-					returnEmbed.addField(`${prefix}${key} ${value.usage}`, value.description)
+					returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
 				}
 			}
-			message.channel.send(returnEmbed.setTimestamp())
+			message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 		}
-		
-		if (message.content === `${prefix}ping`) {  
-			message.channel.send(`🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms`);
+
+		if (message.content === `${prefix}ping`) {
+			message.channel.send({ content: `🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms` });
 		}
 
 		return;
@@ -142,13 +154,16 @@ discordClient.on('message', message => {
 	// checks for proper permissions by role against permissions.js
 	let allowedRoles = perm.getRoles(command.permlvl);
 	if (allowedRoles != 0) {
-	  let allowed = 0;
-	  for (const value of allowedRoles) {
-		  if (message.member.roles.cache.has(value)) {
-			  allowed++;
-		  }
-	  }
-	  if (allowed == 0) { return message.reply("You don't have permission to use that command!") } // returns true if the member has the role) 
+	let allowed = 0;
+	for (const value of allowedRoles) {
+		if (message.member.roles.cache.has(value)) {
+			allowed++;
+		}
+	}
+	if (allowed == 0) { 
+	botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
+	return message.reply("You don't have permission to use that command!") 
+} // returns false if the member has the role) 
     
 	}
   	if (command.args && !args.length) {
@@ -156,67 +171,37 @@ discordClient.on('message', message => {
 		if (command.usage) {
 			reply = `Expected usage: \`${prefix}${command.name} ${command.usage}\``;
 		}
-		return message.channel.send(reply);
+		return message.channel.send({ content: `${reply}` });
   	}
 	try {
-		command.execute(message, args, passArray);
+		command.execute(message, args, updateEmbedField);
+		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
 	} catch (error) {
 		console.error(error);
 		message.reply(`there was an error trying to execute that command!: ${error}`);
 	}
 });
 
-/**
-* Returns whether or not an attachment is an .jpg or .png
-* @author
-* @param    {Attachment} msgAttach    Input attachment
-* @return   {String}              Returns if the attachment is an image
-*/
-function attachIsImage(msgAttach) {
-	const url = msgAttach.url;
-  	//True if this url is a png image.
-  	return url.indexOf("png", url.length - "png".length /*or 3*/) !== -1 || url.indexOf("jpg", url.length - "jpg".length /*or 3*/) !== -1;
-}
-
-/**
-* Returns formatted incursion text for use in embed
-* @author   Airom
-* @param    {String} text    Input value of message text
-* @return   {String}              Returns the formatted incursion field
-*/
-function parseIncursionSystems(text) {
-  	let systemList = text.substring(text.indexOf(":\n") + 2)
-  	if(systemList.indexOf("have been attacked") != -1) systemList = systemList.substring(0, systemList.indexOf("Starport"))
-  	systemList = systemList.split("\n")
-  	let returnStr = "\n"
-	if(systemList[systemList.length-1] == '') systemList.pop()
-  	systemList.forEach((item) => {
-		const system = item.substring(0, item.indexOf(":"))
-		if(system.indexOf("[") != -1) {
-			returnStr += "- " + system.substring(1, system.length - 1) + " [" + item.substring(item.indexOf(":") + 2, item.length - 1) + "] <:tharg_r:417424014861008907>\n"
-		}
-		else {
-			returnStr += "- " + system + " [Thargoid presence eliminated] <:tharg_g:417424014525333506>\n"
-		}
-  	})
-  	return returnStr
-}
-
-/**
-* Returns formatted damaged starport text for use in embed
-* @author   Airom
-* @param    {String} text    Input value of message text
-* @return   {String}              Returns the formatted station field
-*/
-function parseDamagedStarports(text) {
-  	const starportList = text.substring(text.indexOf("Update") + 7).split("\n")
-	let returnStr = "The following stations have been attacked and may require assistance:"
-	// console.log(starportList)
-	for(let value of starportList) {
-		returnStr += "\n- " + value + " 🔥"
+discordClient.on('interactionCreate', b => {
+	if (!b.isButton()) return;
+	
+	if (b.customId === "platformpc") {
+		b.deferUpdate();
+		b.member.roles.add("428260067901571073")
+		b.member.roles.add("380247760668065802")
+		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
+	} else if (b.customId === "platformxb") {
+		b.deferUpdate();
+		b.member.roles.add("533774176478035991")
+		b.member.roles.add("380247760668065802")
+		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
+	} else if (b.customId === "platformps") {
+		b.deferUpdate();
+		b.member.roles.add("428259777206812682")
+		b.member.roles.add("380247760668065802")
+		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
 	}
-  	return returnStr
-}
+});
 
 /**
 * Updates or adds a single field to the stored embed and updates the message
@@ -225,7 +210,7 @@ function parseDamagedStarports(text) {
 */
 function updateEmbedField(field) {
 	if(!messageToUpdate) return
-	if(field.name == null) return messageToUpdate.edit(incursionsEmbed.setDescription(field.value).setTimestamp())
+	if(field.name == null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
 	const temp = new Discord.MessageEmbed()
 	.setColor('#FF7100')
 	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -249,18 +234,9 @@ function updateEmbedField(field) {
 		console.log("Added new field: " + field.name)
 	}
 	incursionsEmbed.fields = temp.fields
-	messageToUpdate.edit(incursionsEmbed.setTimestamp())
+	messageToUpdate.edit({ embeds: [incursionsEmbed.setTimestamp()] })
 	console.log(messageToUpdate.embeds[0].fields)
 }
 
 // Switch Statements
 if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
-
-//Array used to pass variables and functions through the command handler
-const passArray = [
-	attachIsImage,
-	googleClient,
-	parseIncursionSystems,
-	parseDamagedStarports,
-	updateEmbedField
-]

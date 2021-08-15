@@ -5,10 +5,9 @@ const fs = require('fs')
 module.exports = {
 	name: 'members',
 	description: 'Lists the tag/username/id/nickname(default = nickname) of members with given role, limited to maxlength(default = 10) in embed if txt is used. CSV will not embed and gives all of the types, ignores further arguments.',
-    usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
+  usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
-    args: true,
+  args: true,
     execute (message, args) {
         try {
             var roleID = getRoleID(message,args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim())
@@ -44,7 +43,7 @@ module.exports = {
                 {
                     highlength = parseInt(args[3].replace(/["'”`‛′’‘]/g,"").trim())
                 }
-                memberwithrole.map(m => 
+                memberwithrole.map(m =>
                 {
                     if(type == 'tag')
                     {
@@ -79,15 +78,16 @@ module.exports = {
                     .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                     .setTitle("**Member List**")
                     returnEmbed.addField("List of members holding rank " + actualrole +":","```"+memberList+"```")
-                    message.channel.send(returnEmbed.setTimestamp());
+                    message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
                 }
                 else
                 {
-                    fs.writeFileSync('tmp/memberlist.txt', memberList); 
-                    message.channel.send("Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",{
+                    fs.writeFileSync('tmp/memberlist.txt', memberList);
+                    message.channel.send({
+                        content:"Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",
                         files:[
-                            "tmp/memberlist.txt"
-                        ]
+                                "tmp/memberlist.txt"
+                              ]
                     })
                 }
             }
@@ -96,16 +96,17 @@ module.exports = {
                 if(mode == "csv")
                 {
                     memberList = "Discord tag,Discord Username,Discord Id,Server Nickname/displayName\n"
-                    memberwithrole.map(m => 
+                    memberwithrole.map(m =>
                         {
                                 memberList = memberList + m.user.tag + "," + m.user.username + "," + m.user.id + "," +  m.displayName + "\n"
- 
+
                         })
                     fs.writeFileSync('tmp/memberlist.csv',memberList)
-                    message.channel.send("Here's your CSV file:",{
-                        files:[
-                            "tmp/memberlist.csv"
-                        ]
+                    message.channel.send({
+                                content:"Here's your CSV file:",
+                                files:[
+                                        "tmp/memberlist.csv"
+                                      ]
                     })
                 }
                 else

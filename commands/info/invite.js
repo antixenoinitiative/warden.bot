@@ -3,8 +3,7 @@ module.exports = {
     description: "Get a server invite link",
     usage: '',
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    restricted: false,
     execute (message) {
-        message.channel.send(`To invite people to the server, please use the following link: https://discord.gg/bqmDxdm`);
+        message.channel.send({ content: `To invite people to the server, please use the following link: https://discord.gg/bqmDxdm` });
     }
 }

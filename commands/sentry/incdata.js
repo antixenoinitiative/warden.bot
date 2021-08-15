@@ -3,7 +3,7 @@ const Discord = require("discord.js");
 const weekdata = require("../../db/weeks/weeks.json");
 
 /**
-     * Returns Incursions active on input date 
+     * Returns Incursions active on input date
      * @author   (Mgram) Marcus Ingram
      * @param    {String} date          Input date format "YYYY-MM-DDTHH:MM:SS"
      * @return   {Object}               Returns Incursions Objects
@@ -52,7 +52,6 @@ module.exports = {
 	description: 'Request data about incursions',
     usage: '"system/week/date" "name/week/YYYY-MM-DD"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
 	args: true,
 	execute(message, args) {
 		const type = args[0];
@@ -61,13 +60,13 @@ module.exports = {
 
 		switch (type) {
 			case "system":
-				if (param === undefined) { return message.channel.send(`Please include a system name. Use quotes if it contains spaces, eg: "HR 1185"`) }
+				if (param === undefined) { return message.channel.send({ content: `Please include a system name. Use quotes if it contains spaces, eg: "HR 1185"` }) }
 				async function getSysByWeek() {
 					try {
 						let id = await db.getSysID(param);
 						let data = await db.query(`SELECT week FROM incursionV2 WHERE system_id = $1`, [id]);
 						if (data.rowCount == 0) {
-							return message.channel.send(`No incursions found for ${param} 🙁`);
+							return message.channel.send({ content: `No incursions found for ${param} 🙁` });
 						}
 						let incArray = []
 						for (let i = 0; i < data.rows.length; i++) {
@@ -86,12 +85,12 @@ module.exports = {
 							//console.log(date);
 							returnEmbed.addField(`Incursion #${i+1}`, `Week: ${rangeArray[i]}`);
 						}
-						message.channel.send(returnEmbed.setTimestamp())
+						message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 					} catch (err) { console.error(err) }
-				}	
+				}
 				return getSysByWeek()
 			case "week":
-				if (param === undefined) { return message.channel.send(`Please include a Week Number, eg: "177"`) }
+				if (param === undefined) { return message.channel.send({ content: `Please include a Week Number, eg: "177"` }) }
 				async function getIncByWeek() {
 					try {
 						let data = await db.query(`SELECT system_id FROM incursionV2 WHERE week = $1`, [param]);
@@ -109,16 +108,16 @@ module.exports = {
 							let name = await db.query(`SELECT name FROM systems WHERE system_id = $1`, [data.rows[i].system_id]);
 							returnEmbed.addField(`Incursion #${i+1}`, name.rows[0].name);
 						}
-						message.channel.send(returnEmbed.setTimestamp())
+						message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 					} catch (err) { console.error(err) }
-				}	
+				}
 				return getIncByWeek()
 			case "date":
-				if (param === undefined) { return message.channel.send(`Please include a date, eg: "YYYY-MM-DD"`) }
+				if (param === undefined) { return message.channel.send({ content: `Please include a date, eg: "YYYY-MM-DD"` }) }
 				try {
 					getIncursionsByDate(param).then((res) => {
 						if (res.length == 0) {
-							return message.channel.send(`No incursions found on ${param} 🙁`);
+							return message.channel.send({ content: `No incursions found on ${param} 🙁` });
 						}
 						const returnEmbed = new Discord.MessageEmbed()
 						.setColor('#FF7100')
@@ -128,10 +127,10 @@ module.exports = {
 						for (let i = 0; i < res.length; i++) {
 							returnEmbed.addField(`Incursion #${i+1}`,res[i]);
 						}
-						message.channel.send(returnEmbed.setTimestamp())
+						message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 					})
 				} catch (err) {
-					message.channel.send("Something went wrong, please ensure the date format is correct 'YYYY-MM-DD'")
+					message.channel.send({ content: "Something went wrong, please ensure the date format is correct 'YYYY-MM-DD'" })
 				}
 		}
 	},
