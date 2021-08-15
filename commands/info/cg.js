@@ -1,7 +1,3 @@
-const { ChunkGraph } = require('webpack');
-
-
-
 module.exports = {
     name: "cg",
     description: "Get current community goals",
