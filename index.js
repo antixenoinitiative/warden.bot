@@ -147,7 +147,7 @@ discordClient.on('messageCreate', message => {
 				const collector = message.channel.createMessageComponentCollector({ filter, max: 10 });
 				let embed;
 				collector.on('collect', async i => {
-					if (embed != undefined) {
+					if (embed !== undefined) {
 						i.deferUpdate();
 						const returnEmbed = new Discord.MessageEmbed()
 						.setColor('#FF7100')

@@ -4,7 +4,7 @@ module.exports = {
   	usage: '',
 	permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	async execute(message) {
-    	await message.channel.send("Killing Warden Bot! 💀")
+    	await message.channel.send({content: "Killing Warden Bot! 💀"})
 		message.client.destroy();
 	}
 };
