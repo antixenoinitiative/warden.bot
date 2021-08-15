@@ -59,9 +59,9 @@ module.exports = {
                 .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                 .setTitle("**Conveerter**")
             returnEmbed.addField(response, response_part2 + "\.",true)
-            message.channel.send(returnEmbed.setTimestamp());
+            message.channel.send({ embeds: [returnEmbed.setTimestamp()]});
         } catch (err) {
-            message.channel.send(`Something went wrong: -mtos ${args}: result ${response} \n ERROR: ${err}`)
+            message.channel.send({ content: `Something went wrong: -mtos ${args}: result ${response} \n ERROR: ${err}`})
         }
     },
 };
