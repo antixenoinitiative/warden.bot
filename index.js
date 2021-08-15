@@ -1,6 +1,7 @@
-/**
-* AXI Warden is a discord bot for the Anti-Xeno Initiative Discord Server.
-* @author   CMDR Mgram, CMDR Airom
+/* ------------------ SETUP ------------------
+Make sure you have a ".env" file in the root directory with the following variables
+TOKEN=<Discord Bot Token>
+LOGCHANNEL=<Channel ID for logging>
 */
 
 //------------------ SWITCHES ----------------------
@@ -8,6 +9,7 @@
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 const prefix = "-" // Command Prefix for discord commands
 //--------------------------------------------------
+
 
 require("dotenv").config();
 const fs = require('fs');
@@ -33,6 +35,7 @@ for (const folder of commandFolders) {
 	const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
 	for (const file of commandFiles) {
 		const command = require(`./commands/${folder}/${file}`);
+		command.category = folder;
 		discordClient.commands.set(command.name, command);
 	}
 }
@@ -118,32 +121,60 @@ discordClient.on('messageCreate', message => {
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			const returnEmbed = new Discord.MessageEmbed()
-			.setColor('#FF7100')
-			.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-			.setTitle("**Commands**")
-			.setDescription("List of current bot commands:")
-			for (const [key, value] of discordClient.commands.entries()) {
-				//Only commands with permlvl zero are considered unrestricted
-				if (value.permlvl == 0 && !value.hidden) {
-					returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
-				}
+			async function help() {
+				const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
+					
+					for (i=0;i < commandFolders.length; i++) {
+						menu.addOptions([
+							{
+								label: `${commandFolders[i]}`,
+								description: `${commandFolders[i]} commands`,
+								value: `${commandFolders[i]}`,
+							},
+						])
+					}
+
+				const row = new Discord.MessageActionRow().addComponents(menu);
+
+				message.channel.send({ content: "Select which commands to list:", components: [row] });
+
+				// Recieve the button response
+				const filter = i => i.user.id === message.author.id;
+				const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
+				let embed;
+				collector.on('collect', async i => {
+					if (embed != undefined) {
+						i.deferUpdate();
+						const returnEmbed = new Discord.MessageEmbed()
+						.setColor('#FF7100')
+						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+						.setTitle(`**${i.values[0]} commands**`)
+						for (const [key, value] of discordClient.commands.entries()) {
+							//Only commands with permlvl zero are considered unrestricted
+							if (!value.hidden && value.category === i.values[0]) {
+								returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+							}
+						}
+						return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
+					}
+
+					if (commandFolders.includes(i.values[0])) {
+						i.deferUpdate();
+						const returnEmbed = new Discord.MessageEmbed()
+						.setColor('#FF7100')
+						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+						.setTitle(`**${i.values[0]} commands**`)
+						for (const [key, value] of discordClient.commands.entries()) {
+							//Only commands with permlvl zero are considered unrestricted
+							if (!value.hidden && value.category === i.values[0]) {
+								returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+							}
+						}
+						embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+					}
+				});
 			}
-			message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
-		}
-		if (message.content === `${prefix}help -r`) { // Restricted Commands.
-			const returnEmbed = new Discord.MessageEmbed()
-			.setColor('#FF7100')
-			.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-			.setTitle("**Restricted Commands**")
-			.setDescription("List of current **Restricted** bot commands:")
-			for (const [key, value] of discordClient.commands.entries()) {
-				//No permlvl is treated as restricted
-				if (value.permlvl != 0 && !value.hidden) {
-					returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
-				}
-			}
-			message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
+			help();
 		}
 
 		if (message.content === `${prefix}ping`) {
