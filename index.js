@@ -140,7 +140,7 @@ discordClient.on('messageCreate', message => {
 
 				// Recieve the button response
 				const filter = i => i.user.id === message.author.id;
-				const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
+				const collector = message.channel.createMessageComponentCollector({ filter, max: 10 });
 				let embed;
 				collector.on('collect', async i => {
 					if (embed != undefined) {
