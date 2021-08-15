@@ -70,8 +70,12 @@ function botLog(event, severity) {
 			logEmbed.setDescription(`${event}`)
 			break;
 	}
-	discordClient.channels.cache.find(x => x.id == process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
-	return console.log(`${event}`);
+	if (process.env.LOGCHANNEL !== undefined) {
+		discordClient.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+	} else {
+		console.log("The environment variable LOGCHANNEL is not defined.")
+	}
+	
 }
 
 discordClient.once("ready", async() => {
@@ -97,8 +101,8 @@ discordClient.on('messageCreate', message => {
 
 	// Check if arguments contains forbidden words
 	const forbiddenWords = [ "@everyone", "@here", "everyone", "here" ];
-	for (var i = 0; i < forbiddenWords.length; i++) {
-		if (message.content.includes(forbiddenWords[i])) {
+	for (let value of forbiddenWords) {
+		if (message.content.includes(value)) {
 		  	// message.content contains a forbidden word;
 		  	// delete message, log, etc.
 		  	return message.channel.send({ content: `❗ Command contains forbidden words.` })
@@ -124,12 +128,12 @@ discordClient.on('messageCreate', message => {
 			async function help() {
 				const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
 					
-					for (i=0;i < commandFolders.length; i++) {
+					for (const value of commandFolders) {
 						menu.addOptions([
 							{
-								label: `${commandFolders[i]}`,
-								description: `${commandFolders[i]} commands`,
-								value: `${commandFolders[i]}`,
+								label: `${value}`,
+								description: `${value} commands`,
+								value: `${value}`,
 							},
 						])
 					}
@@ -143,7 +147,7 @@ discordClient.on('messageCreate', message => {
 				const collector = message.channel.createMessageComponentCollector({ filter, max: 10 });
 				let embed;
 				collector.on('collect', async i => {
-					if (embed != undefined) {
+					if (embed !== undefined) {
 						i.deferUpdate();
 						const returnEmbed = new Discord.MessageEmbed()
 						.setColor('#FF7100')
@@ -186,18 +190,18 @@ discordClient.on('messageCreate', message => {
 
 	// checks for proper permissions by role against permissions.js
 	let allowedRoles = perm.getRoles(command.permlvl);
-	if (allowedRoles != 0) {
-		let allowed = 0;
-		for (i=0; i < allowedRoles.length; i++) {
-			if (message.member.roles.cache.has(allowedRoles[i])) {
-				allowed++;
-			}
+	if (allowedRoles !== 0) {
+	let allowed = 0;
+	for (const value of allowedRoles) {
+		if (message.member.roles.cache.has(value)) {
+			allowed++;
 		}
-		if (allowed == 0) { 
-			botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")
-			return message.reply({ content: "You don't have permission to use that command!" }) 
-		} // returns false if the member has the role)
-
+	}
+	if (allowed === 0) { 
+	botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
+	return message.reply("You don't have permission to use that command!") 
+} // returns false if the member has the role) 
+    
 	}
   	if (command.args && !args.length) {
     	let reply = `You didn't provide any arguments, ${message.author}!`;
@@ -243,23 +247,23 @@ discordClient.on('interactionCreate', b => {
 */
 function updateEmbedField(field) {
 	if(!messageToUpdate) return
-	if(field.name == null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
+	if(field.name === null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
 	const temp = new Discord.MessageEmbed()
 	.setColor('#FF7100')
 	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 	.setTitle("**Defense Targets**")
 	.setDescription(incursionsEmbed.description)
 	let isUpdated = false
-	for(var i = 0; i < incursionsEmbed.fields.length; i++) {
-		if(incursionsEmbed.fields[i].name == field.name) {
+	for(const value of incursionsEmbed.fields) {
+		if(value.name === field.name) {
 			if(field.value) {
 				temp.addField(field.name, field.value)
 			}
 			isUpdated = true
 			console.log("Updated existing field: " + field.name)
 		} else {
-			temp.addField(incursionsEmbed.fields[i].name, incursionsEmbed.fields[i].value)
-			console.log("Copied existing field: " + incursionsEmbed.fields[i].name)
+			temp.addField(value.name, value.value)
+			console.log("Copied existing field: " + value.name)
 		}
 	}
 	if(!isUpdated && field.value){
@@ -272,4 +276,4 @@ function updateEmbedField(field) {
 }
 
 // Switch Statements
-if (enableDiscordBot == 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
+if (enableDiscordBot === 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
