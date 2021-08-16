@@ -1,5 +1,5 @@
 const db = require('../../db/index');
-const Discord = require("discord.js");
+
 module.exports = {
     name: 'backup',
 	description: 'Creates a backup of current users and their roles',

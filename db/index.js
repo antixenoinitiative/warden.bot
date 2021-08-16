@@ -1,5 +1,4 @@
 require("dotenv").config();
-const { Message } = require("discord.js");
 const { Pool } = require('pg');
 const weeks = require("./weeks/weeks.json");
 
@@ -138,7 +137,7 @@ module.exports = {
         }
     },
     /**
-    * Creates a backup, returns number of edits made
+    * Creates a backup of user roles, returns number of edits made
     * @author   (AmanBP) Aman Bhai Patel
     * @param    {Object} roleList       Object { userid<string> : roles<array<string>>}
     * @returns  {Array}                 Array [flag<string[2]>, updates_performed<int>, additions_performed<int>]
@@ -148,9 +147,9 @@ module.exports = {
             let res = await pool.query(`select id from users`)
             let done = []
             let results = res.rows
-            results.forEach(obj =>
+            results.forEach(obj => {
                 done.push(obj["id"])
-            )
+            })
             let check_update = []
             let need_adding = []
             for (var key in roleList) {
@@ -165,7 +164,7 @@ module.exports = {
             }
             let i = 0
             let update_count = 0;
-            flag = ""
+            let flag = ""
             if (check_update.length != 0) {
                 let res2 = await pool.query(`select id,cardinality(roles) from users;`)
                 let results2 = res2.rows
@@ -174,9 +173,8 @@ module.exports = {
                     stored[obj['id']] = obj['cardinality']
                 })
                 for (i = 0; i < check_update.length; i++) {
-                    let res_update;
                     if (stored[check_update[i]] < roleList[check_update[i]].length) {
-                        res_update = await pool.query("update users set roles=$1::text[] where id=$2", [roleList[check_update[i]], check_update[i]])
+                        await pool.query("update users set roles=$1::text[] where id=$2", [roleList[check_update[i]], check_update[i]])
                         update_count += 1
                     }
                 }
@@ -202,7 +200,7 @@ module.exports = {
                         custom_query_add = custom_query_add + "('" + need_adding[i] + "','{\"" + roleList[need_adding[i]].join("\",\"") + "\"}');\n"
                     }
                 }
-                res_add = await pool.query(custom_query_add)
+                await pool.query(custom_query_add)
             }
             else {
                 flag = flag + "0"
