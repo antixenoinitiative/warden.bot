@@ -11,7 +11,7 @@ Join the AXI Discord here: https://discord.gg/bqmDxdm
 ## How to use for development (Discord Bot)
 
 1. Download the repository and run `npm i`
-2. Create a discord bot and paste the key into a .env file, TOKEN=DISCORD_BOT_TOKEN
+2. Create a discord bot and paste the key into a .env file, TOKEN=DISCORD_BOT_TOKEN, LOGCHANNEL=<CHANNEL ID FOR LOGGING>
 3. Register a google cloud vision account and download the JSON key. Name this key originalkey.JSON and place it in the repository, then switch the auth method in incursion.js
 4. Use `npm start` to start Warden, and `Ctrl + C` to end it
 
