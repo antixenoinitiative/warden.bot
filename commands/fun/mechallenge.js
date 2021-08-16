@@ -4,14 +4,14 @@ module.exports = {
 	usage: '"@user"',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
-  	execute(message, args) {
-    	let challenges = [
-      		`Do a Multigoid kill assigned by EuanAB`,
-      		`Do an E-rated fight assigned by Mechan`,
-      		`Do speed kill as commanded by Lapp0`,
-      		`Help Xarionn with his excruciating research projects`,
-      		`Do weekly updates marathon review like Avasa used do to`,
-    	];
+	execute(message) {
+		let challenges = [
+			`Do a Multigoid kill assigned by EuanAB`,
+			`Do an E-rated fight assigned by Mechan`,
+			`Do speed kill as commanded by Lapp0`,
+			`Help Xarionn with his excruciating research projects`,
+			`Do weekly updates marathon review like Avasa used do to`,
+		];
 		try
 		{
 			if(message.mentions.members.first() == undefined)

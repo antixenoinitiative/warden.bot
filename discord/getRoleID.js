@@ -18,11 +18,11 @@ module.exports = {
             });
             switch(name.toLowerCase())
             {
-                case "pc": return '428260067901571073'; break;
-                case "xb": return '533774176478035991'; break;
-                case "ps": return '428259777206812682'; break;
-                case "bgs": case "loyalist": return '712110659814293586'; break;
-                case "axi": case "axin": return '848726942786387968'; break;
+                case "pc": return '428260067901571073';
+                case "xb": return '533774176478035991';
+                case "ps": return '428259777206812682';
+                case "bgs": case "loyalist": return '712110659814293586';
+                case "axi": case "axin": return '848726942786387968';
                 default: break;
             }
             let best = compare.findBestMatch(name, roleList);

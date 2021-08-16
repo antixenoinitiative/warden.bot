@@ -10,12 +10,10 @@ const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 const prefix = "-" // Command Prefix for discord commands
 //--------------------------------------------------
 
-
 require("dotenv").config();
 const fs = require('fs');
 const Discord = require("discord.js");
 const perm = require('./permissions');
-const vision = require("@google-cloud/vision");
 
 // Discord client setup
 const myIntents = new Discord.Intents();
@@ -79,7 +77,7 @@ function botLog(event, severity) {
 
 discordClient.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
-  	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
+	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
@@ -94,16 +92,73 @@ discordClient.once("ready", async() => {
 	})
 })
 
+async function help(message) {
+	const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
+		
+		for (const value of commandFolders) {
+			menu.addOptions([
+				{
+					label: `${value}`,
+					description: `${value} commands`,
+					value: `${value}`,
+				},
+			])
+		}
+
+	const row = new Discord.MessageActionRow().addComponents(menu);
+
+	message.channel.send({ content: "Select which commands to list:", components: [row] });
+
+	// Recieve the button response
+	const filter = i => i.user.id === message.author.id;
+	const collector = message.channel.createMessageComponentCollector({ filter, max: 10 });
+	let embed;
+	collector.on('collect', async i => {
+		try {
+			if (embed !== undefined) {
+				i.deferUpdate();
+				const returnEmbed = new Discord.MessageEmbed()
+				.setColor('#FF7100')
+				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+				.setTitle(`**${i.values[0]} commands**`)
+				for (const [key, value] of discordClient.commands.entries()) {
+					//Only commands with permlvl zero are considered unrestricted
+					if (!value.hidden && value.category === i.values[0]) {
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+					}
+				}
+				return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
+			}
+
+			if (commandFolders.includes(i.values[0])) {
+				i.deferUpdate();
+				const returnEmbed = new Discord.MessageEmbed()
+				.setColor('#FF7100')
+				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+				.setTitle(`**${i.values[0]} commands**`)
+				for (const [key, value] of discordClient.commands.entries()) {
+					//Only commands with permlvl zero are considered unrestricted
+					if (!value.hidden && value.category === i.values[0]) {
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+					}
+				}
+				embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+			}
+		} catch (err) {
+			console.error(`Error handling -help response: ${err}`);
+			message.channel.send({ content: `there was an error trying to execute that command!` })
+		}
+	});
+}
+
 discordClient.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
 	// Check if arguments contains forbidden words
 	const forbiddenWords = [ "@everyone", "@here", "everyone", "here" ];
 	for (let value of forbiddenWords) {
-		if (message.content.includes(value)) {
-		  	// message.content contains a forbidden word;
-		  	// delete message, log, etc.
-		  	return message.channel.send({ content: `❗ Command contains forbidden words.` })
+		if (message.content.includes(value)) { // message.content contains a forbidden word; delete message, log, etc.
+			return message.channel.send({ content: `❗ Command contains forbidden words.` })
 		}
 	}
 
@@ -124,65 +179,7 @@ discordClient.on('messageCreate', message => {
 		// Basic Commands
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			
-			async function help() {
-				const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
-					
-					for (const value of commandFolders) {
-						menu.addOptions([
-							{
-								label: `${value}`,
-								description: `${value} commands`,
-								value: `${value}`,
-							},
-						])
-					}
-
-				const row = new Discord.MessageActionRow().addComponents(menu);
-
-				message.channel.send({ content: "Select which commands to list:", components: [row] });
-
-				// Recieve the button response
-				const filter = i => i.user.id === message.author.id;
-				const collector = message.channel.createMessageComponentCollector({ filter, max: 10 });
-				let embed;
-				collector.on('collect', async i => {
-					try {
-						if (embed !== undefined) {
-							i.deferUpdate();
-							const returnEmbed = new Discord.MessageEmbed()
-							.setColor('#FF7100')
-							.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-							.setTitle(`**${i.values[0]} commands**`)
-							for (const [key, value] of discordClient.commands.entries()) {
-								//Only commands with permlvl zero are considered unrestricted
-								if (!value.hidden && value.category === i.values[0]) {
-									returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
-								}
-							}
-							return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
-						}
-
-						if (commandFolders.includes(i.values[0])) {
-							i.deferUpdate();
-							const returnEmbed = new Discord.MessageEmbed()
-							.setColor('#FF7100')
-							.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-							.setTitle(`**${i.values[0]} commands**`)
-							for (const [key, value] of discordClient.commands.entries()) {
-								//Only commands with permlvl zero are considered unrestricted
-								if (!value.hidden && value.category === i.values[0]) {
-									returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
-								}
-							}
-							embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
-						}
-					} catch (err) {
-						console.error(`Error handling -help response: ${err}`);
-						message.channel.send({ content: `there was an error trying to execute that command!` })
-					}
-				});
-			}
-			help();
+			help(message);
 		}
 
 		if (message.content === `${prefix}ping`) {
@@ -207,13 +204,13 @@ discordClient.on('messageCreate', message => {
 } // returns false if the member has the role) 
     
 	}
-  	if (command.args && !args.length) {
-    	let reply = `You didn't provide any arguments, ${message.author}!`;
+	if (command.args && !args.length) {
+		let reply = `You didn't provide any arguments, ${message.author}!`;
 		if (command.usage) {
 			reply = `Expected usage: \`${prefix}${command.name} ${command.usage}\``;
 		}
 		return message.channel.send({ content: `${reply}` });
-  	}
+	}
 	try {
 		command.execute(message, args, updateEmbedField);
 		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
@@ -242,6 +239,8 @@ discordClient.on('interactionCreate', b => {
 		b.member.roles.add("380247760668065802")
 		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
 	}
+	b.member.roles.add("642840406580658218");
+	b.member.roles.add("642839749777948683");
 });
 
 /**

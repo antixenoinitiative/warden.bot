@@ -61,7 +61,7 @@ module.exports = {
     getPresence: async (system_id) => {
         try {
             let { rows } = await pool.query("SELECT MAX(time) FROM presence WHERE system_id = $1", [system_id]);
-            time = rows[0].max;
+            let time = rows[0].max;
             let result = await pool.query("SELECT presence_lvl FROM presence WHERE time = $1", [time]);
             return result.rows[0].presence_lvl; // Return Presence
         } catch (err) {
@@ -80,7 +80,7 @@ module.exports = {
             let list = new Map();
         for (let i = 0; i < res.rowCount; i++) {
             let { rows } = await pool.query("SELECT MAX(time) FROM presence WHERE system_id = $1", [res.rows[i].system_id]);
-            time = rows[0].max;
+            let time = rows[0].max;
             let result = await pool.query("SELECT presence_lvl FROM presence WHERE time = $1", [time]);
             let presence = result.rows[0].presence_lvl; // Return Presence
             list.set(res.rows[i].name,presence);
