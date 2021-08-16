@@ -1,6 +1,5 @@
 const db = require('../../db/index');
 const Discord = require("discord.js");
-const weekdata = require("../../db/weeks/weeks.json");
 
 /**
      * Returns Incursions active on input date
@@ -47,6 +46,55 @@ function collapseSequences(arr) {
 	return ranges;
 }
 
+async function getSysByWeek(message, param) {
+	try {
+		let id = await db.getSysID(param);
+		let data = await db.query(`SELECT week FROM incursionV2 WHERE system_id = $1`, [id]);
+		if (data.rowCount == 0) {
+			return message.channel.send({ content: `No incursions found for ${param} 🙁` });
+		}
+		let incArray = []
+		for (let i = 0; i < data.rows.length; i++) {
+			incArray.push(data.rows[i].week);
+		}
+		console.log(incArray)
+		let rangeArray = collapseSequences(incArray) // Collapse array into ranges
+
+		const returnEmbed = new Discord.MessageEmbed()
+		.setColor('#FF7100')
+		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+		.setTitle("**Incursion History**")
+		.setDescription(`Found **${data.rows.length}** incursions for ${param}`);
+		for (let i = 0; i < rangeArray.length; i++) {
+			//let date = weekdata.find(list => list.week === data.rows[i].week).first
+			//console.log(date);
+			returnEmbed.addField(`Incursion #${i+1}`, `Week: ${rangeArray[i]}`);
+		}
+		message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
+	} catch (err) { console.error(err) }
+}
+
+async function getIncByWeek(message, param) {
+	try {
+		let data = await db.query(`SELECT system_id FROM incursionV2 WHERE week = $1`, [param]);
+		if (data.rowCount == 0) {
+			return message.channel.send(`No incursions found on Week ${param} 🙁`);
+		}
+		console.log(data);
+
+		const returnEmbed = new Discord.MessageEmbed()
+		.setColor('#FF7100')
+		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+		.setTitle("**Incursion History**")
+		.setDescription(`Found **${data.rows.length}** incursions for week ${param}`);
+		for (let i = 0; i < data.rows.length; i++) {
+			let name = await db.query(`SELECT name FROM systems WHERE system_id = $1`, [data.rows[i].system_id]);
+			returnEmbed.addField(`Incursion #${i+1}`, name.rows[0].name);
+		}
+		message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
+	} catch (err) { console.error(err) }
+}
+
 module.exports = {
 	name: 'incdata',
 	description: 'Request data about incursions',
@@ -61,57 +109,10 @@ module.exports = {
 		switch (type) {
 			case "system":
 				if (param === undefined) { return message.channel.send({ content: `Please include a system name. Use quotes if it contains spaces, eg: "HR 1185"` }) }
-				async function getSysByWeek() {
-					try {
-						let id = await db.getSysID(param);
-						let data = await db.query(`SELECT week FROM incursionV2 WHERE system_id = $1`, [id]);
-						if (data.rowCount == 0) {
-							return message.channel.send({ content: `No incursions found for ${param} 🙁` });
-						}
-						let incArray = []
-						for (let i = 0; i < data.rows.length; i++) {
-							incArray.push(data.rows[i].week);
-						}
-						console.log(incArray)
-						let rangeArray = collapseSequences(incArray) // Collapse array into ranges
-
-						const returnEmbed = new Discord.MessageEmbed()
-						.setColor('#FF7100')
-						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-						.setTitle("**Incursion History**")
-						.setDescription(`Found **${data.rows.length}** incursions for ${param}`);
-						for (let i = 0; i < rangeArray.length; i++) {
-							//let date = weekdata.find(list => list.week === data.rows[i].week).first
-							//console.log(date);
-							returnEmbed.addField(`Incursion #${i+1}`, `Week: ${rangeArray[i]}`);
-						}
-						message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
-					} catch (err) { console.error(err) }
-				}
-				return getSysByWeek()
+				return getSysByWeek(message, param)
 			case "week":
 				if (param === undefined) { return message.channel.send({ content: `Please include a Week Number, eg: "177"` }) }
-				async function getIncByWeek() {
-					try {
-						let data = await db.query(`SELECT system_id FROM incursionV2 WHERE week = $1`, [param]);
-						if (data.rowCount == 0) {
-							return message.channel.send(`No incursions found on Week ${param} 🙁`);
-						}
-						console.log(data);
-
-						const returnEmbed = new Discord.MessageEmbed()
-						.setColor('#FF7100')
-						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-						.setTitle("**Incursion History**")
-						.setDescription(`Found **${data.rows.length}** incursions for week ${param}`);
-						for (let i = 0; i < data.rows.length; i++) {
-							let name = await db.query(`SELECT name FROM systems WHERE system_id = $1`, [data.rows[i].system_id]);
-							returnEmbed.addField(`Incursion #${i+1}`, name.rows[0].name);
-						}
-						message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
-					} catch (err) { console.error(err) }
-				}
-				return getIncByWeek()
+				return getIncByWeek(message, param)
 			case "date":
 				if (param === undefined) { return message.channel.send({ content: `Please include a date, eg: "YYYY-MM-DD"` }) }
 				try {

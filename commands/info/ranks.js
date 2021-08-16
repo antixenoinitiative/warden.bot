@@ -2,10 +2,10 @@ const Discord = require("discord.js");
 
 module.exports = {
 	name: 'ranks',
-	description: 'Get rank statistics (Arguments: challenge, progression, other)',
-  	usage: '"challenge/progression/other"',
+	description: 'Get rank statistics',
+	usage: ' ',
 	permlvl: 0,
-	async execute(message, args) {
+	async execute(message) {
 
 		// Build the initial message
 		const roleCache = message.guild.roles.cache

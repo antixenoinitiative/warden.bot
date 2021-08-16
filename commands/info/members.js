@@ -22,7 +22,7 @@ module.exports = {
             }
             let memberwithrole = message.guild.roles.cache.get(roleID).members
             let actualrole = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
-            memberList = ""
+            let memberList = ""
             if(mode == "txt")
             {
                 var type = ""
@@ -62,10 +62,11 @@ module.exports = {
                         memberList = memberList + m.displayName + "\n"
                     }
                 })
-                var membercount
+                let membercount
                 try
                 {
                     membercount = memberList.match(/[\n]/g).length
+                    console.log(membercount);
                 }
                 catch(TypeError)
                 {
@@ -74,7 +75,7 @@ module.exports = {
                 if(memberList.match(/[\n]/g).length <= highlength)
                 {
                     const returnEmbed = new Discord.MessageEmbed()
-			        .setColor('#FF7100')
+                    .setColor('#FF7100')
                     .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                     .setTitle("**Member List**")
                     returnEmbed.addField("List of members holding rank " + actualrole +":","```"+memberList+"```")
