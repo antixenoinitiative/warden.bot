@@ -138,7 +138,7 @@ module.exports = {
         }
     },
     /**
-    * Returns Week Object for given Timestamp (UTC)
+    * Creates a backup, returns number of edits made
     * @author   (AmanBP) Aman Bhai Patel
     * @param    {Object} roleList       Object { userid<string> : roles<array<string>>}
     * @returns  {Array}                 Array [flag<string[2]>, updates_performed<int>, additions_performed<int>]
