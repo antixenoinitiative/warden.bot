@@ -4,7 +4,7 @@ const { calcMTTOT } = require("./calc/calc");
 module.exports = {
 	name: 'mttot',
 	description: 'Calculate Theoretical Time on Target',
-  usage: '"variant" "weapon codes" "range"',
+    usage: '"variant" "weapon codes" "range"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	execute(message, args) {
 		if (args == "") {
@@ -19,7 +19,6 @@ module.exports = {
 				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
             return;
         }
-
         let result;
 		try {
 
@@ -95,15 +94,11 @@ module.exports = {
                         i.channel.send({ content: "Something went wrong, please you entered the correct format" });
                     }
                 }
-		    });
-
-		    collector.on('end', collected => console.log(`Collected ${collected.size} items`));
-
+            });
+            collector.on('end', collected => console.log(`Collected ${collected.size} items`));
 		} catch (err) {
             console.log(err)
 			message.channel.send({ content: "Something went wrong, please you entered the correct format" })
-		}
-
-        
+		}        
 	},
 };

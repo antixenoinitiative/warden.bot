@@ -4,18 +4,16 @@ const { getRoleID } = require("../../discord/getRoleID");
 module.exports = {
 	name: 'cross',
 	description: 'How many people with rank1 also have rank2?',
-  	usage: '"role1" "role2"',
+	usage: '"role1" "role2"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	execute(message, args) {
 		try {
-			count = 0
+			let count = 0
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle("**Count**")
-			roles = {}
-			roles_name = {}
 			var role1 = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			var role2 = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			let actualrole1 = ""
@@ -23,7 +21,7 @@ module.exports = {
 			let memberwithrole1 = null
 			try
 			{
-				roleID = getRoleID(message,role1)
+				let roleID = getRoleID(message,role1)
 				memberwithrole1 = message.guild.roles.cache.get(roleID).members
 				actualrole1 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
 			}
@@ -34,7 +32,7 @@ module.exports = {
 			let memberwithrole2 = null
 			try
 			{
-				roleID = getRoleID(message,role2)
+				let roleID = getRoleID(message,role2)
 				memberwithrole2 = message.guild.roles.cache.get(roleID).members
 				actualrole2 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
 			}

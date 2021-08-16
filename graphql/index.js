@@ -35,7 +35,7 @@ module.exports = {
     search: async (searchstring) => {
         try {
         let results = await query(`{ pages { search (query: "${searchstring}") { results { id, title, description, path, locale } } } }`)
-        answer = JSON.parse(results).data.pages.search.results;
+        let answer = JSON.parse(results).data.pages.search.results;
         let EnOnly = [];
         for (let i = 0; i < answer.length; i++) {
             if (answer[i].locale == "en") {

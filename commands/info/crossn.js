@@ -1,10 +1,15 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const { getRoleID } = require("../../discord/getRoleID");
+
+function checker(memberrolearray, requestedroles) {
+    return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
+}
+
 module.exports = {
 	name: 'crossn',
 	description: 'How many people with rank1 also have rank2... also have rankn?',
-  	usage: '"club7/count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
+    usage: '"club7/count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
     execute(message,args)
@@ -13,10 +18,10 @@ module.exports = {
         {
             if(message.mentions.roles.length != undefined || message.mentions.members.length != undefined)
                 throw("Illegal input detected!")
-            roles = []
-            count = 0
-            memberList = []
-            mode = ""
+            let roles = []
+            let count = 0
+            let memberList = []
+            let mode = ""
             if(args[0]!= "count" && args[0]!= "nickname")
             {
                 mode = "nickname"
@@ -39,15 +44,12 @@ module.exports = {
                 args.slice(1,).forEach(arg => roles.push(getRoleID(message,arg)))
             }
             const returnEmbed = new Discord.MessageEmbed()
-            	.setColor('#FF7100')
-            	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+            .setColor('#FF7100')
+            .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             
-            function checker(memberrolearray, requestedroles)
-            {
-                return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
-            }
+            
             message.guild.members.cache.each(member => {
-                memberroles = member._roles
+                let memberroles = member._roles
                 if(checker(memberroles,roles))
                 {
                     count+=1
@@ -55,8 +57,8 @@ module.exports = {
                 }
             })
             memberList.sort()
-            role_names_unsorted_list = []
-            role_names_sorted_string = "\n"
+            let role_names_unsorted_list = []
+            let role_names_sorted_string = "\n"
             roles.forEach(rolein => {
                 role_names_unsorted_list.push(cleanString(message.guild.roles.cache.find(role => role.id == rolein).name))
             })
@@ -64,7 +66,7 @@ module.exports = {
             role_names_unsorted_list.forEach(rolein =>{
                 role_names_sorted_string = role_names_sorted_string + rolein + "\n"
             })
-            memberList_sorted_string = "\n"
+            let memberList_sorted_string = "\n"
             memberList.forEach(name =>{
                 memberList_sorted_string = memberList_sorted_string + name + "\n"
             })

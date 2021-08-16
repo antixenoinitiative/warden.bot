@@ -25,12 +25,12 @@ module.exports = {
                 
                 const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
 				
-                for (i=0;i < response.length; i++) {
+                for (let data of response) {
                     menu.addOptions([
                         {
-                            label: `${response[i].objective}`,
-                            description: `${response[i].title}`,
-                            value: `${response[i].id}`,
+                            label: `${data.objective}`,
+                            description: `${data.title}`,
+                            value: `${data.id}`,
                         },
                     ])
                 }
@@ -42,22 +42,21 @@ module.exports = {
 
                 collector.on('collect', async interaction => {
                     if (!interaction.isSelectMenu()) return;
-                    for (i=0;i < response.length; i++) {
-                        if (interaction.values[0] === response[i].id) {
+                    for (let data of response) {
+                        if (interaction.values[0] === data.id) {
                             console.log("found");
-                            let cg = response[i]
                             interaction.deferUpdate();
                             try {
                                 const returnEmbed = new Discord.MessageEmbed()
                                     .setColor('#FF7100')
-                                    .setAuthor(`Community Goal - #${cg.id}`, "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-                                    .setTitle(`${cg.title}`)
-                                    .setDescription(`${cg.bulletin}`)
+                                    .setAuthor(`Community Goal - #${data.id}`, "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+                                    .setTitle(`${data.title}`)
+                                    .setDescription(`${data.bulletin}`)
                                     .addFields(
-                                        {name: "Location", value: `${cg.market_name} - ${cg.starsystem_name}`, inline: true},
-                                        {name: "Objective", value: `${cg.objective}`, inline: true},
-                                        {name: "Progress", value: `${cg.qty}/${cg.target_qty}`, inline: false},
-                                        {name: "Expiry", value: `${cg.expiry}`, inline: true},
+                                        {name: "Location", value: `${data.market_name} - ${data.starsystem_name}`, inline: true},
+                                        {name: "Objective", value: `${data.objective}`, inline: true},
+                                        {name: "Progress", value: `${data.qty}/${data.target_qty}`, inline: false},
+                                        {name: "Expiry", value: `${data.expiry}`, inline: true},
                                     )
                                 interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] });
                             } catch (err) {
