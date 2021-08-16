@@ -3,7 +3,7 @@ module.exports = {
     description: "Summons the holy ducc",
     usage: '',
     args: false,
-    permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
+    permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: true,
     execute (message) {
         message.channel.send({ content: `You summoneth the ducc! <@211624816619290624>` });
