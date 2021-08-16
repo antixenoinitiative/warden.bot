@@ -4,7 +4,7 @@ const Discord = require("discord.js");
 module.exports = {
 	name: 'inara',
 	description: 'Get information from Inara',
-    usage: '"term"',
+    usage: '"name"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	async execute(message, args) {
