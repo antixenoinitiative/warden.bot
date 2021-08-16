@@ -5,14 +5,14 @@ module.exports = {
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	execute(message, args, updateEmbedField) {
-		fieldName = args[0]
-		let arguments = args[1]
-		for(var i = 2; i < args.length; i++) arguments += " " + args[i]
-		if(fieldName === 'incursion') updateEmbedField({ name: "**Incursions:**", value: arguments})
-		else if(fieldName === 'starport') updateEmbedField({ name: "**Evacuations:**", value: arguments})
-		else if(fieldName === 'repair') updateEmbedField({ name: "**Repairs:**", value: arguments})
-		else if(fieldName === 'description') updateEmbedField({ name: null, value: arguments})
-		else updateEmbedField({ name: fieldName, value: arguments})
+		let fieldName = args[0]
+		let arg = args[1]
+		for(var i = 2; i < args.length; i++) arg += " " + args[i]
+		if(fieldName === 'incursion') updateEmbedField({ name: "**Incursions:**", value: arg})
+		else if(fieldName === 'starport') updateEmbedField({ name: "**Evacuations:**", value: arg})
+		else if(fieldName === 'repair') updateEmbedField({ name: "**Repairs:**", value: arg})
+		else if(fieldName === 'description') updateEmbedField({ name: null, value: arg})
+		else updateEmbedField({ name: fieldName, value: arg})
 		message.react("✅")
 	},
 };

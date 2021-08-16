@@ -1,15 +1,6 @@
+// CODE NOT READY FOR USE
+/*
 const { getPageContent, updatePageContent } = require("./index");
-
-let testdata = [
-    {
-        name: "system 1",
-        presence: "Moderate Thargoid Presence"
-    },
-    {
-        name: "system 2",
-        presence: "Significant Thargoid Presence"
-    }
-]
 
 let start = "Thargoid Activity\n\n"
 let end = "\n\n# Contribute"
@@ -39,3 +30,4 @@ module.exports = {
         }
     }
 }
+*/

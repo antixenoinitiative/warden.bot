@@ -5,7 +5,7 @@ module.exports = {
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	execute(message, args, updateEmbedField) {
-    fieldName = args[0]
+    let fieldName = args[0]
     if(fieldName === 'incursion') updateEmbedField({ name: "**Incursions:**"})
     else if(fieldName === 'starport') updateEmbedField({ name: "**Evacuations:**"})
     else if(fieldName === 'repair') updateEmbedField({ name: "**Repairs:**"})
