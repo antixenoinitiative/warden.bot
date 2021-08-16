@@ -91,7 +91,7 @@ module.exports = {
             mttotArray.push(thargoids[target].hp / (premiumTotal / 2 - thargoids[target].regen))        // prem50
 
             let result = []
-            for (i=0; i < mttotArray.length; i++) {
+            for (let i=0; i < mttotArray.length; i++) {
                 if (mttotArray[i] >= 120) {
                     result[i] = `☠️ ${mttotArray[i].toFixed(2)}sec`
                 } else if (mttotArray[i] >= 50) {
