@@ -51,6 +51,7 @@ function calcDPS(target, inputcode, range) {
 
     } catch (err) {
         console.log(err);
+        throw "Weapon Code Error"
     }
 
 }

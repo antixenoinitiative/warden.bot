@@ -212,7 +212,7 @@ discordClient.on('messageCreate', message => {
 		return message.channel.send({ content: `${reply}` });
 	}
 	try {
-		command.execute(message, args, updateEmbedField);
+		command.execute(message, args, updateEmbedField); // Execute the command
 		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
 	} catch (error) {
 		console.error(error);
@@ -242,6 +242,8 @@ discordClient.on('interactionCreate', b => {
 	b.member.roles.add("642840406580658218");
 	b.member.roles.add("642839749777948683");
 });
+
+discordClient.on("error", () => { discordClient.login(discordClient.login(process.env.TOKEN)) });
 
 /**
 * Updates or adds a single field to the stored embed and updates the message

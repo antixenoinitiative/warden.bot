@@ -60,6 +60,7 @@ module.exports = {
                                     )
                                 interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] });
                             } catch (err) {
+                                console.error(err);
                                 interaction.channel.send({ content: `Something went wrong. Error: ${err}` });
                             }
                         }

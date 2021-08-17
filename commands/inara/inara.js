@@ -76,6 +76,7 @@ module.exports = {
 			req.write(data)
 			req.end()
 		} catch (err) {
+			console.error(err);
 			message.channel.send({ content: `Sorry, something went wrong with that command. Please try again.`})
 		}
 		

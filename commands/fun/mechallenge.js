@@ -28,6 +28,7 @@ module.exports = {
 		}
 		catch (err)
 		{
+			console.error(err);
 			message.channel.send({ content: `Something went wrong!\nERROR: ${err}` });
 		}
 	},
