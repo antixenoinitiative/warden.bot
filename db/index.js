@@ -2,7 +2,12 @@ require("dotenv").config();
 const { Pool } = require('pg');
 const weeks = require("./weeks/weeks.json");
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) //credentials from Heroku
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+}) //credentials from Heroku
 
 module.exports = {
     query: async (text, params, callback) => {
@@ -51,7 +56,7 @@ module.exports = {
             return 0; // Return 0 if system is not in the DB
         }
     },
-    
+
     /**
      * Gets the most recent system presence level for a system id.
      * @author   (Mgram) Marcus Ingram
@@ -68,7 +73,7 @@ module.exports = {
             console.error(err);
         }
     },
-  
+
     /**
      * Returns an object with current incursions and their presence levels (WORK IN PROGRESS)
      * @author   (Mgram) Marcus Ingram
@@ -78,19 +83,19 @@ module.exports = {
         try {
             let res = await pool.query("SELECT * FROM systems WHERE status = '1'");
             let list = new Map();
-        for (let i = 0; i < res.rowCount; i++) {
-            let { rows } = await pool.query("SELECT MAX(time) FROM presence WHERE system_id = $1", [res.rows[i].system_id]);
-            let time = rows[0].max;
-            let result = await pool.query("SELECT presence_lvl FROM presence WHERE time = $1", [time]);
-            let presence = result.rows[0].presence_lvl; // Return Presence
-            list.set(res.rows[i].name,presence);
-        }
-        return list;
+            for (let i = 0; i < res.rowCount; i++) {
+                let { rows } = await pool.query("SELECT MAX(time) FROM presence WHERE system_id = $1", [res.rows[i].system_id]);
+                let time = rows[0].max;
+                let result = await pool.query("SELECT presence_lvl FROM presence WHERE time = $1", [time]);
+                let presence = result.rows[0].presence_lvl; // Return Presence
+                list.set(res.rows[i].name, presence);
+            }
+            return list;
         } catch (err) {
             console.error(err);
         }
     },
-  
+
     /**
      * Returns presence as string from lvl 
      * @author   (Mgram) Marcus Ingram
@@ -99,18 +104,18 @@ module.exports = {
      */
     convertPresence: (presence_lvl) => {
         switch (presence_lvl) {
-        case 0:
-            return "No data available";
-        case 1:
-            return "No Thargoid Presence";
-        case 2:
-            return "Marginal Thargoid Presence";
-        case 3:
-            return "Moderate Thargoid Presence";
-        case 4:
-            return "Significant Thargoid Presence";
-        case 5:
-            return "Massive Thargoid Presence";
+            case 0:
+                return "No data available";
+            case 1:
+                return "No Thargoid Presence";
+            case 2:
+                return "Marginal Thargoid Presence";
+            case 3:
+                return "Moderate Thargoid Presence";
+            case 4:
+                return "Significant Thargoid Presence";
+            case 5:
+                return "Massive Thargoid Presence";
         }
     },
     /**
@@ -121,7 +126,7 @@ module.exports = {
     */
     getWeek: (timestamp) => {
         try {
-            for(var i=0; i<weeks.length; i++) {
+            for (var i = 0; i < weeks.length; i++) {
                 if (timestamp >= weeks[i].start && timestamp <= weeks[i].end) {
                     return weeks[i];
                 }
@@ -129,6 +134,81 @@ module.exports = {
             throw "Timestamp not found in weeks.json"
         } catch (err) {
             console.log(err);
+        }
+    },
+    /**
+    * Creates a backup of user roles, returns number of edits made
+    * @author   (AmanBP) Aman Bhai Patel
+    * @param    {Object} roleList       Object { userid<string> : roles<array<string>>}
+    * @returns  {Array}                 Array [flag<string[2]>, updates_performed<int>, additions_performed<int>]
+    */
+    takeBackup: async (roleList) => {
+        try {
+            let res = await pool.query(`select id from users`)
+            let done = []
+            let results = res.rows
+            results.forEach(obj => {
+                done.push(obj["id"])
+            })
+            let check_update = []
+            let need_adding = []
+            for (var key in roleList) {
+                if (roleList.hasOwnProperty(key)) {
+                    if (done.includes(key)) {
+                        check_update.push(key)
+                    }
+                    else {
+                        need_adding.push(key)
+                    }
+                }
+            }
+            let i = 0
+            let update_count = 0;
+            let flag = ""
+            if (check_update.length != 0) {
+                let res2 = await pool.query(`select id,cardinality(roles) from users;`)
+                let results2 = res2.rows
+                let stored = {}
+                results2.forEach(obj => {
+                    stored[obj['id']] = obj['cardinality']
+                })
+                for (i = 0; i < check_update.length; i++) {
+                    if (stored[check_update[i]] < roleList[check_update[i]].length) {
+                        await pool.query("update users set roles=$1::text[] where id=$2", [roleList[check_update[i]], check_update[i]])
+                        update_count += 1
+                    }
+                }
+                if (update_count > 0) {
+                    flag = "1"
+                }
+                else {
+                    flag = "0"
+                }
+            }
+            else {
+                flag = "0";
+            }
+            if (need_adding.length > 0) {
+                flag = flag + "1"
+                let res_add;
+                let custom_query_add = "insert into users values";
+                for (i = 0; i < need_adding.length; i++) {
+                    if (i != need_adding.length - 1) {
+                        custom_query_add = custom_query_add + "('" + need_adding[i] + "','{\"" + roleList[need_adding[i]].join("\",\"") + "\"}'),\n"
+                    }
+                    else {
+                        custom_query_add = custom_query_add + "('" + need_adding[i] + "','{\"" + roleList[need_adding[i]].join("\",\"") + "\"}');\n"
+                    }
+                }
+                await pool.query(custom_query_add)
+            }
+            else {
+                flag = flag + "0"
+            }
+            return [flag, update_count, need_adding.length]
+        }
+        catch {
+            return "Failed"
         }
     }
 }
