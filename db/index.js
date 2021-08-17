@@ -153,13 +153,11 @@ module.exports = {
             let check_update = []
             let need_adding = []
             for (var key in roleList) {
-                if (roleList.hasOwnProperty(key)) {
-                    if (done.includes(key)) {
-                        check_update.push(key)
-                    }
-                    else {
-                        need_adding.push(key)
-                    }
+                if (done.includes(key)) {
+                    check_update.push(key)
+                }
+                else {
+                    need_adding.push(key)
                 }
             }
             let i = 0
