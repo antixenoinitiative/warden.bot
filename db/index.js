@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 require("dotenv").config();
 const { Pool } = require('pg');
 const weeks = require("./weeks/weeks.json");
@@ -189,8 +190,7 @@ module.exports = {
                 flag = "0";
             }
             if (need_adding.length > 0) {
-                flag = flag + "1"
-                let res_add;
+                flag += "1"
                 let custom_query_add = "insert into users values";
                 for (i = 0; i < need_adding.length; i++) {
                     if (i != need_adding.length - 1) {
@@ -203,9 +203,33 @@ module.exports = {
                 await pool.query(custom_query_add)
             }
             else {
-                flag = flag + "0"
+                flag += "0"
             }
             return [flag, update_count, need_adding.length]
+        }
+        catch {
+            return "Failed"
+        }
+    },
+    /**
+    * Creates a backup of user roles, returns number of edits made
+    * @author   (AmanBP) Aman Bhai Patel
+    * @param    {String} userId       String
+    * @returns  {Array}               Array<String>
+    */
+     getBackup: async (userID) => {
+        try {
+            let res;
+            res = await pool.query("select count(*) from users where id=$1;",[userID])
+            let result = res.rows
+            if(result[0]['count'] == '0')
+            {
+                return undefined
+            }
+            let res2;
+            res2 = await pool.query("select roles from users where id=$1",[userID])
+            result = res2.rows
+            return result[0]['roles']
         }
         catch {
             return "Failed"
