@@ -10,12 +10,14 @@ Warden is a discord bot for the Anti-Xeno Initiative Discord Server.
 
 Join the AXI Discord here: https://discord.gg/bqmDxdm
 
-## How to use for development (Discord Bot)
+## Development
 
-1. Download the repository and run `npm i`
-2. Create a discord bot and paste the key into a .env file, TOKEN=DISCORD_BOT_TOKEN, LOGCHANNEL=<CHANNEL ID FOR LOGGING>
-3. Register a google cloud vision account and download the JSON key. Name this key originalkey.JSON and place it in the repository, then switch the auth method in incursion.js
-4. Use `npm start` to start Warden, and `Ctrl + C` to end it
+1. CLone the repository to your system
+2. [Create a Discord Server for Testing](https://www.howtogeek.com/318890/how-to-set-up-your-own-discord-chat-server/#:~:text=To%20create%20your%20own%20server,a%20Server%E2%80%9D%20on%20the%20left.)
+3. [Create a Discord Bot and Invite it to your Test Server](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token) (Make sure it has read/write permissions in your text channels)
+4. Run the SETUP.ps1 file in Powershell (Run as Admin if you have any issues)
+5. Follow the prompts and enter the Bot TOKEN.
+6. Start the bot using `npm start` in command line or terminal.
 
 ## Useful Links
 https://discordjs.guide/preparations/setting-up-a-bot-application.html#creating-your-bot
