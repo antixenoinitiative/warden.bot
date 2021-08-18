@@ -12,7 +12,7 @@ module.exports = {
         .setTitle("**AX Ship Builds**")
         .setDescription(`How to build a good Anti-Xeno Combat ship. Guides for both Interceptor and Scout hunting ships included.`)
         .addFields(
-            {name: "Recommended Builds", value: "https://wiki.antixenoinitiative.com/en/builds"},
+            {name: "Recommended Builds", value: "https://wiki.antixenoinitiative.com/en/builds" },
             {name: "Ship Build Theory", value: "https://wiki.antixenoinitiative.com/en/shipbuildtheory"},
             {name: "Build Repository", value: "https://wiki.antixenoinitiative.com/en/buildrepository"},
         )

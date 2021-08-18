@@ -21,7 +21,8 @@ module.exports = {
 				}
 				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
 			})
-		} catch {
+		} catch (err) {
+			console.error(err);
 			message.channel.send({ content: "Something went wrong, please you entered a correct term" })
 		}
 	},

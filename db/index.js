@@ -153,13 +153,11 @@ module.exports = {
             let check_update = []
             let need_adding = []
             for (var key in roleList) {
-                if (roleList.hasOwnProperty(key)) {
-                    if (done.includes(key)) {
-                        check_update.push(key)
-                    }
-                    else {
-                        need_adding.push(key)
-                    }
+                if (done.includes(key)) {
+                    check_update.push(key)
+                }
+                else {
+                    need_adding.push(key)
                 }
             }
             let i = 0
@@ -189,8 +187,7 @@ module.exports = {
                 flag = "0";
             }
             if (need_adding.length > 0) {
-                flag = flag + "1"
-                let res_add;
+                flag += "1"
                 let custom_query_add = "insert into users values";
                 for (i = 0; i < need_adding.length; i++) {
                     if (i != need_adding.length - 1) {
@@ -203,7 +200,7 @@ module.exports = {
                 await pool.query(custom_query_add)
             }
             else {
-                flag = flag + "0"
+                flag += "0"
             }
             return [flag, update_count, need_adding.length]
         }
