@@ -40,6 +40,7 @@ module.exports = {
 						)
 					i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 				} catch (err) {
+					console.error(err);
 					i.channel.send({ content: `Something went wrong. Error: ${err}` });
 				}
 			}
@@ -65,6 +66,7 @@ module.exports = {
 						)
 					i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 				} catch (err) {
+					console.error(err);
 					i.channel.send(`Something went wrong. Error: ${err}`);
 				}
 			}
@@ -94,6 +96,7 @@ module.exports = {
 						)
 					i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 				} catch (err) {
+					console.error(err);
 					i.channel.send({ content: `Something went wrong. Error: ${err}` });
 				}
 			}

@@ -1,3 +1,5 @@
+# Workflow runs ESLint on push and warns of any errors/problems.
+
 name: ESLint Scan
 on: push
 jobs:
