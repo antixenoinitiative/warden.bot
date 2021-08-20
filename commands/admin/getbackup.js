@@ -4,7 +4,7 @@ const { getSortedRoleIDs } = require("../../discord/getSortedRoleIDs");
 module.exports = {
   name: "getbackup",
   description: "Sends a list of the backed up roles in DB",
-  usage: "userID/@mention",
+  usage: "<userID or @mention>",
   permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
   execute(message) {
     try {
@@ -39,11 +39,12 @@ module.exports = {
           let namestring = "\n"
           for(var i=0;i<Object.keys(sortedallvalues).length;i++)
           {
-            if(value.includes(sortedallvalues[i][0]))
+            if(value.roles.includes(sortedallvalues[i][0]))
             {
               namestring+=sortedallvalues[i][1]+"\n"
             }
           }
+          let last_updated = new Date(parseInt(value['last_saved'])).toUTCString()
           const returnEmbed = new Discord.MessageEmbed()
             .setColor("#FF7100")
             .setAuthor(
@@ -52,8 +53,9 @@ module.exports = {
             )
             .setTitle("**Roles from Backup**")
             .addField("Name", username)
-            .addField("Roles", "```" + namestring + "```");
-          message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+            .addField("Roles", "```" + namestring + "```")
+            .setFooter(`List was last updated at ${last_updated}`);
+          message.channel.send({ embeds: [returnEmbed] });
         }
       });
     } catch (err) {
