@@ -10,7 +10,7 @@ Warden is a discord bot for the Anti-Xeno Initiative Discord Server.
 
 Join the AXI Discord here: https://discord.gg/bqmDxdm
 
-![https://discord.com/api/guilds/380246809076826112/embed.png?style=banner3](https://discord.gg/bqmDxdm)
+[![AXI Discord](https://discord.com/api/guilds/380246809076826112/embed.png?style=banner3)](https://discord.gg/bqmDxdm)
 
 ## Development
 
