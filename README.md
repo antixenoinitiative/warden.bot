@@ -25,4 +25,5 @@ https://medium.com/analytics-vidhya/setting-up-google-cloud-vision-api-with-node
 
 ## Creating a new command
 To create a new command, make a new .js file in one of the subfolders, and copy the necessary module.exports content into it. ducc.js is a great example command.
+
 Note: Commands will ONLY be loaded if they are in a subfolder. Any command file not in a subfolder will cause the command handler to fail.
