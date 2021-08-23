@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 require("dotenv").config();
 const { Pool } = require('pg');
 const weeks = require("./weeks/weeks.json");
@@ -140,9 +141,10 @@ module.exports = {
     * Creates a backup of user roles, returns number of edits made
     * @author   (AmanBP) Aman Bhai Patel
     * @param    {Object} roleList       Object { userid<string> : roles<array<string>>}
+    * @param    {Integer} createdTime   Integer with unix Epoch
     * @returns  {Array}                 Array [flag<string[2]>, updates_performed<int>, additions_performed<int>]
     */
-    takeBackup: async (roleList) => {
+    takeBackup: async (roleList,createdTime) => {
         try {
             let res = await pool.query(`select id from users`)
             let done = []
@@ -172,7 +174,7 @@ module.exports = {
                 })
                 for (i = 0; i < check_update.length; i++) {
                     if (stored[check_update[i]] < roleList[check_update[i]].length) {
-                        await pool.query("update users set roles=$1::text[] where id=$2", [roleList[check_update[i]], check_update[i]])
+                        await pool.query("update users set roles=$1::text[],last_saved=$2 where id=$3", [roleList[check_update[i]],createdTime,check_update[i]])
                         update_count += 1
                     }
                 }
@@ -191,10 +193,10 @@ module.exports = {
                 let custom_query_add = "insert into users values";
                 for (i = 0; i < need_adding.length; i++) {
                     if (i != need_adding.length - 1) {
-                        custom_query_add = custom_query_add + "('" + need_adding[i] + "','{\"" + roleList[need_adding[i]].join("\",\"") + "\"}'),\n"
+                        custom_query_add = custom_query_add + "('" + need_adding[i] + "','{\"" + roleList[need_adding[i]].join("\",\"") + "\"}',"+createdTime+"),\n"
                     }
                     else {
-                        custom_query_add = custom_query_add + "('" + need_adding[i] + "','{\"" + roleList[need_adding[i]].join("\",\"") + "\"}');\n"
+                        custom_query_add = custom_query_add + "('" + need_adding[i] + "','{\"" + roleList[need_adding[i]].join("\",\"") + "\"}',"+createdTime+");\n"
                     }
                 }
                 await pool.query(custom_query_add)
@@ -203,6 +205,30 @@ module.exports = {
                 flag += "0"
             }
             return [flag, update_count, need_adding.length]
+        }
+        catch {
+            return "Failed"
+        }
+    },
+    /**
+    * Creates a backup of user roles, returns number of edits made
+    * @author   (AmanBP) Aman Bhai Patel
+    * @param    {String} userId       String
+    * @returns  {Object}              Object{ "roles":Array<String>, "last_saved": String}
+    */
+     getBackup: async (userID) => {
+        try {
+            let res;
+            res = await pool.query("select count(*) from users where id=$1;",[userID])
+            let result = res.rows
+            if(result[0]['count'] == '0')
+            {
+                return undefined
+            }
+            let res2;
+            res2 = await pool.query("select roles,last_saved from users where id=$1",[userID])
+            result = res2.rows
+            return result[0]
         }
         catch {
             return "Failed"

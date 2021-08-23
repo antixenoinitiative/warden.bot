@@ -13,7 +13,7 @@ module.exports = {
         })
         try
         {
-            db.takeBackup(roles).then((result)=>
+            db.takeBackup(roles,message.createdTimestamp).then((result)=>
             {
                 if(result != "Failed")
                 {
