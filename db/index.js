@@ -3,12 +3,13 @@ require("dotenv").config();
 const { Pool } = require('pg');
 const weeks = require("./weeks/weeks.json");
 
+//credentials from Heroku
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
         rejectUnauthorized: false
     }
-}) //credentials from Heroku
+})
 
 module.exports = {
     query: async (text, params, callback) => {

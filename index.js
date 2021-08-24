@@ -14,6 +14,8 @@ require("dotenv").config();
 const fs = require('fs');
 const Discord = require("discord.js");
 const perm = require('./permissions');
+const config = require('./config.json');
+const event = require('./events/event.js');
 
 // Discord client setup
 const myIntents = new Discord.Intents();
@@ -68,18 +70,18 @@ function botLog(event, severity) {
 			logEmbed.setDescription(`${event}`)
 			break;
 	}
-	if (process.env.LOGCHANNEL !== undefined) {
-		discordClient.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+	if (config.logchannelid !== undefined) {
+		discordClient.channels.cache.find(x => x.id === config.logchannelid).send({ embeds: [logEmbed], })
 	} else {
-		console.warn("The environment variable LOGCHANNEL is not defined.")
+		console.warn("The environment variable LOGCHANNEL is not defined.") 
 	}
 }
 
 discordClient.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
-	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
+	if(!config.messageid) return console.log("ERROR: No incursion embed detected")
+	discordClient.guilds.cache.get(config.guildid).channels.cache.get(config.channelid).messages.fetch(config.messageid).then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
 		incursionsEmbed.description = currentEmbed.description
@@ -220,9 +222,22 @@ discordClient.on('messageCreate', message => {
 	}
 });
 
+// Persistent Interaction Handling
 discordClient.on('interactionCreate', b => {
 	if (!b.isButton()) return;
 	
+	if (b.customId.startsWith("event")) {
+		b.deferUpdate();
+		let response = b.customId.split("-");
+		if (response[2] === "enroll") {
+			event.joinEvent(b, response[1])
+		}
+		if (response[2] === "leave") {
+			event.leaveEvent(b, response[1])
+		}
+		return;
+	}
+
 	if (b.customId === "platformpc") {
 		b.deferUpdate();
 		b.member.roles.add("428260067901571073")
