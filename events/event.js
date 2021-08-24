@@ -27,6 +27,9 @@ async function updateEmbed(interaction, id) {
 module.exports = {
     joinEvent: async (interaction, id) => {
         let res = await db.query("SELECT enrolled FROM events WHERE event_id = $1", [id]);
+        if (res.rows[0] === undefined) { 
+            return updateEmbed(interaction, id);
+        }
         let enrolledList = res.rows[0].enrolled;
         if (enrolledList === null) { enrolledList = [] }
         if (enrolledList.includes(interaction.user.id)) { return "User already enrolled" }
