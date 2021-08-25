@@ -1,7 +1,6 @@
 /* ------------------ SETUP ------------------
 Make sure you have a ".env" file in the root directory with the following variables
 TOKEN=<Discord Bot Token>
-LOGCHANNEL=<Channel ID for logging>
 */
 
 //------------------ SWITCHES ----------------------
@@ -226,6 +225,7 @@ discordClient.on('messageCreate', message => {
 discordClient.on('interactionCreate', b => {
 	if (!b.isButton()) return;
 	
+	// Event Response Handler
 	if (b.customId.startsWith("event")) {
 		b.deferUpdate();
 		let response = b.customId.split("-");
@@ -238,6 +238,7 @@ discordClient.on('interactionCreate', b => {
 		return;
 	}
 
+	// Platform Response Handler
 	if (b.customId === "platformpc") {
 		b.deferUpdate();
 		b.member.roles.add("428260067901571073")
