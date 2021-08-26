@@ -15,11 +15,11 @@ module.exports = {
             "xblfw": "602939699685752833"
         }
 
-        if (message.channelId !== "380247203794518027" ||
-            message.channelId !== "380467558110855173" ||
-            message.channelId !== "380467652696735744" ) {
-            return;
-        }
+        // if (message.channelId !== "380247203794518027" ||
+        //     message.channelId !== "380467558110855173" ||
+        //     message.channelId !== "380467652696735744" ) {
+        //     return;
+        // }
 
         function announce(newPlatform) {
             let lfwString = ""
