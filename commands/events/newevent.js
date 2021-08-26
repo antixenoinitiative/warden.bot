@@ -7,9 +7,9 @@ module.exports = {
     name: "newevent",
     description: "Create a new event",
     usage: '"name" "description" "DD-MM-YYYY hh:mm"',
-    args: false,
+    args: true,
     permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    hidden: true,
+    hidden: false,
     async execute (message, args) {
         let eventName = args[0].replaceAll('"', '')
         let eventDesc = args[1].replaceAll('"', '')

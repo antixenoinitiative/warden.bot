@@ -4,9 +4,9 @@ module.exports = {
     name: "endevent",
     description: "Delete an event",
     usage: '"event ID"',
-    args: false,
+    args: true,
     permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    hidden: true,
+    hidden: false,
     async execute (message, args) {
         try {   
             await db.query("DELETE FROM events WHERE event_id = $1", [args[0]])
