@@ -6,7 +6,6 @@ TOKEN=<Discord Bot Token>
 //------------------ SWITCHES ----------------------
 // To enable or disble components for testing purposes
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-const prefix = "-" // Command Prefix for discord commands
 //--------------------------------------------------
 
 require("dotenv").config();
@@ -14,6 +13,8 @@ const fs = require('fs');
 const Discord = require("discord.js");
 const config = require('./config.json');
 const event = require('./events/event.js');
+
+const prefix = config.prefix
 
 // Discord client setup
 const myIntents = new Discord.Intents();
@@ -68,18 +69,18 @@ function botLog(event, severity) {
 			logEmbed.setDescription(`${event}`)
 			break;
 	}
-	if (config.logchannelid !== undefined) {
-		discordClient.channels.cache.find(x => x.id === config.logchannelid).send({ embeds: [logEmbed], })
+	if (process.env.LOGCHANNEL) {
+		discordClient.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
 	} else {
-		console.warn("The environment variable LOGCHANNEL is not defined.") 
+		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.") 
 	}
 }
 
 discordClient.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-	if(!config.messageid) return console.log("ERROR: No incursion embed detected")
-	discordClient.guilds.cache.get(config.guildid).channels.cache.get(config.channelid).messages.fetch(config.messageid).then(message =>{
+	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
+	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
 		incursionsEmbed.description = currentEmbed.description
