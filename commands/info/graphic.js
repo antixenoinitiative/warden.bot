@@ -17,7 +17,7 @@ module.exports = {
     usage: '"graphicname"',
     execute(message, args) {
         let response;
-        if (!isValid(args)) {
+        if (!isValid(args[0])) {
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -30,7 +30,7 @@ module.exports = {
         }
 
         for (const value of data) {
-            if (args === value.argument) {
+            if (args[0] === value.argument) {
                 response = value;
             }
         }

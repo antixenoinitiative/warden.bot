@@ -1,8 +1,3 @@
-/* ------------------ SETUP ------------------
-Make sure you have a ".env" file in the root directory with the following variables
-TOKEN=<Discord Bot Token>
-*/
-
 //------------------ SWITCHES ----------------------
 // To enable or disble components for testing purposes
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
@@ -11,9 +6,8 @@ const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 require("dotenv").config();
 const fs = require('fs');
 const Discord = require("discord.js");
-const config = require('./config.json');
 const event = require('./events/event.js');
-
+const config = require('./config.json');
 const prefix = config.prefix
 
 // Discord client setup
