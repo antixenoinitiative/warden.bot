@@ -18,7 +18,8 @@ myIntents.add(
 	Discord.Intents.FLAGS.GUILD_MEMBERS, 
 	Discord.Intents.FLAGS.GUILD_MESSAGES, 
 	Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
-	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS);
+	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
+);
 const discordClient = new Discord.Client({ intents: myIntents })
 
 //Command detection
