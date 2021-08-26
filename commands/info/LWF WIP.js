@@ -8,52 +8,63 @@ module.exports = {
     usage: 'your platform',
     permlvl: 0,
     execute(message, args) {
-        let member = message.member;
-        const pc = "879733414738157629";
-        const ps;
-        const xb;
-        const lfwPC = "879733536943407157";
-        const lfwPS;
-        const lfwXB;
+        let member = message.member._roles;
         let platCount;
-        // member.roles.remove(lfwPC);
-       
-        if (member._roles.find(role => role == pc) == undefined || member._roles.find(role => role == ps) == undefined || member._roles.find(role => role == xb) == undefined) {
-            if (args[0] == "") {
-                //counts number of platforms user is on
-                if (member._roles.find(role => role == pc) != undefined) {
-                    platCount++
-                }
-                if (member._roles.find(role => role == ps) != undefined) {
-                    platCount++
-                }
-                if (member._roles.find(role => role == xb) != undefined) {
-                    platCount++
-                }
-                //checks if user is on multiple platforms
-                if (platCount > 1) {
-                    throw("Please specify your desired platform")
-                    break;
-                }
-                
-                //gives user appropriate LFW role
-                //PC masterrace
-                if (member._roles.find(role => role == pc) != undefined) {
-                    member.roles.add(lfwPC);
-                    message.channel.send(`${member.nickname} is now <@&879733536943407157>`);
-                }
-                //PS
-                if (member._roles.find(role => role == ps) != undefined) {
-                    member.roles.add(lfwPS);
-                    message.channel.send(`${member.nickname} is now <@&ps>`);
-                }
-                //Xbox
-                if (member._roles.find(role => role == xb) != undefined) {
-                    member.roles.add(lfwPS);
-                    message.channel.send(`${member.nickname} is now <@&xb>`);
+
+        const id = {
+            "pc": "879733414738157629",
+            "xb": "",
+            "ps": "",
+            "pclfw": "879733536943407157",
+            "pslfw": "",
+            "xblfw": ""
+        }
+        
+        if (member.includes(id.pclfw) || member.includes(id.pslfw) || member.includes(id.xblfw)) {
+            message.member.roles.remove(id.pclfw)
+            message.member.roles.remove(id.pslfw)
+            message.member.roles.remove(id.xblfw)
+            message.reply({ content: "Removed LFW Role" });
+        }
+
+        if (args[0] === "") {
+            for (let role of member) {
+                if (role === id.pc) { platCount++; }
+                if (role === id.ps) { platCount++; }
+                if (role === id.xb) { platCount++; }
+            }
+            if (platCount != 1) {
+                return "Please specify a platform."
+            }
+
+            for (let role of member) {
+                switch (role) {
+                    case id.pc:
+                        message.member.roles.add(id.pclfw)
+                        message.reply({ content: `${message.author.nickname} is now <@${id.pclfw}>` })
+                        break;
+                    case id.ps:
+                        message.member.roles.add(id.pslfw)
+                        message.reply({ content: `${message.author.nickname} is now <@${id.pslfw}>` })
+                        break;
+                    case id.xb:
+                        message.member.roles.add(id.xblfw)
+                        message.reply({ content: `${message.author.nickname} is now <@${id.xblfw}>` })
+                        break;
                 }
             }
-            
+        }
+
+        switch (args[0]) {
+            case "pc":
+                message.member.roles.add(id.pclfw)
+                break;
+            case "ps":
+                message.member.roles.add(id.pslfw)
+                break;
+            case "xb":
+                message.member.roles.add(id.xblfw)
+                break;
         }
     }
 }
