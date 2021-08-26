@@ -14,11 +14,13 @@ module.exports = {
             "pslfw": "602939344143122557",
             "xblfw": "602939699685752833"
         }
-        
-        console.log(message.channelId);
-        if (message.channelId !== "380247203794518027" ||
+        /**
+         *  ||
             message.channelId !== "380467558110855173" ||
-            message.channelId !== "380467652696735744" ) {
+            message.channelId !== "380467652696735744" 
+         */
+        console.log(message.channelId);
+        if (message.channelId !== "380247203794518027") {
                 console.log("incorrect Channel")
             return;
         }
