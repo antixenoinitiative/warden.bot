@@ -58,7 +58,7 @@ module.exports = {
 					.setFooter(`${cmdr.userName}`, cmdr.avatarImageURL)
 					if (cmdr.preferredGameRole != undefined) { returnEmbed.addField("Role", `${cmdr.preferredGameRole}`) }
 					if (cmdr.preferredAllegianceName != undefined) { returnEmbed.addField("Allegiance", `${cmdr.preferredAllegianceName}`, true) }
-					if (cmdr.preferredPowerName != undefined) { returnEmbed.addField("Role", `${cmdr.preferredPowerName}`, true) }
+					if (cmdr.preferredPowerName != undefined) { returnEmbed.addField("Power", `${cmdr.preferredPowerName}`, true) }
 					if (cmdr.commanderSquadron != undefined) { 
 						returnEmbed.addField("Squadron", `[${cmdr.commanderSquadron.squadronName}](${cmdr.commanderSquadron.inaraURL})`)
 						returnEmbed.addField("Squadron Rank", `${cmdr.commanderSquadron.squadronMemberRank}`, true) 

@@ -1,6 +1,7 @@
 const db = require("../../db/index");
 const Discord = require("discord.js");
 const { getSortedRoleIDs } = require("../../discord/getSortedRoleIDs");
+
 module.exports = {
   name: "getbackup",
   description: "Sends a list of the backed up roles in DB",

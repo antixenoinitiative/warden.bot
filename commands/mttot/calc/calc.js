@@ -1,7 +1,5 @@
-const { thargoiddata, weapondata } = require("./data");
-
-const thargoids = thargoiddata();
-const weapons = weapondata();
+const thargoids = require("./thargoiddata.json")
+const weapons = require("./weapondata.json")
 
 function arrayTotal(arr) {
     var total = 0;

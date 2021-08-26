@@ -1,19 +1,14 @@
-/* ------------------ SETUP ------------------
-Make sure you have a ".env" file in the root directory with the following variables
-TOKEN=<Discord Bot Token>
-LOGCHANNEL=<Channel ID for logging>
-*/
-
 //------------------ SWITCHES ----------------------
 // To enable or disble components for testing purposes
 const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-const prefix = "-" // Command Prefix for discord commands
 //--------------------------------------------------
 
 require("dotenv").config();
 const fs = require('fs');
 const Discord = require("discord.js");
-const perm = require('./permissions');
+const event = require('./events/event.js');
+const config = require('./config.json');
+const prefix = config.prefix
 
 // Discord client setup
 const myIntents = new Discord.Intents();
@@ -23,7 +18,8 @@ myIntents.add(
 	Discord.Intents.FLAGS.GUILD_MEMBERS, 
 	Discord.Intents.FLAGS.GUILD_MESSAGES, 
 	Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
-	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS);
+	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
+);
 const discordClient = new Discord.Client({ intents: myIntents })
 
 //Command detection
@@ -68,10 +64,10 @@ function botLog(event, severity) {
 			logEmbed.setDescription(`${event}`)
 			break;
 	}
-	if (process.env.LOGCHANNEL !== undefined) {
+	if (process.env.LOGCHANNEL) {
 		discordClient.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
 	} else {
-		console.warn("The environment variable LOGCHANNEL is not defined.")
+		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.") 
 	}
 }
 
@@ -124,7 +120,7 @@ async function help(message) {
 				for (const [key, value] of discordClient.commands.entries()) {
 					//Only commands with permlvl zero are considered unrestricted
 					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
 					}
 				}
 				return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
@@ -139,7 +135,7 @@ async function help(message) {
 				for (const [key, value] of discordClient.commands.entries()) {
 					//Only commands with permlvl zero are considered unrestricted
 					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
 					}
 				}
 				embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
@@ -190,7 +186,7 @@ discordClient.on('messageCreate', message => {
 	}
 
 	// checks for proper permissions by role against permissions.js
-	let allowedRoles = perm.getRoles(command.permlvl);
+	let allowedRoles = config.securityGroups[command.permlvl].roles;
 	if (allowedRoles !== 0) {
 	let allowed = 0;
 	for (const value of allowedRoles) {
@@ -220,9 +216,24 @@ discordClient.on('messageCreate', message => {
 	}
 });
 
+// Persistent Interaction Handling
 discordClient.on('interactionCreate', b => {
 	if (!b.isButton()) return;
 	
+	// Event Response Handler
+	if (b.customId.startsWith("event")) {
+		b.deferUpdate();
+		let response = b.customId.split("-");
+		if (response[2] === "enroll") {
+			event.joinEvent(b, response[1])
+		}
+		if (response[2] === "leave") {
+			event.leaveEvent(b, response[1])
+		}
+		return;
+	}
+
+	// Platform Response Handler
 	if (b.customId === "platformpc") {
 		b.deferUpdate();
 		b.member.roles.add("428260067901571073")
