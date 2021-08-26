@@ -164,7 +164,7 @@ discordClient.on('messageCreate', message => {
 	let command;
 	try {
 		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments - Split by spaces, except where there are quotes.
-		//args = args.map(arg => arg.replaceAll('"', ''))
+		args = args.map(arg => arg.replaceAll('"', ''))
 		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
 		command = discordClient.commands.get(commandName); // Gets the command info
 	} catch (err) {
