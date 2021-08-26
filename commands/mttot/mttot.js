@@ -23,9 +23,22 @@ module.exports = {
 		try {
 
             // Format Input
-			let target = args[0];
-            let codes = args[1];
-            let range = args[2];
+            //let { target, codes, range } = args
+            let target = args[0]
+            let codes = args[1]
+            let range = args[2]
+
+            const regex = "([0-9]+|[a-z]+)"
+
+            const tempArray = [...codes.matchAll(regex)];
+            console.log(tempArray)
+            const inputArray = [];
+            for(let i = 0; i < tempArray.length; i += 2) {
+                inputArray.push(tempArray[i][0] + tempArray[i+1][0])
+            }
+            console.log(inputArray)
+            codes = inputArray.join()
+
             let weapons = codes.split(",");
 
             target = target.toLowerCase();
@@ -44,7 +57,7 @@ module.exports = {
 
             // Recieve the button response
             const filter = i => i.user.id === message.author.id;
-            const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
+            const collector = message.channel.createMessageComponentCollector({ filter, time: 15000, max: 1 });
             collector.on('collect', async i => {
                 if (i.customId === 'mttot100') {
                     i.deferUpdate();
