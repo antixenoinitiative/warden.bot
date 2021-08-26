@@ -16,7 +16,7 @@ module.exports = {
         }
 
         let allowedChannels = [ "380247203794518027", "380467558110855173", "380467652696735744" ]
-        console.log(message.channelId);
+        
         if (!allowedChannels.includes(message.channelId)) { return }
 
         function announce(newPlatform) {
