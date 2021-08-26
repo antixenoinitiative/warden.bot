@@ -1,0 +1,22 @@
+{
+    "basilisk": {
+      "ar": 140,
+      "regen": 7.2,
+      "hp": 360
+    },
+    "cyclops": {
+      "ar": 100,
+      "regen": 3.2,
+      "hp": 160
+    },
+    "hydra": {
+      "ar": 230,
+      "regen": 12.8,
+      "hp": 640
+    },
+    "medusa": {
+      "ar": 175,
+      "regen": 10,
+      "hp": 500
+    }
+}
