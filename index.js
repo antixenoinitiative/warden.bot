@@ -164,17 +164,19 @@ discordClient.on('messageCreate', message => {
 	let command;
 	try {
 		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments - Split by spaces, except where there are quotes.
+		args = args.map(arg => arg.replaceAll('"', ''))
 		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
 		command = discordClient.commands.get(commandName); // Gets the command info
 	} catch (err) {
-		console.warn(`Invalid command input`)
+		console.warn(`Invalid command input: ${err}`)
 	}
+
+	console.log(args)
 
 	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			
 			help(message);
 		}
 
@@ -185,21 +187,24 @@ discordClient.on('messageCreate', message => {
 		return;
 	}
 
-	// checks for proper permissions by role against permissions.js
-	let allowedRoles = config.securityGroups[command.permlvl].roles;
-	if (allowedRoles !== 0) {
-	let allowed = 0;
-	for (const value of allowedRoles) {
-		if (message.member.roles.cache.has(value)) {
-			allowed++;
+	if (command.permlvl != 0) {
+		// checks for proper permissions by role against permissions.js
+		let allowedRoles = config.securityGroups[command.permlvl].roles;
+		if (allowedRoles !== 0) {
+			let allowed = 0;
+			for (const value of allowedRoles) {
+				if (message.member.roles.cache.has(value)) {
+					allowed++;
+				}
+			}
+			if (allowed === 0) { 
+				botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
+				return message.reply("You don't have permission to use that command!") 
+			} 	// returns false if the member has the role) 
 		}
 	}
-	if (allowed === 0) { 
-	botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
-	return message.reply("You don't have permission to use that command!") 
-} // returns false if the member has the role) 
-    
-	}
+
+
 	if (command.args && !args.length) {
 		let reply = `You didn't provide any arguments, ${message.author}!`;
 		if (command.usage) {
