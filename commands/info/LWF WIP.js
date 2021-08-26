@@ -51,6 +51,7 @@ module.exports = {
                     message.channel.send(`${member.nickname} is now <@&xb>`);
                 }
             }
+            
         }
     }
 }
