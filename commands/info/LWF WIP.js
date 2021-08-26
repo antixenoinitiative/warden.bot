@@ -1,5 +1,7 @@
 const Discord = require("discord.js");
 
+// HELLO
+
 module.exports = {
     name: 'lfw',
     description: 'Gives you a role pingable by others if you are looking for group',
