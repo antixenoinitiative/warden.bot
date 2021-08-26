@@ -12,7 +12,6 @@ const prefix = "-" // Command Prefix for discord commands
 require("dotenv").config();
 const fs = require('fs');
 const Discord = require("discord.js");
-const perm = require('./permissions');
 const config = require('./config.json');
 const event = require('./events/event.js');
 
@@ -125,7 +124,7 @@ async function help(message) {
 				for (const [key, value] of discordClient.commands.entries()) {
 					//Only commands with permlvl zero are considered unrestricted
 					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
 					}
 				}
 				return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
@@ -140,7 +139,7 @@ async function help(message) {
 				for (const [key, value] of discordClient.commands.entries()) {
 					//Only commands with permlvl zero are considered unrestricted
 					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${perm.getAllowedName(value.permlvl)}`)
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
 					}
 				}
 				embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
@@ -191,7 +190,7 @@ discordClient.on('messageCreate', message => {
 	}
 
 	// checks for proper permissions by role against permissions.js
-	let allowedRoles = perm.getRoles(command.permlvl);
+	let allowedRoles = config.securityGroups[command.permlvl].roles;
 	if (allowedRoles !== 0) {
 	let allowed = 0;
 	for (const value of allowedRoles) {
