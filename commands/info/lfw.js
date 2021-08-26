@@ -25,7 +25,6 @@ module.exports = {
             let lfwString = ""
             member = message.member._roles
             member.push(newPlatform)
-            console.log(member)
             if (member.includes(id.pclfw)) { lfwString += `<@&${id.pclfw}>`; }
             if (member.includes(id.pslfw)) { lfwString += `<@&${id.pslfw}>`; }
             if (member.includes(id.xblfw)) { lfwString += `<@&${id.xblfw}>`; }
