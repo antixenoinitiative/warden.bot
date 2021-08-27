@@ -2,6 +2,10 @@
     "prefix": "-",
     "eventchannelid": "586641048227282981",
     "securityGroups": {
+        "0": {
+            "desc": "",
+            "roles": []
+        },
         "1": {
             "desc": "**(Mentor Only)**",
             "roles": [  
