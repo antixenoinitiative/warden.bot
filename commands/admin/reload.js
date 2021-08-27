@@ -1,12 +1,13 @@
 const fs = require('fs');
 //https://discordjs.guide/command-handling/adding-features.html#reloading-commands
+
 module.exports = {
 	name: 'reload',
 	description: 'Reloads a command',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	usage: '<commandName>',
-	execute(message, args) {
+	async execute(message, args) {
 		const commandName = args[0].toLowerCase();
 		const command = message.client.commands.get(commandName)
 			// || message.client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
