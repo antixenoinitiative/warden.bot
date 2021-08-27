@@ -10,7 +10,7 @@ module.exports = {
       let roleNameObj = {};
       let numroles = message.guild.roles.cache
       console.log(typeof (numroles))
-      console.log(numroles,numroles.length)
+      console.log(numroles.length)
       message.guild.roles.cache.forEach((role) => {
         if (role.name != "@everyone" && role.name != "@here") {
           roleNameObj[numroles.length - parseInt(role.rawPosition)] = [
