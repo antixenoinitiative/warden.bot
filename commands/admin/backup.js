@@ -5,7 +5,7 @@ module.exports = {
 	description: 'Creates a backup of current users and their roles',
 	usage: '',
 	permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    execute (message) {
+    async execute (message) {
         let roles = {}
         let members = message.guild.members.cache
         members.forEach(member =>{
