@@ -9,8 +9,8 @@ module.exports = {
     try {
       let roleNameObj = {};
       let size = 0;
-      let numroles = message.guild.roles.cache
-      for(key in numroles)
+      let numroles = message.guild.roles.cache;
+      for(var key in numroles)
       {
         if(numroles.hasOwnProperty(key)) size++;
       }
