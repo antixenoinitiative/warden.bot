@@ -88,7 +88,7 @@ discordClient.once("ready", async() => {
 	})
 })
 
-async function help(message) {
+const help = async (message) => {
 	const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
 		
 		for (const value of commandFolders) {

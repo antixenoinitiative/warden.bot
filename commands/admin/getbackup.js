@@ -7,7 +7,7 @@ module.exports = {
   description: "Sends a list of the backed up roles in DB",
   usage: "<userID or @mention>",
   permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-  execute(message) {
+  async execute(message) {
     try {
       let words = message.content.split(" ");
       let userID;

@@ -18,7 +18,6 @@
     "@google-cloud/vision": "^2.3.6",
     "discord.js": "^13.0.1",
     "dotenv": "^10.0.0",
-    "express": "^4.17.1",
     "moment": "^2.29.1",
     "node-fetch": "^2.6.1",
     "pg": "^8.7.1",

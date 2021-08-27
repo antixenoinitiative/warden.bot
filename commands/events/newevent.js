@@ -19,7 +19,7 @@ module.exports = {
             eventTime = moment(args[2],formats);
         }
 
-        function getRandomString(length) {
+        const getRandomString = (length) => {
             var randomChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             var result = '';
             for ( var i = 0; i < length; i++ ) {
