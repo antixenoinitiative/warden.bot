@@ -8,12 +8,16 @@ module.exports = {
   getSortedRoleIDs: (message) => {
     try {
       let roleNameObj = {};
+      let size = 0;
       let numroles = message.guild.roles.cache
-      console.log(typeof (numroles))
-      console.log(numroles.length)
+      for(key in numroles)
+      {
+        if(numroles.hasOwnProperty(key)) size++;
+      }
+      console.log(size)
       message.guild.roles.cache.forEach((role) => {
         if (role.name != "@everyone" && role.name != "@here") {
-          roleNameObj[numroles.length - parseInt(role.rawPosition)] = [
+          roleNameObj[size - parseInt(role.rawPosition)] = [
             role.id,cleanString(role.name)
           ];
         }
