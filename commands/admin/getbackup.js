@@ -37,7 +37,6 @@ module.exports = {
           message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         } else {
           let sortedallvalues = getSortedRoleIDs(message);
-          console.log(sortedallvalues)
           let namestring = "\n"
           for(var i=0;i<Object.keys(sortedallvalues).length;i++)
           {
