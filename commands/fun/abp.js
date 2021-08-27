@@ -6,6 +6,6 @@ module.exports = {
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: true,
     execute (message) {
-            message.channel.send({ content: `You summoneth the abp! <@321304077239582723>` });
+            message.channel.send({ content: `You summoned Aman! <@321304077239582723>` });
     }
 }
