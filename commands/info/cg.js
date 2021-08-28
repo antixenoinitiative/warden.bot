@@ -1,8 +1,13 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
     name: "cg",
     description: "Get current community goals",
     usage: '',
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+    data: new SlashCommandBuilder()
+		.setName('ping')
+		.setDescription('Replies with Pong!'),
     execute (message) {
         const Discord = require('discord.js');
         const https = require('https');

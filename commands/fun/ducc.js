@@ -1,3 +1,5 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
     name: "ducc",
     description: "Summons the holy ducc",
@@ -5,6 +7,9 @@ module.exports = {
     args: false,
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: true,
+    data: new SlashCommandBuilder()
+    .setName('ducc')
+    .setDescription('Summon the Ducc!'),
     execute (message) {
         var c = Math.random() * 100;
         if (c < 50) {

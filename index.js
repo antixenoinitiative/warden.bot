@@ -221,7 +221,7 @@ discordClient.on('messageCreate', message => {
 	}
 });
 
-// Persistent Interaction Handling
+// Button Handler
 discordClient.on('interactionCreate', b => {
 	if (!b.isButton()) return;
 	
@@ -257,6 +257,22 @@ discordClient.on('interactionCreate', b => {
 	}
 	b.member.roles.add("642840406580658218");
 	b.member.roles.add("642839749777948683");
+});
+
+// Slash Command Handler
+discordClient.on('interactionCreate', async interaction => {
+	if (!interaction.isCommand()) return;
+
+	const command = discordClient.commands.get(interaction.commandName);
+
+	if (!command) return;
+
+	try {
+		await command.execute(interaction);
+	} catch (error) {
+		console.error(error);
+		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+	}
 });
 
 discordClient.on("error", () => { discordClient.login(discordClient.login(process.env.TOKEN)) });
