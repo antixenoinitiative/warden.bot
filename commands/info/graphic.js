@@ -1,5 +1,6 @@
 const Discord = require("discord.js");
 const data = require("./graphdata.json");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 function isValid(args) {
     for (const value of data) {
@@ -11,8 +12,9 @@ function isValid(args) {
 }
 
 module.exports = {
-    name: 'graphic',
-    description: 'Request a graphic, diagram or resource from a repository, use "-graphic" to get a list.',
+    data: new SlashCommandBuilder()
+	.setName('graphic')
+	.setDescription('Request a graphic, diagram or resource from a repository, use "-graphic" to get a list.'),
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     usage: '"graphicname"',
     execute(message, args) {

@@ -1,8 +1,10 @@
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'ranks',
-	description: 'Get rank statistics',
+	data: new SlashCommandBuilder()
+	.setName('ranks')
+	.setDescription('Get rank statistics'),
 	usage: ' ',
 	permlvl: 0,
 	async execute(message) {

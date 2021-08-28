@@ -1,8 +1,10 @@
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: "platform",
-    description: "Testing Buttons",
+    data: new SlashCommandBuilder()
+    .setName(`platform`)
+    .setDescription(`Create the Platform buttons`),
     usage: '',
     args: false,
     permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff

@@ -2,21 +2,32 @@ const moment = require("moment");
 const db = require("../../db/index");
 const Discord = require("discord.js");
 const config = require('../../config.json');
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: "newevent",
-    description: "Create a new event",
+    data: new SlashCommandBuilder()
+    .setName(`newevent`)
+    .setDescription(`Create a new event`)
+    .addStringOption(option => option.setName('name')
+		.setDescription('Name of the Event')
+		.setRequired(true))
+    .addStringOption(option => option.setName('description')
+		.setDescription('Short description of the event')
+		.setRequired(true))
+    .addStringOption(option => option.setName('time')
+		.setDescription('DD-MM-YYYY hh:mm')
+		.setRequired(true)),
     usage: '"name" "description" "DD-MM-YYYY hh:mm"',
     args: true,
     permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: false,
     async execute (message, args) {
-        let eventName = args[0].replaceAll('"', '')
-        let eventDesc = args[1].replaceAll('"', '')
+        let eventName = args[0].value.replaceAll('"', '')
+        let eventDesc = args[1].value.replaceAll('"', '')
         let eventTime;
         let formats = [ "YYYY-MM-DD hh:mm", "DD-MM-YYYY hh:mm", "DD/MM/YYYY hh:mm" ];
-        if (moment(args[2].replaceAll('"', ''),formats).isValid()) {
-            eventTime = moment(args[2],formats);
+        if (moment(args[2].value.replaceAll('"', ''),formats).isValid()) {
+            eventTime = moment(args[2].value,formats);
         }
 
         const getRandomString = (length) => {

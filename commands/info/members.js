@@ -2,10 +2,13 @@ const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const { getRoleID } = require("../../discord/getRoleID");
 const fs = require('fs')
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-	name: 'members',
-	description: 'Lists the tag/username/id/nickname(default = nickname) of members with given role, limited to maxlength(default = 10) in embed if txt is used. CSV will not embed and gives all of the types, ignores further arguments.',
-    usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
+    data: new SlashCommandBuilder()
+	.setName('members')
+	.setDescription('Lists the tag/username/id/nickname(default = nickname) of members with given role.'),
+	usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     args: true,
     execute (message, args) {

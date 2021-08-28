@@ -1,16 +1,15 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: "cg",
-    description: "Get current community goals",
+    data: new SlashCommandBuilder()
+	.setName('cg')
+	.setDescription('Get current CG info'),
     usage: '',
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    data: new SlashCommandBuilder()
-		.setName('ping')
-		.setDescription('Replies with Pong!'),
-    execute (message) {
+    async execute (message) {
         const Discord = require('discord.js');
         const https = require('https');
+        message.reply(`Fetching CG Data 📰`)
 
         const options = {
             hostname: 'api.orerve.net',
@@ -40,8 +39,8 @@ module.exports = {
                     ])
                 }
                 const row = new Discord.MessageActionRow().addComponents(menu);
-                message.channel.send({ content: `Please select which Community Goal to view:`, components: [row] })
-				
+                message.channel.send({ content: `Please select which Community Goal to view:`, components: [row] }).catch(message.channel.send({ content: `CG data unavailable 🛑`}))
+                
                 const filter = i => i.user.id === message.author.id;
                 const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
 

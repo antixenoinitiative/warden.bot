@@ -1,5 +1,6 @@
 const vision = require("@google-cloud/vision")
 require("dotenv").config();
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 // Generate Google Key from ENV varaiables then Connect Google Client
 const builtkey = `{
@@ -75,8 +76,9 @@ function parseDamagedStarports(text) {
 }
 
 module.exports = {
-	name: 'incursion',
-	description: 'Updates list of systems under incursion and/or damaged starports with an attached image.',
+	data: new SlashCommandBuilder()
+	.setName('incursion')
+	.setDescription('Updates list of systems under incursion and/or damaged starports with an attached image.'),
 	usage: '',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	execute(message, args, updateEmbedField) {

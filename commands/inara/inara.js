@@ -1,14 +1,18 @@
 const Discord = require("discord.js");
-
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'inara',
-	description: 'Get information from Inara',
+	data: new SlashCommandBuilder()
+    .setName(`inara`)
+    .setDescription(`Get information from Inara`)
+	.addStringOption(option => option.setName('name')
+		.setDescription('Search for a user name')
+		.setRequired(true)),
     usage: '"name"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
 	async execute(message, args) {
-		let name = args[0];
+		let name = args[0].value;
 		try {
 			const https = require('https');
 			require("dotenv").config();
@@ -46,7 +50,6 @@ module.exports = {
 			}
 
 			const req = https.request(options, res => {
-				console.log(`statusCode: ${res.statusCode}`)
 
 				res.on('data', d => {
 					let response = JSON.parse(d); //prints inara's output to the node console, process it further here
@@ -65,7 +68,7 @@ module.exports = {
 					}
 					if (cmdr.inaraURL != undefined) { returnEmbed.addField("Link", `${cmdr.inaraURL}`, true) }
 
-					message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+					message.reply({ embeds: [returnEmbed.setTimestamp()] });
 				})
 			})
 

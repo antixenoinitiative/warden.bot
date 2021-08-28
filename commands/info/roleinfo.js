@@ -1,10 +1,12 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const { getRoleID } = require("../../discord/getRoleID");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'roleinfo',
-	description: 'Get information about a role',
+  data: new SlashCommandBuilder()
+	.setName('roleinfo')
+	.setDescription('Get information about a role'),
   usage: '"role name"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
   args: true,

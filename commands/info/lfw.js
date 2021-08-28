@@ -1,6 +1,9 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-    name: 'lfw',
-    description: 'Gives you a role pingable by others if you are looking for group',
+    data: new SlashCommandBuilder()
+	.setName('lfw')
+	.setDescription('Gives you a role pingable by others if you are looking for group'),
     usage: '"pc/ps/xb"',
     permlvl: 0,
     async execute(message, args) {

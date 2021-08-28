@@ -1,6 +1,9 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-	name: 'resetembed',
-	description: 'Resets embed to Code Yellow Status',
+	data: new SlashCommandBuilder()
+	.setName('resetembed')
+	.setDescription('Resets embed to Code Yellow Status'),
 	usage: '',
 	permlvl: 1,
 	execute(message, args, updateEmbedField) {

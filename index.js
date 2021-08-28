@@ -30,7 +30,7 @@ for (const folder of commandFolders) {
 	for (const file of commandFiles) {
 		const command = require(`./commands/${folder}/${file}`);
 		command.category = folder;
-		discordClient.commands.set(command.name, command);
+		discordClient.commands.set(command.data.name, command);
 	}
 }
 
@@ -88,6 +88,7 @@ discordClient.once("ready", async() => {
 	})
 })
 
+/*
 const help = async (message) => {
 	const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
 		
@@ -120,7 +121,7 @@ const help = async (message) => {
 				for (const [key, value] of discordClient.commands.entries()) {
 					//Only commands with permlvl zero are considered unrestricted
 					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.data.description} ${config.securityGroups[value.permlvl].desc}`)
 					}
 				}
 				return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
@@ -135,7 +136,7 @@ const help = async (message) => {
 				for (const [key, value] of discordClient.commands.entries()) {
 					//Only commands with permlvl zero are considered unrestricted
 					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
+						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.data.description} ${config.securityGroups[value.permlvl].desc}`)
 					}
 				}
 				embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
@@ -146,6 +147,7 @@ const help = async (message) => {
 		}
 	});
 }
+*/
 
 discordClient.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
@@ -177,7 +179,7 @@ discordClient.on('messageCreate', message => {
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			help(message);
+			//help(message);
 		}
 
 		if (message.content === `${prefix}ping`) {
@@ -262,13 +264,33 @@ discordClient.on('interactionCreate', b => {
 // Slash Command Handler
 discordClient.on('interactionCreate', async interaction => {
 	if (!interaction.isCommand()) return;
+	console.log(interaction)
 
 	const command = discordClient.commands.get(interaction.commandName);
-
+	console.log(command)
 	if (!command) return;
 
+	const args = interaction.options.data
+
+	if (command.permlvl != 0) {
+		// checks for proper permissions by role against permissions.js
+		let allowedRoles = config.securityGroups[command.permlvl].roles;
+		if (allowedRoles !== 0) {
+			let allowed = 0;
+			for (const value of allowedRoles) {
+				if (interaction.member.roles.cache.has(value)) {
+					allowed++;
+				}
+			}
+			if (allowed === 0) { 
+				botLog('**' + interaction.member.nickname + '** Attempted to use command: /`' + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
+				return interaction.reply("You don't have permission to use that command!") 
+			} 	// returns false if the member has the role) 
+		}
+	}
+
 	try {
-		await command.execute(interaction);
+		await command.execute(interaction, args);
 	} catch (error) {
 		console.error(error);
 		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });

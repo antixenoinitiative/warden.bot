@@ -1,14 +1,16 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const { getRoleID } = require("../../discord/getRoleID");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 function checker(memberrolearray, requestedroles) {
     return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
 }
 
 module.exports = {
-	name: 'crossn',
-	description: 'How many people with rank1 also have rank2... also have rankn?',
+    data: new SlashCommandBuilder()
+	.setName('crossn')
+	.setDescription('How many people with rank1 also have rank2... also have rankn?'),
     usage: '"club7/count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,

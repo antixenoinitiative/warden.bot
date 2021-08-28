@@ -1,8 +1,10 @@
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: "zoo",
-    description: "About the Zoo",
+    data: new SlashCommandBuilder()
+	.setName('zoo')
+	.setDescription('Search the AXI Wiki'),
     usage: '',
     args: false,
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff

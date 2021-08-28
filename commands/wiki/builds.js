@@ -1,8 +1,10 @@
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: 'builds',
-    description: 'Useful Information and links for AX Ship Builds',
+    data: new SlashCommandBuilder()
+	.setName('builds')
+	.setDescription('Useful Information and links for AX Ship Builds'),
     permlvl: 0,
     usage: '',
     execute(message) {

@@ -1,9 +1,11 @@
 const Discord = require("discord.js");
 const { calcMTTOT } = require("./calc/calc");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'mttot',
-	description: 'Calculate Theoretical Time on Target',
+    data: new SlashCommandBuilder()
+	.setName('mttot')
+	.setDescription('Calculate Theoretical Time on Target'),
     usage: '"variant" "weapon codes" "range"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	execute(message, args) {

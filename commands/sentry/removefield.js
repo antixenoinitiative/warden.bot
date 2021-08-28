@@ -1,6 +1,9 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-	name: 'removefield',
-	description: 'Manually removes a field',
+	data: new SlashCommandBuilder()
+	.setName('removefield')
+	.setDescription('Manually removes a field'),
 	usage: '',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,

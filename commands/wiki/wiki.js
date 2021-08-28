@@ -1,9 +1,11 @@
 const wiki = require('.././../graphql/index');
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'wiki',
-	description: 'Search the AXI Wiki',
+	data: new SlashCommandBuilder()
+	.setName('wiki')
+	.setDescription('Search the AXI Wiki'),
     usage: '"term"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,

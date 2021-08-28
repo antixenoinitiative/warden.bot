@@ -1,6 +1,9 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-    name: "fixroles",
-    description: " ",
+    data: new SlashCommandBuilder()
+    .setName(`fixroles`)
+    .setDescription(`Fixes user roles to have correct seperators`),
     usage: '',
     args: false,
     permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff

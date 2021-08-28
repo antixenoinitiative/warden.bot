@@ -1,23 +1,21 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: "ducc",
-    description: "Summons the holy ducc",
+    data: new SlashCommandBuilder()
+    .setName(`ducc`)
+    .setDescription(`Summon the Ducc!`),
     usage: '',
     args: false,
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: true,
-    data: new SlashCommandBuilder()
-    .setName('ducc')
-    .setDescription('Summon the Ducc!'),
     execute (message) {
         var c = Math.random() * 100;
         if (c < 50) {
-            message.channel.send({ content: `You summoneth the ducc! <@211624816619290624>` });
+            message.reply({ content: `You summoneth the ducc! <@211624816619290624>` });
             message.channel.send({ content: "https://c.tenor.com/N3GVRxPTh-4AAAAM/duck-lmao.gif" });
         }
         else {
-            message.channel.send({ content: `Who summons the duck-man?! <@211624816619290624>` });
+            message.reply({ content: `Who summons the duck-man?! <@211624816619290624>` });
             message.channel.send({ content: "https://cdn.discordapp.com/attachments/625989888432537611/668012845925138442/duckswag.gif" });
         }
         

@@ -1,6 +1,9 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-	name: 'repairscomplete',
-	description: 'Changes repair target to a standby message',
+	data: new SlashCommandBuilder()
+	.setName('repairscomplete')
+	.setDescription('Changes repair target to a standby message'),
 	usage: '',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	execute(message, args, updateEmbedField) {

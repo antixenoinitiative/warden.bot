@@ -1,5 +1,6 @@
 const db = require('../../db/index');
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 /**
      * Returns Incursions active on input date
@@ -96,8 +97,9 @@ async function getIncByWeek(message, param) {
 }
 
 module.exports = {
-	name: 'incdata',
-	description: 'Request data about incursions',
+	data: new SlashCommandBuilder()
+	.setName('incdata')
+	.setDescription('Request data about incursions'),
     usage: '"system/week/date" "name/week/YYYY-MM-DD"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
