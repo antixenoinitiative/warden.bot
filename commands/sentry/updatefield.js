@@ -1,9 +1,6 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-
 module.exports = {
-	data: new SlashCommandBuilder()
-	.setName('updatefield')
-	.setDescription('Manually updates a field'),
+	name: 'updatefield',
+	description: 'Manually updates a field',
 	usage: '',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,

@@ -5,11 +5,28 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
 	.setName('mttot')
-	.setDescription('Calculate Theoretical Time on Target'),
+	.setDescription('Calculate Theoretical Time on Target')
+    .addStringOption(option => option.setName('variant')
+		.setDescription('Thargoid Variant')
+		.setRequired(true)
+        .addChoice('Cyclops', 'cyclops')
+		.addChoice('Basilisk', 'basilisk')
+        .addChoice('Medusa', 'medusa')
+        .addChoice('Hydra', 'hydra'))
+    .addStringOption(option => option.setName('weapon-codes')
+		.setDescription('Use standard codes to assign weapons eg: 2m2s, 1lfaxmc, 2sfgc')
+		.setRequired(true))
+    .addIntegerOption(option => option.setName('range')
+		.setDescription('Range in Meters')
+		.setRequired(false)),
     usage: '"variant" "weapon codes" "range"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	execute(message, args) {
-		if (args == "") {
+	execute(message) {
+		let args = []
+        for (let data of message.options.data) {
+            args.push(data.value)
+        }
+        if (args == []) {
             const returnEmbed = new Discord.MessageEmbed()
                 .setColor('#FF7100')
 				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -18,7 +35,7 @@ module.exports = {
                 .addField("Weapon Code Example #1",`2 Medium + 2 Small Gauss = 2m,2s`)
                 .addField("Weapon Code Example #2",`2x Size 3 Turret AXMC = 2ltaxmc`)
                 .addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
-				message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
+				message.reply({ embeds: [returnEmbed.setTimestamp()] })
             return;
         }
         let result;
@@ -41,7 +58,7 @@ module.exports = {
 
             target = target.toLowerCase();
 
-            message.channel.send(`Calculating - Target: **${target}** Weapon Codes: **${weapons}** Range: **${range}**`);
+            message.reply(`Calculating - Target: **${target}** Weapon Codes: **${weapons}** Range: **${range}**`);
 
             // Get Data
             result = calcMTTOT(target, weapons, range); // [ basic100, std100, prem100, basic75, std75, prem75, basic50, std50, prem50 ]
@@ -54,7 +71,7 @@ module.exports = {
             message.channel.send({ content: "Please select accuracy rating:", components: [row] });
 
             // Recieve the button response
-            const filter = i => i.user.id === message.author.id;
+            const filter = i => i.user.id === message.member.id;
             const collector = message.channel.createMessageComponentCollector({ filter, time: 15000, max: 1 });
             collector.on('collect', async i => {
                 if (i.customId === 'mttot100') {

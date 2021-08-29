@@ -6,7 +6,7 @@ module.exports = {
     .setDescription(`Summon the Ducc!`),
     usage: '',
     args: false,
-    permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+    permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: true,
     execute (message) {
         var c = Math.random() * 100;

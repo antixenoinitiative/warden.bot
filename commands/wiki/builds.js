@@ -18,6 +18,6 @@ module.exports = {
             {name: "Ship Build Theory", value: "https://wiki.antixenoinitiative.com/en/shipbuildtheory"},
             {name: "Build Repository", value: "https://wiki.antixenoinitiative.com/en/buildrepository"},
         )
-        message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+        message.reply({ embeds: [returnEmbed.setTimestamp()] });
     }
 };

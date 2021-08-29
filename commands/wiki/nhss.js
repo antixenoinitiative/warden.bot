@@ -19,6 +19,6 @@ module.exports = {
 		const buttonRow = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setLabel('Learn more about NHSS').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/nhss'),)
 
-        message.channel.send({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
+        message.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
     }
 };

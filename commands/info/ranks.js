@@ -15,10 +15,10 @@ module.exports = {
         .addComponents(new Discord.MessageButton().setCustomId('challenge').setLabel('Challenge Ranks').setStyle('PRIMARY'),)
         .addComponents(new Discord.MessageButton().setCustomId('progression').setLabel('Progression Ranks').setStyle('PRIMARY'),)
         .addComponents(new Discord.MessageButton().setCustomId('other').setLabel('Other Ranks').setStyle('PRIMARY'),)
-        message.channel.send({ content: "Select which ranks to list:", components: [row] });
+        message.reply({ content: "Select which ranks to list:", components: [row] });
 
 		// Recieve the button response
-		const filter = i => i.user.id === message.author.id;
+		const filter = i => i.user.id === message.member.id;
 		const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
 		collector.on('collect', async i => {
 			if (i.customId === 'challenge') {

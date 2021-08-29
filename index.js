@@ -31,7 +31,11 @@ for (const folder of commandFolders) {
 	for (const file of commandFiles) {
 		const command = require(`./commands/${folder}/${file}`);
 		command.category = folder;
-		discordClient.commands.set(command.data.name, command);
+		if (command.data === undefined) {
+			discordClient.commands.set(command.name, command)
+		} else {
+			discordClient.commands.set(command.data.name, command)
+		}
 	}
 }
 
@@ -150,16 +154,9 @@ const help = async (message) => {
 }
 */
 
+// Command Handler for Non-Slash Commands
 discordClient.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
-
-	// Check if arguments contains forbidden words
-	const forbiddenWords = [ "@everyone", "@here", "everyone", "here" ];
-	for (let value of forbiddenWords) {
-		if (message.content.includes(value)) { // message.content contains a forbidden word; delete message, log, etc.
-			return message.channel.send({ content: `❗ Command contains forbidden words.` })
-		}
-	}
 
 	// Argument Handler and commands
 	let args;
@@ -173,8 +170,6 @@ discordClient.on('messageCreate', message => {
 	} catch (err) {
 		console.warn(`Invalid command input: ${err}`)
 	}
-
-	console.log(args)
 
 	//checks if command exists, then goes to non-subfiled commandsp
 	if (!discordClient.commands.has(commandName)) {
@@ -276,22 +271,20 @@ discordClient.on('interactionCreate', async interaction => {
 	if (command.permlvl != 0) {
 		// checks for proper permissions by role against permissions.js
 		let allowedRoles = config.securityGroups[command.permlvl].roles;
-		if (allowedRoles !== 0) {
-			let allowed = 0;
-			for (const value of allowedRoles) {
-				if (interaction.member.roles.cache.has(value)) {
-					allowed++;
-				}
-			}
-			if (allowed === 0) { 
-				botLog('**' + interaction.member.nickname + '** Attempted to use command: /`' + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
-				return interaction.reply("You don't have permission to use that command!") 
-			} 	// returns false if the member has the role) 
+		let userRoles = interaction.member._roles;
+		let allowed = false;
+		for (let role of allowedRoles) {
+			if (userRoles.includes(role)) { allowed = true }
+		}
+		if (allowed == false) { 
+			botLog('**' + interaction.member.nickname + '** Attempted to use command: /`' + interaction.commandName + ' ' + interaction.data + '`' + ' Failed: Insufficient Permissions', "medium")  
+			return interaction.reply("You don't have permission to use that command!") 
 		}
 	}
 
 	try {
 		await command.execute(interaction, args);
+		botLog('**' + interaction.member.nickname + '** Used command: `' + interaction.commandName + ' ' + interaction.data + '`', "low");
 	} catch (error) {
 		console.error(error);
 		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
