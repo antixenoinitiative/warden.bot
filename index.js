@@ -32,9 +32,9 @@ for (const folder of commandFolders) {
 		const command = require(`./commands/${folder}/${file}`);
 		command.category = folder;
 		if (command.data === undefined) {
-			discordClient.commands.set(command.name, command)
+			discordClient.commands.set(command.name, command) // For non-slash commands
 		} else {
-			discordClient.commands.set(command.data.name, command)
+			discordClient.commands.set(command.data.name, command) // For slash commands
 		}
 	}
 }

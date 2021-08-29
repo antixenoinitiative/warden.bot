@@ -12,8 +12,8 @@ module.exports = {
     usage: '"term"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
-	execute(message, args) {
-		let searchTerm = args[0].value
+	execute(interaction) {
+		let searchTerm = interaction.options.data.find(arg => arg.name === 'term').value
 		try {
 			wiki.search(searchTerm).then((res) => {
 				const returnEmbed = new Discord.MessageEmbed()
@@ -24,11 +24,11 @@ module.exports = {
 				for (let i = 0; i < res.length; i++) {
 				returnEmbed.addField(res[i].title,`https://wiki.antixenoinitiative.com/en/${res[i].path}`)
 				}
-				message.reply({ embeds: [returnEmbed.setTimestamp()] })
+				interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
 			})
 		} catch (err) {
 			console.error(err);
-			message.reply({ content: "Something went wrong, please you entered a correct term" })
+			interaction.reply({ content: "Something went wrong, please you entered a correct term" })
 		}
 	},
 };
