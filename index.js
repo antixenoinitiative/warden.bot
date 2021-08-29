@@ -111,7 +111,7 @@ bot.once("ready", async() => {
  * Event handler for Slash Commands, takes interaction to test before executing command code.
  * @author  (Mgram) Marcus Ingram
  */
- bot.on('interactionCreate', async interaction => {
+bot.on('interactionCreate', async interaction => {
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
 		console.log(command)
@@ -193,9 +193,12 @@ bot.on('messageCreate', message => {
 		if (message.content === `${prefix}ping`) {
 			message.channel.send({ content: `🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(bot.ws.ping)}ms` });
 		}
-
 		return;
 	}
+	if (command.data !== undefined) {
+		return message.reply({ content: `Sorry, the command **-${command.data.name}** has been upgraded to a ***Slash Command***, please use **/${command.data.name}** instead!` })
+	}
+
 	if (command.permissions != 0) {
 		if (checkPermissions(command, message) === false) { 
 			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
