@@ -12,12 +12,12 @@ module.exports = {
     args: true,
     permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: false,
-    async execute (message, args) {
+    async execute (interaction) {
         try {   
-            await db.query("DELETE FROM events WHERE event_id = $1", [args[0].value])
-            message.reply({ content: "Event Deleted ‼"})
+            await db.query("DELETE FROM events WHERE event_id = $1", [interaction.options.data.find(arg => arg.name === 'id').value])
+            interaction.reply({ content: "Event Deleted ‼"})
         } catch {
-            message.reply({ content: "Sorry, could not delete the event, please contact staff."})
+            interaction.reply({ content: "Sorry, could not delete the event, please contact staff."})
         }
     }
 }

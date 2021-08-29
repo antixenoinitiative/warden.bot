@@ -11,8 +11,8 @@ module.exports = {
     usage: '"name"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	restricted: false,
-	async execute(message, args) {
-		let name = args[0].value;
+	async execute(interaction) {
+		let name = interaction.options.data.find(arg => arg.name === 'name').value
 		try {
 			const https = require('https');
 			require("dotenv").config();
@@ -68,7 +68,7 @@ module.exports = {
 					}
 					if (cmdr.inaraURL != undefined) { returnEmbed.addField("Link", `${cmdr.inaraURL}`, true) }
 
-					message.reply({ embeds: [returnEmbed.setTimestamp()] });
+					interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 				})
 			})
 
@@ -80,7 +80,7 @@ module.exports = {
 			req.end()
 		} catch (err) {
 			console.error(err);
-			message.channel.send({ content: `Sorry, something went wrong with that command. Please try again.`})
+			interaction.channel.send({ content: `Sorry, something went wrong with that command. Please try again.`})
 		}
 		
 	},

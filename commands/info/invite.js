@@ -4,9 +4,8 @@ module.exports = {
     data: new SlashCommandBuilder()
 	.setName('invite')
 	.setDescription('Get a server invite link'),
-    usage: '',
-    permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    execute (message) {
-        message.reply({ content: `To invite people to the server, please use the following link: https://discord.gg/bqmDxdm` });
+    permlvl: 0,
+    execute (interaction) {
+        interaction.reply({ content: `To invite people to the server, please use the following link: https://discord.gg/bqmDxdm` });
     }
 }

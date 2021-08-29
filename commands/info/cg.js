@@ -41,7 +41,7 @@ module.exports = {
                 const row = new Discord.MessageActionRow().addComponents(menu);
                 message.channel.send({ content: `Please select which Community Goal to view:`, components: [row] }).catch(message.channel.send({ content: `CG data unavailable 🛑`}))
                 
-                const filter = i => i.user.id === message.author.id;
+                const filter = i => i.user.id === message.member.id;
                 const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
 
                 collector.on('collect', async interaction => {

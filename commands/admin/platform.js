@@ -9,7 +9,7 @@ module.exports = {
     args: false,
     permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
     hidden: true,
-    async execute (message) {
+    async execute (interaction) {
         const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -21,6 +21,6 @@ module.exports = {
         .addComponents(new Discord.MessageButton().setCustomId('platformxb').setLabel('XB').setStyle('SUCCESS'),)
         .addComponents(new Discord.MessageButton().setCustomId('platformps').setLabel('PS').setStyle('PRIMARY'),)
 
-        message.channel.send({ embeds: [returnEmbed], components: [row] });
+        interaction.channel.send({ embeds: [returnEmbed], components: [row] });
     }
 }

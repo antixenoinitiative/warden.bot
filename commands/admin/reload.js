@@ -12,14 +12,14 @@ module.exports = {
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	usage: '<commandName>',
-	async execute(message, args) {
-		const commandName = args[0].value.toLowerCase();
+	async execute(interaction) {
+		const commandName = interaction.options.data.find(arg => arg.name === 'command').value.toLowerCase();
 		console.log(commandName)
-		const command = message.client.commands.get(commandName)
-			// || message.client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
+		const command = interaction.client.commands.get(commandName)
+			// || interaction.client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
 
 		if (!command) {
-			return message.reply({ content: `There is no command with name or alias \`${commandName}\`` });
+			return interaction.reply({ content: `There is no command with name or alias \`${commandName}\`` });
 		}
 
 		const commandFolders = fs.readdirSync('./commands');
@@ -30,11 +30,11 @@ module.exports = {
 
 		try {
 			const newCommand = require(`../${folderName}/${command.data.name}.js`);
-			message.client.commands.set(newCommand.data.name, newCommand);
-			message.reply({ content: `Command \`${newCommand.data.name}\` was reloaded!` });
+			interaction.client.commands.set(newCommand.data.name, newCommand);
+			interaction.reply({ content: `Command \`${newCommand.data.name}\` was reloaded!` });
 		} catch (err) {
 			console.error(err);
-			message.reply({ content: `There was an error while reloading a command \`${command.name}\`:\n\`${err.message}\`` });
+			interaction.reply({ content: `There was an error while reloading a command \`${command.name}\`:\n\`${err.message}\`` });
 		}
 	},
 };

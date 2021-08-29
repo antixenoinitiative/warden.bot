@@ -6,8 +6,8 @@ module.exports = {
     .setDescription(`Kills the AXI bot until it is rebooted (Auto-Reboot every 24 Hours)`),
 	usage: '',
 	permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	async execute(message) {
-		await message.reply({content: "Killing Warden Bot! 💀"})
-		message.client.destroy();
+	async execute(interaction) {
+		await interaction.reply({content: "Killing Warden Bot! 💀"})
+		interaction.client.destroy();
 	}
 };

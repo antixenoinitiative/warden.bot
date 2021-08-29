@@ -12,9 +12,9 @@ module.exports = {
 			.setRequired(true)),
   usage: "<userID or @mention>",
   permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-  async execute(message) {
+  async execute(interaction) {
     try {
-      let userID = message.options.data[0].value
+      let userID = interaction.options.data.find(arg => arg.name === 'user').value
       let username = "<@!" + userID + ">";
       db.getBackup(userID).then((value) => {
         if (value == undefined) {
@@ -27,9 +27,9 @@ module.exports = {
             .setTitle("**Roles from Backup**")
             .addField("Name", username)
             .addField("Backup not found!", "** **");
-          message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+          interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] });
         } else {
-          let sortedallvalues = getSortedRoleIDs(message);
+          let sortedallvalues = getSortedRoleIDs(interaction);
           let namestring = "\n"
           for(var i=0;i<Object.keys(sortedallvalues).length;i++)
           {
@@ -49,11 +49,11 @@ module.exports = {
             .addField("Name", username)
             .addField("Roles", "```" + namestring + "```")
             .setFooter(`List was last updated at ${last_updated}`);
-          message.channel.send({ embeds: [returnEmbed] });
+          interaction.channel.send({ embeds: [returnEmbed] });
         }
       });
     } catch (err) {
-      message.channel.send(`Something went wrong ${err}`);
+      interaction.channel.send(`Something went wrong ${err}`);
     }
   },
 };

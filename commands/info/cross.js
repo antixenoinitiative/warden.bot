@@ -15,7 +15,7 @@ module.exports = {
 	usage: '"role1" "role2"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
-	execute(message) {
+	execute(interaction) {
 		try {
 			let count = 0
 			const returnEmbed = new Discord.MessageEmbed()
@@ -27,9 +27,9 @@ module.exports = {
 			let memberwithrole1 = null
 			try
 			{
-				let roleID = message.options.data[0].value
-				memberwithrole1 = message.guild.roles.cache.get(roleID).members
-				actualrole1 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
+				let roleID = interaction.options.data.find(arg => arg.name === 'first-rank').value
+				memberwithrole1 = interaction.guild.roles.cache.get(roleID).members
+				actualrole1 = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
 			{
@@ -38,9 +38,9 @@ module.exports = {
 			let memberwithrole2 = null
 			try
 			{
-				let roleID = message.options.data[1].value
-				memberwithrole2 = message.guild.roles.cache.get(roleID).members
-				actualrole2 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
+				let roleID = interaction.options.data.find(arg => arg.name === 'second-rank').value
+				memberwithrole2 = interaction.guild.roles.cache.get(roleID).members
+				actualrole2 = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
 			{
@@ -59,10 +59,10 @@ module.exports = {
 			returnEmbed.addField("Members with rank " + actualrole1,"```" + countrole1 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole2,"```" + countrole2 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole1 + " having rank " + actualrole2, "```" + count + "```")
-			message.reply({ embeds: [returnEmbed.setTimestamp()] });
+			interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 		} catch(err) {
 			console.error(err);
-			message.reply({ content: `ERROR! Something went wrong:\n${err}` })
+			interaction.reply({ content: `ERROR! Something went wrong:\n${err}` })
 		}
 	},
 };
