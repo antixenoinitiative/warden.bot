@@ -1,8 +1,3 @@
-//------------------ SWITCHES ----------------------
-// To enable or disble components for testing purposes
-const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-//--------------------------------------------------
-
 require("dotenv").config();
 require('./deploy-commands'); // Re-register slash commands
 const { readdirSync } = require('fs');
@@ -97,19 +92,78 @@ const checkPermissions = (command, interaction) => {
 bot.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
+
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	bot.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
 		incursionsEmbed.description = currentEmbed.description
 		currentEmbed.fields.forEach((field) => {
-			//console.log(field)
 			incursionsEmbed.addField(field.name, field.value)
 		})
 	}).catch(err => {
 		console.error(err)
 	})
+
 })
+
+/**
+ * Event handler for Slash Commands, takes interaction to test before executing command code.
+ * @author  (Mgram) Marcus Ingram
+ */
+ bot.on('interactionCreate', async interaction => {
+	if (interaction.isCommand()) {
+		const command = bot.commands.get(interaction.commandName);
+		console.log(command)
+		if (!command) return;
+		const args = interaction.options.data
+		if (command.permissions != 0) {
+			if (checkPermissions(command, interaction) === false) { 
+				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")  
+				return interaction.reply("You don't have permission to use that command!")
+			}
+		}
+		try {
+			await command.execute(interaction, args);
+			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}`, "low");
+		} catch (error) {
+			console.error(error);
+			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+		}
+	}
+
+	if (interaction.isButton()) {
+		if (interaction.customId.startsWith("event")) {
+			interaction.deferUpdate();
+			let response = interaction.customId.split("-");
+			if (response[2] === "enroll") {
+				event.joinEvent(interaction, response[1])
+			}
+			if (response[2] === "leave") {
+				event.leaveEvent(interaction, response[1])
+			}
+			return;
+		}
+		if (interaction.customId === "platformpc") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("428260067901571073")
+			interaction.member.roles.add("380247760668065802")
+			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+		} else if (interaction.customId === "platformxb") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("533774176478035991")
+			interaction.member.roles.add("380247760668065802")
+			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+		} else if (interaction.customId === "platformps") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("428259777206812682")
+			interaction.member.roles.add("380247760668065802")
+			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+		}
+		interaction.member.roles.add("642840406580658218");
+		interaction.member.roles.add("642839749777948683");
+	}
+});
 
 /**
  * Event handler for message based events, manages basic commands.
@@ -164,64 +218,6 @@ bot.on('messageCreate', message => {
 	}
 });
 
-/**
- * Event handler for Slash Commands, takes interaction to test before executing command code.
- * @author  (Mgram) Marcus Ingram
- */
-bot.on('interactionCreate', async interaction => {
-	if (interaction.isCommand()) {
-		const command = bot.commands.get(interaction.commandName);
-		console.log(command)
-		if (!command) return;
-		const args = interaction.options.data
-		if (command.permissions != 0) {
-			if (checkPermissions(command, interaction) === false) { 
-				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")  
-				return interaction.reply("You don't have permission to use that command!")
-			}
-		}
-		try {
-			await command.execute(interaction, args);
-			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}`, "low");
-		} catch (error) {
-			console.error(error);
-			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-		}
-	}
-
-	if (interaction.isButton()) {
-		if (interaction.customId.startsWith("event")) {
-			interaction.deferUpdate();
-			let response = interaction.customId.split("-");
-			if (response[2] === "enroll") {
-				event.joinEvent(interaction, response[1])
-			}
-			if (response[2] === "leave") {
-				event.leaveEvent(interaction, response[1])
-			}
-			return;
-		}
-		if (interaction.customId === "platformpc") {
-			interaction.deferUpdate();
-			interaction.member.roles.add("428260067901571073")
-			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
-		} else if (interaction.customId === "platformxb") {
-			interaction.deferUpdate();
-			interaction.member.roles.add("533774176478035991")
-			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
-		} else if (interaction.customId === "platformps") {
-			interaction.deferUpdate();
-			interaction.member.roles.add("428259777206812682")
-			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
-		}
-		interaction.member.roles.add("642840406580658218");
-		interaction.member.roles.add("642839749777948683");
-	}
-});
-
 bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
 
 /**
@@ -259,5 +255,4 @@ function updateEmbedField(field) {
 	console.log(messageToUpdate.embeds[0].fields)
 }
 
-// Switch Statements
-if (enableDiscordBot === 1) { bot.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
+bot.login(process.env.TOKEN)
