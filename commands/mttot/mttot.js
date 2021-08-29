@@ -72,7 +72,7 @@ module.exports = {
 
             // Recieve the button response
             const filter = i => i.user.id === message.member.id;
-            const collector = message.channel.createMessageComponentCollector({ filter, time: 15000, max: 1 });
+            const collector = message.channel.createMessageComponentCollector({ filter, max: 1 });
             collector.on('collect', async i => {
                 if (i.customId === 'mttot100') {
                     i.deferUpdate();
