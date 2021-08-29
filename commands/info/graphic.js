@@ -14,12 +14,15 @@ function isValid(args) {
 module.exports = {
     data: new SlashCommandBuilder()
 	.setName('graphic')
-	.setDescription('Request a graphic, diagram or resource from a repository, use "-graphic" to get a list.'),
+	.setDescription('Request a graphic, diagram or resource from a repository, use "-graphic" to get a list.')
+    .addStringOption(option => option.setName('selection')
+		.setDescription('Select which graphic do display')
+		.setRequired(true)),
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     usage: '"graphicname"',
     execute(message, args) {
         let response;
-        if (!isValid(args[0])) {
+        if (!isValid(args[0].value)) {
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -28,17 +31,17 @@ module.exports = {
             for (const value of data) {
                 returnEmbed.addField(`-graphic ${value.argument}`, value.title);
             }
-            return message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+            return message.reply({ embeds: [returnEmbed.setTimestamp()] });
         }
 
         for (const value of data) {
-            if (args[0] === value.argument) {
+            if (args[0].value === value.argument) {
                 response = value;
             }
         }
 
         if (response.type == "text") {
-            message.channel.send(response.link);
+            message.reply(response.link);
         } else if (response.type == "embed") {
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
@@ -46,7 +49,7 @@ module.exports = {
             .setTitle(response.title)
             .setDescription(response.description)
             .setImage(response.link)
-            message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+            message.reply({ embeds: [returnEmbed.setTimestamp()] });
         } else {
             //NOTE is something supposed to go here ?
         }

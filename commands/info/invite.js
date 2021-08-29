@@ -7,6 +7,6 @@ module.exports = {
     usage: '',
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     execute (message) {
-        message.channel.send({ content: `To invite people to the server, please use the following link: https://discord.gg/bqmDxdm` });
+        message.reply({ content: `To invite people to the server, please use the following link: https://discord.gg/bqmDxdm` });
     }
 }

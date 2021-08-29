@@ -4,6 +4,7 @@ const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 //--------------------------------------------------
 
 require("dotenv").config();
+require('./deploy-commands'); // Re-register slash commands
 const fs = require('fs');
 const Discord = require("discord.js");
 const event = require('./events/event.js');

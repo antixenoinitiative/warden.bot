@@ -1,30 +1,33 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
-const { getRoleID } = require("../../discord/getRoleID");
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
 	data: new SlashCommandBuilder()
 	.setName('cross')
-	.setDescription('How many people with rank1 also have rank2?'),
+	.setDescription('How many people with rank1 also have rank2?')
+	.addRoleOption(option => option.setName('first-rank')
+		.setDescription('First Rank')
+		.setRequired(true))
+	.addRoleOption(option => option.setName('second-rank')
+		.setDescription('Second Rank')
+		.setRequired(true)),
 	usage: '"role1" "role2"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
-	execute(message, args) {
+	execute(message) {
 		try {
 			let count = 0
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle("**Count**")
-			var role1 = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
-			var role2 = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			let actualrole1 = ""
 			let actualrole2 = ""
 			let memberwithrole1 = null
 			try
 			{
-				let roleID = getRoleID(message,role1)
+				let roleID = message.options.data[0].value
 				memberwithrole1 = message.guild.roles.cache.get(roleID).members
 				actualrole1 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
 			}
@@ -35,7 +38,7 @@ module.exports = {
 			let memberwithrole2 = null
 			try
 			{
-				let roleID = getRoleID(message,role2)
+				let roleID = message.options.data[1].value
 				memberwithrole2 = message.guild.roles.cache.get(roleID).members
 				actualrole2 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
 			}
@@ -56,10 +59,10 @@ module.exports = {
 			returnEmbed.addField("Members with rank " + actualrole1,"```" + countrole1 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole2,"```" + countrole2 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole1 + " having rank " + actualrole2, "```" + count + "```")
-			message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+			message.reply({ embeds: [returnEmbed.setTimestamp()] });
 		} catch(err) {
 			console.error(err);
-			message.channel.send({ content: `ERROR! Something went wrong:\n${err}` })
+			message.reply({ content: `ERROR! Something went wrong:\n${err}` })
 		}
 	},
 };
