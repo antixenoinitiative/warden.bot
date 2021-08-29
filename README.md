@@ -6,7 +6,7 @@
 [![ESLint Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml)
 [![Security Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml)
 
-Warden is a discord bot for the Anti-Xeno Initiative Discord Server.
+Warden is a discord bot for the Anti-Xeno Initiative Discord Server. Based on Discord.js warden is a combination of systems that culminate in a relatively advanced custom built discord bot for the needs of the AXI.
 
 [![AXI Discord](https://discord.com/api/guilds/380246809076826112/embed.png?style=banner3)](https://discord.gg/bqmDxdm)
 
@@ -18,6 +18,11 @@ Warden is a discord bot for the Anti-Xeno Initiative Discord Server.
 4. Run the SETUP.ps1 file in Powershell (Run as Admin if you have any issues)
 5. Follow the prompts and enter the Bot TOKEN.
 6. Start the bot using `npm start` in command line or terminal.
+
+The `SETUP.ps1` file will create a `.env` file in your root directory, if you need to make any changes, edit the variables in this file.
+
+![image](https://user-images.githubusercontent.com/85346345/131250614-aaecd857-0069-4758-9171-9954c490e8f1.png)
+
 
 ## Useful Links
 https://discordjs.guide/preparations/setting-up-a-bot-application.html#creating-your-bot
