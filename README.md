@@ -6,7 +6,7 @@
 [![ESLint Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml)
 [![Security Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml)
 
-Warden is a discord bot for the Anti-Xeno Initiative Discord Server. Based on Discord.js warden is a combination of systems that culminate in a relatively advanced custom built dicord bot for the needs of the AXI.
+Warden is a discord bot for the Anti-Xeno Initiative Discord Server. Based on Discord.js warden is a combination of systems that culminate in a relatively advanced custom built discord bot for the needs of the AXI.
 
 [![AXI Discord](https://discord.com/api/guilds/380246809076826112/embed.png?style=banner3)](https://discord.gg/bqmDxdm)
 
