@@ -9,10 +9,10 @@ module.exports = {
         if (message.author.id == "274853598280810496") {
             var c = Math.random() * 100;
             if (c < 50) {
-                message.reply({ content: `Oh no, not you again` });
+                return message.reply({ content: `Oh no, not you again` });
             }
             else {
-                message.reply({ content: `Shoo... go away...` });
+                return message.reply({ content: `Shoo... go away...` });
             }
         }
         var c = Math.random() * 100;
