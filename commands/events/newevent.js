@@ -17,10 +17,7 @@ module.exports = {
     .addStringOption(option => option.setName('time')
 		.setDescription('DD-MM-YYYY hh:mm')
 		.setRequired(true)),
-    usage: '"name" "description" "DD-MM-YYYY hh:mm"',
-    args: true,
-    permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    hidden: false,
+    permlvl: 1,
     async execute (interaction) {
         let eventName = interaction.options.data.find(arg => arg.name === 'name').value
         let eventDesc = interaction.options.data.find(arg => arg.name === 'description').value

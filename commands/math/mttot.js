@@ -25,7 +25,7 @@ module.exports = {
     .addIntegerOption(option => option.setName('range')
 		.setDescription('Range in Meters')
 		.setRequired(false)),
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permlvl: 0,
 	async execute(interaction) {
         let result;
 		try {

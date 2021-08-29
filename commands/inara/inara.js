@@ -8,9 +8,7 @@ module.exports = {
 	.addStringOption(option => option.setName('name')
 		.setDescription('Search for a user name')
 		.setRequired(true)),
-    usage: '"name"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
+	permlvl: 0,
 	async execute(interaction) {
 		let name = interaction.options.data.find(arg => arg.name === 'name').value
 		try {

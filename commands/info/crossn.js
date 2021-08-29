@@ -20,9 +20,7 @@ module.exports = {
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
 		.setRequired(false)),
-    usage: '"club7/count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	args: true,
+	permlvl: 0,
     execute(interaction) {
         let args = []
         for (let data of interaction.options.data) {

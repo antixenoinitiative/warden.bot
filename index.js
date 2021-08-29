@@ -93,67 +93,6 @@ discordClient.once("ready", async() => {
 	})
 })
 
-/*
-const help = async (message) => {
-	const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
-		
-		for (const value of commandFolders) {
-			menu.addOptions([
-				{
-					label: `${value}`,
-					description: `${value} commands`,
-					value: `${value}`,
-				},
-			])
-		}
-
-	const row = new Discord.MessageActionRow().addComponents(menu);
-
-	message.channel.send({ content: "Select which commands to list:", components: [row] });
-
-	// Recieve the button response
-	const filter = i => i.user.id === message.author.id;
-	const collector = message.channel.createMessageComponentCollector({ filter, max: 10 });
-	let embed;
-	collector.on('collect', async i => {
-		try {
-			if (embed !== undefined) {
-				i.deferUpdate();
-				const returnEmbed = new Discord.MessageEmbed()
-				.setColor('#FF7100')
-				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-				.setTitle(`**${i.values[0]} commands**`)
-				for (const [key, value] of discordClient.commands.entries()) {
-					//Only commands with permlvl zero are considered unrestricted
-					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.data.description} ${config.securityGroups[value.permlvl].desc}`)
-					}
-				}
-				return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
-			}
-
-			if (commandFolders.includes(i.values[0])) {
-				i.deferUpdate();
-				const returnEmbed = new Discord.MessageEmbed()
-				.setColor('#FF7100')
-				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-				.setTitle(`**${i.values[0]} commands**`)
-				for (const [key, value] of discordClient.commands.entries()) {
-					//Only commands with permlvl zero are considered unrestricted
-					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.data.description} ${config.securityGroups[value.permlvl].desc}`)
-					}
-				}
-				embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
-			}
-		} catch (err) {
-			console.error(`Error handling -help response: ${err}`);
-			message.channel.send({ content: `there was an error trying to execute that command!` })
-		}
-	});
-}
-*/
-
 // Command Handler for Non-Slash Commands
 discordClient.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
@@ -175,7 +114,7 @@ discordClient.on('messageCreate', message => {
 	if (!discordClient.commands.has(commandName)) {
 		// Basic Commands
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			//help(message);
+			message.reply({ content: "Type `/` to view all commands"})
 		}
 
 		if (message.content === `${prefix}ping`) {

@@ -12,9 +12,7 @@ module.exports = {
 	.addRoleOption(option => option.setName('second-rank')
 		.setDescription('Second Rank')
 		.setRequired(true)),
-	usage: '"role1" "role2"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	args: true,
+	permlvl: 0,
 	execute(interaction) {
 		try {
 			let count = 0

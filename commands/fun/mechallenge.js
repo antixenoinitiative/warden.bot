@@ -7,9 +7,7 @@ module.exports = {
 	.addUserOption(option => option.setName('user')
 		.setDescription('Mention user to get')
 		.setRequired(true)),
-	usage: '"@user"',
-	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	args: true,
+	permlvl: 1,
 	execute(interaction) {
 		let challenges = [
 			`Do a Multigoid kill assigned by EuanAB`,

@@ -10,8 +10,7 @@ module.exports = {
   .addUserOption(option => option.setName('user')
 			.setDescription('Mention user to get')
 			.setRequired(true)),
-  usage: "<userID or @mention>",
-  permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+  permlvl: 0,
   async execute(interaction) {
     try {
       let userID = interaction.options.data.find(arg => arg.name === 'user').value

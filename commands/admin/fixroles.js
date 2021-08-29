@@ -4,10 +4,7 @@ module.exports = {
     data: new SlashCommandBuilder()
     .setName(`fixroles`)
     .setDescription(`Fixes user roles to have correct seperators`),
-    usage: '',
-    args: false,
-    permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    hidden: true,
+    permlvl: 2,
     async execute (interaction) {
         try {
             interaction.channel.send({ content: "Processing, this may take a while."})
