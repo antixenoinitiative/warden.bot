@@ -9,9 +9,7 @@ module.exports = {
 	.addStringOption(option => option.setName('term')
 		.setDescription('Serch terms')
 		.setRequired(true)),
-    usage: '"term"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
+	permlvl: 0,
 	execute(interaction) {
 		let searchTerm = interaction.options.data.find(arg => arg.name === 'term').value
 		try {

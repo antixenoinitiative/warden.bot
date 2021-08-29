@@ -25,31 +25,24 @@ module.exports = {
     .addIntegerOption(option => option.setName('maxlength')
 		.setDescription('Total number to list')
 		.setRequired(false)),
-	usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    args: true,
-    execute (message) {
+    execute (interaction) {
         let args = []
-        for (let data of message.options.data) {
+        for (let data of interaction.options.data) {
             args.push(data.value)
         }
         try {
-            var roleID = args[0]
-            var mode = ""
-            if(args[1] == undefined)
-            {
-                mode = "txt"
-            }
-            else
-            {
-                mode = args[1]
-            }
-            let memberwithrole = message.guild.roles.cache.get(roleID).members
-            let actualrole = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
+            let roleID = interaction.options.data.find(arg => arg.name === 'role').value
+            let mode = "txt"
+            if (interaction.options.data.find(arg => arg.name === 'output') != undefined) { mode = interaction.options.data.find(arg => arg.name === 'output').value }
+
+
+            let memberwithrole = interaction.guild.roles.cache.get(roleID).members
+            let actualrole = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
             let memberList = ""
             if(mode == "txt")
             {
-                var type = ""
+                let type = ""
                 if(args[2] == undefined)
                 {
                     type = "nickname"
@@ -58,7 +51,7 @@ module.exports = {
                 {
                     type = args[2]
                 }
-                var highlength = 0
+                let highlength = 0
                 if(args[3] == undefined)
                 {
                     highlength = 10
@@ -103,12 +96,12 @@ module.exports = {
                     .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                     .setTitle("**Member List**")
                     returnEmbed.addField("List of members holding rank " + actualrole +":","```"+memberList+"```")
-                    message.reply({ embeds: [returnEmbed.setTimestamp()] });
+                    interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
                 }
                 else
                 {
                     fs.writeFileSync('tmp/memberlist.txt', memberList);
-                    message.reply({
+                    interaction.reply({
                         content:"Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",
                         files:[
                                 "tmp/memberlist.txt"
@@ -127,7 +120,7 @@ module.exports = {
 
                         })
                     fs.writeFileSync('tmp/memberlist.csv',memberList)
-                    message.reply({
+                    interaction.reply({
                                 content:"Here's your CSV file:",
                                 files:[
                                         "tmp/memberlist.csv"
@@ -141,7 +134,7 @@ module.exports = {
             }
         } catch(err) {
             console.error(err);
-			message.reply(`Something went wrong!\nERROR: ${err}`)
+			interaction.reply(`Something went wrong!\nERROR: ${err}`)
 		}
     }
 }

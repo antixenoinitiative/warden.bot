@@ -5,11 +5,9 @@ module.exports = {
     data: new SlashCommandBuilder()
 	.setName('zoo')
 	.setDescription('Learn about the zoo'),
-    usage: '',
-    args: false,
-    permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
+    permlvl: 0,
     hidden: false,
-    execute (message) {
+    execute (interaction) {
         const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -20,6 +18,6 @@ module.exports = {
         const buttonRow = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setLabel('Learn more about the Zoo').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/nhss'),)
 
-        message.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
+        interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
     }
 }

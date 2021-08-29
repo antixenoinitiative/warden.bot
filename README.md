@@ -83,7 +83,7 @@ module.exports = {
 	},
 };
 ```
-A good example of this type of command is `./commands/wiki/wiki.js` 
+A good example of this type of command is `./commands/wiki/wiki.js` or `./commands/math/mttot.js`
 
 ## **OLD Command File Format (Non-Slash Commands)**
 

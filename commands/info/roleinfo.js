@@ -12,16 +12,16 @@ module.exports = {
   usage: '"role name"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
   args: true,
-	execute(message) {
+	execute(interaction) {
 		try {
-      let role = message.options.data[0].value
+      let role = interaction.options.data.find(arg => arg.name === 'role').value
       if(role.length < 2)
       {
           throw("Role name too short. Add more letters to role names for best results.")
       }
       let roleID = role
-      let actualrole = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
-      let membercount = message.guild.roles.cache.get(roleID).members.size
+      let actualrole = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
+      let membercount = interaction.guild.roles.cache.get(roleID).members.size
 
       const returnEmbed = new Discord.MessageEmbed()
       .setColor('#FF7100')
@@ -32,12 +32,12 @@ module.exports = {
         {name: "ID", value: "```" + roleID + "```", inline: true},
         {name: "Total Members", value: "```" + membercount + "```", inline: true},
       )
-      message.reply({ embeds: [returnEmbed.setTimestamp()] });
+      interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 
     }
       catch(err) {
         console.error(err);
-        message.reply({ content: `Something went wrong, please try again!` })
+        interaction.reply({ content: `Something went wrong, please try again!` })
       }
 	},
 };

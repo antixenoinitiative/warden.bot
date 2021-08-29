@@ -25,32 +25,15 @@ module.exports = {
     .addIntegerOption(option => option.setName('range')
 		.setDescription('Range in Meters')
 		.setRequired(false)),
-    usage: '"variant" "weapon codes" "range"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	async execute(message) {
-		let args = []
-        for (let data of message.options.data) {
-            args.push(data.value)
-        }
-        if (args == []) {
-            const returnEmbed = new Discord.MessageEmbed()
-                .setColor('#FF7100')
-				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-				.setTitle("**MTTOT Calculator**")
-				.setDescription('To use the MTTOT Calculator, format `-mttot "medusa" "1mfaxmc,2sfgc" "1500"`. For multiple weapons of the same type, include a multiplyer eg: `2` before the weapon code. Weapon format examples below:')
-                .addField("Weapon Code Example #1",`2 Medium + 2 Small Gauss = 2m,2s`)
-                .addField("Weapon Code Example #2",`2x Size 3 Turret AXMC = 2ltaxmc`)
-                .addField("Calculator Web App",`https://th3-hero.github.io/AX-MTToT-Calculator/`)
-				message.reply({ embeds: [returnEmbed.setTimestamp()] })
-            return;
-        }
+	async execute(interaction) {
         let result;
 		try {
-            const accuracy = args[2]
-            // Format Input
             let range = 1500
-            if (args[3] != undefined) { range = args[3] }
-            let [ target, codes ] = args
+            let accuracy = interaction.options.data.find(arg => arg.name === 'accuracy').value
+            if (interaction.options.data.find(arg => arg.name === 'range') != undefined) { range = interaction.options.data.find(arg => arg.name === 'range').value }
+            let target = interaction.options.data.find(arg => arg.name === 'variant').value
+            let codes = interaction.options.data.find(arg => arg.name === 'weapon-codes').value
 
             const regex = "([0-9]+|[a-z]+)"
             const tempArray = [...codes.matchAll(regex)];
@@ -89,13 +72,13 @@ module.exports = {
                 .addField("Basic",`${results[0]}`,true)
                 .addField("Standard",`${results[1]}`,true)
                 .addField("Premium",`${results[2]}`,true)
-                message.reply({ embeds: [returnEmbed.setTimestamp()] });
+                interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
             } catch (err) {
-                message.reply({ content: "Something went wrong, please you entered the correct format" });
+                interaction.reply({ content: "Something went wrong, please you entered the correct format" });
             }
 		} catch (err) {
             console.log(err)
-			message.channel.send({ content: "Something went wrong, please you entered the correct format" })
+			interaction.channel.send({ content: "Something went wrong, please you entered the correct format" })
 		}        
 	},
 };
