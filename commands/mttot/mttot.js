@@ -16,12 +16,18 @@ module.exports = {
     .addStringOption(option => option.setName('weapon-codes')
 		.setDescription('Use standard codes to assign weapons eg: 2m2s, 1lfaxmc, 2sfgc')
 		.setRequired(true))
+    .addStringOption(option => option.setName('accuracy')
+		.setDescription('Accuracy Rating')
+		.setRequired(true)
+        .addChoice('100%', '100')
+		.addChoice('75%', '75')
+        .addChoice('50%', '50'))
     .addIntegerOption(option => option.setName('range')
 		.setDescription('Range in Meters')
 		.setRequired(false)),
     usage: '"variant" "weapon codes" "range"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	execute(message) {
+	async execute(message) {
 		let args = []
         for (let data of message.options.data) {
             args.push(data.value)
@@ -40,10 +46,10 @@ module.exports = {
         }
         let result;
 		try {
-
+            const accuracy = args[2]
             // Format Input
             let range = 1500
-            if (args[2] != undefined) { range = args[2] }
+            if (args[3] != undefined) { range = args[3] }
             let [ target, codes ] = args
 
             const regex = "([0-9]+|[a-z]+)"
@@ -58,72 +64,35 @@ module.exports = {
 
             target = target.toLowerCase();
 
-            message.reply(`Calculating - Target: **${target}** Weapon Codes: **${weapons}** Range: **${range}**`);
-
             // Get Data
             result = calcMTTOT(target, weapons, range); // [ basic100, std100, prem100, basic75, std75, prem75, basic50, std50, prem50 ]
 
-            // Build the initial message
-            const row = new Discord.MessageActionRow()
-            .addComponents(new Discord.MessageButton().setCustomId('mttot100').setLabel('100%').setStyle('PRIMARY'),)
-            .addComponents(new Discord.MessageButton().setCustomId('mttot75').setLabel('75%').setStyle('PRIMARY'),)
-            .addComponents(new Discord.MessageButton().setCustomId('mttot50').setLabel('50%').setStyle('PRIMARY'),)
-            message.channel.send({ content: "Please select accuracy rating:", components: [row] });
+            let results = []
+            switch (accuracy) {
+                case "100":
+                    results = [result[0],result[1],result[2]]
+                    break;
+                case "75":
+                    results = [result[3],result[4],result[5]]
+                    break;
+                case "50":
+                    results = [result[6],result[7],result[8]]
+                    break;        
+            }
 
-            // Recieve the button response
-            const filter = i => i.user.id === message.member.id;
-            const collector = message.channel.createMessageComponentCollector({ filter, max: 1 });
-            collector.on('collect', async i => {
-                if (i.customId === 'mttot100') {
-                    i.deferUpdate();
-                    try {
-                        const returnEmbed = new Discord.MessageEmbed()
-                        .setColor('#FF7100')
-                        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-                        .setTitle("**MTTOT Calculator**")
-                        .setDescription(`**100%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                        .addField("Basic",`${result[0]}`,true)
-                        .addField("Standard",`${result[1]}`,true)
-                        .addField("Premium",`${result[2]}`,true)
-                        i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
-                    } catch (err) {
-                        i.channel.send({ content: "Something went wrong, please you entered the correct format" });
-                    }
-                }
-                if (i.customId === 'mttot75') {
-                    i.deferUpdate();
-                    try {
-                        const returnEmbed = new Discord.MessageEmbed()
-                        .setColor('#FF7100')
-                        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-                        .setTitle("**MTTOT Calculator**")
-                        .setDescription(`**75%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                        .addField("Basic",`${result[3]}`,true)
-                        .addField("Standard",`${result[4]}`,true)
-                        .addField("Premium",`${result[5]}`,true)
-                        i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
-                    } catch (err) {
-                        i.channel.send({ content: "Something went wrong, please you entered the correct format" });
-                    }
-                }
-                if (i.customId === 'mttot50') {
-                    i.deferUpdate();
-                    try {
-                        const returnEmbed = new Discord.MessageEmbed()
-                        .setColor('#FF7100')
-                        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-                        .setTitle("**MTTOT Calculator**")
-                        .setDescription(`**50%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                        .addField("Basic",`${result[6]}`,true)
-                        .addField("Standard",`${result[7]}`,true)
-                        .addField("Premium",`${result[8]}`,true)
-                        i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
-                    } catch (err) {
-                        i.channel.send({ content: "Something went wrong, please you entered the correct format" });
-                    }
-                }
-            });
-            collector.on('end', collected => console.log(`Collected ${collected.size} items`));
+            try {
+                const returnEmbed = new Discord.MessageEmbed()
+                .setColor('#FF7100')
+                .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+                .setTitle("**MTTOT Calculator**")
+                .setDescription(`**${accuracy}%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
+                .addField("Basic",`${results[0]}`,true)
+                .addField("Standard",`${results[1]}`,true)
+                .addField("Premium",`${results[2]}`,true)
+                message.reply({ embeds: [returnEmbed.setTimestamp()] });
+            } catch (err) {
+                message.reply({ content: "Something went wrong, please you entered the correct format" });
+            }
 		} catch (err) {
             console.log(err)
 			message.channel.send({ content: "Something went wrong, please you entered the correct format" })
