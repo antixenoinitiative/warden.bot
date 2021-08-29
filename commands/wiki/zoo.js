@@ -12,7 +12,7 @@ module.exports = {
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle("**The Zoo**")
-		.setDescription(`The Zoo is a special system known to be the **only** source of __Guaranteed Solo Hydra NHSS Threat 8__ Signal sources in the Pleiades nebula along with a large number of NHSS very close to the main star.\n\n This system is known as the zoo as all variants can be found easily. However it has no Nav Beacon.`)
+		.setDescription(`The Zoo is known for being the only system to spawn solo (no-scout) Hydras, in both “guaranteed” (triple icon / debris field) and non-guaranteed (single icon / green cloud) instances. However it has no Nav Beacon.`)
         .addField("System Name", "```Pleiades Sector MI-S B4-0```")
 
         const buttonRow = new Discord.MessageActionRow()
