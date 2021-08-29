@@ -12,7 +12,7 @@ module.exports = {
         members.forEach(member =>{
             roles[member.user.id] = member._roles;
         })
-        interaction.reply(`Running Backup Task 🛠`);
+        interaction.reply({ content: `Running Backup Task 🛠`, ephemeral: true });
         try
         {
             db.takeBackup(roles,interaction.createdTimestamp).then((result)=>

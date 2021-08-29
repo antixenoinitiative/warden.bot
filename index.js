@@ -50,7 +50,7 @@ let messageToUpdate
  * @param	{string} event		The message to send.
  * @param	{string} severity	Message severity ("low", "medium", "high").
  */
-function botLog(event, severity) {
+const botLog = (event, severity) => {
 	const logEmbed = new MessageEmbed()
 	.setAuthor('Warden', icon);
 	switch (severity) {
@@ -74,8 +74,13 @@ function botLog(event, severity) {
 	}
 }
 
+/**
+ * Check command permissions against securityGroups
+ * @author  (Mgram) Marcus Ingram
+ * @param	{object} command		The command object to check
+ * @param	{object} interaction	Message/Interaction Object
+ */
 const checkPermissions = (command, interaction) => {
-	// checks for proper permissions by role against permissions.js
 	let allowedRoles = securityGroups[command.permissions].roles;
 	let userRoles = interaction.member._roles;
 	let allowed = false; // False by default
@@ -85,6 +90,10 @@ const checkPermissions = (command, interaction) => {
 	return allowed
 }
 
+/**
+ * Event handler for Bot Login, manages post-login setup
+ * @author  (Mgram) Marcus Ingram, (Airom42) Airom
+ */
 bot.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
@@ -102,11 +111,13 @@ bot.once("ready", async() => {
 	})
 })
 
-// Command Handler for Non-Slash Commands
+/**
+ * Event handler for message based events, manages basic commands.
+ * @author  (Mgram) Marcus Ingram, (Airom42) Airom
+ */
 bot.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-	// Argument Handler and commands
 	let args;
 	let commandName;
 	let command;
@@ -114,11 +125,10 @@ bot.on('messageCreate', message => {
 		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments - Split by spaces, except where there are quotes.
 		args = args.map(arg => arg.replaceAll('"', ''))
 		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
-		command = bot.commands.get(commandName); // Gets the command info
+		command = bot.commands.get(commandName);
 	} catch (err) {
 		console.warn(`Invalid command input: ${err}`)
 	}
-
 	//checks if command exists, then goes to non-subfiled command
 	if (!bot.commands.has(commandName)) {
 		// Basic Commands
@@ -132,14 +142,12 @@ bot.on('messageCreate', message => {
 
 		return;
 	}
-
 	if (command.permissions != 0) {
 		if (checkPermissions(command, message) === false) { 
 			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
 			return message.reply("You don't have permission to use that command!")
 		}
 	}
-
 	if (command.args && !args.length) {
 		let reply = `You didn't provide any arguments, ${message.author}!`;
 		if (command.usage) {
@@ -156,69 +164,61 @@ bot.on('messageCreate', message => {
 	}
 });
 
-// Button Handler
-bot.on('interactionCreate', b => {
-	if (!b.isButton()) return;
-	
-	// Event Response Handler
-	if (b.customId.startsWith("event")) {
-		b.deferUpdate();
-		let response = b.customId.split("-");
-		if (response[2] === "enroll") {
-			event.joinEvent(b, response[1])
-		}
-		if (response[2] === "leave") {
-			event.leaveEvent(b, response[1])
-		}
-		return;
-	}
-
-	// Platform Response Handler
-	if (b.customId === "platformpc") {
-		b.deferUpdate();
-		b.member.roles.add("428260067901571073")
-		b.member.roles.add("380247760668065802")
-		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
-	} else if (b.customId === "platformxb") {
-		b.deferUpdate();
-		b.member.roles.add("533774176478035991")
-		b.member.roles.add("380247760668065802")
-		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
-	} else if (b.customId === "platformps") {
-		b.deferUpdate();
-		b.member.roles.add("428259777206812682")
-		b.member.roles.add("380247760668065802")
-		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
-	}
-	b.member.roles.add("642840406580658218");
-	b.member.roles.add("642839749777948683");
-});
-
-// Slash Command Handler
+/**
+ * Event handler for Slash Commands, takes interaction to test before executing command code.
+ * @author  (Mgram) Marcus Ingram
+ */
 bot.on('interactionCreate', async interaction => {
-	console.log(interaction)
-	if (!interaction.isCommand()) return;
-	console.log(interaction)
-
-	const command = bot.commands.get(interaction.commandName);
-	console.log(command)
-	if (!command) return;
-
-	const args = interaction.options.data
-
-	if (command.permissions != 0) {
-		if (checkPermissions(command, interaction) === false) { 
-			botLog('**' + interaction.member.nickname + '** Attempted to use command: /`' + interaction.commandName + ' ' + interaction.data + '`' + ' Failed: Insufficient Permissions', "medium")  
-			return interaction.reply("You don't have permission to use that command!")
+	if (interaction.isCommand()) {
+		const command = bot.commands.get(interaction.commandName);
+		console.log(command)
+		if (!command) return;
+		const args = interaction.options.data
+		if (command.permissions != 0) {
+			if (checkPermissions(command, interaction) === false) { 
+				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")  
+				return interaction.reply("You don't have permission to use that command!")
+			}
+		}
+		try {
+			await command.execute(interaction, args);
+			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}`, "low");
+		} catch (error) {
+			console.error(error);
+			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
 		}
 	}
 
-	try {
-		await command.execute(interaction, args);
-		botLog('**' + interaction.member.nickname + '** Used command: `' + interaction.commandName + ' ' + interaction.data + '`', "low");
-	} catch (error) {
-		console.error(error);
-		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+	if (interaction.isButton()) {
+		if (interaction.customId.startsWith("event")) {
+			interaction.deferUpdate();
+			let response = interaction.customId.split("-");
+			if (response[2] === "enroll") {
+				event.joinEvent(interaction, response[1])
+			}
+			if (response[2] === "leave") {
+				event.leaveEvent(interaction, response[1])
+			}
+			return;
+		}
+		if (interaction.customId === "platformpc") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("428260067901571073")
+			interaction.member.roles.add("380247760668065802")
+			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+		} else if (interaction.customId === "platformxb") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("533774176478035991")
+			interaction.member.roles.add("380247760668065802")
+			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+		} else if (interaction.customId === "platformps") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("428259777206812682")
+			interaction.member.roles.add("380247760668065802")
+			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+		}
+		interaction.member.roles.add("642840406580658218");
+		interaction.member.roles.add("642839749777948683");
 	}
 });
 
