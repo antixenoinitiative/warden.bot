@@ -1,6 +1,5 @@
 const thargoids = require("./thargoiddata.json")
 const weapons = require("./weapondata.json")
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 function arrayTotal(arr) {
     var total = 0;
