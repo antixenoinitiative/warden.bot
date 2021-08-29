@@ -1,19 +1,35 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const { getRoleID } = require("../../discord/getRoleID");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 function checker(memberrolearray, requestedroles) {
     return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
 }
 
 module.exports = {
-	name: 'crossn',
-	description: 'How many people with rank1 also have rank2... also have rankn?',
+    data: new SlashCommandBuilder()
+	.setName('crossn')
+	.setDescription('How many people with rank1 also have rank2... also have rankn?')
+    .addStringOption(option => option.setName('mode')
+		.setDescription('Which mode to run the command as.')
+		.setRequired(true)
+        .addChoice('Count', 'count')
+		.addChoice('Nickname', 'nickname')
+		.addChoice('Club 7', 'club7'))
+    .addStringOption(option => option.setName('roles')
+		.setDescription('List roles to check "role1" "role2"')
+		.setRequired(false)),
     usage: '"club7/count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
-    execute(message,args)
-    {
+    execute(message) {
+        let args = []
+        for (let data of message.options.data) {
+            args.push(data.value);
+        }
+        console.log(args)
+        
         try
         {
             if(message.mentions.roles.length != undefined || message.mentions.members.length != undefined)

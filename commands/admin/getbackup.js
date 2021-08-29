@@ -1,27 +1,20 @@
 const db = require("../../db/index");
 const Discord = require("discord.js");
 const { getSortedRoleIDs } = require("../../discord/getSortedRoleIDs");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-  name: "getbackup",
-  description: "Sends a list of the backed up roles in DB",
+  data: new SlashCommandBuilder()
+  .setName(`getbackup`)
+  .setDescription(`Get user roles from backup`)
+  .addUserOption(option => option.setName('user')
+			.setDescription('Mention user to get')
+			.setRequired(true)),
   usage: "<userID or @mention>",
   permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
   async execute(message) {
     try {
-      let words = message.content.split(" ");
-      let userID;
-      if (words[1].startsWith("<@&")) {
-        throw "You have to ping a user or type their id";
-      } else {
-        if (words[1].startsWith("<@") && words[1].endsWith(">")) {
-          words[1] = words[1].slice(2, -1);
-          if (words[1].startsWith("!")) {
-            words[1] = words[1].slice(1);
-          }
-        }
-        userID = words[1];
-      }
+      let userID = message.options.data[0].value
       let username = "<@!" + userID + ">";
       db.getBackup(userID).then((value) => {
         if (value == undefined) {

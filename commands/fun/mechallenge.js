@@ -1,10 +1,16 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-	name: "mechallenge",
-	description: "Challenges @user to do the Mechan Challenge! :smiling_imp:",
+	data: new SlashCommandBuilder()
+    .setName(`mechallenge`)
+    .setDescription(`Challenges @user to do the Mechan Challenge! :smiling_imp:`)
+	.addUserOption(option => option.setName('user')
+		.setDescription('Mention user to get')
+		.setRequired(true)),
 	usage: '"@user"',
 	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
-	execute(message) {
+	execute(message, args) {
 		let challenges = [
 			`Do a Multigoid kill assigned by EuanAB`,
 			`Do an E-rated fight assigned by Mechan`,
@@ -14,22 +20,17 @@ module.exports = {
 		];
 		try
 		{
-			if(message.mentions.members.first() == undefined)
-			{
-				throw("You have @ a rank or `@user` is empty!")
-			}
-			else {
-				let challenge = parseInt(Math.floor(Math.random() * challenges.length));
-				let challenged = message.mentions.members.first();
-				message.channel.send({ content: 
-					`${message.member} has publicly challenged ${challenged} to participate in the mechallenge and test their skill against the very best CMDRs!\n\nShould ${challenged.nickname} not submit an entry in the next two weeks ${challenged.nickname} shall be assigned a challenge! BUT if ${challenged.nickname} beats their current record (or scores at least one point if no record) then it will be ${message.member.nickname} who shall be assigned a challenge!\n\nYour Challenge:\n${challenges[challenge]}\n\nHave fun! :smiling_imp:`
-					});
-				}
+			
+			let challenge = parseInt(Math.floor(Math.random() * challenges.length));
+			let challenged = args[0].value
+			message.reply({ content: 
+				`${message.member} has publicly challenged <@${challenged}> to participate in the mechallenge and test their skill against the very best CMDRs!\n\nShould <@${challenged}> not submit an entry in the next two weeks <@${challenged}> shall be assigned a challenge! BUT if <@${challenged}> beats their current record (or scores at least one point if no record) then it will be ${message.member.nickname} who shall be assigned a challenge!\n\nYour Challenge:\n${challenges[challenge]}\n\nHave fun! :smiling_imp:`
+			});
 		}
 		catch (err)
 		{
 			console.error(err);
-			message.channel.send({ content: `Something went wrong!\nERROR: ${err}` });
+			message.reply({ content: `Something went wrong!\nERROR: ${err}` });
 		}
 	},
 };

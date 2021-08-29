@@ -1,6 +1,15 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-    name: 'lfw',
-    description: 'Gives you a role pingable by others if you are looking for group',
+    data: new SlashCommandBuilder()
+	.setName('lfw')
+	.setDescription('Gives you a role pingable by others if you are looking for group')
+    .addStringOption(option => option.setName('platform')
+		.setDescription('Select which platform you want to find a wing on.')
+		.setRequired(false)
+        .addChoice('PC', 'pc')
+		.addChoice('Playstation', 'ps')
+		.addChoice('XBox', 'xb')),
     usage: '"pc/ps/xb"',
     permlvl: 0,
     async execute(message, args) {
@@ -26,7 +35,7 @@ module.exports = {
             if (member.includes(id.pclfw)) { lfwString += `<@&${id.pclfw}>`; }
             if (member.includes(id.pslfw)) { lfwString += `<@&${id.pslfw}>`; }
             if (member.includes(id.xblfw)) { lfwString += `<@&${id.xblfw}>`; }
-            message.reply({ content: `<@${message.author.id}> is now ${lfwString}`})
+            message.reply({ content: `<@${message.member.id}> is now ${lfwString}`})
         }
         
         if (args[0] === undefined) {
@@ -34,7 +43,7 @@ module.exports = {
                 message.member.roles.remove(id.pclfw)
                 message.member.roles.remove(id.pslfw)
                 message.member.roles.remove(id.xblfw)
-                message.reply({ content: `<@${message.author.id}> is no longer looking for Wing` });
+                message.reply({ content: `<@${message.member.id}> is no longer looking for Wing` });
                 return;
             }
         }
@@ -46,7 +55,7 @@ module.exports = {
                 if (role === id.xb) { platCount++; }
             }
             if (platCount != 1) {
-                throw `Please specify a platform: ${this.usage}`;
+                message.reply({ content: "Please specify a platform: `" + this.usage + "`" });
             }
 
             for (let role of member) {
@@ -68,7 +77,7 @@ module.exports = {
             return;
         }
 
-        switch (args[0]) {
+        switch (args[0].value) {
             case "pc":
                 await message.member.roles.add(id.pclfw)
                 announce(id.pclfw)

@@ -1,8 +1,10 @@
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: 'nhss',
-    description: 'All you need to know about Non-Human Signal Sources',
+    data: new SlashCommandBuilder()
+	.setName('nhss')
+	.setDescription('All you need to know about Non-Human Signal Sources'),
     permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
     usage: '',
     execute(message) {
@@ -17,6 +19,6 @@ module.exports = {
 		const buttonRow = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setLabel('Learn more about NHSS').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/nhss'),)
 
-        message.channel.send({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
+        message.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
     }
 };

@@ -1,21 +1,25 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
-const { getRoleID } = require("../../discord/getRoleID");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'roleinfo',
-	description: 'Get information about a role',
+  data: new SlashCommandBuilder()
+	.setName('roleinfo')
+	.setDescription('Get information about a role')
+  .addRoleOption(option => option.setName('role')
+		.setDescription('The role to target')
+		.setRequired(true)),
   usage: '"role name"',
 	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
   args: true,
-	execute(message, args) {
+	execute(message) {
 		try {
-      let role = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
+      let role = message.options.data[0].value
       if(role.length < 2)
       {
           throw("Role name too short. Add more letters to role names for best results.")
       }
-      let roleID = getRoleID(message,role)
+      let roleID = role
       let actualrole = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
       let membercount = message.guild.roles.cache.get(roleID).members.size
 
@@ -28,12 +32,12 @@ module.exports = {
         {name: "ID", value: "```" + roleID + "```", inline: true},
         {name: "Total Members", value: "```" + membercount + "```", inline: true},
       )
-      message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+      message.reply({ embeds: [returnEmbed.setTimestamp()] });
 
     }
       catch(err) {
         console.error(err);
-        message.channel.send({ content: `Something went wrong, please try again!` })
+        message.reply({ content: `Something went wrong, please try again!` })
       }
 	},
 };
