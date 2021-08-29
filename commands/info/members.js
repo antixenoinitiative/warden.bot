@@ -35,30 +35,28 @@ module.exports = {
             let roleID = interaction.options.data.find(arg => arg.name === 'role').value
             let mode = "txt"
             if (interaction.options.data.find(arg => arg.name === 'output') != undefined) { mode = interaction.options.data.find(arg => arg.name === 'output').value }
-
-
             let memberwithrole = interaction.guild.roles.cache.get(roleID).members
             let actualrole = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
             let memberList = ""
             if(mode == "txt")
             {
                 let type = ""
-                if(args[2] == undefined)
+                if(interaction.options.data.find(arg => arg.name === 'type') == undefined)
                 {
                     type = "nickname"
                 }
                 else
                 {
-                    type = args[2]
+                    type = interaction.options.data.find(arg => arg.name === 'type').value
                 }
                 let highlength = 0
-                if(args[3] == undefined)
+                if(interaction.options.data.find(arg => arg.name === 'maxlength') == undefined)
                 {
                     highlength = 10
                 }
                 else
                 {
-                    highlength = args[3]
+                    highlength = interaction.options.data.find(arg => arg.name === 'maxlength').value
                 }
                 memberwithrole.map(m =>
                 {

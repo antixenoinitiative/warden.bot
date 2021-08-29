@@ -24,9 +24,9 @@ module.exports = {
             "xblfw": "602939699685752833"
         }
 
-        let allowedChannels = [ "380247203794518027", "380467558110855173", "380467652696735744" ]
+        // let allowedChannels = [ "380247203794518027", "380467558110855173", "380467652696735744" ]
         
-        if (!allowedChannels.includes(message.channelId)) { return }
+        // if (!allowedChannels.includes(message.channelId)) { return }
 
         function announce(newPlatform) {
             let lfwString = ""
