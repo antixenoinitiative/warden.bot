@@ -10,7 +10,7 @@ module.exports = {
   .addUserOption(option => option.setName('user')
 			.setDescription('Mention user to get')
 			.setRequired(true)),
-  permlvl: 0,
+  permissions: 0,
   async execute(interaction) {
     try {
       let userID = interaction.options.data.find(arg => arg.name === 'user').value

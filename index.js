@@ -5,44 +5,42 @@ const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
 
 require("dotenv").config();
 require('./deploy-commands'); // Re-register slash commands
-const fs = require('fs');
-const Discord = require("discord.js");
+const { readdirSync } = require('fs');
+const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
 const event = require('./events/event.js');
-const config = require('./config.json');
-const prefix = config.prefix
+const { prefix, icon, securityGroups } = require('./config.json');
 
 // Discord client setup
-const myIntents = new Discord.Intents();
-myIntents.add(
-	Discord.Intents.FLAGS.GUILDS,
-	Discord.Intents.FLAGS.GUILD_PRESENCES, 
-	Discord.Intents.FLAGS.GUILD_MEMBERS, 
-	Discord.Intents.FLAGS.GUILD_MESSAGES, 
-	Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
-	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
+const serverIntents = new Intents();
+serverIntents.add(
+	Intents.FLAGS.GUILDS,
+	Intents.FLAGS.GUILD_PRESENCES, 
+	Intents.FLAGS.GUILD_MEMBERS, 
+	Intents.FLAGS.GUILD_MESSAGES, 
+	Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
+	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
 );
-const discordClient = new Discord.Client({ intents: myIntents })
+const bot = new Client({ intents: serverIntents })
 
-//Command detection
-discordClient.commands = new Discord.Collection();
-const commandFolders = fs.readdirSync('./commands');
+// Command Setup
+bot.commands = new Collection();
+const commandFolders = readdirSync('./commands');
 for (const folder of commandFolders) {
-	const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+	const commandFiles = readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
 	for (const file of commandFiles) {
 		const command = require(`./commands/${folder}/${file}`);
 		command.category = folder;
 		if (command.data === undefined) {
-			discordClient.commands.set(command.name, command) // For non-slash commands
+			bot.commands.set(command.name, command) // For non-slash commands
 		} else {
-			discordClient.commands.set(command.data.name, command) // For slash commands
+			bot.commands.set(command.data.name, command) // For slash commands
 		}
 	}
 }
 
-//Discord client
-const incursionsEmbed = new Discord.MessageEmbed()
+const incursionsEmbed = new MessageEmbed()
 .setColor('#FF7100')
-.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+.setAuthor('The Anti-Xeno Initiative', icon)
 .setTitle("**Defense Targets**")
 let messageToUpdate
 
@@ -53,8 +51,8 @@ let messageToUpdate
  * @param	{string} severity	Message severity ("low", "medium", "high").
  */
 function botLog(event, severity) {
-	const logEmbed = new Discord.MessageEmbed()
-	.setAuthor('Warden', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png");
+	const logEmbed = new MessageEmbed()
+	.setAuthor('Warden', icon);
 	switch (severity) {
 		case "low":
 			logEmbed.setColor('#42f569')
@@ -70,17 +68,28 @@ function botLog(event, severity) {
 			break;
 	}
 	if (process.env.LOGCHANNEL) {
-		discordClient.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+		bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
 	} else {
 		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.") 
 	}
 }
 
-discordClient.once("ready", async() => {
+const checkPermissions = (command, interaction) => {
+	// checks for proper permissions by role against permissions.js
+	let allowedRoles = securityGroups[command.permissions].roles;
+	let userRoles = interaction.member._roles;
+	let allowed = false; // False by default
+	for (let role of allowedRoles) {
+		if (userRoles.includes(role)) { allowed = true }
+	}
+	return allowed
+}
+
+bot.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
-	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
+	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
-	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
+	bot.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
 		messageToUpdate = message
 		const currentEmbed = message.embeds[0]
 		incursionsEmbed.description = currentEmbed.description
@@ -94,7 +103,7 @@ discordClient.once("ready", async() => {
 })
 
 // Command Handler for Non-Slash Commands
-discordClient.on('messageCreate', message => {
+bot.on('messageCreate', message => {
 	if (!message.content.startsWith(prefix) || message.author.bot) return;
 
 	// Argument Handler and commands
@@ -105,42 +114,31 @@ discordClient.on('messageCreate', message => {
 		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments - Split by spaces, except where there are quotes.
 		args = args.map(arg => arg.replaceAll('"', ''))
 		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
-		command = discordClient.commands.get(commandName); // Gets the command info
+		command = bot.commands.get(commandName); // Gets the command info
 	} catch (err) {
 		console.warn(`Invalid command input: ${err}`)
 	}
 
-	//checks if command exists, then goes to non-subfiled commandsp
-	if (!discordClient.commands.has(commandName)) {
+	//checks if command exists, then goes to non-subfiled command
+	if (!bot.commands.has(commandName)) {
 		// Basic Commands
 		if (message.content === `${prefix}help`) { // Unrestricted Commands.
 			message.reply({ content: "Type `/` to view all commands"})
 		}
 
 		if (message.content === `${prefix}ping`) {
-			message.channel.send({ content: `🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms` });
+			message.channel.send({ content: `🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(bot.ws.ping)}ms` });
 		}
 
 		return;
 	}
 
-	if (command.permlvl != 0) {
-		// checks for proper permissions by role against permissions.js
-		let allowedRoles = config.securityGroups[command.permlvl].roles;
-		if (allowedRoles !== 0) {
-			let allowed = 0;
-			for (const value of allowedRoles) {
-				if (message.member.roles.cache.has(value)) {
-					allowed++;
-				}
-			}
-			if (allowed === 0) { 
-				botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
-				return message.reply("You don't have permission to use that command!") 
-			} 	// returns false if the member has the role) 
+	if (command.permissions != 0) {
+		if (checkPermissions(command, message) === false) { 
+			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
+			return message.reply("You don't have permission to use that command!")
 		}
 	}
-
 
 	if (command.args && !args.length) {
 		let reply = `You didn't provide any arguments, ${message.author}!`;
@@ -159,7 +157,7 @@ discordClient.on('messageCreate', message => {
 });
 
 // Button Handler
-discordClient.on('interactionCreate', b => {
+bot.on('interactionCreate', b => {
 	if (!b.isButton()) return;
 	
 	// Event Response Handler
@@ -197,27 +195,21 @@ discordClient.on('interactionCreate', b => {
 });
 
 // Slash Command Handler
-discordClient.on('interactionCreate', async interaction => {
+bot.on('interactionCreate', async interaction => {
+	console.log(interaction)
 	if (!interaction.isCommand()) return;
 	console.log(interaction)
 
-	const command = discordClient.commands.get(interaction.commandName);
+	const command = bot.commands.get(interaction.commandName);
 	console.log(command)
 	if (!command) return;
 
 	const args = interaction.options.data
 
-	if (command.permlvl != 0) {
-		// checks for proper permissions by role against permissions.js
-		let allowedRoles = config.securityGroups[command.permlvl].roles;
-		let userRoles = interaction.member._roles;
-		let allowed = false;
-		for (let role of allowedRoles) {
-			if (userRoles.includes(role)) { allowed = true }
-		}
-		if (allowed == false) { 
+	if (command.permissions != 0) {
+		if (checkPermissions(command, interaction) === false) { 
 			botLog('**' + interaction.member.nickname + '** Attempted to use command: /`' + interaction.commandName + ' ' + interaction.data + '`' + ' Failed: Insufficient Permissions', "medium")  
-			return interaction.reply("You don't have permission to use that command!") 
+			return interaction.reply("You don't have permission to use that command!")
 		}
 	}
 
@@ -230,7 +222,7 @@ discordClient.on('interactionCreate', async interaction => {
 	}
 });
 
-discordClient.on("error", () => { discordClient.login(discordClient.login(process.env.TOKEN)) });
+bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
 
 /**
 * Updates or adds a single field to the stored embed and updates the message
@@ -240,9 +232,9 @@ discordClient.on("error", () => { discordClient.login(discordClient.login(proces
 function updateEmbedField(field) {
 	if(!messageToUpdate) return
 	if(field.name === null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
-	const temp = new Discord.MessageEmbed()
+	const temp = new MessageEmbed()
 	.setColor('#FF7100')
-	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+	.setAuthor('The Anti-Xeno Initiative', icon)
 	.setTitle("**Defense Targets**")
 	.setDescription(incursionsEmbed.description)
 	let isUpdated = false
@@ -268,4 +260,4 @@ function updateEmbedField(field) {
 }
 
 // Switch Statements
-if (enableDiscordBot === 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
+if (enableDiscordBot === 1) { bot.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}

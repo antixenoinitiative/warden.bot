@@ -5,7 +5,7 @@ module.exports = {
     data: new SlashCommandBuilder()
     .setName(`platform`)
     .setDescription(`Create the Platform buttons`),
-    permlvl: 2,
+    permissions: 2,
     async execute (interaction) {
         const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')

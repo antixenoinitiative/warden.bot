@@ -4,7 +4,7 @@ module.exports = {
     data: new SlashCommandBuilder()
 	.setName('cg')
 	.setDescription('Get current CG info'),
-    permlvl: 0,
+    permissions: 0,
     async execute (message) {
         const Discord = require('discord.js');
         const https = require('https');

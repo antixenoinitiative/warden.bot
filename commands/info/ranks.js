@@ -5,7 +5,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 	.setName('ranks')
 	.setDescription('Get rank statistics'),
-	permlvl: 0,
+	permissions: 0,
 	async execute(message) {
 
 		// Build the initial message

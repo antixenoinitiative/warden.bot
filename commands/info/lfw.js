@@ -10,7 +10,7 @@ module.exports = {
         .addChoice('PC', 'pc')
 		.addChoice('Playstation', 'ps')
 		.addChoice('XBox', 'xb')),
-    permlvl: 0,
+    permissions: 0,
     async execute(interaction) {
         let member = interaction.member._roles;
         let platCount = 0;

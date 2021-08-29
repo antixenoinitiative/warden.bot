@@ -5,7 +5,7 @@ module.exports = {
     data: new SlashCommandBuilder()
 	.setName('builds')
 	.setDescription('Useful Information and links for AX Ship Builds'),
-    permlvl: 0,
+    permissions: 0,
     execute(interaction) {
         const returnEmbed = new Discord.MessageEmbed()
         .setColor('#FF7100')

@@ -5,7 +5,7 @@ module.exports = {
     data: new SlashCommandBuilder()
 	.setName('nhss')
 	.setDescription('All you need to know about Non-Human Signal Sources'),
-    permlvl: 0,
+    permissions: 0,
     execute(interaction) {
         const returnEmbed = new Discord.MessageEmbed()
         .setColor('#FF7100')

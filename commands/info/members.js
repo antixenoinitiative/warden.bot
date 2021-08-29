@@ -25,7 +25,7 @@ module.exports = {
     .addIntegerOption(option => option.setName('maxlength')
 		.setDescription('Total number to list')
 		.setRequired(false)),
-	permlvl: 0,
+	permissions: 0,
     execute (interaction) {
         let args = []
         for (let data of interaction.options.data) {

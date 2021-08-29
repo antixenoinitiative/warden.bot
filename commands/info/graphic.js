@@ -18,7 +18,7 @@ module.exports = {
     .addStringOption(option => option.setName('selection')
 		.setDescription('Select which graphic do display')
 		.setRequired(false)),
-    permlvl: 0,
+    permissions: 0,
     execute(interaction) {
         let selection;
         if (interaction.options.data.find(arg => arg.name === 'selection') != undefined) { selection = interaction.options.data.find(arg => arg.name === 'selection').value }

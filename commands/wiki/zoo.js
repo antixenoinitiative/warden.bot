@@ -5,7 +5,7 @@ module.exports = {
     data: new SlashCommandBuilder()
 	.setName('zoo')
 	.setDescription('Learn about the zoo'),
-    permlvl: 0,
+    permissions: 0,
     hidden: false,
     execute (interaction) {
         const returnEmbed = new Discord.MessageEmbed()

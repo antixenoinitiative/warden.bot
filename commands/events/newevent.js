@@ -17,7 +17,7 @@ module.exports = {
     .addStringOption(option => option.setName('time')
 		.setDescription('DD-MM-YYYY hh:mm')
 		.setRequired(true)),
-    permlvl: 1,
+    permissions: 1,
     async execute (interaction) {
         let eventName = interaction.options.data.find(arg => arg.name === 'name').value
         let eventDesc = interaction.options.data.find(arg => arg.name === 'description').value

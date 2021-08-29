@@ -109,7 +109,7 @@ module.exports = {
 	.addStringOption(option => option.setName('search-term')
 		.setDescription('name/week/YYYY-MM-DD')
 		.setRequired(true)),
-	permlvl: 0,
+	permissions: 0,
 	execute(message, args) {
 		const type = args[0].value;
 		const param = args[1].value;

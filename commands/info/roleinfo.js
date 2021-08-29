@@ -9,7 +9,7 @@ module.exports = {
   .addRoleOption(option => option.setName('role')
 		.setDescription('The role to target')
 		.setRequired(true)),
-	permlvl: 0,
+	permissions: 0,
 	execute(interaction) {
 		try {
       let role = interaction.options.data.find(arg => arg.name === 'role').value

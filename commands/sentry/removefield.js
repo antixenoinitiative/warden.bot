@@ -2,7 +2,7 @@ module.exports = {
 	name: 'removefield',
 	description: 'Manually removes a field',
 	usage: '',
-	permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
+	permissions: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
 	args: true,
 	execute(message, args, updateEmbedField) {
     let fieldName = args[0]

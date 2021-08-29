@@ -5,7 +5,7 @@ module.exports = {
     data: new SlashCommandBuilder()
     .setName(`backup`)
     .setDescription(`Creates a backup of current users and their roles`),
-	permlvl: 2,
+	permissions: 2,
     async execute (interaction) {
         let roles = {}
         let members = interaction.guild.members.cache

@@ -9,7 +9,7 @@ module.exports = {
 	.addStringOption(option => option.setName('command')
 		.setDescription('Name of the command to reload')
 		.setRequired(true)),
-	permlvl: 1,
+	permissions: 1,
 	async execute(interaction) {
 		const commandName = interaction.options.data.find(arg => arg.name === 'command').value.toLowerCase();
 		console.log(commandName)

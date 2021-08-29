@@ -57,7 +57,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 	.setName('myCommandName') // What the user types to call the command
 	.setDescription('myCommandDescription'), // The Discord Description for the command
-	permlvl: 0,
+	permissions: 0,
 	execute(interaction) {
         // Command Code
         interaction.reply({ content: "Hello World!"}) // Replies to the user "Hello World".
@@ -79,7 +79,7 @@ module.exports = {
     .addStringOption(option => option.setName('myArgument') // Create the option
 		.setDescription('Type Something Here!')
 		.setRequired(true)),
-	permlvl: 0,
+	permissions: 0,
 	execute(interaction) {
         // Command Code
         let response = interaction.options.data.find(arg => arg.name === 'myArgument').value // Get the option from the command usage
@@ -100,7 +100,7 @@ module.exports = {
     description: "myCommandDescription",
     format: '"myArgument"',
     args: true,
-    permlvl: 0,
+    permissions: 0,
     hidden: false,
     execute (message, args) {
 		// Command Code
