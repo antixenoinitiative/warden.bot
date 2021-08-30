@@ -23,7 +23,7 @@ module.exports = {
         let eventDesc = interaction.options.data.find(arg => arg.name === 'description').value
         let eventTime;
         let formats = [ "YYYY-MM-DD hh:mm", "DD-MM-YYYY hh:mm", "DD/MM/YYYY hh:mm" ];
-        if (moment(interaction.options.data.find(arg => arg.name === 'time').value.value.replaceAll('"', ''),formats).isValid()) {
+        if (moment(interaction.options.data.find(arg => arg.name === 'time').value,formats).isValid()) {
             eventTime = moment(interaction.options.data.find(arg => arg.name === 'time').value.value,formats);
         }
 
