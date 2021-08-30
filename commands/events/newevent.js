@@ -52,7 +52,7 @@ module.exports = {
         if (config.eventchannelid !== undefined) {
             embed = interaction.guild.channels.cache.find(x => x.id === process.env.EVENTCHANNELID).send({ embeds: [eventEmbed], components: [row] })
         } else {
-            console.warn("The environment variable LOGCHANNEL is not defined.") 
+            console.warn("The environment variable EVENTCHANNELID is not defined.") 
         }
 
         try {
