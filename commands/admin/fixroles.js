@@ -1,60 +1,60 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-    name: "fixroles",
-    description: " ",
-    usage: '',
-    args: false,
-    permlvl: 2, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    hidden: true,
-    async execute (message) {
+    data: new SlashCommandBuilder()
+    .setName(`fixroles`)
+    .setDescription(`Fixes user roles to have correct seperators`),
+    permissions: 2,
+    async execute (interaction) {
         try {
-            message.channel.send({ content: "Processing, this may take a while."})
+            interaction.channel.send({ content: "Processing, this may take a while."})
             let updated = 0
             let count = 0
 
             // Fix missing Recruits
-            let pc = message.guild.roles.cache.get("428260067901571073").members
+            let pc = interaction.guild.roles.cache.get("428260067901571073").members
             for (let [, value] of pc) {
                 if (!value.roles.cache.find(r => r.id === "380254463170183180") && !value.roles.cache.find(r => r.id === "380247760668065802")) {
                     await value.roles.add("380247760668065802");
                     updated++
                 }
             }
-            let xb = message.guild.roles.cache.get("533774176478035991").members
+            let xb = interaction.guild.roles.cache.get("533774176478035991").members
             for (let [, value] of xb) {
                 if (!value.roles.cache.find(r => r.id === "380254463170183180") && !value.roles.cache.find(r => r.id === "380247760668065802")) {
                     await value.roles.add("380247760668065802");
                     updated++
                 }
             }
-            let ps = message.guild.roles.cache.get("428259777206812682").members
+            let ps = interaction.guild.roles.cache.get("428259777206812682").members
             for (let [, value] of ps) {
                 if (!value.roles.cache.find(r => r.id === "380254463170183180") && !value.roles.cache.find(r => r.id === "380247760668065802")) {
                     await value.roles.add("380247760668065802");
                     updated++
                 }
             }
-            message.reply({ content: `Stage 1 Complete, ${count} processed total, ${updated} recruits fixed, starting Stage 2...`})
+            interaction.reply({ content: `Stage 1 Complete, ${count} processed total, ${updated} recruits fixed, starting Stage 2...`})
 
             // Fix Leftover Recruits on Apollos + Seperators
             updated = 0
-            let apollo = message.guild.roles.cache.get("380254463170183180").members
+            let apollo = interaction.guild.roles.cache.get("380254463170183180").members
             for (let [, value] of apollo) {
                 if (!value.roles.cache.find(r => r.id === "642839749777948683")) { await value.roles.add("642839749777948683"); updated++ }
                 if (!value.roles.cache.find(r => r.id === "642840406580658218")) { await value.roles.add("642840406580658218"); updated++ }
                 if (value.roles.cache.find(r => r.id === "380247760668065802")) { await value.roles.remove("380247760668065802"); updated++ }
                 count++;
             }
-            message.reply({ content: `Stage 2 Complete, ${count} processed total, ${updated} roles fixed, starting Stage 2...`})
+            interaction.channel.send({ content: `Stage 2 Complete, ${count} processed total, ${updated} roles fixed, starting Stage 2...`})
 
             // Fix Seperators on Recruits
             updated = 0
-            let recruits = message.guild.roles.cache.get("380247760668065802").members
+            let recruits = interaction.guild.roles.cache.get("380247760668065802").members
             for (let [, value] of recruits) {
                 if (!value.roles.cache.find(r => r.id === "642839749777948683")) { await value.roles.add("642839749777948683"); updated++ }
                 if (!value.roles.cache.find(r => r.id === "642840406580658218")) { await value.roles.add("642840406580658218"); updated++ }
                 count++;
             }
-            message.reply({ content: `Stage 3 Complete, ${count} processed total. ${updated} roles updated.`})
+            interaction.channel.send({ content: `Stage 3 Complete, ${count} processed total. ${updated} roles updated.`})
         } catch (err) {
             console.error(err)
         }

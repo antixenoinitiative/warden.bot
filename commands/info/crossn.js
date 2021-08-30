@@ -1,31 +1,45 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const { getRoleID } = require("../../discord/getRoleID");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 function checker(memberrolearray, requestedroles) {
     return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
 }
 
 module.exports = {
-	name: 'crossn',
-	description: 'How many people with rank1 also have rank2... also have rankn?',
-    usage: '"club7/count/nickname(optional, default=nickname)" "role1" "role2" ... "rolen"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	args: true,
-    execute(message,args)
-    {
+    data: new SlashCommandBuilder()
+	.setName('crossn')
+	.setDescription('How many people with rank1 also have rank2... also have rankn?')
+    .addStringOption(option => option.setName('mode')
+		.setDescription('Which mode to run the command as.')
+		.setRequired(true)
+        .addChoice('Count', 'count')
+		.addChoice('Nickname', 'nickname')
+		.addChoice('Club 7', 'club7'))
+    .addStringOption(option => option.setName('roles')
+		.setDescription('List roles to check "role1" "role2"')
+		.setRequired(false)),
+	permissions: 0,
+    execute(interaction) {
+        let args = []
+        for (let data of interaction.options.data) {
+            args.push(data.value);
+        }
+        console.log(args)
         try
         {
-            if(message.mentions.roles.length != undefined || message.mentions.members.length != undefined)
+            if(interaction.mentions.roles.length != undefined || interaction.mentions.members.length != undefined)
                 throw("Illegal input detected!")
+            let inputMode = interaction.options.data.find(arg => arg.name === 'mode').value
             let roles = []
             let count = 0
             let memberList = []
             let mode = ""
-            if(args[0]!= "count" && args[0]!= "nickname")
+            if(inputMode !== "count" && inputMode !== "nickname")
             {
                 mode = "nickname"
-                if(args[0].toLowerCase() == "club7")
+                if(inputMode == "club7")
                     roles = [
                                 '477645690630307841', //100club
                                 '528577192746287104', //annihi
@@ -36,19 +50,19 @@ module.exports = {
                                 '642840616694317104' //vang
                             ]
                 else
-                    args.forEach(arg => roles.push(getRoleID(message,arg)))
+                    args.forEach(arg => roles.push(getRoleID(interaction,arg)))
             }
             else
             {
-                mode = args[0]
-                args.slice(1,).forEach(arg => roles.push(getRoleID(message,arg)))
+                mode = inputMode
+                args.slice(1,).forEach(arg => roles.push(getRoleID(interaction,arg)))
             }
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             
             
-            message.guild.members.cache.each(member => {
+            interaction.guild.members.cache.each(member => {
                 let memberroles = member._roles
                 if(checker(memberroles,roles))
                 {
@@ -60,7 +74,7 @@ module.exports = {
             let role_names_unsorted_list = []
             let role_names_sorted_string = "\n"
             roles.forEach(rolein => {
-                role_names_unsorted_list.push(cleanString(message.guild.roles.cache.find(role => role.id == rolein).name))
+                role_names_unsorted_list.push(cleanString(interaction.guild.roles.cache.find(role => role.id == rolein).name))
             })
             role_names_unsorted_list.sort()
             role_names_unsorted_list.forEach(rolein =>{
@@ -77,7 +91,7 @@ module.exports = {
                     {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                     {name:"Count",value:"```" + count + "```"}
                 )
-                message.channel.send({ embeds: [returnEmbed.setTimestamp()] })
+                interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] })
             }
             else
             {
@@ -88,7 +102,7 @@ module.exports = {
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         {name:"No members were found!",value:"** **"},
                     )
-                    message.channel.send({ embeds: [returnEmbed.setTimestamp()] }) 
+                    interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] }) 
                 }
                 else
                 {
@@ -97,14 +111,14 @@ module.exports = {
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},
                     )
-                    message.channel.send({ embeds: [returnEmbed.setTimestamp()] })  
+                    interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] })  
                 }
             }
         }
         catch(err)
         {
             console.error(err);
-            message.channel.send({ content: `An error occured!\n${err}` })
+            interaction.channel.send({ content: `An error occured!\n${err}` })
         }
     },
 };

@@ -4,7 +4,7 @@ module.exports = {
     description: "Creates a new embed and gives the relevant IDs",
     format: '',
     args: false,
-    permlvl: 2,
+    permissions: 2,
     hidden: true,
     execute (message) {
       const newEmbed = new Discord.MessageEmbed()

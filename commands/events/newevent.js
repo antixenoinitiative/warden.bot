@@ -2,21 +2,29 @@ const moment = require("moment");
 const db = require("../../db/index");
 const Discord = require("discord.js");
 const config = require('../../config.json');
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    name: "newevent",
-    description: "Create a new event",
-    usage: '"name" "description" "DD-MM-YYYY hh:mm"',
-    args: true,
-    permlvl: 1, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    hidden: false,
-    async execute (message, args) {
-        let eventName = args[0].replaceAll('"', '')
-        let eventDesc = args[1].replaceAll('"', '')
+    data: new SlashCommandBuilder()
+    .setName(`newevent`)
+    .setDescription(`Create a new event`)
+    .addStringOption(option => option.setName('name')
+		.setDescription('Name of the Event')
+		.setRequired(true))
+    .addStringOption(option => option.setName('description')
+		.setDescription('Short description of the event')
+		.setRequired(true))
+    .addStringOption(option => option.setName('time')
+		.setDescription('DD-MM-YYYY hh:mm')
+		.setRequired(true)),
+    permissions: 1,
+    async execute (interaction) {
+        let eventName = interaction.options.data.find(arg => arg.name === 'name').value
+        let eventDesc = interaction.options.data.find(arg => arg.name === 'description').value
         let eventTime;
         let formats = [ "YYYY-MM-DD hh:mm", "DD-MM-YYYY hh:mm", "DD/MM/YYYY hh:mm" ];
-        if (moment(args[2].replaceAll('"', ''),formats).isValid()) {
-            eventTime = moment(args[2],formats);
+        if (moment(interaction.options.data.find(arg => arg.name === 'time').value.value.replaceAll('"', ''),formats).isValid()) {
+            eventTime = moment(interaction.options.data.find(arg => arg.name === 'time').value.value,formats);
         }
 
         const getRandomString = (length) => {
@@ -42,16 +50,16 @@ module.exports = {
 
         let embed;
         if (config.eventchannelid !== undefined) {
-            embed = message.guild.channels.cache.find(x => x.id === config.eventchannelid).send({ embeds: [eventEmbed], components: [row] })
+            embed = interaction.guild.channels.cache.find(x => x.id === process.env.EVENTCHANNELID).send({ embeds: [eventEmbed], components: [row] })
         } else {
             console.warn("The environment variable LOGCHANNEL is not defined.") 
         }
 
         try {
-            await db.query("INSERT INTO events(event_id, embed, name, description, creator, date) VALUES($1, $2, $3, $4, $5, $6)", [eventKey, embed, eventName, eventDesc, message.author.id, eventTime]);
-            message.reply({ content: `Event Created Successfully, ID: ${eventKey}`});
+            await db.query("INSERT INTO events(event_id, embed, name, description, creator, date) VALUES($1, $2, $3, $4, $5, $6)", [eventKey, embed, eventName, eventDesc, interaction.author.id, eventTime]);
+            interaction.reply({ content: `Event Created Successfully, ID: ${eventKey}`});
         } catch (err) {
-            message.reply({ content: `Something went wrong saving the event, please try again or contact staff`});
+            interaction.reply({ content: `Something went wrong saving the event, please try again or contact staff`});
             console.log(err);
         }
     }

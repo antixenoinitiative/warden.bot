@@ -1,29 +1,33 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
-const { getRoleID } = require("../../discord/getRoleID");
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-	name: 'cross',
-	description: 'How many people with rank1 also have rank2?',
-	usage: '"role1" "role2"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	args: true,
-	execute(message, args) {
+	data: new SlashCommandBuilder()
+	.setName('cross')
+	.setDescription('How many people with rank1 also have rank2?')
+	.addRoleOption(option => option.setName('first-rank')
+		.setDescription('First Rank')
+		.setRequired(true))
+	.addRoleOption(option => option.setName('second-rank')
+		.setDescription('Second Rank')
+		.setRequired(true)),
+	permissions: 0,
+	execute(interaction) {
 		try {
 			let count = 0
 			const returnEmbed = new Discord.MessageEmbed()
 			.setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle("**Count**")
-			var role1 = args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
-			var role2 = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
 			let actualrole1 = ""
 			let actualrole2 = ""
 			let memberwithrole1 = null
 			try
 			{
-				let roleID = getRoleID(message,role1)
-				memberwithrole1 = message.guild.roles.cache.get(roleID).members
-				actualrole1 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
+				let roleID = interaction.options.data.find(arg => arg.name === 'first-rank').value
+				memberwithrole1 = interaction.guild.roles.cache.get(roleID).members
+				actualrole1 = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
 			{
@@ -32,9 +36,9 @@ module.exports = {
 			let memberwithrole2 = null
 			try
 			{
-				let roleID = getRoleID(message,role2)
-				memberwithrole2 = message.guild.roles.cache.get(roleID).members
-				actualrole2 = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
+				let roleID = interaction.options.data.find(arg => arg.name === 'second-rank').value
+				memberwithrole2 = interaction.guild.roles.cache.get(roleID).members
+				actualrole2 = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
 			{
@@ -53,10 +57,10 @@ module.exports = {
 			returnEmbed.addField("Members with rank " + actualrole1,"```" + countrole1 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole2,"```" + countrole2 + "```",true)
 			returnEmbed.addField("Members with rank " + actualrole1 + " having rank " + actualrole2, "```" + count + "```")
-			message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+			interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 		} catch(err) {
 			console.error(err);
-			message.channel.send({ content: `ERROR! Something went wrong:\n${err}` })
+			interaction.reply({ content: `ERROR! Something went wrong:\n${err}` })
 		}
 	},
 };

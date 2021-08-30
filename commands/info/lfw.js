@@ -1,10 +1,18 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-    name: 'lfw',
-    description: 'Gives you a role pingable by others if you are looking for group',
-    usage: '"pc/ps/xb"',
-    permlvl: 0,
-    async execute(message, args) {
-        let member = message.member._roles;
+    data: new SlashCommandBuilder()
+	.setName('lfw')
+	.setDescription('Gives you a role pingable by others if you are looking for group')
+    .addStringOption(option => option.setName('platform')
+		.setDescription('Select which platform you want to find a wing on.')
+		.setRequired(false)
+        .addChoice('PC', 'pc')
+		.addChoice('Playstation', 'ps')
+		.addChoice('XBox', 'xb')),
+    permissions: 0,
+    async execute(interaction) {
+        let member = interaction.member._roles;
         let platCount = 0;
         const id = {
             "pc": "428260067901571073",
@@ -17,50 +25,50 @@ module.exports = {
 
         let allowedChannels = [ "380247203794518027", "380467558110855173", "380467652696735744" ]
         
-        if (!allowedChannels.includes(message.channelId)) { return }
+        if (!allowedChannels.includes(interaction.channelId)) { return }
 
         function announce(newPlatform) {
             let lfwString = ""
-            member = message.member._roles
+            member = interaction.member._roles
             member.push(newPlatform)
             if (member.includes(id.pclfw)) { lfwString += `<@&${id.pclfw}>`; }
             if (member.includes(id.pslfw)) { lfwString += `<@&${id.pslfw}>`; }
             if (member.includes(id.xblfw)) { lfwString += `<@&${id.xblfw}>`; }
-            message.reply({ content: `<@${message.author.id}> is now ${lfwString}`})
+            interaction.reply({ content: `<@${interaction.member.id}> is now ${lfwString}`})
         }
         
-        if (args[0] === undefined) {
+        if (interaction.options.data.find(arg => arg.name === 'platform') === undefined) {
             if (member.includes(id.pclfw) || member.includes(id.pslfw) || member.includes(id.xblfw)) {
-                message.member.roles.remove(id.pclfw)
-                message.member.roles.remove(id.pslfw)
-                message.member.roles.remove(id.xblfw)
-                message.reply({ content: `<@${message.author.id}> is no longer looking for Wing` });
+                interaction.member.roles.remove(id.pclfw)
+                interaction.member.roles.remove(id.pslfw)
+                interaction.member.roles.remove(id.xblfw)
+                interaction.reply({ content: `<@${interaction.member.id}> is no longer looking for Wing` });
                 return;
             }
         }
 
-        if (args[0] === undefined) {
+        if (interaction.options.data.find(arg => arg.name === 'platform') === undefined) {
             for (let role of member) {
                 if (role === id.pc) { platCount++; }
                 if (role === id.ps) { platCount++; }
                 if (role === id.xb) { platCount++; }
             }
             if (platCount != 1) {
-                throw `Please specify a platform: ${this.usage}`;
+                return interaction.reply({ content: "Please specify a platform: `pc/ps/xb`" });
             }
 
             for (let role of member) {
                 switch (role) {
                     case id.pc:
-                        await message.member.roles.add(id.pclfw)
+                        await interaction.member.roles.add(id.pclfw)
                         announce(id.pclfw)
                         break;
                     case id.ps:
-                        await message.member.roles.add(id.pslfw)
+                        await interaction.member.roles.add(id.pslfw)
                         announce(id.pslfw)
                         break;
                     case id.xb:
-                        await message.member.roles.add(id.xblfw)
+                        await interaction.member.roles.add(id.xblfw)
                         announce(id.xblfw)
                         break;
                 }
@@ -68,17 +76,17 @@ module.exports = {
             return;
         }
 
-        switch (args[0]) {
+        switch (interaction.options.data.find(arg => arg.name === 'platform').value) {
             case "pc":
-                await message.member.roles.add(id.pclfw)
+                await interaction.member.roles.add(id.pclfw)
                 announce(id.pclfw)
                 break;
             case "ps":
-                await message.member.roles.add(id.pslfw)
+                await interaction.member.roles.add(id.pslfw)
                 announce(id.pslfw)
                 break;
             case "xb":
-                await message.member.roles.add(id.xblfw)
+                await interaction.member.roles.add(id.xblfw)
                 announce(id.xblfw)
                 break;
         }

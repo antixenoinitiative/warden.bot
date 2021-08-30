@@ -2,7 +2,7 @@ module.exports = {
 	name: 'resetembed',
 	description: 'Resets embed to Code Yellow Status',
 	usage: '',
-	permlvl: 1,
+	permissions: 1,
 	execute(message, args, updateEmbedField) {
     updateEmbedField({ name: "**Incursions:**"})
     updateEmbedField({ name: "**Evacuations:**"})
