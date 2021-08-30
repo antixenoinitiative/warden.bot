@@ -56,7 +56,7 @@ module.exports = {
         }
 
         try {
-            await db.query("INSERT INTO events(event_id, embed, name, description, creator, date) VALUES($1, $2, $3, $4, $5, $6)", [eventKey, embed, eventName, eventDesc, interaction.author.id, eventTime]);
+            await db.query("INSERT INTO events(event_id, embed, name, description, creator, date) VALUES($1, $2, $3, $4, $5, $6)", [eventKey, embed, eventName, eventDesc, interaction.member.id, eventTime]);
             interaction.reply({ content: `Event Created Successfully, ID: ${eventKey}`});
         } catch (err) {
             interaction.reply({ content: `Something went wrong saving the event, please try again or contact staff`});
