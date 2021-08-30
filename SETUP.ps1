@@ -22,8 +22,10 @@ Add-Content .\.env "# Google Auth Token (optional)"
 Add-Content .\.env "GOOGLEKEYID="
 Add-Content .\.env "GOOGLEKEY="
 Add-Content .\.env ""
-Add-Content .\.env "# Database (optional)"
+Add-Content .\.env "# Database & API (optional)"
 Add-Content .\.env "DATABASE_URL="
+Add-Content .\.env "INARAKEY="
+Add-Content .\.env "GRAPHKEY="
 # Install Dependencies
 npm i
 
