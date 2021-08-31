@@ -89,24 +89,24 @@ const deployPermissions = async () => {
 	const fullPermissions = []
 	const commands = await bot.guilds.cache.get(process.env.GUILDID)?.commands.fetch()
 	for (let [, value] of commands) {
-		let command = bot.commands.get(value.name)
+		let command = bot.commands.get(value.name) // gets command specific info from commandFiles
 		if (command.data !== undefined) {
-			if (command.permissions !== 0) {
-				let requiredRoles = securityGroups[command.permissions].roles
-				let commpermissions = []
+			if (command.permissions !== 0) { // checks to see if command requires a securityGroup
+				let requiredRoles = securityGroups[command.permissions].roles // Fetch array of required roles depending on securityGroup
+				let commandPermArray = []
 				for (let role of requiredRoles) {
 					let perm = {
 						id: role,
 						type: 'ROLE',
 						permission: true,
 					}
-					commpermissions.push(perm)
+					commandPermArray.push(perm)
 				}
-				let commandPerm = {
+				let commandPermissions = {
 					id: value.id,
-					permissions: commpermissions,
+					permissions: commandPermArray,
 				}
-				fullPermissions.push(commandPerm)
+				fullPermissions.push(commandPermissions)
 			}
 		}
 	}
