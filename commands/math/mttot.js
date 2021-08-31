@@ -33,7 +33,7 @@ module.exports = {
             let accuracy = interaction.options.data.find(arg => arg.name === 'accuracy').value
             if (interaction.options.data.find(arg => arg.name === 'range') != undefined) { range = interaction.options.data.find(arg => arg.name === 'range').value }
             let target = interaction.options.data.find(arg => arg.name === 'variant').value
-            let codes = interaction.options.data.find(arg => arg.name === 'weapon-codes').value
+            let codes = interaction.options.data.find(arg => arg.name === 'weapon-codes').value.toLowerCase();
 
             const regex = "([0-9]+|[a-z]+)"
             const tempArray = [...codes.matchAll(regex)];
@@ -78,7 +78,7 @@ module.exports = {
             }
 		} catch (err) {
             console.log(err)
-			interaction.channel.send({ content: "Something went wrong, please you entered the correct format" })
+			interaction.channel.send({ content: "Something went wrong, please ensure you have entered the correct format, type `/codes` to get a list of weapon codes." })
 		}        
 	},
 };
