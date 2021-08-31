@@ -4,7 +4,8 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
     .setName(`backup`)
-    .setDescription(`Creates a backup of current users and their roles`),
+    .setDescription(`Creates a backup of current users and their roles`)
+    .setDefaultPermission(false),
 	permissions: 2,
     async execute (interaction) {
         let roles = {}
