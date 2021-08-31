@@ -3,7 +3,8 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
     .setName(`fixroles`)
-    .setDescription(`Fixes user roles to have correct seperators`),
+    .setDescription(`Fixes user roles to have correct seperators`)
+    .setDefaultPermission(false),
     permissions: 2,
     async execute (interaction) {
         try {

@@ -6,7 +6,8 @@ module.exports = {
     .setDescription(`Challenges @user to do the Mechan Challenge! :smiling_imp:`)
 	.addUserOption(option => option.setName('user')
 		.setDescription('Mention user to get')
-		.setRequired(true)),
+		.setRequired(true))
+	.setDefaultPermission(false),
 	permissions: 1,
 	execute(interaction) {
 		let challenges = [

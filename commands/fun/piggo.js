@@ -3,7 +3,8 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
     .setName(`piggo`)
-    .setDescription(`Summons the not so holy piggo`),
+    .setDescription(`Summons the not so holy piggo`)
+    .setDefaultPermission(false),
     permissions: 1,
     execute (interaction) {
         interaction.reply({ content: `You summoneth the piggo! <@352201261971668992>` });

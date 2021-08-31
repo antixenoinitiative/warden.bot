@@ -7,7 +7,8 @@ module.exports = {
     .setDescription(`Delete an event"`)
     .addStringOption(option => option.setName('id')
 		.setDescription('ID of the Event to delete, provided when the event is made.')
-		.setRequired(true)),
+		.setRequired(true))
+    .setDefaultPermission(false),
     permissions: 1,
     async execute (interaction) {
         try {   
