@@ -1,5 +1,5 @@
 require("dotenv").config();
-require('./deploy-commands'); // Re-register slash commands
+const { deployCommands } = require('./deploy-commands'); // Re-register slash commands
 const { readdirSync } = require('fs');
 const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
 const event = require('./events/event.js');
@@ -85,11 +85,41 @@ const checkPermissions = (command, interaction) => {
 	return allowed
 }
 
+const deployPermissions = async () => {
+	const fullPermissions = []
+	const commands = await bot.guilds.cache.get(process.env.GUILDID)?.commands.fetch()
+	for (let [, value] of commands) {
+		let command = bot.commands.get(value.name) // gets command specific info from commandFiles
+		if (command.data !== undefined) {
+			if (command.permissions !== 0) { // checks to see if command requires a securityGroup
+				let requiredRoles = securityGroups[command.permissions].roles // Fetch array of required roles depending on securityGroup
+				let commandPermArray = []
+				for (let role of requiredRoles) {
+					let perm = {
+						id: role,
+						type: 'ROLE',
+						permission: true,
+					}
+					commandPermArray.push(perm)
+				}
+				let commandPermissions = {
+					id: value.id,
+					permissions: commandPermArray,
+				}
+				fullPermissions.push(commandPermissions)
+			}
+		}
+	}
+	await bot.guilds.cache.get(process.env.GUILDID)?.commands.permissions.set({ fullPermissions });
+}
+
 /**
  * Event handler for Bot Login, manages post-login setup
  * @author  (Mgram) Marcus Ingram, (Airom42) Airom
  */
 bot.once("ready", async() => {
+	await deployCommands();
+	await deployPermissions();
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
 

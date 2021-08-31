@@ -4,7 +4,8 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
     .setName(`platform`)
-    .setDescription(`Create the Platform buttons`),
+    .setDescription(`Create the Platform buttons`)
+    .setDefaultPermission(false),
     permissions: 2,
     async execute (interaction) {
         const returnEmbed = new Discord.MessageEmbed()

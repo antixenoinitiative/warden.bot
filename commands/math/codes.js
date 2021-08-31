@@ -8,19 +8,6 @@ module.exports = {
     .setDescription(`How to write Weapon-Codes`),
     permissions: 0,
     execute (interaction) {
-        let txt = `Weapon Codes are a method for quickly explaining the total type/number of weapon modules on a ship. The most common weapon code used in the AXI 
-        is the "2m2s" code, which means, 2 Medium Gauss and 2 Small Gauss.
-        
-        The Standard for Weapon codes is as follows:
-        - Number/Size/Mount/Weapon
-        
-        for example:
-        - 2lfaxmc = 2x Large Fixed AX Multicannons
-        - 1mtpc = 1x Medium Turreted Plasma Charger
-        - 4mfsc = 4x Medium Fixed Shard Cannons
-        
-        **Note:** These codes can all be used with the **/mttot** command`
-
         let types = "";
 
         const weapons = require("./calc/weapondata.json")
@@ -32,7 +19,18 @@ module.exports = {
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle("**Weapon Codes**")
-		.setDescription(`${txt}`)
+		.setDescription(`Weapon Codes are a method for quickly explaining the total type/number of weapon modules on a ship. The most common weapon code used in the AXI 
+        is the "2m2s" code, which means, 2 Medium Gauss and 2 Small Gauss.
+        
+        The Standard for Weapon codes is as follows:
+        - Number/Size/Mount/Weapon
+        
+        for example:
+        - 2lfaxmc = 2x Large Fixed AX Multicannons
+        - 1mtpc = 1x Medium Turreted Plasma Charger
+        - 4mfsc = 4x Medium Fixed Shard Cannons
+        
+        **Note:** These codes can all be used with the **/mttot** command`)
 		.addField(`Codes`, `${types}`);
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
     }
