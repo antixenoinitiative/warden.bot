@@ -15,5 +15,7 @@ module.exports = {
 
     permissions: 0,
 
-    async execute(interaction)
+    async execute(interaction) {
+        interaction.reply({ content: `hello`})
+    }
 }
