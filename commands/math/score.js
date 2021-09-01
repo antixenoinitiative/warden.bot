@@ -232,8 +232,8 @@ module.exports = {
               ],
               "datasets": [
                 {
-                  "backgroundColor": "rgba(0, 56, 132, 0.5)",
-                  "borderColor": "rgb(0, 56, 132)",
+                  "backgroundColor": "rgba(228, 107, 26, 0.2)",
+                  "borderColor": "rgb(228, 107, 26)",
                   "data": [
                     100 - vangPenaltyTotal,
                     100 - ammoPenalty,
