@@ -51,7 +51,7 @@ let options = new SlashCommandBuilder()
     .setRequired(true))
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
-    .setRequired(true))
+    .setRequired(true)))
 
 module.exports = {
     data: options,
