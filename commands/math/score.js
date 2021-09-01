@@ -1,6 +1,6 @@
 //const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
-
+var Chart = require('chart.js');
 
 let options = new SlashCommandBuilder()
 .setName('score')
@@ -215,6 +215,7 @@ module.exports = {
         
         // Chart creation
 
+  
         var myChart = new Chart(ctx, {
         type: 'radar',
         data: {
