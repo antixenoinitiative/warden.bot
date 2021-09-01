@@ -1,32 +1,56 @@
 //const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
+
 let options = new SlashCommandBuilder()
 .setName('score')
-.setDescription('Score your fight based on the Mechan System')
-.addIntegerOption(option => option.setName('vanguardscore')
-    .setDescription('Vanguard Score for the fight')
-    .setRequired(true))
+.setDescription('Score your fight based on the revised Ace Scoring System')
+.addStringOption(option => option.setName('shiptype')
+    .setDescription('Ship you used')
+    .setRequired(true)
+    .addChoice('Alliance Challenger', 'challenger')
+    .addChoice('Alliance Chieftain', 'chieftain')
+    .addChoice('Alliance Crusader', 'crusader')
+    .addChoice('Anaconda', 'anaconda')
+    .addChoice('Asp Explorer', 'aspx')
+    .addChoice('Beluga Liner', 'beluga')
+    .addChoice('Diamondback Explorer', 'dbx')
+    .addChoice('Diamondback Scout', 'dbs')
+    .addChoice('Federal Assault Ship', 'fas')
+    .addChoice('Federal Corvette', 'corvette')
+    .addChoice('Federal Dropship', 'fds')
+    .addChoice('Federal Gunship', 'fgs')
+    .addChoice('Fer-de-Lance', 'fdl')
+    .addChoice('Hauler', 'hauler')
+    .addChoice('Imperial Clipper', 'clipper')
+    .addChoice('Imperial Courier', 'icourier')
+    .addChoice('Imperial Cutter', 'cutter')
+    .addChoice('Krait Mk. II', 'km2')
+    .addChoice('Krait Phantom', 'kph')
+    .addChoice('Mamba', 'mamba')
+    .addChoice('Python', 'python')
+    .addChoice('Type-10 Defender', 't10')
+    .addChoice('Viper MK III', 'vmk3')
+    .addChoice('Viper MK IV', 'vmk4')
+    .addChoice('Vulture', 'vulture')
+.addStringOption(option => option.setName('goid')
+    .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
+    .setRequired(true)
+    .addChoice('Medusa', 'medusa')
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used')
     .setRequired(true)
     .addChoice('Premium', 'premium')
     .addChoice('Standard', 'standard')
     .addChoice('Basic', 'basic'))
-.addStringOption(option => option.setName('shipclass')
-    .setDescription('Class of ship')
-    .setRequired(true)
-    .addChoice('Small', 'small')
-    .addChoice('Medium', 'medium')
-    .addChoice('Large', 'large'))
 .addIntegerOption(option => option.setName('time')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
 .addIntegerOption(option => option.setName('shotsfired')
-    .setDescription('Total shots fired')
+    .setDescription('Total number of ammo rounds fired')
     .setRequired(true))
 .addIntegerOption(option => option.setName('percenthulllost')
-    .setDescription('Percentage of Hull Lost in fight')
+    .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
     .setRequired(true))
 
 module.exports = {
@@ -36,12 +60,12 @@ module.exports = {
 
         // Scoring Factors
         let targetRun = 100
-        let timePenalty = 0.1
-        let roundPenalty = 0.5
-        //let hullPenalty = 1
-        let standardPenalty = 25
-        let premiumPenalty = 50
-        let vanguardOver40Penalty = 1
+        let timePenalty = 0.05
+        let roundPenalty = 0.25
+        let hullPenalty = 0.5
+        let standardPenalty = 12.5
+        let premiumPenalty = 25
+        let vanguardOver40Penalty = 0.5
 
         // Managing Inputs
         let args = {}
@@ -64,39 +88,143 @@ module.exports = {
         }
 
         let myrmThreshold;
-        switch (args.shipclass) {
-            case "small":
-                myrmThreshold = 1440;
-                break;
-            case "medium":
+        let vanguardScore;
+        switch (args.shiptype) {
+            case "challenger":
+                vanguardScore = 80;
                 myrmThreshold = 720;
                 break;
-            case "large":
+            case "chieftain":
+                vanguardScore = 80;
+                myrmThreshold = 720;
+                break;
+            case "crusader":
+                vanguardScore = 75;
+                myrmThreshold = 720;
+                break;  
+            case "anaconda":
+                vanguardScore = 55;
                 myrmThreshold = 360;
+                break;
+            case "aspx":
+                vanguardScore = 40;
+                myrmThreshold = 720;
+                break;
+            case "beluga":
+                vanguardScore = 50;
+                myrmThreshold = 360;
+                break;
+            case "dbx":
+                vanguardScore = 40;
+                myrmThreshold = 1440;
+                break;
+            case "dbs":
+                vanguardScore = 40;
+                myrmThreshold = 1440;
+                break;
+            case "fas":
+                vanguardScore = 70;
+                myrmThreshold = 720;
+                break;
+            case "corvette":
+                vanguardScore = 60;
+                myrmThreshold = 360;
+                break;
+            case "fds":
+                vanguardScore = 50;
+                myrmThreshold = 720;
+                break;
+            case "fgs":
+                vanguardScore = 45;
+                myrmThreshold = 720;
+                break;
+            case "fdl":
+                vanguardScore = 75;
+                myrmThreshold = 720;
+                break;
+            case "hauler":
+                vanguardScore = 10;
+                myrmThreshold = 1440;
+                break;
+            case "clipper":
+                vanguardScore = 40;
+                myrmThreshold = 360;
+                break;
+            case "icourier":
+                vanguardScore = 40;
+                myrmThreshold = 1440;
+                break;
+            case "cutter":
+                vanguardScore = 90;
+                myrmThreshold = 360;
+                break;
+            case "km2":
+                vanguardScore = 75;
+                myrmThreshold = 720;
+                break;
+            case "kph":
+                vanguardScore = 75;
+                myrmThreshold = 720;
+                break;
+            case "mamba":
+                vanguardScore = 65;
+                myrmThreshold = 720;
+                break;
+            case "python":
+                vanguardScore = 50;
+                myrmThreshold = 720;
+                break;
+            case "t10":
+                vanguardScore = 45;
+                myrmThreshold = 360;
+                break;
+            case "vmk3":
+                vanguardScore = 35;
+                myrmThreshold = 1440;
+                break;
+            case "vmk4":
+                vanguardScore = 40;
+                myrmThreshold = 1440;
+                break;
+            case "vulture":
+                vanguardScore = 50;
+                myrmThreshold = 1440;
                 break;
         }
 
         // Calculations
         let roundPenaltyTotal = 0;
         if (args.shotsfired > 175) { roundPenaltyTotal = (args.shotsfired - 175) * roundPenalty }
-        console.log("Round Penalty:" + roundPenaltyTotal)
+        console.log("Ammo Used Penalty:" + roundPenaltyTotal)
 
         let timePenaltyTotal = 0;
         if (args.time > myrmThreshold) { timePenaltyTotal = (args.time - myrmThreshold) * timePenalty }
-        console.log("Time Penalty:" + timePenaltyTotal)
+        console.log("Time Taken Penalty:" + timePenaltyTotal)
 
         let vangPenaltyTotal = 0;
-        if (args.vanguardscore > 40) { vangPenaltyTotal = (args.vanguardscore - 40) * vanguardOver40Penalty }
-        console.log("Vanguard Penalty:" + vangPenaltyTotal)
+        if (vanguardScore > 40) { vangPenaltyTotal = (vanguardScore - 40) * vanguardOver40Penalty }
+        console.log("Vanguard Score Penalty:" + vangPenaltyTotal)
 
-        let hullPenaltyTotal = args.percenthulllost
+        let hullPenaltyTotal = args.percenthulllost * hullPenalty
         console.log("Hull Penalty:" + hullPenaltyTotal)
 
         let penaltyTotal = ammoPenalty + timePenaltyTotal + roundPenaltyTotal + vangPenaltyTotal + hullPenaltyTotal
         console.log("Penalty Total:" + penaltyTotal)
 
         let finalScore = targetRun - penaltyTotal
-
-        interaction.reply(`Score: ${finalScore}`)
+        
+        // Print reply
+        interaction.reply(`Thank you for submitting a New Ace score request!`)
+        interaction.reply(`This score calculator is currently in Alpha and may change without notice`)
+        interaction.reply(`---`)
+        interaction.reply(`Base Score: ${targetRun}`)
+        interaction.reply(`---`)
+        interaction.reply(`Vanguard Score Penalty: ${vangPenaltyTotal}`)
+        interaction.reply(`Ammo Type Penalty: ${ammoPenalty}`)
+        interaction.reply(`Ammo Used Penalty: ${roundPenaltyTotal}`)
+        interaction.reply(`Time Taken Penalty: ${timePenaltyTotal}`)
+        interaction.reply(`Hull Damage Taken Penalty: ${hullPenaltyTotal}`)
+        interaction.reply(`---`)
+        interaction.reply(`Total Score: ${finalScore}`)
     },
 };
