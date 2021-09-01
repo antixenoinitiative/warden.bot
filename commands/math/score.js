@@ -251,7 +251,6 @@ module.exports = {
 ---
 This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
 of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage, in ${args.time / 60} minutes and ${args.time % 60} seconds.
-
 ---
 **Base Score:** ${targetRun}
 ---
@@ -262,6 +261,6 @@ of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage, in
 **Hull Damage Taken Penalty:** -${hullPenaltyTotal}
 ---
 **Total Score:** ${finalScore}`)
-        interaction.channel.send({ content: chartUrl });
+        interaction.channel.send({ content: "<img src="${chartUrl}">Graph</img>" });
     },
 };
