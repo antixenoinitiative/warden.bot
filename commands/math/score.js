@@ -244,17 +244,17 @@ module.exports = {
             );
 
         // Print reply
-        interaction.reply(`Thank you for submitting a New Ace score request!`)
-        interaction.reply(`This score calculator is currently in Alpha and may change without notice`)
-        interaction.reply(`---`)
-        interaction.reply(`Base Score: ${targetRun}`)
-        interaction.reply(`---`)
-        interaction.reply(`Vanguard Score Penalty: ${vangPenaltyTotal}`)
-        interaction.reply(`Ammo Type Penalty: ${ammoPenalty}`)
-        interaction.reply(`Ammo Used Penalty: ${roundPenaltyTotal}`)
-        interaction.reply(`Time Taken Penalty: ${timePenaltyTotal}`)
-        interaction.reply(`Hull Damage Taken Penalty: ${hullPenaltyTotal}`)
-        interaction.reply(`---`)
-        interaction.reply(`Total Score: ${finalScore}`)
+        interaction.reply(`Thank you for submitting a New Ace score request!<br>
+        This score calculator is currently in Alpha and may change without notice<br>
+        ---<br>
+        Base Score: ${targetRun}<br>
+        ---<br>
+        Vanguard Score Penalty: ${vangPenaltyTotal}<br>
+        Ammo Type Penalty: ${ammoPenalty}<br>
+        Ammo Used Penalty: ${roundPenaltyTotal}<br>
+        Time Taken Penalty: ${timePenaltyTotal}<br>
+        Hull Damage Taken Penalty: ${hullPenaltyTotal}<br>
+        ---<br>
+        Total Score: ${finalScore}`)
     },
 };
