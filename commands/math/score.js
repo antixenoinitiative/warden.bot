@@ -319,9 +319,9 @@ of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (in
 **Time Taken Penalty:** -${timePenaltyTotal} AXI points
 **Hull Damage Taken Penalty:** -${hullPenaltyTotal} AXI points
 ---
-**Total Score:** ${finalScore}
+**Total Score:** ${finalScore} AXI points
 *Compare this score to a typical collector-level CMDR score of about 30-40 and an advanced challenge-level CMDR of about 55-65.*
-*The very best score is presently 97.75 AXI potins.*`)
+*The very best score is presently 97.75 AXI points.*`)
         const url = chart.getUrl();
         interaction.channel.send({ content: `${url}` });
     },
