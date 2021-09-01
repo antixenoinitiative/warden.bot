@@ -215,7 +215,6 @@ module.exports = {
         
         // Chart creation
 
-        var ctx = document.getElementById('myChart');
         var myChart = new Chart(ctx, {
         type: 'radar',
         data: {
