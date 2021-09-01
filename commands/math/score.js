@@ -309,19 +309,19 @@ module.exports = {
 *Note: This score calculator is currently in Alpha and may change without notice*
 ---
 This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
-of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage, in ${~~(args.time / 60)} minutes and ${args.time % 60} seconds.
+of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time / 60)} minutes and ${args.time % 60} seconds.
 ---
-**Base Score:** ${targetRun}
+**Base Score:** ${targetRun} AXI points
 ---
-**Vanguard Score Penalty:** -${vangPenaltyTotal} points
-**Ammo Type Penalty:** -${ammoPenalty} points
-**Ammo Used Penalty:** -${roundPenaltyTotal} points
-**Time Taken Penalty:** -${timePenaltyTotal} points
-**Hull Damage Taken Penalty:** -${hullPenaltyTotal} points
+**Vanguard Score Penalty:** -${vangPenaltyTotal} AXI points
+**Ammo Type Penalty:** -${ammoPenalty} AXI points
+**Ammo Used Penalty:** -${roundPenaltyTotal} AXI points
+**Time Taken Penalty:** -${timePenaltyTotal} AXI points
+**Hull Damage Taken Penalty:** -${hullPenaltyTotal} AXI points
 ---
 **Total Score:** ${finalScore}
-*Compare this score to a typical collector-level CMDR score of about 30-40 and an advanced challenge-level CMDR of about 60.*
-*The very best score is presently 97.75.*`)
+*Compare this score to a typical collector-level CMDR score of about 30-40 and an advanced challenge-level CMDR of about 55-65.*
+*The very best score is presently 97.75 AXI potins.*`)
         const url = chart.getUrl();
         interaction.channel.send({ content: `${url}` });
     },
