@@ -242,10 +242,16 @@ module.exports = {
             },
             }
             );
+        const encodedChart = encodeURIComponent(JSON.stringify(myChart));
+        const chartUrl = `https://quickchart.io/chart?c=${encodedChart}`;
 
         // Print reply
         interaction.reply(`**__Thank you for submitting a New Ace score request!__**
-*This score calculator is currently in Alpha and may change without notice*
+*Note: This score calculator is currently in Alpha and may change without notice*
+---
+This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
+of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage, in ${args.time / 60} minutes and ${args.time % 60} seconds.
+
 ---
 **Base Score:** ${targetRun}
 ---
@@ -256,5 +262,6 @@ module.exports = {
 **Hull Damage Taken Penalty:** -${hullPenaltyTotal}
 ---
 **Total Score:** ${finalScore}`)
+        interaction.channel.send({ content: chartUrl });
     },
 };
