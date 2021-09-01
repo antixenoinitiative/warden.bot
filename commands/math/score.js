@@ -32,7 +32,7 @@ let options = new SlashCommandBuilder()
     .addChoice('Type-10 Defender', 't10')
     .addChoice('Viper MK III', 'vmk3')
     .addChoice('Viper MK IV', 'vmk4')
-    .addChoice('Vulture', 'vulture')
+    .addChoice('Vulture', 'vulture'))
 .addStringOption(option => option.setName('goid')
     .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
     .setRequired(true)
@@ -51,7 +51,7 @@ let options = new SlashCommandBuilder()
     .setRequired(true))
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
-    .setRequired(true)))
+    .setRequired(true))
 
 module.exports = {
     data: options,
@@ -215,8 +215,6 @@ module.exports = {
         
         // Chart creation
 
-        <canvas id="myChart" width="400" height="400"></canvas>
-
         var ctx = document.getElementById('myChart');
         var myChart = new Chart(ctx, {
         type: 'radar',
@@ -242,14 +240,8 @@ module.exports = {
                 borderWidth: 3
             }]
             },
-            options: {
-                scale: {
-                        // Hides the scale
-                        display: false
-                    }]
-                }
             }
-        });
+            );
 
         // Print reply
         interaction.reply(`Thank you for submitting a New Ace score request!`)
