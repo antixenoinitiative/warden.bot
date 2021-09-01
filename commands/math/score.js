@@ -1,6 +1,6 @@
 //const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
-var Chart = require('chart.js');
+const QuickChart = require('quickchart-js');
 
 let options = new SlashCommandBuilder()
 .setName('score')
@@ -215,52 +215,114 @@ module.exports = {
         
         // Chart creation
 
-        var ctx = 'myChart';
-        var myChart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels: ['Vanguard', 'AmmoType', 'AmmoUsage', 'TimeTaken', 'DamageTaken'],
-            datasets: [{
-                label: 'Score',
-                data: [100 + vangPenaltyTotal, 100 + ammoPenalty , 100 + ammoPenalty, 100 + roundPenaltyTotal, 100 + hullPenaltyTotal],
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.2)',
-                    'rgba(54, 162, 235, 0.2)',
-                    'rgba(255, 206, 86, 0.2)',
-                    'rgba(75, 192, 192, 0.2)',
-                    'rgba(153, 102, 255, 0.2)'
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(153, 102, 255, 1)'
-                ],
-                borderWidth: 3
-            }]
-            },
+        const chart = new QuickChart();
+        chart.setWidth(400)
+        chart.setHeight(400);
+        chart.setBackgroundColor('transparent');
+        
+        chart.setConfig({
+            "type": "radar",
+            "data": {
+              "labels": [
+                "Vanguard",
+                "AmmoType",
+                "AmmoAmount",
+                "TimeTaken",
+                "DamageTaken"
+              ],
+              "datasets": [
+                {
+                  "backgroundColor": "rgba(0, 56, 132, 0.5)",
+                  "borderColor": "rgb(0, 56, 132)",
+                  "data": [
+                    100 - vangPenaltyTotal,
+                    100 - ammoPenalty,
+                    100 - roundPenaltyTotal,
+                    100 - timePenaltyTotal,
+                    100 - hullPenaltyTotal
+                    
+                  ],
+                  "label": "Your Run"
+                }
+// At some point want to add an optional parameter to compare to "best run" - here for that purpose
+//                ,
+//                {
+//                    "backgroundColor": "rgba(255, 159, 64, 0.5)",
+//                    "borderColor": "rgb(255, 159, 64)",
+//                    "data": [
+//                      100,
+//                      100,
+//                      100-1.75,
+//                      100,
+//                      100-0.5,
+//                    ],
+//                    "label": "Current Best",
+//                    "fill": "-1"
+//                }
+            ]
+          },
+            "options": {
+              "maintainAspectRatio": true,
+              "spanGaps": false,
+              "legend": {
+                "display": true,
+                "labels": {
+                    "fontColor": 'rgb(255, 255, 255)'
+                }
+              },
+              "scale": {
+                "ticks": {
+                    "max": 100,
+                    "min": 0,
+                    "stepSize": 20,
+                    "backdropColor": "transparent"
+                }},
+
+                "angleLines": {
+                    "color": 'rgba(255, 255, 255, 1)'
+                },
+
+                "pointLabels": {
+                
+                "fontColor": 'rgb(166, 166, 166)'
+
+                },
+
+              "elements": {
+                "line": {
+                  "tension": 0.000001
+                }
+              },
+              "plugins": {
+                "filler": {
+                  "propagate": false
+                },
+                "samples-filler-analyser": {
+                  "target": "chart-analyser"
+                }
+              }
             }
-            );
-        const encodedChart = encodeURIComponent(JSON.stringify(myChart));
-        const chartUrl = `https://quickchart.io/chart?c=${encodedChart}`;
+          });
 
         // Print reply
         interaction.reply(`**__Thank you for submitting a New Ace score request!__**
 *Note: This score calculator is currently in Alpha and may change without notice*
 ---
 This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
-of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage, in ${args.time / 60} minutes and ${args.time % 60} seconds.
+of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage, in ${~~(args.time / 60)} minutes and ${args.time % 60} seconds.
 ---
 **Base Score:** ${targetRun}
 ---
-**Vanguard Score Penalty:** -${vangPenaltyTotal}
-**Ammo Type Penalty:** -${ammoPenalty}
-**Ammo Used Penalty:** -${roundPenaltyTotal}
-**Time Taken Penalty:** -${timePenaltyTotal}
-**Hull Damage Taken Penalty:** -${hullPenaltyTotal}
+**Vanguard Score Penalty:** -${vangPenaltyTotal} points
+**Ammo Type Penalty:** -${ammoPenalty} points
+**Ammo Used Penalty:** -${roundPenaltyTotal} points
+**Time Taken Penalty:** -${timePenaltyTotal} points
+**Hull Damage Taken Penalty:** -${hullPenaltyTotal} points
 ---
-**Total Score:** ${finalScore}`)
-        interaction.channel.send({ content: "<img src="${chartUrl}">Graph</img>" });
+**Total Score:** ${finalScore}
+*Compare this score to a typical collector-level CMDR score of about 30-40 and an advanced challenge-level CMDR of about 60.*
+*The very best score is presently 97.75.*`)
+        const url = chart.getUrl();
+        interaction.channel.send({ content: `${url}` });
     },
 };
