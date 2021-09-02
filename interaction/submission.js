@@ -8,7 +8,6 @@ module.exports = {
         let user;
         try {
             res = await db.queryLeaderboard(`SELECT * FROM ${leaderboard} WHERE id = $1`, [submissionId])
-            console.log(res)
             if (res.rowCount === 0) {
                 interaction.channel.send({ content: `⛔ Error: ${interaction.member} That submission no longer exists, it may have already been denied.` })
                 return
