@@ -24,7 +24,7 @@ module.exports = {
     async execute(interaction) {
         let interactionAuthorRoles = interaction.member._roles;
 
-        ACTUAL SERVER CODES
+        //ACTUAL SERVER CODES
         const id = {
             "pc": "428260067901571073",
             "xb": "533774176478035991",
