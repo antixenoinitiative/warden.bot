@@ -2,7 +2,8 @@ require("dotenv").config();
 const { deployCommands } = require('./deploy-commands'); // Re-register slash commands
 const { readdirSync } = require('fs');
 const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
-const event = require('./events/event.js');
+const event = require('./interaction/event.js');
+const { leaderboardInteraction } = require('./interaction/submission.js');
 const { prefix, icon, securityGroups } = require('./config.json');
 
 // Discord client setup
@@ -172,6 +173,11 @@ bot.on('interactionCreate', async interaction => {
 			if (response[2] === "leave") {
 				event.leaveEvent(interaction, response[1])
 			}
+			return;
+		}
+		if (interaction.customId.startsWith("submission")) {
+			interaction.deferUpdate();
+			leaderboardInteraction(interaction);
 			return;
 		}
 		if (interaction.customId === "platformpc") {

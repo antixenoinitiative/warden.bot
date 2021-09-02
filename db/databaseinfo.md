@@ -41,3 +41,18 @@ CREATE TABLE events(
     enrolled        text[],
     date            bigint,
 );
+
+## Tables (Leaderboard DB)
+
+CREATE TABLE speedrun(
+    id              SERIAL PRIMARY KEY,
+    user_id         text,
+    name            text,
+    time            int,
+    class           text,
+    ship            text,
+    variant         text,
+    link            text,
+    approval        bool,
+    date            bigint,
+);
