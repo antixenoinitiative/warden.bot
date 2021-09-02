@@ -320,7 +320,7 @@ module.exports = {
         const returnEmbed = new MessageEmbed()
         .setColor('#FF7100')
         .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-        .setTitle("**NHSS Types**")
+        .setTitle("**Ace Score Calculation**")
         .setDescription(`**__Thank you for submitting a New Ace score request!__**
         *Note: This score calculator is currently in Alpha and may change without notice*
         ---
