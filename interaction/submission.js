@@ -26,7 +26,7 @@ module.exports = {
             }
             interaction.message.edit({ content: `✅ **${leaderboard} submission #${submissionId} approved by ${interaction.member}.**` })
             user = await interaction.guild.members.fetch(res.rows[0].user_id)
-            user.send(`Hey! 👋 This is Warden just letting you know that your ${leaderboard} submission has been approved! go check it out in the AXI with the **/leaderboard** command`)
+            user.send(`Hey! 👋 This is Warden just letting you know that your ${leaderboard} submission has been approved! go check it out in the AXI with the **/leaderboard** command. Submission ID: ${res.rows[0].id}`)
         } else if (eventType === "deny") {
             try {
                 db.queryLeaderboard(`DELETE FROM ${leaderboard} WHERE id = $1`, [submissionId])
@@ -37,7 +37,7 @@ module.exports = {
             }
             interaction.message.edit({ content: `⛔ **${leaderboard} submission #${submissionId} denied by ${interaction.member}.**` })
             user = await interaction.guild.members.fetch(res.rows[0].user_id)
-            user.send(`Hello, This is Warden just letting you know that your ${leaderboard} submission has been declined, sorry! 😞 contact a staff member in the AXI to find out why`)
+            user.send(`Hello, This is Warden just letting you know that your ${leaderboard} submission has been declined, sorry! 😞 contact a staff member in the AXI to find out why. Submission ID: ${res.rows[0].id}`)
         }
     }
 }
