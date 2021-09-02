@@ -26,7 +26,7 @@ module.exports = {
 		.setDescription('Time achieved in seconds')
 		.setRequired(true))
 	.addStringOption(option => option.setName('link')
-		.setDescription('Include video link for proof')
+		.setDescription('Include video link for proof (Please use shortened links)')
 		.setRequired(true))
 	.addUserOption(option => option.setName('user')
 		.setDescription('Select a user to submit on behalf of')
