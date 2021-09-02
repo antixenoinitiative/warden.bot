@@ -30,6 +30,9 @@ module.exports = {
 		.setRequired(true))
 	.addUserOption(option => option.setName('user')
 		.setDescription('Select a user to submit on behalf of')
+		.setRequired(false))
+	.addStringOption(option => option.setName('comments')
+		.setDescription('Comment, banter, whatever')
 		.setRequired(false)),
 	permissions: 0,
 	async execute(interaction) {
@@ -84,7 +87,8 @@ module.exports = {
         {name: "Variant", value: `${args.variant}`, inline: true},
         {name: "Time", value: `${new Date(args.time * 1000).toISOString().substr(11, 8)}`, inline: true},
 		{name: "Class", value: `${args.shipclass}`, inline: true},
-		{name: "link", value: `${args.link}`, inline: true})
+		{name: "link", value: `${args.link}`, inline: true},
+		{name: "Comments", value: `${args.comments}`, inline: true})
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 
 		// Create staff interaction
@@ -99,7 +103,8 @@ module.exports = {
         {name: "Variant", value: `${args.variant}`, inline: true},
         {name: "Time", value: `${new Date(args.time * 1000).toISOString().substr(11, 8)}`, inline: true},
 		{name: "Class", value: `${args.shipclass}`, inline: true},
-		{name: "link", value: `${args.link}`, inline: true})
+		{name: "link", value: `${args.link}`, inline: true},
+		{name: "Comments", value: `${args.comments}`, inline: true})
 		const row = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setCustomId(`submission-speedrun-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
         .addComponents(new Discord.MessageButton().setCustomId(`submission-speedrun-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)
