@@ -40,10 +40,10 @@ let options = new SlashCommandBuilder()
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used')
     .setRequired(true)
-    .addChoice('Premium', 'premium')
+    .addChoice('Basic', 'basic')
     .addChoice('Standard', 'standard')
-    .addChoice('Basic', 'basic'))
-.addIntegerOption(option => option.setName('time')
+    .addChoice('Premium', 'premium'))
+.addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
 .addIntegerOption(option => option.setName('shotsfired')
@@ -60,12 +60,12 @@ module.exports = {
 
         // Scoring Factors
         let targetRun = 100
-        let timePenalty = 0.05
-        let roundPenalty = 0.25
-        let hullPenalty = 0.5
+        let timePenalty = 0.025
+        let roundPenalty = 0.125
+        let hullPenalty = 0.2
         let standardPenalty = 12.5
         let premiumPenalty = 25
-        let vanguardOver40Penalty = 0.5
+        let vanguardOver40Penalty = 0.25
 
         // Managing Inputs
         let args = {}
@@ -198,7 +198,7 @@ module.exports = {
         console.log("Ammo Used Penalty:" + roundPenaltyTotal)
 
         let timePenaltyTotal = 0;
-        if (args.time > myrmThreshold) { timePenaltyTotal = (args.time - myrmThreshold) * timePenalty }
+        if (args.time_in_seconds > myrmThreshold) { timePenaltyTotal = (args.time_in_seconds - myrmThreshold) * timePenalty }
         console.log("Time Taken Penalty:" + timePenaltyTotal)
 
         let vangPenaltyTotal = 0;
@@ -317,7 +317,7 @@ module.exports = {
 *Note: This score calculator is currently in Alpha and may change without notice*
 ---
 This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
-of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time / 60)} minutes and ${args.time % 60} seconds.
+of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
 ---
 **Base Score:** ${targetRun} AXI points
 ---
@@ -328,8 +328,12 @@ of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (in
 **Hull Damage Taken Penalty:** -${hullPenaltyTotal} AXI points
 ---
 **Total Score:** ${finalScore} AXI points
-*Compare this score to a typical collector-level CMDR score of about 30-40 and an advanced challenge-level CMDR of about 55-65.*
-*The very best score is presently 97.75 AXI points.*`)
+*Interpret as follows:*
+*- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
+*- A collector-level CMDR will typically score about 25-45 pts;*
+*- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
+*- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
+*- The very best score is presently 98.925 AXI points (obtained in a shielded DBX).*`)
         const url = chart.getUrl();
         interaction.channel.send({ content: `${url}` });
     },
