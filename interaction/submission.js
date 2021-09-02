@@ -5,6 +5,7 @@ module.exports = {
         let response = interaction.customId.split("-");
 		let [ ,leaderboard, eventType, submissionId ] = response
         let res;
+        let user;
         try {
             res = await db.queryLeaderboard(`SELECT * FROM ${leaderboard} WHERE id = $1`, [submissionId])
             console.log(res)
@@ -24,7 +25,8 @@ module.exports = {
                 return
             }
             interaction.message.edit({ content: `✅ **${leaderboard} submission #${submissionId} approved by ${interaction.member}.**` })
-            interaction.guild.members.fetch(res.rows[0].user_id).send(`Hey! 👋 This is Warden just letting you know that your ${leaderboard} submission has been approved! go check it out in the AXI with the **/leaderboard** command`)
+            user = await interaction.guild.members.fetch(res.rows[0].user_id)
+            user.send(`Hey! 👋 This is Warden just letting you know that your ${leaderboard} submission has been approved! go check it out in the AXI with the **/leaderboard** command`)
         } else if (eventType === "deny") {
             try {
                 db.queryLeaderboard(`DELETE FROM ${leaderboard} WHERE id = $1`, [submissionId])
