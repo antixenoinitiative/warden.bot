@@ -1,8 +1,8 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable complexity */
-//const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
+const { MessageEmbed } = require("discord.js");
 
 let options = new SlashCommandBuilder()
 .setName('score')
@@ -315,28 +315,35 @@ module.exports = {
           });
 
         // Print reply
-        interaction.reply(`**__Thank you for submitting a New Ace score request!__**
-*Note: This score calculator is currently in Alpha and may change without notice*
----
-This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
-of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
----
-**Base Score:** ${targetRun} AXI points
----
-**Vanguard Score Penalty:** -${vangPenaltyTotal} AXI points
-**Ammo Type Penalty:** -${ammoPenalty} AXI points
-**Ammo Used Penalty:** -${roundPenaltyTotal} AXI points
-**Time Taken Penalty:** -${timePenaltyTotal} AXI points
-**Hull Damage Taken Penalty:** -${hullPenaltyTotal} AXI points
----
-**Total Score:** ${finalScore} AXI points
-*Interpret as follows:*
-*- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
-*- A collector-level CMDR will typically score about 25-45 pts;*
-*- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
-*- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
-*- The very best score is presently 98.925 AXI points (obtained in a shielded DBX).*`)
         const url = chart.getUrl();
-        interaction.channel.send({ content: `${url}` });
+
+        const returnEmbed = new MessageEmbed()
+        .setColor('#FF7100')
+        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+        .setTitle("**NHSS Types**")
+        .setDescription(`**__Thank you for submitting a New Ace score request!__**
+        *Note: This score calculator is currently in Alpha and may change without notice*
+        ---
+        This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
+        of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
+        ---
+        **Base Score:** ${targetRun} AXI points
+        ---
+        **Vanguard Score Penalty:** -${vangPenaltyTotal} AXI points
+        **Ammo Type Penalty:** -${ammoPenalty} AXI points
+        **Ammo Used Penalty:** -${roundPenaltyTotal} AXI points
+        **Time Taken Penalty:** -${timePenaltyTotal} AXI points
+        **Hull Damage Taken Penalty:** -${hullPenaltyTotal} AXI points
+        ---
+        **Total Score:** ${finalScore} AXI points
+        *Interpret as follows:*
+        *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
+        *- A collector-level CMDR will typically score about 25-45 pts;*
+        *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
+        *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
+        *- The very best score is presently 98.925 AXI points (obtained in a shielded DBX).*`)
+        .setImage(url)
+        
+        interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
     },
 };
