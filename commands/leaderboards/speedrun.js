@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
-const db = require("../../db/index");
+const { queryLeaderboard } = require("../../db/index");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -53,7 +53,7 @@ module.exports = {
 			return interaction.reply({ content: `Staff Channel not found` })
 		}
 		try {
-			res = await db.query("INSERT INTO speedrun(user_id, name, time, class, ship, variant, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+			res = await queryLeaderboard("INSERT INTO speedrun(user_id, name, time, class, ship, variant, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
 				user,
 				name,
 				args.time,
@@ -70,8 +70,9 @@ module.exports = {
 			return interaction.reply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
 		}
 		
-		res = await db.query(`SELECT id FROM speedrun WHERE date = $1`, [timestamp])
+		res = await queryLeaderboard(`SELECT id FROM speedrun WHERE date = $1`, [timestamp])
 
+		// Print out data
 		let submissionId = res.rows[0].id
 		const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
@@ -82,11 +83,12 @@ module.exports = {
 		{name: "Pilot", value: `<@${user}>`, inline: true},
         {name: "Ship", value: `${args.ship}`, inline: true},
         {name: "Variant", value: `${args.variant}`, inline: true},
-        {name: "Time", value: `${args.time} Seconds`, inline: true},
+        {name: "Time", value: `${new Date(args.time * 1000).toISOString().substr(11, 8)}`, inline: true},
 		{name: "Class", value: `${args.shipclass}`, inline: true},
 		{name: "link", value: `${args.link}`, inline: true})
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 
+		// Create staff interaction
 		const staffEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -96,7 +98,7 @@ module.exports = {
 		{name: "Pilot", value: `<@${user}>`, inline: true},
         {name: "Ship", value: `${args.ship}`, inline: true},
         {name: "Variant", value: `${args.variant}`, inline: true},
-        {name: "Time", value: `${args.time} Seconds`, inline: true},
+        {name: "Time", value: `${new Date(args.time * 1000).toISOString().substr(11, 8)}`, inline: true},
 		{name: "Class", value: `${args.shipclass}`, inline: true},
 		{name: "link", value: `${args.link}`, inline: true})
 		const row = new Discord.MessageActionRow()
