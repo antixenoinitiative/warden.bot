@@ -224,11 +224,11 @@ module.exports = {
             "type": "radar",
             "data": {
               "labels": [
-                "Vanguard",
-                "AmmoType",
-                "AmmoAmount",
-                "TimeTaken",
-                "DamageTaken"
+                "Vanguard Score",
+                "Ammo Type",
+                "Ammo Used",
+                "Time Taken",
+                "Damage Taken"
               ],
               "datasets": [
                 {
@@ -262,45 +262,53 @@ module.exports = {
             ]
           },
             "options": {
-              "maintainAspectRatio": true,
-              "spanGaps": false,
-              "legend": {
-                "display": true,
-                "labels": {
-                    "fontColor": 'rgb(255, 255, 255)'
-                }
-              },
-              "scale": {
-                "ticks": {
-                    "max": 100,
-                    "min": 0,
-                    "stepSize": 20,
-                    "backdropColor": "transparent"
-                }},
 
-                "angleLines": {
-                    "color": 'rgba(255, 255, 255, 1)'
+                "maintainAspectRatio": true,
+                "spanGaps": false,
+
+                "legend": {
+                    "display": true,
+                    "labels": {
+                        "fontColor": "rgb(255, 255, 255)",
+                        // Somehow chart doesn't like font size setting for both labels and pointLabels
+                        //"fontSize": "18"
+                    }
+                },
+        
+                "scale": {
+                    
+                    "pointLabels": {
+                        "fontColor": "rgba(228, 107, 26, 1)",
+                        "fontSize": "16"
+                    },
+
+                    "angleLines": {
+                        "color": "rgba(255 , 255, 255, 0.2)",
+                        "borderDash": [10,10]
+                    },
+
+                    "ticks": {
+                        "max": 100,
+                        "min": 0,
+                        "stepSize": 20,
+                        "backdropColor": "transparent"
+                    },
                 },
 
-                "pointLabels": {
-                
-                "fontColor": 'rgb(166, 166, 166)'
-
+                "elements": {
+                    "line": {
+                        "tension": 0.000001
+                    }
                 },
 
-              "elements": {
-                "line": {
-                  "tension": 0.000001
+                "plugins": {
+                    "filler": {
+                        "propagate": false
+                    },
+                    "samples-filler-analyser": {
+                        "target": "chart-analyser"
+                    }
                 }
-              },
-              "plugins": {
-                "filler": {
-                  "propagate": false
-                },
-                "samples-filler-analyser": {
-                  "target": "chart-analyser"
-                }
-              }
             }
           });
 
