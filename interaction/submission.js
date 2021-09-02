@@ -36,6 +36,8 @@ module.exports = {
                 return
             }
             interaction.message.edit({ content: `⛔ **${leaderboard} submission #${submissionId} denied by ${interaction.member}.**` })
+            user = await interaction.guild.members.fetch(res.rows[0].user_id)
+            user.send(`Hello, This is Warden just letting you know that your ${leaderboard} submission has been declined, sorry! 😞 contact a staff member in the AXI to find out why`)
         }
     }
 }
