@@ -19,7 +19,7 @@ module.exports = {
         .addChoice("Yes", "yes")
         .addChoice("No", "no")),
     
-    permissions: 0,
+    permissions: 2,
 
     async execute(interaction) {
         let interactionAuthorRoles = interaction.member._roles;

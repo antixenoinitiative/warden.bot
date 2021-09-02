@@ -145,7 +145,6 @@ bot.once("ready", async() => {
 bot.on('interactionCreate', async interaction => {
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
-		console.log(command)
 		if (!command) return;
 		const args = interaction.options.data
 		if (command.permissions != 0) {
