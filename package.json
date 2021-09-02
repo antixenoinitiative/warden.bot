@@ -24,6 +24,7 @@
     "moment": "^2.29.1",
     "node-fetch": "^2.6.1",
     "pg": "^8.7.1",
+    "quickchart-js": "^1.4.1",
     "string-similarity": "^4.0.4"
   },
   "devDependencies": {

@@ -1,3 +1,5 @@
+/* eslint-disable no-bitwise */
+/* eslint-disable complexity */
 //const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
