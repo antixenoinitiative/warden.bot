@@ -103,7 +103,7 @@ module.exports = {
 		{name: "link", value: `${args.link}`, inline: true})
 		const row = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setCustomId(`submission-speedrun-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
-        .addComponents(new Discord.MessageButton().setCustomId(`submission-speedrun-deny-${submissionId}`).setLabel('Deny').setStyle('DANGER'),)
+        .addComponents(new Discord.MessageButton().setCustomId(`submission-speedrun-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)
         await interaction.guild.channels.cache.get(staffChannel).send({ embeds: [staffEmbed], components: [row] });
     }
 }
