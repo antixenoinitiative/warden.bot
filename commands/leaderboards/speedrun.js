@@ -80,7 +80,7 @@ module.exports = {
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle(`**Speedrun Submission Complete**`)
-		.setDescription(`Congratulations <@${interaction.member.id}>, your submission is complete. Please be patient while our staff approve your submission. Submission ID: ${submissionId}`)
+		.setDescription(`Congratulations <@${interaction.member.id}>, your submission is complete. Please be patient while our staff approve your submission. Submission ID: #${submissionId}`)
 		.addFields(
 		{name: "Pilot", value: `<@${user}>`, inline: true},
         {name: "Ship", value: `${args.ship}`, inline: true},
