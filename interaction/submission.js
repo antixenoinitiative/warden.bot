@@ -5,7 +5,6 @@ module.exports = {
         let response = interaction.customId.split("-");
 		let [ ,leaderboard, eventType, submissionId ] = response
         let res;
-        console.log(interaction)
         try {
             res = await db.queryLeaderboard(`SELECT * FROM ${leaderboard} WHERE id = $1`, [submissionId])
             console.log(res)

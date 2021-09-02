@@ -64,7 +64,6 @@ module.exports = {
 				false,
 				timestamp
 			])
-			console.log(res)
 		} catch (err) {
 			console.log(err)
 			return interaction.reply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })

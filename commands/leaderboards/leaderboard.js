@@ -72,7 +72,6 @@ module.exports = {
             leaderboardString += `**#${position}** ${result.text}\n`
             position++
         }
-        console.log(leaderboardString)
 
         const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
