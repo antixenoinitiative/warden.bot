@@ -17,7 +17,8 @@ module.exports = {
         .setDescription(`Do you play in vr?`)
         .setRequired(false)
         .addChoice("Yes", "yes")
-        .addChoice("No", "no")),
+        .addChoice("No", "no"))
+    .setDefaultPermission(false),
     
     permissions: 2,
 
