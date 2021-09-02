@@ -55,6 +55,7 @@ module.exports = {
                 res = await queryLeaderboard(`SELECT * FROM speedrun WHERE approval = true AND class = '${args.class}' AND variant = '${args.variant}'`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the **${args.variant} ${args.class}** ${leaderboardNameCaps} Leaderboard`)
+                    return
                 }
                 for (let entry of res.rows) {
                     entry.timeFormatted = new Date(entry.time * 1000).toISOString().substr(11, 8)
