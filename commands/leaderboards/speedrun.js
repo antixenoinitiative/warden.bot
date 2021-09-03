@@ -40,7 +40,7 @@ module.exports = {
 		let res;
 		let user = interaction.member.id
 		let timestamp = Date.now()
-		let staffChannel = "882989525339602965"
+		let staffChannel = process.env.STAFFCHANNELID
 
         for (let key of interaction.options.data) {
             args[key.name] = key.value
