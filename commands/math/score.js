@@ -99,7 +99,7 @@ module.exports = {
         }
 
         // Sanitize inputs
-        // if (args.scorelegend === undefined) { args.scorelegend = false }
+        if (args.scorelegend === undefined) { args.scorelegend = false }
         
         if (args.gauss_number > 4) {
             interaction.reply(`More than 4 gauss? Very funny ${interaction.member} ...`);
