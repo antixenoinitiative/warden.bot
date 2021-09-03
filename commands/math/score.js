@@ -40,16 +40,16 @@ let options = new SlashCommandBuilder()
     .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
     .setRequired(true)
     .addChoice('Medusa', 'medusa'))
-.addIntegerOption(option => option.setName('gauss_small_number')
-    .setDescription('Number of SMALL gauss cannons outfitted')
+.addIntegerOption(option => option.setName('gauss_medium_number')
+    .setDescription('Nnumber of MEDIUM gauss cannons outfitted')
     .setRequired(true)
     .addChoice('Zero', 0)
     .addChoice('One', 1)
     .addChoice('Two', 2)
     .addChoice('Three', 3)
     .addChoice('Four', 4))
-.addIntegerOption(option => option.setName('gauss_medium_number')
-    .setDescription('Nnumber of MEDIUM gauss cannons outfitted')
+.addIntegerOption(option => option.setName('gauss_small_number')
+    .setDescription('Number of SMALL gauss cannons outfitted')
     .setRequired(true)
     .addChoice('Zero', 0)
     .addChoice('One', 1)
@@ -65,11 +65,11 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
-.addIntegerOption(option => option.setName('shots_small_fired')
-    .setDescription('Total number of SMALL gauss ammo rounds fired')
-    .setRequired(true))
 .addIntegerOption(option => option.setName('shots_medium_fired')
     .setDescription('Total number of MEDIUM gauss ammo rounds fired')
+    .setRequired(true))
+.addIntegerOption(option => option.setName('shots_small_fired')
+    .setDescription('Total number of SMALL gauss ammo rounds fired')
     .setRequired(true))
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
@@ -86,7 +86,6 @@ let options = new SlashCommandBuilder()
 .addStringOption(option => option.setName('video_link')
     .setDescription('Link to a video of the fight, for submission purposes')
     .setRequired(false))
-
 
 module.exports = {
     data: options,
@@ -530,6 +529,17 @@ module.exports = {
         // Medium gauss does 28.18 damage on a Dusa, small gauss does 16.16 per round
         let shot_damage_fired = args.shots_medium_fired * 28.18 + args.shots_small_fired * 16.16;
 
+        // Avoid funnies with >100% accuracy fake submissions
+        // Allow funnies if Aran is involved
+        if (shot_damage_fired < damage_threshold) {
+            if(interaction.member === "[PC] CMDR Aranionros Stormrage"){
+                interaction.reply(`Thank you ${interaction.member} for breaking my accuracy calculations again! Please let me know where I have failed, and I will fix it - CMDR Mechan`);
+            } else {
+                interaction.reply(`Comrade ${interaction.member} ... It appears your entry results in greater than 100% accuracy. Unfortunately [PC] CMDR Aranionros Stormrage is the only one allowed to achieve >100% accuracy. Since you are not [PC] CMDR Aranionros Stormrage, please check your inputs and try again.`);
+            }
+            return(-1);
+        }
+
         // Set accuracy threshold
         // 82% is the current setting for Astraea's Clarity, which is 175 rounds for a 3m basic config, which in turn is 143 rounds minimum
         // So, for now, applying 82% as the ratio ... which is multiplying by 1.223 and rounding up
@@ -671,7 +681,7 @@ module.exports = {
             
             With ${args.gauss_small_number} small gauss and ${args.gauss_medium_number} medium gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold}hp, which entails a maximum of ${accuracy_required}hp in damage-of-shots-fired for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_small_fired} small rounds @ 16.16hp each and ${args.shots_medium_fired} medium rounds @ 28.28hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and (${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
  
             
         if(args.print_score_breakdown == true) {
