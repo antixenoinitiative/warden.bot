@@ -7,7 +7,7 @@
     },
     {
       "Name": "Hauler",
-      "ShortName": "",
+      "ShortName": "hauler",
       "Score": 10,
       "Size": "small"
     },
@@ -43,13 +43,13 @@
     },
     {
       "Name": "Viper Mk. III",
-      "ShortName": "",
+      "ShortName": "vmk3",
       "Score": 35,
       "Size": "small"
     },
     {
       "Name": "Viper Mk. IV",
-      "ShortName": "",
+      "ShortName": "vmk4",
       "Score": 40,
       "Size": "small"
     },
@@ -67,7 +67,7 @@
     },
     {
       "Name": "Diamondback Scout",
-      "ShortName": "",
+      "ShortName": "dbs",
       "Score": 40,
       "Size": "small"
     },
@@ -85,25 +85,25 @@
     },
     {
       "Name": "Diamondback Explorer",
-      "ShortName": "",
+      "ShortName": "dbx",
       "Score": 40,
       "Size": "small"
     },
     {
       "Name": "Asp Explorer",
-      "ShortName": "",
+      "ShortName": "aspx",
       "Score": 40,
       "Size": "medium"
     },
     {
       "Name": "Vulture",
-      "ShortName": "",
+      "ShortName": "vulture",
       "Score": 50,
       "Size": "small"
     },
     {
       "Name": "Imperial Courier",
-      "ShortName": "",
+      "ShortName": "icourier",
       "Score": 40,
       "Size": "small"
     },
@@ -115,61 +115,61 @@
     },
     {
       "Name": "Alliance Chieftain",
-      "ShortName": "",
+      "ShortName": "chieftain",
       "Score": 80,
       "Size": "medium"
     },
     {
       "Name": "Alliance Challenger",
-      "ShortName": "",
+      "ShortName": "challenger",
       "Score": 80,
       "Size": "medium"
     },
     {
       "Name": "Alliance Crusader",
-      "ShortName": "",
+      "ShortName": "crusader",
       "Score": 75,
       "Size": "medium"
     },
     {
       "Name": "Federal Dropship",
-      "ShortName": "",
+      "ShortName": "fds",
       "Score": 50,
       "Size": "medium"
     },
     {
       "Name": "Federal Assault Ship",
-      "ShortName": "",
+      "ShortName": "fas",
       "Score": 70,
       "Size": "medium"
     },
     {
       "Name": "Federal Gunship",
-      "ShortName": "",
+      "ShortName": "fgs",
       "Score": 45,
       "Size": "medium"
     },
     {
       "Name": "Imperial Clipper",
-      "ShortName": "",
+      "ShortName": "clipper",
       "Score": 40,
       "Size": "large"
     },
     {
       "Name": "Krait Mk. II",
-      "ShortName": "",
+      "ShortName": "km2",
       "Score": 75,
       "Size": "medium"
     },
     {
       "Name": "Krait Phantom",
-      "ShortName": "",
+      "ShortName": "kph",
       "Score": 75,
       "Size": "medium"
     },
     {
       "Name": "Mamba",
-      "ShortName": "",
+      "ShortName": "mamba",
       "Score": 65,
       "Size": "medium"
     },
@@ -181,19 +181,19 @@
     },
     {
       "Name": "Fer-de-Lance",
-      "ShortName": "",
+      "ShortName": "fdl",
       "Score": 75,
       "Size": "medium"
     },
     {
       "Name": "Python",
-      "ShortName": "",
+      "ShortName": "python",
       "Score": 50,
       "Size": "medium"
     },
     {
       "Name": "Beluga",
-      "ShortName": "",
+      "ShortName": "beluga",
       "Score": 50,
       "Size": "large"
     },
@@ -205,25 +205,25 @@
     },
     {
       "Name": "Type-10",
-      "ShortName": "",
+      "ShortName": "t10",
       "Score": 45,
       "Size": "large"
     },
     {
       "Name": "Anaconda",
-      "ShortName": "",
+      "ShortName": "anaconda",
       "Score": 55,
       "Size": "large"
     },
     {
       "Name": "Federal Corvette",
-      "ShortName": "",
+      "ShortName": "corvette",
       "Score": 60,
       "Size": "large"
     },
     {
       "Name": "Imperial Cutter",
-      "ShortName": "",
+      "ShortName": "cutter",
       "Score": 90,
       "Size": "large"
     }
