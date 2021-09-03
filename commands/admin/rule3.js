@@ -38,7 +38,7 @@ module.exports = {
         for (let role of staffRoles) {
 
             if (targetUserRoles.cache.has(role)) {
-                if (interaction.options.data.find(arg => arg.name ===`user`) !== undefined) {
+                if (interaction.options.data.find(arg => arg.name ===`user`).value !== undefined) {
                     targetUserRoles = interaction.options.data.find(arg => arg.name === `user`).roles
                     break;
                 }
@@ -46,20 +46,20 @@ module.exports = {
         } 
 
 
-        let inGameName = interaction.options.data.find(arg => arg.name === `ign`);
-        let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`);
+        let inGameName = interaction.options.data.find(arg => arg.name === `ign`).value;
+        let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`).value;
 
         let newNickname;
         let platforms = [];
 
         if (targetUserRoles.cache.some(role => role.name === "PC")) {
-            if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
+            if (interaction.options.data.find(arg => arg.name === `vr`).value === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
             }
         }
-        if (targetUserRoles.cache.some(role => role.name === "XB")) {platforms.push("XB");}
+        if (targetUserRoles.cache.some(role => role.name === "XB").value) {platforms.push("XB");}
         if (targetUserRoles.cache.some(role => role.name === "PS")) {platforms.push("PS");}
 
         if (platforms.length === 1) {
