@@ -40,9 +40,18 @@ let options = new SlashCommandBuilder()
     .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
     .setRequired(true)
     .addChoice('Medusa', 'medusa'))
-.addIntegerOption(option => option.setName('gauss_number')
-    .setDescription('Total number of gauss cannons used')
+.addIntegerOption(option => option.setName('gauss_small_number')
+    .setDescription('Number of SMALL gauss cannons outfitted')
     .setRequired(true)
+    .addChoice('Zero', 0)
+    .addChoice('One', 1)
+    .addChoice('Two', 2)
+    .addChoice('Three', 3)
+    .addChoice('Four', 4))
+.addIntegerOption(option => option.setName('gauss_medium_number')
+    .setDescription('Nnumber of MEDIUM gauss cannons outfitted')
+    .setRequired(true)
+    .addChoice('Zero', 0)
     .addChoice('One', 1)
     .addChoice('Two', 2)
     .addChoice('Three', 3)
@@ -61,8 +70,11 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
-.addIntegerOption(option => option.setName('shotsfired')
-    .setDescription('Total number of ammo rounds fired')
+.addIntegerOption(option => option.setName('shots_small_fired')
+    .setDescription('Total number of SMALL gauss ammo rounds fired')
+    .setRequired(true))
+.addIntegerOption(option => option.setName('shots_medium_fired')
+    .setDescription('Total number of MEDIUM gauss ammo rounds fired')
     .setRequired(true))
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
@@ -105,12 +117,12 @@ module.exports = {
         if (args.print_score_breakdown === undefined) { args.print_score_breakdown = false }
         if (args.submit === undefined) { args.submit = false }
         
-        if (args.gauss_number > 4) {
+        if ((args.gauss_small_number + args.gauss_medium_number) > 4) {
             interaction.reply(`More than 4 gauss? Very funny ${interaction.member} ...`);
             return(-1);
         }
 
-        if (args.gauss_number < 1) {
+        if ((args.gauss_small_number + args.gauss_medium_number) < 1) {
             interaction.reply(`While trying to kill a Medusa with less than 1 gauss cannons is a noble attempt dear ${interaction.member} ... it kind of defeats the purpose of this calculator`);
             return(-1);
         }
@@ -125,12 +137,12 @@ module.exports = {
             return(-1);
         }
 
-        if (args.shotsfired < 105) {
+        if ((args.shots_small_fired + args.shots_medium_fired) < 105) {
             interaction.reply(`Since the very absolute minimum number of gauss shots to kill a Medusa in any configuration is 105, my dear ${interaction.member} you either need to check your inputs or stop trying to be funny`);
             return(-1);
         }
 
-        if (args.shotsfired > 1000) {
+        if ((args.shots_small_fired + args.shots_medium_fired) > 1000) {
             interaction.reply(`Oh innocent puppy-eyed ${interaction.member} ... if you truly took more than 1,000 ammo rounds to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
             return(-1);
         }
@@ -192,10 +204,131 @@ module.exports = {
         // Calculate the minimum amount of ammo needed for the gauss config
         // This comes from Mechan's & Orodruin's google sheet
         // It is INTENTIONALLY not a mix of small and medium as that makes everything unmanageable - either medium or small is used
-        let ammo_threshold;
-        switch (args.gauss_type) {
-            case "small":
-                switch (args.gauss_number) {
+        // THIS IS NOW DEPRECATED IN FAVOR OF THE DAMAGE METHOD, WHICH INSTEAD ALLOWS TO COMPARE ALSO A MIX OF WEAPONS
+//        let ammo_threshold;
+//       switch (args.gauss_type) {
+//            case "small":
+//               switch (args.gauss_number) {
+//                    case 1:
+//                        switch (args.ammo) {
+//                            case "basic":
+//                                interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
+//                                return(-1);
+//                            case "standard":
+//                                interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
+//                                return(-1);
+//                            case "premium":
+//                                ammo_threshold = 3816;
+//                                break;
+//                        }
+//                        break;
+//                    case 2:
+//                        switch (args.ammo) {
+//                            case "basic":
+//                                ammo_threshold = 417;
+//                                return(-1);
+//                            case "standard":
+//                                ammo_threshold = 317;
+//                                return(-1);
+//                            case "premium":
+//                                ammo_threshold = 255;
+//                                break;
+//                        }
+//                        break;
+//                    case 3:
+//                        switch (args.ammo) {
+//                            case "basic":
+//                                ammo_threshold = 300;
+//                                break;
+//                            case "standard":
+//                                ammo_threshold = 251;
+//                                break;
+//                            case "premium":
+//                                ammo_threshold = 210;
+//                                break;
+//                        }
+//                        break;
+//                    case 4:
+//                        switch (args.ammo) {
+//                            case "basic":
+//                                ammo_threshold = 266;
+//                                break;
+//                            case "standard":
+//                                ammo_threshold = 229;
+//                                break;
+//                            case "premium":
+//                                ammo_threshold = 195;
+//                                break;
+//                        }
+//                        break;
+//               }
+//                break;
+//                case "medium":
+//                    switch (args.gauss_number) {
+//                        case 1:
+//                            switch (args.ammo) {
+//                                case "basic":
+//                                    ammo_threshold = 296;
+//                                    break;
+//                                case "standard":
+//                                    ammo_threshold = 211;
+//                                    break;
+//                                case "premium":
+//                                    ammo_threshold = 159;
+//                                    break;
+//                            }
+//                            break;
+//                        case 2:
+//                            switch (args.ammo) {
+//                                case "basic":
+//                                    ammo_threshold = 161;
+//                                    break;
+//                                case "standard":
+//                                    ammo_threshold = 139;
+//                                    break;
+//                                case "premium":
+//                                    ammo_threshold = 115;
+//                                    break;
+//                            }
+//                            break;
+//                        case 3:
+//                            switch (args.ammo) {
+//                                case "basic":
+//                                    ammo_threshold = 143;
+//                                    break;
+//                                case "standard":
+//                                    ammo_threshold = 129;
+//                                    break;
+//                                case "premium":
+//                                    ammo_threshold = 107;
+//                                    break;
+//                            }
+//                            break;
+//                        case 4:
+//                            switch (args.ammo) {
+//                                case "basic":
+//                                    ammo_threshold = 137;
+//                                    break;
+//                                case "standard":
+//                                    ammo_threshold = 125;
+//                                    break;
+//                                case "premium":
+//                                    ammo_threshold = 105;
+//                                    break;
+//                            }
+//                            break;
+//                    }
+//                    break;
+//
+//        }
+
+
+        // Calculate the minimum damage required for the given gauss config
+        // This comes from Mechan's & Orodruin's google sheet
+        let damage_threshold;
+        switch (args.gauss_medium_number) {
+            case 0:
+                switch (args.gauss_small_number) {
                     case 1:
                         switch (args.ammo) {
                             case "basic":
@@ -205,115 +338,208 @@ module.exports = {
                                 interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
                                 return(-1);
                             case "premium":
-                                ammo_threshold = 3816;
+                                damage_threshold = 80228.5;
                                 break;
                         }
                         break;
                     case 2:
                         switch (args.ammo) {
                             case "basic":
-                                ammo_threshold = 417;
-                                return(-1);
+                                damage_threshold = 6774.5;
+                                break;
                             case "standard":
-                                ammo_threshold = 317;
-                                return(-1);
+                                damage_threshold = 5811;
+                                break;
                             case "premium":
-                                ammo_threshold = 255;
+                                damage_threshold = 5321.5;
                                 break;
                         }
                         break;
                     case 3:
                         switch (args.ammo) {
                             case "basic":
-                                ammo_threshold = 300;
+                                damage_threshold = 4868;
                                 break;
                             case "standard":
-                                ammo_threshold = 251;
+                                damage_threshold = 4581;
                                 break;
                             case "premium":
-                                ammo_threshold = 210;
+                                damage_threshold = 4399;
                                 break;
                         }
                         break;
                     case 4:
                         switch (args.ammo) {
                             case "basic":
-                                ammo_threshold = 266;
+                                damage_threshold = 4335;
                                 break;
                             case "standard":
-                                ammo_threshold = 229;
+                                damage_threshold = 4191.5;
                                 break;
                             case "premium":
-                                ammo_threshold = 195;
+                                damage_threshold = 4091.5;
+                                break;
+                        }
+                        break;
+                    }
+                    break;
+            case 1:
+                switch (args.gauss_small_number) {
+                    case 0:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 8455.5;
+                                break;
+                            case "standard":
+                                damage_threshold = 6713;
+                                break;
+                            case "premium":
+                                damage_threshold = 5875;
+                                break;
+                        }
+                        break;
+                    case 1:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 5114;
+                                break;
+                            case "standard":
+                                damage_threshold = 4765.5;
+                                break;
+                            case "premium":
+                                damage_threshold = 4522;
+                                break;
+                        }
+                        break;
+                    case 2:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 4437.5;
+                                break;
+                            case "standard":
+                                damage_threshold = 4273.5;
+                                break;
+                            case "premium":
+                                damage_threshold = 4132.5;
+                                break;
+                        }
+                        break;     
+                    case 3:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 4171;
+                                break;
+                            case "standard":
+                                damage_threshold = 4089;
+                                break;
+                            case "premium":
+                                damage_threshold = 3968.5;
                                 break;
                         }
                         break;
                 }
                 break;
-                case "medium":
-                    switch (args.gauss_number) {
-                        case 1:
-                            switch (args.ammo) {
-                                case "basic":
-                                    ammo_threshold = 296;
-                                    break;
-                                case "standard":
-                                    ammo_threshold = 211;
-                                    break;
-                                case "premium":
-                                    ammo_threshold = 159;
-                                    break;
-                            }
-                            break;
-                        case 2:
-                            switch (args.ammo) {
-                                case "basic":
-                                    ammo_threshold = 161;
-                                    break;
-                                case "standard":
-                                    ammo_threshold = 139;
-                                    break;
-                                case "premium":
-                                    ammo_threshold = 115;
-                                    break;
-                            }
-                            break;
-                        case 3:
-                            switch (args.ammo) {
-                                case "basic":
-                                    ammo_threshold = 143;
-                                    break;
-                                case "standard":
-                                    ammo_threshold = 129;
-                                    break;
-                                case "premium":
-                                    ammo_threshold = 107;
-                                    break;
-                            }
-                            break;
-                        case 4:
-                            switch (args.ammo) {
-                                case "basic":
-                                    ammo_threshold = 137;
-                                    break;
-                                case "standard":
-                                    ammo_threshold = 125;
-                                    break;
-                                case "premium":
-                                    ammo_threshold = 105;
-                                    break;
-                            }
-                            break;
+            case 2:
+                switch (args.gauss_small_number) {
+                    case 0:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 4560.5;
+                                break;
+                            case "standard":
+                                damage_threshold = 4335;
+                                break;
+                            case "premium":
+                                damage_threshold = 4214.5;
+                                break;
+                        }
+                        break;  
+                    case 1:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 4212;
+                                break;
+                            case "standard":
+                                damage_threshold = 4089;
+                                break;
+                            case "premium":
+                                damage_threshold = 3989;
+                                break;
+                        }
+                        break;  
+                    case 2:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 4089;
+                                break;
+                            case "standard":
+                                damage_threshold = 3945.5;
+                                break;
+                            case "premium":
+                                damage_threshold = 3886.5;
+                                break;
+                        }
+                        break;
+                }
+                break;
+            case 3:
+                switch (args.gauss_small_number) {
+                    case 0:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 4089;
+                                break;
+                            case "standard":
+                                damage_threshold = 3986.5;
+                                break;
+                            case "premium":
+                                damage_threshold = 3907;
+                                break;
+                        }
+                        break;
+                    
+                    case 1:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 3945.5;
+                                break;
+                            case "standard":
+                                damage_threshold = 3884;
+                                break;
+                            case "premium":
+                                damage_threshold = 3784;
+                                break;
+                        }
+                    break;
                     }
                     break;
-
-        }
+            case 4:
+                switch (args.gauss_small_number) {
+                    case 0:
+                        switch (args.ammo) {
+                            case "basic":  
+                                damage_threshold = 3904.5;
+                                break;
+                            case "standard":
+                                damage_threshold = 3843;
+                                break;
+                            case "premium":
+                                damage_threshold = 3784;
+                                break;
+                        }
+                        break;
+                }
+            break;
+            }
+                
+        // Medium gauss does 28.18 damage on a Dusa, small gauss does 16.16 per round
+        let shot_damage_fired = args.shots_medium_fired * 28.18 + args.shots_small_fired * 16.16;
 
         // Set accuracy threshold
         // 82% is the current setting for Astraea's Clarity, which is 175 rounds for a 3m basic config, which in turn is 143 rounds minimum
         // So, for now, applying 82% as the ratio ... which is multiplying by 1.223 and rounding up
         let accuracy_required;
-        accuracy_required = Math.ceil(ammo_threshold * 1.223);
+        accuracy_required = Math.ceil(damage_threshold * 1.223);
 
         // Set myrm_factor based on myrm_threshold - this is done as the basis to calculate a penalty that is consistent across ship sizes, and not punishing for large ships (as the absolute # of seconds used to be)
         let myrm_factor;
@@ -321,7 +547,7 @@ module.exports = {
 
         // Calculations
         let roundPenaltyTotal = 0;
-        if (args.shotsfired > accuracy_required) { roundPenaltyTotal = (args.shotsfired - accuracy_required) * roundPenalty }
+        if (shot_damage_fired > accuracy_required) { roundPenaltyTotal = (shot_damage_fired - accuracy_required)/((28.18*args.gauss_medium_number+16.16*args.gauss_small_number)/(args.gauss_medium_number+args.gauss_small_number)) * roundPenalty }
         console.log("Ammo Used Penalty:" + roundPenaltyTotal)
 
         // Factor of -10.8 was obtained by matching penalties from old system with a 30m medium run to new system, as follows
@@ -448,9 +674,9 @@ module.exports = {
 
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
+            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of damage done would have been ${damage_threshold}, which entails a maximum of ${accuracy_required} damage level for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${args.shotsfired} rounds represents a **__${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+            ${interaction.member}'s use of ${shot_damage_fired} damage fired represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
  
             
         if(args.print_score_breakdown == true) {
