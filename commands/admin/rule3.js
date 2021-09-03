@@ -53,7 +53,7 @@ module.exports = {
         let platforms = [];
 
         if (targetUserRoles.cache.some(role => role.name === "PC")) {
-            if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
+            if (interaction.options.data.find(arg => arg.name === `vr`).value === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
