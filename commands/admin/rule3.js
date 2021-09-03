@@ -75,7 +75,7 @@ module.exports = {
         interaction.reply({ content: `Your nickname is now ${newNickname}`})
 
         function returnSquadronTag() {
-            if (squadronCode !== undefined) {
+            if (squadronCode) {
                 return squadronCode
             } 
             return ``
