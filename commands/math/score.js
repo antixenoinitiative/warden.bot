@@ -127,7 +127,7 @@ module.exports = {
         }
 
         if (args.time_in_seconds > 7200) {
-            interaction.reply(`Oh my dearest summer child ${interaction.member} ... if you truly took more than 2 hours to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            interaction.reply(`Oh my sweet summer child ${interaction.member} ... if you truly took more than 2 hours to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
             return(-1);
         }
 
