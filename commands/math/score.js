@@ -689,20 +689,20 @@ module.exports = {
 
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_small_number} small gauss and ${args.gauss_medium_number} medium gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold}hp, which entails a maximum of ${accuracy_required}hp in damage-of-shots-fired for an 82% accuracy level (Astraea's Clarity level).
+            With ${args.gauss_medium_number} medium gauss and ${args.gauss_small_number} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold}hp, which entails a maximum of ${accuracy_required}hp in damage-of-shots-fired for an 82% accuracy level (Astraea's Clarity level).
             
             ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and (${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
  
         if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
-                outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.\n\n`
+                outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
         }
 
         if (args.shots_small_fired === 0 && args.gauss_small_number > 0) {
-            outputString += `\n\n**__WARNING__**: It appears you have small gauss outfitted, but no small gauss shots fired. Please make sure this is intended.\n\n`
+            outputString += `\n\n**__WARNING__**: It appears you have small gauss outfitted, but no small gauss shots fired. Please make sure this is intended.`
         }
             
         if(args.print_score_breakdown == true) {
-                outputString += `
+                outputString += `\n\n
                 ---
                 **Base Score:** ${targetRun} Ace points
                 ---
