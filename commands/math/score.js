@@ -94,42 +94,42 @@ module.exports = {
         if (args.scorelegend !== undefined) { args.scorelegend = false }
         
         if (args.gauss_number > 4) {
-            interaction.channel.send(`More than 4 gauss? Very funny ${interaction.member} ...`);
+            interaction.reply(`More than 4 gauss? Very funny ${interaction.member} ...`);
             return(-1);
         }
 
         if (args.gauss_number < 1) {
-            interaction.channel.send(`While trying to kill a Medusa with less than 1 gauss cannons is a noble attempt dear ${interaction.member} ... it kind of defeats the purpose of this calculator`);
+            interaction.reply(`While trying to kill a Medusa with less than 1 gauss cannons is a noble attempt dear ${interaction.member} ... it kind of defeats the purpose of this calculator`);
             return(-1);
         }
 
         if (args.time_in_seconds < 120) {
-            interaction.channel.send(`Mhhh ... I sincerely doubt that you killed a Medusa alone in less than two minutes ${interaction.member} ... maybe you mixed up minutes and seconds as an input?`);
+            interaction.reply(`Mhhh ... I sincerely doubt that you killed a Medusa alone in less than two minutes ${interaction.member} ... maybe you mixed up minutes and seconds as an input?`);
             return(-1);
         }
 
         if (args.time_in_seconds > 7200) {
-            interaction.channel.send(`Oh my dearest summer child ${interaction.member} ... if you truly took more than 2 hours to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            interaction.reply(`Oh my dearest summer child ${interaction.member} ... if you truly took more than 2 hours to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
             return(-1);
         }
 
         if (args.shotsfired < 105) {
-            interaction.channel.send(`Since the very absolute minimum number of gauss shots to kill a Medusa in any configuration is 105, my dear ${interaction.member} you either need to check your inputs or stop trying to be funny`);
+            interaction.reply(`Since the very absolute minimum number of gauss shots to kill a Medusa in any configuration is 105, my dear ${interaction.member} you either need to check your inputs or stop trying to be funny`);
             return(-1);
         }
 
         if (args.shotsfired > 1000) {
-            interaction.channel.send(`Oh innocent puppy-eyed ${interaction.member} ... if you truly took more than 1,000 ammo rounds to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            interaction.reply(`Oh innocent puppy-eyed ${interaction.member} ... if you truly took more than 1,000 ammo rounds to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
             return(-1);
         }
 
         if (args.percenthulllost < 0) {
-            interaction.channel.send(`Unfortunately, ${interaction.member}, it's not possible to lose a NEGATIVE number of hull in a fight. Please check your inputs and try again`);
+            interaction.reply(`Unfortunately, ${interaction.member}, it's not possible to lose a NEGATIVE number of hull in a fight. Please check your inputs and try again`);
             return(-1);
         }
 
         if (args.percenthulllost > 500) {
-            interaction.channel.send(`Oh wonderful ${interaction.member} padawan ... if you truly lost a total of more than 500% hull while killing a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            interaction.reply(`Oh wonderful ${interaction.member} padawan ... if you truly lost a total of more than 500% hull while killing a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
             return(-1);
         }
         
