@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
@@ -18,51 +19,66 @@ module.exports = {
         .setRequired(false)
         .addChoice("Yes", "yes")
         .addChoice("No", "no"))
-    .setDefaultPermission(false),
+    .addUserOption(option => option.setName(`user`)
+        .setDescription(`Which user's nickname would you like to change? (Admin-Only)`)
+        .setRequired(false)),
     
-    permissions: 2,
+    permissions: 0,
 
     async execute(interaction) {
-        let interactionAuthorRoles = interaction.member._roles;
+        let targetUserRoles = interaction.member.roles
 
-        //ACTUAL SERVER CODES
-        const id = {
-            "pc": "428260067901571073",
-            "xb": "533774176478035991",
-            "ps": "428259777206812682",
-        }
+        const staffRoles = [  
+            "380249268818018304",
+            "380248896385056769",
+            "380248192534577152",
+            "880618812792262692"
+        ]
 
-        // STAGING platform roles
-        // const id = {
-        //     "pc": "880618812662235235",
-        //     "xb": "880618812662235233",
-        //     "ps": "880618812662235234"
-        // }
+        for (let role of staffRoles) {
 
-        const inGameName = interaction.option.data.find(arg => arg.name === `ign`);
-        const squadronCode = interaction.option.data.find(arg => arg.name === `squadroncode`);
+            if (targetUserRoles.cache.has(role)) {
+                if (interaction.options.data.find(arg => arg.name ===`user`) !== undefined) {
+                    targetUserRoles = interaction.options.data.find(arg => arg.name === `user`).roles
+                    break;
+                }
+            } 
+        } 
+
+
+        let inGameName = interaction.options.data.find(arg => arg.name === `ign`).value;
+        let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`).value;
 
         let newNickname;
         let platforms = [];
 
-        if (interactionAuthorRoles.includes(id.pc)) {
-            if (interaction.option.data.find(arg => arg.name === `vr`) === "yes") {
+        if (targetUserRoles.cache.some(role => role.name === "PC")) {
+            if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
             }
         }
-        if (interactionAuthorRoles.includes(id.xb)) platforms.push("XB");
-        if (interactionAuthorRoles.includes(id.ps)) platforms.push("PS");
+        if (targetUserRoles.cache.some(role => role.name === "XB")) {platforms.push("XB");}
+        if (targetUserRoles.cache.some(role => role.name === "PS")) {platforms.push("PS");}
 
         if (platforms.length === 1) {
-            newNickname = `[${platforms[0]}] CMDR ${inGameName} (${squadronCode})`;
+            newNickname = `[${platforms[0]}] CMDR ${inGameName}${returnSquadronTag()}`;
         } else if (platforms.length === 2) {
-            newNickname = `[${platforms[0]}/${platforms[1]}] CMDR ${inGameName} (${squadronCode})`;
+            newNickname = `[${platforms[0]}/${platforms[1]}] CMDR ${inGameName}${returnSquadronTag()}`;
         } else if (platforms.length === 3) {
-            newNickname = `[${platforms[0]}/${platforms[1]}/${platforms[2]} CMDR ${inGameName} (${squadronCode})]`;
+            newNickname = `[${platforms[0]}/${platforms[1]}/${platforms[2]}] CMDR ${inGameName}${returnSquadronTag()}`;
         }
         
-        interaction.member.setNickname(newNickname, "Rule 3")
+        await interaction.member.setNickname(newNickname, "Rule 3")
+
+        interaction.reply({ content: `Your nickname is now ${newNickname}`})
+
+        function returnSquadronTag() {
+            if (squadronCode !== undefined) {
+                return squadronCode
+            } 
+            return ``
+        }
     }
 }
