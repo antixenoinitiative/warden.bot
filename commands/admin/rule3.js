@@ -52,15 +52,15 @@ module.exports = {
         let newNickname;
         let platforms = [];
 
-        if (targetUserRoles.some(role => role.name === "PC")) {
+        if (targetUserRoles.cache.some(role => role.name === "PC")) {
             if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
             }
         }
-        if (targetUserRoles.some(role => role.name === "XB")) {platforms.push("XB");}
-        if (targetUserRoles.some(role => role.name === "PS")) {platforms.push("PS");}
+        if (targetUserRoles.cache.some(role => role.name === "XB")) {platforms.push("XB");}
+        if (targetUserRoles.cache.some(role => role.name === "PS")) {platforms.push("PS");}
 
         if (platforms.length === 1) {
             newNickname = `[${platforms[0]}] CMDR ${inGameName}${returnSquadronTag()}`;
