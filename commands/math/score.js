@@ -127,7 +127,7 @@ module.exports = {
         }
 
         if (args.time_in_seconds > 7200) {
-            interaction.reply(`Oh my dearest summer child ${interaction.member} ... if you truly took more than 2 hours to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            interaction.reply(`Oh my sweet summer child ${interaction.member} ... if you truly took more than 2 hours to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
             return(-1);
         }
 
@@ -342,46 +342,46 @@ module.exports = {
                                 interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
                                 return(-1);
                             case "premium":
-                                damage_threshold = 80228.5;
+                                damage_threshold = 80105.5;
                                 break;
                         }
                         break;
                     case 2:
                         switch (args.ammo) {
                             case "basic":
-                                damage_threshold = 6774.5;
+                                damage_threshold = 6651.5;
                                 break;
                             case "standard":
-                                damage_threshold = 5811;
+                                damage_threshold = 5688;
                                 break;
                             case "premium":
-                                damage_threshold = 5321.5;
+                                damage_threshold = 5198.5;
                                 break;
                         }
                         break;
                     case 3:
                         switch (args.ammo) {
                             case "basic":
-                                damage_threshold = 4868;
+                                damage_threshold = 4745;
                                 break;
                             case "standard":
-                                damage_threshold = 4581;
+                                damage_threshold = 4458;
                                 break;
                             case "premium":
-                                damage_threshold = 4399;
+                                damage_threshold = 4276;
                                 break;
                         }
                         break;
                     case 4:
                         switch (args.ammo) {
                             case "basic":
-                                damage_threshold = 4335;
+                                damage_threshold = 4212;
                                 break;
                             case "standard":
-                                damage_threshold = 4191.5;
+                                damage_threshold = 4068.5;
                                 break;
                             case "premium":
-                                damage_threshold = 4091.5;
+                                damage_threshold = 3968.5;
                                 break;
                         }
                         break;
@@ -392,52 +392,52 @@ module.exports = {
                     case 0:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 8455.5;
+                                damage_threshold = 8332.5;
                                 break;
                             case "standard":
-                                damage_threshold = 6713;
+                                damage_threshold = 6590;
                                 break;
                             case "premium":
-                                damage_threshold = 5875;
+                                damage_threshold = 5752;
                                 break;
                         }
                         break;
                     case 1:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 5114;
+                                damage_threshold = 4991;
                                 break;
                             case "standard":
-                                damage_threshold = 4765.5;
+                                damage_threshold = 4642.5;
                                 break;
                             case "premium":
-                                damage_threshold = 4522;
+                                damage_threshold = 4399;
                                 break;
                         }
                         break;
                     case 2:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 4437.5;
+                                damage_threshold = 4314.5;
                                 break;
                             case "standard":
-                                damage_threshold = 4273.5;
+                                damage_threshold = 4150.5;
                                 break;
                             case "premium":
-                                damage_threshold = 4132.5;
+                                damage_threshold = 4009.5;
                                 break;
                         }
                         break;     
                     case 3:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 4171;
+                                damage_threshold = 4048;
                                 break;
                             case "standard":
-                                damage_threshold = 4089;
+                                damage_threshold = 3966;
                                 break;
                             case "premium":
-                                damage_threshold = 3968.5;
+                                damage_threshold = 3845.5;
                                 break;
                         }
                         break;
@@ -448,39 +448,39 @@ module.exports = {
                     case 0:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 4560.5;
+                                damage_threshold = 4437.5;
                                 break;
                             case "standard":
-                                damage_threshold = 4335;
+                                damage_threshold = 4212;
                                 break;
                             case "premium":
-                                damage_threshold = 4214.5;
+                                damage_threshold = 4091.5;
                                 break;
                         }
                         break;  
                     case 1:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 4212;
-                                break;
-                            case "standard":
                                 damage_threshold = 4089;
                                 break;
+                            case "standard":
+                                damage_threshold = 3966;
+                                break;
                             case "premium":
-                                damage_threshold = 3989;
+                                damage_threshold = 3866;
                                 break;
                         }
                         break;  
                     case 2:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 4089;
+                                damage_threshold = 3966;
                                 break;
                             case "standard":
-                                damage_threshold = 3945.5;
+                                damage_threshold = 3822.5;
                                 break;
                             case "premium":
-                                damage_threshold = 3886.5;
+                                damage_threshold = 3763.5;
                                 break;
                         }
                         break;
@@ -491,13 +491,13 @@ module.exports = {
                     case 0:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 4089;
+                                damage_threshold = 3966;
                                 break;
                             case "standard":
-                                damage_threshold = 3986.5;
+                                damage_threshold = 3863.5;
                                 break;
                             case "premium":
-                                damage_threshold = 3907;
+                                damage_threshold = 3784;
                                 break;
                         }
                         break;
@@ -505,13 +505,13 @@ module.exports = {
                     case 1:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 3945.5;
+                                damage_threshold = 3822.5;
                                 break;
                             case "standard":
-                                damage_threshold = 3884;
+                                damage_threshold = 3761;
                                 break;
                             case "premium":
-                                damage_threshold = 3784;
+                                damage_threshold = 3702;
                                 break;
                         }
                     break;
@@ -522,13 +522,13 @@ module.exports = {
                     case 0:
                         switch (args.ammo) {
                             case "basic":  
-                                damage_threshold = 3904.5;
+                                damage_threshold = 3781.5;
                                 break;
                             case "standard":
-                                damage_threshold = 3843;
+                                damage_threshold = 3720;
                                 break;
                             case "premium":
-                                damage_threshold = 3784;
+                                damage_threshold = 3661;
                                 break;
                         }
                         break;
@@ -689,9 +689,9 @@ module.exports = {
 
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_medium_number} medium gauss and ${args.gauss_small_number} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold}hp, which entails a maximum of ${accuracy_required}hp in damage-of-shots-fired for an 82% accuracy level (Astraea's Clarity level).
+            With ${args.gauss_medium_number} medium gauss and ${args.gauss_small_number} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold.toFixed(0)}hp, which entails a maximum of ${accuracy_required.toFixed(0)}hp in damage-of-shots-fired for an 82% firing efficiency level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and ${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and ${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall firing efficiency.`
  
         if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
                 outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
@@ -724,7 +724,7 @@ module.exports = {
                 *- A collector-level CMDR will typically score about 25-45 pts;*
                 *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
                 *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
-                *- The very best score is presently 99.80 AXI points (obtained in a shielded DBX).*`
+                *- The very best score is presently 99.80 AXI points.*`
         }
         const url = chart.getUrl();
 
