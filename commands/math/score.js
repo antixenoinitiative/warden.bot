@@ -71,6 +71,13 @@ let options = new SlashCommandBuilder()
 .addBooleanOption(option => option.setName('scorelegend')
     .setDescription('Print a description of how to interpret a score')
     .setRequired(false))
+.addBooleanOption(option => option.setName('submit')
+    .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
+    .setRequired(false))
+.addStringOption(option => option.setName('video_link')
+    .setDescription('Link to a video of the fight, for submission purposes')
+    .setRequired(false))
+
 
 module.exports = {
     data: options,
