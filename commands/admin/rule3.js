@@ -37,7 +37,7 @@ module.exports = {
 
         for (let role of staffRoles) {
 
-            if (targetUserRoles.has(role)) {
+            if (targetUserRoles.cache.has(role)) {
                 if (interaction.option.data.find(arg => arg.name ===`user`) !== undefined) {
                     targetUserRoles = interaction.option.data.find(arg => arg.name === `user`).roles
                     break;
