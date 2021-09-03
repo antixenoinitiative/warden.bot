@@ -444,17 +444,17 @@ module.exports = {
         if(args.print_score_breakdown == true) {
                 outputString += `
                 ---
-                **Base Score:** ${targetRun} AXI points
+                **Base Score:** ${targetRun} Ace points
                 ---
-                **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} AXI points
-                **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
-                **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
-                **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
-                **Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
+                **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} Ace points
+                **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} Ace points
+                **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} Ace points
+                **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} Ace points
+                **Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} Ace points
                 ---`
         }
 
-        outputString += `\n\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** AXI points`
+        outputString += `\n\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
         
         if(args.scorelegend == true) {
             outputString += `
