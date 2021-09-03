@@ -150,6 +150,16 @@ module.exports = {
             interaction.reply(`Oh wonderful ${interaction.member} padawan ... if you truly lost a total of more than 500% hull while killing a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
             return(-1);
         }
+
+        if (args.shots_small_fired > 0 && args.gauss_small_number === 0) {
+            interaction.reply(`Hey ${interaction.member} ... it appears you have small gauss shots fired, but no small gauss outfitted on your ship. Please check your inputs and try again.`);
+            return(-1);
+        }
+
+        if (args.shots_medium_fired > 0 && args.gauss_medium_number === 0) {
+            interaction.reply(`Hey ${interaction.member} ... it appears you have medium gauss shots fired, but no small gauss outfitted on your ship. Please check your inputs and try again.`);
+            return(-1);
+        }
         
         // Decide ammo type and penalty
         let ammoPenalty;
@@ -683,6 +693,13 @@ module.exports = {
             
             ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and (${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
  
+        if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
+                outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.\n\n`
+        }
+
+        if (args.shots_small_fired === 0 && args.gauss_small_number > 0) {
+            outputString += `\n\n**__WARNING__**: It appears you have small gauss outfitted, but no small gauss shots fired. Please make sure this is intended.\n\n`
+        }
             
         if(args.print_score_breakdown == true) {
                 outputString += `
