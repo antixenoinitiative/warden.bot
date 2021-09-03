@@ -68,6 +68,9 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
     .setRequired(true))
+.addBooleanOption(option => option.setName('print_score_breakdown')
+    .setDescription('Print a score breakdown, in addition to the overall score')
+    .setRequired(false))
 .addBooleanOption(option => option.setName('scorelegend')
     .setDescription('Print a description of how to interpret a score')
     .setRequired(false))
@@ -100,6 +103,8 @@ module.exports = {
 
         // Sanitize inputs
         if (args.scorelegend === undefined) { args.scorelegend = false }
+        if (args.print_score_breakdown === undefined) { args.print_score_breakdown = false }
+        if (args.submit === undefined) { args.submit = false }
         
         if (args.gauss_number > 4) {
             interaction.reply(`More than 4 gauss? Very funny ${interaction.member} ...`);
@@ -434,20 +439,24 @@ module.exports = {
             
             With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${args.shotsfired} rounds represents a **__${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.
+            ${interaction.member}'s use of ${args.shotsfired} rounds represents a **__${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+ 
             
-            ---
-            **Base Score:** ${targetRun} AXI points
-            ---
-            **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} AXI points
-            **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
-            **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
-            **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
-            **Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
-            ---
-            **Total Score:** ${finalScore.toFixed(2)} AXI points\n`
-        
+        if(args.print_score_breakdown == true) {
+                outputString += `
+                ---
+                **Base Score:** ${targetRun} AXI points
+                ---
+                **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} AXI points
+                **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
+                **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
+                **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
+                **Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
+                ---`
+        }
 
+        outputString += `**Your Fight Score:** **__${finalScore.toFixed(2)}__** AXI points\n`
+        
         if(args.scorelegend == true) {
             outputString += `
                 ---
