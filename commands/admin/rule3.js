@@ -17,26 +17,27 @@ module.exports = {
         .setDescription(`Do you play in vr?`)
         .setRequired(false)
         .addChoice("Yes", "yes")
-        .addChoice("No", "no")),
+        .addChoice("No", "no"))
+    .setDefaultPermission(false),
     
-    permissions: 0,
+    permissions: 2,
 
     async execute(interaction) {
         let interactionAuthorRoles = interaction.member._roles;
 
-        // ACTUAL SERVER CODES
-        // const id = {
-        //     "pc": "428260067901571073",
-        //     "xb": "533774176478035991",
-        //     "ps": "428259777206812682",
-        // }
+        //ACTUAL SERVER CODES
+        const id = {
+            "pc": "428260067901571073",
+            "xb": "533774176478035991",
+            "ps": "428259777206812682",
+        }
 
         // STAGING platform roles
-        const id = {
-            "pc": "880618812662235235",
-            "xb": "880618812662235233",
-            "ps": "880618812662235234"
-        }
+        // const id = {
+        //     "pc": "880618812662235235",
+        //     "xb": "880618812662235233",
+        //     "ps": "880618812662235234"
+        // }
 
         const inGameName = interaction.option.data.find(arg => arg.name === `ign`);
         const squadronCode = interaction.option.data.find(arg => arg.name === `squadroncode`);

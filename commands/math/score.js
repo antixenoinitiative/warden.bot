@@ -1,9 +1,9 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable complexity */
-//const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
+
 
 let options = new SlashCommandBuilder()
 .setName('score')
