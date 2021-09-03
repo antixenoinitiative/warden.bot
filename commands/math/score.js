@@ -3,8 +3,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
-const shipData = require("./calc/vanguard.json")
-
+const shipData = require("./calc/shipdata.json")
 
 let options = new SlashCommandBuilder()
 .setName('score')
@@ -159,6 +158,19 @@ module.exports = {
                 ammoPenalty = 0
                 break;
         }
+
+        // Decode SLEF data (to use later)
+        
+        // let totalSmallGauss;
+        // let totalMediumGauss;
+        // let slefJSON = JSON.parse(args.json)
+        // let slef = slefJSON[0]
+
+        // for (let module of slef.data.Modules) {
+        //     let moduleString = module.Item
+        //     if (moduleString.includes("gausscannon_fixed_small")) { totalSmallGauss++ }
+        //     if (moduleString.includes("gausscannon_fixed_medium")) { totalMediumGauss++ }
+        // }
 
         let myrmThreshold;
         let vanguardScore;
