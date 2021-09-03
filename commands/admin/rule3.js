@@ -26,7 +26,7 @@ module.exports = {
     permissions: 0,
 
     async execute(interaction) {
-        let targetUserRoles = interaction.author.roles
+        let targetUserRoles = interaction.member.roles
 
         const staffRoles = [  
             "380249268818018304",
