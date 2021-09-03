@@ -691,7 +691,7 @@ module.exports = {
             
             With ${args.gauss_medium_number} medium gauss and ${args.gauss_small_number} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold}hp, which entails a maximum of ${accuracy_required}hp in damage-of-shots-fired for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and (${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and ${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
  
         if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
                 outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
@@ -702,7 +702,7 @@ module.exports = {
         }
             
         if(args.print_score_breakdown == true) {
-                outputString += `\n\n
+                outputString += `
                 ---
                 **Base Score:** ${targetRun} Ace points
                 ---
@@ -714,7 +714,7 @@ module.exports = {
                 ---`
         }
 
-        outputString += `\n\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
+        outputString += `\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
         
         if(args.scorelegend == true) {
             outputString += `
