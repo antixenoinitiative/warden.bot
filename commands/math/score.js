@@ -514,10 +514,9 @@ module.exports = {
             ---
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots
-            would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
+            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${args.shotsfired} rounds represents a ${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}% overall accuracy.
+            ${interaction.member}'s use of ${args.shotsfired} rounds represents a **__${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.
             
             ---
             **Base Score:** ${targetRun} AXI points
@@ -526,12 +525,12 @@ module.exports = {
             **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
             **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
             **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
-            **Hull Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
+            **Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
             ---
             **Total Score:** ${finalScore.toFixed(2)} AXI points\n`
         
 
-        if(args.scorelegend === true) {
+        if(args.scorelegend == true) {
             outputString += `
                 ---
                 *Interpret as follows:*
