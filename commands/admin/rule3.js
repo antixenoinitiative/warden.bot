@@ -38,7 +38,7 @@ module.exports = {
         for (let role of staffRoles) {
 
             if (targetUserRoles.cache.has(role)) {
-                if (interaction.options.data.find(arg => arg.name ===`user`).value !== undefined) {
+                if (interaction.options.data.find(arg => arg.name ===`user`) !== undefined) {
                     targetUserRoles = interaction.options.data.find(arg => arg.name === `user`).roles
                     break;
                 }
@@ -53,13 +53,13 @@ module.exports = {
         let platforms = [];
 
         if (targetUserRoles.cache.some(role => role.name === "PC")) {
-            if (interaction.options.data.find(arg => arg.name === `vr`).value === "yes") {
+            if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
             }
         }
-        if (targetUserRoles.cache.some(role => role.name === "XB").value) {platforms.push("XB");}
+        if (targetUserRoles.cache.some(role => role.name === "XB")) {platforms.push("XB");}
         if (targetUserRoles.cache.some(role => role.name === "PS")) {platforms.push("PS");}
 
         if (platforms.length === 1) {
@@ -70,7 +70,7 @@ module.exports = {
             newNickname = `[${platforms[0]}/${platforms[1]}/${platforms[2]}] CMDR ${inGameName}${returnSquadronTag()}`;
         }
         
-        interaction.member.setNickname(newNickname, "Rule 3")
+        await interaction.member.setNickname(newNickname, "Rule 3")
 
         interaction.reply({ content: `Your nickname is now ${newNickname}`})
 
