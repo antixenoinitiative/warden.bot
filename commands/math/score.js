@@ -56,11 +56,6 @@ let options = new SlashCommandBuilder()
     .addChoice('Two', 2)
     .addChoice('Three', 3)
     .addChoice('Four', 4))
-.addStringOption(option => option.setName('gauss_type')
-    .setDescription('Largest type of gauss cannons used')
-    .setRequired(true)
-    .addChoice('Small gauss ONLY', 'small')
-    .addChoice('ANY number of medium gauss', 'medium'))
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used')
     .setRequired(true)
@@ -674,9 +669,9 @@ module.exports = {
 
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of damage done would have been ${damage_threshold}, which entails a maximum of ${accuracy_required} damage level for an 82% accuracy level (Astraea's Clarity level).
+            With ${args.gauss_small_number} small gauss and ${args.gauss_medium_number} medium gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold}hp, which entails a maximum of ${accuracy_required}hp in damage-of-shots-fired for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${shot_damage_fired} damage fired represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_small_fired} small rounds @ 16.16hp each and ${args.shots_medium_fired} medium rounds @ 28.28hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
  
             
         if(args.print_score_breakdown == true) {
