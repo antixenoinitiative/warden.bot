@@ -3,6 +3,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
+//const shipData = require("./calc/vanguard.json")
 
 
 let options = new SlashCommandBuilder()
@@ -149,6 +150,7 @@ module.exports = {
 
         let myrmThreshold;
         let vanguardScore;
+
         switch (args.shiptype) {
             case "challenger":
                 vanguardScore = 80;

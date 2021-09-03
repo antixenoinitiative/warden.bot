@@ -1,154 +1,230 @@
 [
     {
       "Name": "Sidewinder",
-      "Score": 20
+      "ShortName": "",
+      "Score": 20,
+      "Size": "small"
     },
     {
       "Name": "Hauler",
-      "Score": 10
+      "ShortName": "",
+      "Score": 10,
+      "Size": "small"
     },
     {
       "Name": "Eagle",
-      "Score": 20
+      "ShortName": "",
+      "Score": 20,
+      "Size": "small"
     },
     {
       "Name": "Dolphin",
-      "Score": 35
+      "ShortName": "",
+      "Score": 35,
+      "Size": "small"
     },
     {
       "Name": "Type-6",
-      "Score": 25
+      "ShortName": "",
+      "Score": 25,
+      "Size": "small"
     },
     {
       "Name": "Adder",
-      "Score": 25
+      "ShortName": "",
+      "Score": 25,
+      "Size": "small"
     },
     {
       "Name": "Imperial Eagle",
-      "Score": 25
+      "ShortName": "",
+      "Score": 25,
+      "Size": "small"
     },
     {
       "Name": "Viper Mk. III",
-      "Score": 35
+      "ShortName": "",
+      "Score": 35,
+      "Size": "small"
     },
     {
       "Name": "Viper Mk. IV",
-      "Score": 40
+      "ShortName": "",
+      "Score": 40,
+      "Size": "small"
     },
     {
       "Name": "Cobra Mk. III",
-      "Score": 35
+      "ShortName": "",
+      "Score": 35,
+      "Size": "small"
     },
     {
       "Name": "Cobra Mk. IV",
-      "Score": 35
+      "ShortName": "",
+      "Score": 35,
+      "Size": "small"
     },
     {
       "Name": "Diamondback Scout",
-      "Score": 40
+      "ShortName": "",
+      "Score": 40,
+      "Size": "small"
     },
     {
       "Name": "Asp Scout",
-      "Score": 25
+      "ShortName": "",
+      "Score": 25,
+      "Size": "small"
     },
     {
       "Name": "Type-7",
-      "Score": 30
+      "ShortName": "",
+      "Score": 30,
+      "Size": "large"
     },
     {
       "Name": "Diamondback Explorer",
-      "Score": 40
+      "ShortName": "",
+      "Score": 40,
+      "Size": "small"
     },
     {
       "Name": "Asp Explorer",
-      "Score": 40
+      "ShortName": "",
+      "Score": 40,
+      "Size": "medium"
     },
     {
       "Name": "Vulture",
-      "Score": 50
+      "ShortName": "",
+      "Score": 50,
+      "Size": "small"
     },
     {
       "Name": "Imperial Courier",
-      "Score": 40
+      "ShortName": "",
+      "Score": 40,
+      "Size": "small"
     },
     {
       "Name": "Keelback",
-      "Score": 30
+      "ShortName": "",
+      "Score": 30,
+      "Size": "medium"
     },
     {
       "Name": "Alliance Chieftain",
-      "Score": 80
+      "ShortName": "",
+      "Score": 80,
+      "Size": "medium"
     },
     {
       "Name": "Alliance Challenger",
-      "Score": 80
+      "ShortName": "",
+      "Score": 80,
+      "Size": "medium"
     },
     {
       "Name": "Alliance Crusader",
-      "Score": 75
+      "ShortName": "",
+      "Score": 75,
+      "Size": "medium"
     },
     {
       "Name": "Federal Dropship",
-      "Score": 50
+      "ShortName": "",
+      "Score": 50,
+      "Size": "medium"
     },
     {
       "Name": "Federal Assault Ship",
-      "Score": 70
+      "ShortName": "",
+      "Score": 70,
+      "Size": "medium"
     },
     {
       "Name": "Federal Gunship",
-      "Score": 45
+      "ShortName": "",
+      "Score": 45,
+      "Size": "medium"
     },
     {
       "Name": "Imperial Clipper",
-      "Score": 40
+      "ShortName": "",
+      "Score": 40,
+      "Size": "large"
     },
     {
       "Name": "Krait Mk. II",
-      "Score": 75
+      "ShortName": "",
+      "Score": 75,
+      "Size": "medium"
     },
     {
       "Name": "Krait Phantom",
-      "Score": 75
+      "ShortName": "",
+      "Score": 75,
+      "Size": "medium"
     },
     {
       "Name": "Mamba",
-      "Score": 65
+      "ShortName": "",
+      "Score": 65,
+      "Size": "medium"
     },
     {
       "Name": "Orca",
-      "Score": 55
+      "ShortName": "",
+      "Score": 55,
+      "Size": "large"
     },
     {
       "Name": "Fer-de-Lance",
-      "Score": 75
+      "ShortName": "",
+      "Score": 75,
+      "Size": "medium"
     },
     {
       "Name": "Python",
-      "Score": 50
+      "ShortName": "",
+      "Score": 50,
+      "Size": "medium"
     },
     {
       "Name": "Beluga",
-      "Score": 50
+      "ShortName": "",
+      "Score": 50,
+      "Size": "large"
     },
     {
       "Name": "Type-9",
-      "Score": 35
+      "ShortName": "",
+      "Score": 35,
+      "Size": "large"
     },
     {
       "Name": "Type-10",
-      "Score": 45
+      "ShortName": "",
+      "Score": 45,
+      "Size": "large"
     },
     {
       "Name": "Anaconda",
-      "Score": 55
+      "ShortName": "",
+      "Score": 55,
+      "Size": "large"
     },
     {
       "Name": "Federal Corvette",
-      "Score": 60
+      "ShortName": "",
+      "Score": 60,
+      "Size": "large"
     },
     {
       "Name": "Imperial Cutter",
-      "Score": 90
+      "ShortName": "",
+      "Score": 90,
+      "Size": "large"
     }
   ]
