@@ -3,7 +3,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
-//const shipData = require("./calc/vanguard.json")
+const shipData = require("./calc/vanguard.json")
 
 
 let options = new SlashCommandBuilder()
@@ -151,107 +151,18 @@ module.exports = {
         let myrmThreshold;
         let vanguardScore;
 
-        switch (args.shiptype) {
-            case "challenger":
-                vanguardScore = 80;
-                myrmThreshold = 720;
-                break;
-            case "chieftain":
-                vanguardScore = 80;
-                myrmThreshold = 720;
-                break;
-            case "crusader":
-                vanguardScore = 75;
-                myrmThreshold = 720;
-                break;  
-            case "anaconda":
-                vanguardScore = 55;
-                myrmThreshold = 360;
-                break;
-            case "aspx":
-                vanguardScore = 40;
-                myrmThreshold = 720;
-                break;
-            case "beluga":
-                vanguardScore = 50;
-                myrmThreshold = 360;
-                break;
-            case "dbx":
-                vanguardScore = 40;
-                myrmThreshold = 1440;
-                break;
-            case "dbs":
-                vanguardScore = 40;
-                myrmThreshold = 1440;
-                break;
-            case "fas":
-                vanguardScore = 70;
-                myrmThreshold = 720;
-                break;
-            case "corvette":
-                vanguardScore = 60;
-                myrmThreshold = 360;
-                break;
-            case "fds":
-                vanguardScore = 50;
-                myrmThreshold = 720;
-                break;
-            case "fgs":
-                vanguardScore = 45;
-                myrmThreshold = 720;
-                break;
-            case "fdl":
-                vanguardScore = 75;
-                myrmThreshold = 720;
-                break;
-            case "hauler":
-                vanguardScore = 10;
-                myrmThreshold = 1440;
-                break;
-            case "clipper":
-                vanguardScore = 40;
-                myrmThreshold = 360;
-                break;
-            case "icourier":
-                vanguardScore = 40;
-                myrmThreshold = 1440;
-                break;
-            case "cutter":
-                vanguardScore = 90;
-                myrmThreshold = 360;
-                break;
-            case "km2":
-                vanguardScore = 75;
-                myrmThreshold = 720;
-                break;
-            case "kph":
-                vanguardScore = 75;
-                myrmThreshold = 720;
-                break;
-            case "mamba":
-                vanguardScore = 65;
-                myrmThreshold = 720;
-                break;
-            case "python":
-                vanguardScore = 50;
-                myrmThreshold = 720;
-                break;
-            case "t10":
-                vanguardScore = 45;
-                myrmThreshold = 360;
-                break;
-            case "vmk3":
-                vanguardScore = 35;
-                myrmThreshold = 1440;
-                break;
-            case "vmk4":
-                vanguardScore = 40;
-                myrmThreshold = 1440;
-                break;
-            case "vulture":
-                vanguardScore = 50;
-                myrmThreshold = 1440;
-                break;
+        let shipInfo = shipData.find(ship => ship.ShortName == args.shiptype)
+        vanguardScore = shipInfo.Score
+        switch (shipInfo.Size) {
+            case ("small"):
+                myrmThreshold = 1440
+                break
+            case ("medium"):
+                myrmThreshold = 720
+                break
+            case ("large"):
+                myrmThreshold = 360
+                break
         }
 
         // Calculate the minimum amount of ammo needed for the gauss config
