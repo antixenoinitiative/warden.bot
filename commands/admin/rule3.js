@@ -21,7 +21,7 @@ module.exports = {
         .addChoice("No", "no"))
     .addUserOption(option => option.setName(`user`)
         .setDescription(`Which user's nickname would you like to change? (Admin-Only)`)
-        .setRequired(false),
+        .setRequired(false)
     .setDefaultPermission(false)),
     permissions: 2,
 
