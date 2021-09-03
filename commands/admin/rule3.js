@@ -53,7 +53,7 @@ module.exports = {
         let platforms = [];
 
         if (targetUserRoles.cache.some(role => role.name === "PC")) {
-            if (interaction.options.data.find(arg => arg.name === `vr`).value === "yes") {
+            if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
@@ -75,7 +75,7 @@ module.exports = {
         interaction.reply({ content: `Your nickname is now ${newNickname}`})
 
         function returnSquadronTag() {
-            if (squadronCode !== undefined) {
+            if (squadronCode) {
                 return squadronCode
             } 
             return ``
