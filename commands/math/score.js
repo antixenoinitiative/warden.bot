@@ -2,8 +2,8 @@
 /* eslint-disable complexity */
 //const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { ThreadChannel } = require('discord.js');
 const QuickChart = require('quickchart-js');
+const Discord = require("discord.js");
 
 let options = new SlashCommandBuilder()
 .setName('score')
@@ -78,7 +78,6 @@ module.exports = {
 
         // Scoring Factors
         let targetRun = 100
-        let timePenalty = 0.025
         let roundPenalty = 0.125
         let hullPenalty = 0.2
         let standardPenalty = 12.5
@@ -507,38 +506,51 @@ module.exports = {
           });
 
         // Print reply
-        interaction.reply(`**__Thank you for submitting a New Ace score request!__**
-*Note: This score calculator is currently in Alpha and may change without notice*
----
-This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
 
-With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots
-would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
+        let outputString = `**__Thank you for submitting a New Ace score request!__**
+            *Note: This score calculator is currently in Alpha and may change without notice*
+            ---
+            This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
+            
+            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots
+            would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
+            
+            ${interaction.member}'s use of ${args.shotsfired} rounds represents a ${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}% overall accuracy.
+            
+            ---
+            **Base Score:** ${targetRun} AXI points
+            ---
+            **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} AXI points
+            **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
+            **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
+            **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
+            **Hull Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
+            ---
+            **Total Score:** ${finalScore.toFixed(2)} AXI points\n`
+        
 
-${interaction.member}'s use of ${args.shotsfired} rounds represents a ${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}% overall accuracy.
-
----
-**Base Score:** ${targetRun} AXI points
----
-**Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} AXI points
-**Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
-**Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
-**Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
-**Hull Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
----
-**Total Score:** ${finalScore.toFixed(2)} AXI points`)
-
-        if(args.scorelegend = true) {
-            interaction.channel.send(`
----
-*Interpret as follows:*
-*- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
-*- A collector-level CMDR will typically score about 25-45 pts;*
-*- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
-*- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
-*- The very best score is presently 99.80 AXI points (obtained in a shielded DBX).*`)
+        if(args.scorelegend === true) {
+            outputString += `
+                ---
+                *Interpret as follows:*
+                *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
+                *- A collector-level CMDR will typically score about 25-45 pts;*
+                *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
+                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
+                *- The very best score is presently 99.80 AXI points (obtained in a shielded DBX).*`
         }
         const url = chart.getUrl();
-        interaction.channel.send({ content: `${url}` });
+
+        const returnEmbed = new Discord.MessageEmbed()
+        .setColor('#FF7100')
+        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+        .setTitle("**Ace Score Calculation**")
+        .setDescription(`${outputString}`)
+        .setImage(url)
+
+		const buttonRow = new Discord.MessageActionRow()
+        .addComponents(new Discord.MessageButton().setLabel('Learn more about the Ace Score Calculator').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/Ace-Score-Calculator'),)
+
+        interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
     },
 };
