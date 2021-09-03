@@ -40,14 +40,6 @@ let options = new SlashCommandBuilder()
     .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
     .setRequired(true)
     .addChoice('Medusa', 'medusa'))
-.addIntegerOption(option => option.setName('gauss_small_number')
-    .setDescription('Number of SMALL gauss cannons outfitted')
-    .setRequired(true)
-    .addChoice('Zero', 0)
-    .addChoice('One', 1)
-    .addChoice('Two', 2)
-    .addChoice('Three', 3)
-    .addChoice('Four', 4))
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Nnumber of MEDIUM gauss cannons outfitted')
     .setRequired(true)
@@ -56,11 +48,14 @@ let options = new SlashCommandBuilder()
     .addChoice('Two', 2)
     .addChoice('Three', 3)
     .addChoice('Four', 4))
-.addStringOption(option => option.setName('gauss_type')
-    .setDescription('Largest type of gauss cannons used')
+.addIntegerOption(option => option.setName('gauss_small_number')
+    .setDescription('Number of SMALL gauss cannons outfitted')
     .setRequired(true)
-    .addChoice('Small gauss ONLY', 'small')
-    .addChoice('ANY number of medium gauss', 'medium'))
+    .addChoice('Zero', 0)
+    .addChoice('One', 1)
+    .addChoice('Two', 2)
+    .addChoice('Three', 3)
+    .addChoice('Four', 4))
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used')
     .setRequired(true)
@@ -70,11 +65,11 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
-.addIntegerOption(option => option.setName('shots_small_fired')
-    .setDescription('Total number of SMALL gauss ammo rounds fired')
-    .setRequired(true))
 .addIntegerOption(option => option.setName('shots_medium_fired')
     .setDescription('Total number of MEDIUM gauss ammo rounds fired')
+    .setRequired(true))
+.addIntegerOption(option => option.setName('shots_small_fired')
+    .setDescription('Total number of SMALL gauss ammo rounds fired')
     .setRequired(true))
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
@@ -91,7 +86,6 @@ let options = new SlashCommandBuilder()
 .addStringOption(option => option.setName('video_link')
     .setDescription('Link to a video of the fight, for submission purposes')
     .setRequired(false))
-
 
 module.exports = {
     data: options,
@@ -154,6 +148,16 @@ module.exports = {
 
         if (args.percenthulllost > 500) {
             interaction.reply(`Oh wonderful ${interaction.member} padawan ... if you truly lost a total of more than 500% hull while killing a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            return(-1);
+        }
+
+        if (args.shots_small_fired > 0 && args.gauss_small_number === 0) {
+            interaction.reply(`Hey ${interaction.member} ... it appears you have small gauss shots fired, but no small gauss outfitted on your ship. Please check your inputs and try again.`);
+            return(-1);
+        }
+
+        if (args.shots_medium_fired > 0 && args.gauss_medium_number === 0) {
+            interaction.reply(`Hey ${interaction.member} ... it appears you have medium gauss shots fired, but no small gauss outfitted on your ship. Please check your inputs and try again.`);
             return(-1);
         }
         
@@ -535,6 +539,17 @@ module.exports = {
         // Medium gauss does 28.18 damage on a Dusa, small gauss does 16.16 per round
         let shot_damage_fired = args.shots_medium_fired * 28.18 + args.shots_small_fired * 16.16;
 
+        // Avoid funnies with >100% accuracy fake submissions
+        // Allow funnies if Aran is involved
+        if (shot_damage_fired < damage_threshold) {
+            if(interaction.member === "[PC] CMDR Aranionros Stormrage"){
+                interaction.reply(`Thank you ${interaction.member} for breaking my accuracy calculations again! Please let me know where I have failed, and I will fix it - CMDR Mechan`);
+            } else {
+                interaction.reply(`Comrade ${interaction.member} ... It appears your entry results in greater than 100% accuracy. Unfortunately [PC] CMDR Aranionros Stormrage is the only one allowed to achieve >100% accuracy. Since you are not [PC] CMDR Aranionros Stormrage, please check your inputs and try again.`);
+            }
+            return(-1);
+        }
+
         // Set accuracy threshold
         // 82% is the current setting for Astraea's Clarity, which is 175 rounds for a 3m basic config, which in turn is 143 rounds minimum
         // So, for now, applying 82% as the ratio ... which is multiplying by 1.223 and rounding up
@@ -674,10 +689,17 @@ module.exports = {
 
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of damage done would have been ${damage_threshold}, which entails a maximum of ${accuracy_required} damage level for an 82% accuracy level (Astraea's Clarity level).
+            With ${args.gauss_medium_number} medium gauss and ${args.gauss_small_number} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold}hp, which entails a maximum of ${accuracy_required}hp in damage-of-shots-fired for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${shot_damage_fired} damage fired represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and ${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
  
+        if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
+                outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
+        }
+
+        if (args.shots_small_fired === 0 && args.gauss_small_number > 0) {
+            outputString += `\n\n**__WARNING__**: It appears you have small gauss outfitted, but no small gauss shots fired. Please make sure this is intended.`
+        }
             
         if(args.print_score_breakdown == true) {
                 outputString += `
@@ -692,7 +714,7 @@ module.exports = {
                 ---`
         }
 
-        outputString += `\n\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
+        outputString += `\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
         
         if(args.scorelegend == true) {
             outputString += `
