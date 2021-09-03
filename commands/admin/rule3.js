@@ -38,22 +38,22 @@ module.exports = {
         for (let role of staffRoles) {
 
             if (targetUserRoles.cache.has(role)) {
-                if (interaction.option.data.find(arg => arg.name ===`user`) !== undefined) {
-                    targetUserRoles = interaction.option.data.find(arg => arg.name === `user`).roles
+                if (interaction.options.data.find(arg => arg.name ===`user`) !== undefined) {
+                    targetUserRoles = interaction.optionss.data.find(arg => arg.name === `user`).roles
                     break;
                 }
             } 
         } 
 
 
-        let inGameName = interaction.option.data.find(arg => arg.name === `ign`);
-        let squadronCode = interaction.option.data.find(arg => arg.name === `squadroncode`);
+        let inGameName = interaction.options.data.find(arg => arg.name === `ign`);
+        let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`);
 
         let newNickname;
         let platforms = [];
 
         if (targetUserRoles.some(role => role.name === "PC")) {
-            if (interaction.option.data.find(arg => arg.name === `vr`) === "yes") {
+            if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
