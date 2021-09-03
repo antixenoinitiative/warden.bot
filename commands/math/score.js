@@ -2,6 +2,7 @@
 /* eslint-disable complexity */
 //const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
+const { ThreadChannel } = require('discord.js');
 const QuickChart = require('quickchart-js');
 
 let options = new SlashCommandBuilder()
@@ -39,6 +40,18 @@ let options = new SlashCommandBuilder()
     .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
     .setRequired(true)
     .addChoice('Medusa', 'medusa'))
+.addIntegerOption(option => option.setName('gauss_number')
+    .setDescription('Total number of gauss cannons used')
+    .setRequired(true)
+    .addChoice('One', 1)
+    .addChoice('Two', 2)
+    .addChoice('Three', 3)
+    .addChoice('Four', 4))
+.addStringOption(option => option.setName('gauss_type')
+    .setDescription('Largest type of gauss cannons used')
+    .setRequired(true)
+    .addChoice('Small gauss ONLY', 'small')
+    .addChoice('ANY number of medium gauss', 'medium'))
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used')
     .setRequired(true)
@@ -54,6 +67,9 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
     .setRequired(true))
+.addBooleanOption(option => option.setName('scorelegend')
+    .setDescription('Print a description of how to interpret a score')
+    .setRequired(false))
 
 module.exports = {
     data: options,
@@ -73,6 +89,49 @@ module.exports = {
         let args = {}
         for (let key of interaction.options.data) {
             args[key.name] = key.value
+        }
+
+        // Sanitize inputs
+        if (args.scorelegend !== undefined) { args.scorelegend = false }
+        
+        if (args.gauss_number > 4) {
+            interaction.channel.send(`More than 4 gauss? Very funny ${interaction.member} ...`);
+            return(-1);
+        }
+
+        if (args.gauss_number < 1) {
+            interaction.channel.send(`While trying to kill a Medusa with less than 1 gauss cannons is a noble attempt dear ${interaction.member} ... it kind of defeats the purpose of this calculator`);
+            return(-1);
+        }
+
+        if (args.time_in_seconds < 120) {
+            interaction.channel.send(`Mhhh ... I sincerely doubt that you killed a Medusa alone in less than two minutes ${interaction.member} ... maybe you mixed up minutes and seconds as an input?`);
+            return(-1);
+        }
+
+        if (args.time_in_seconds > 7200) {
+            interaction.channel.send(`Oh my dearest summer child ${interaction.member} ... if you truly took more than 2 hours to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            return(-1);
+        }
+
+        if (args.shotsfired < 105) {
+            interaction.channel.send(`Since the very absolute minimum number of gauss shots to kill a Medusa in any configuration is 105, my dear ${interaction.member} you either need to check your inputs or stop trying to be funny`);
+            return(-1);
+        }
+
+        if (args.shotsfired > 1000) {
+            interaction.channel.send(`Oh innocent puppy-eyed ${interaction.member} ... if you truly took more than 1,000 ammo rounds to kill a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            return(-1);
+        }
+
+        if (args.percenthulllost < 0) {
+            interaction.channel.send(`Unfortunately, ${interaction.member}, it's not possible to lose a NEGATIVE number of hull in a fight. Please check your inputs and try again`);
+            return(-1);
+        }
+
+        if (args.percenthulllost > 500) {
+            interaction.channel.send(`Oh wonderful ${interaction.member} padawan ... if you truly lost a total of more than 500% hull while killing a Medusa, you shouldn't be using an Ace score calculator to rate it ...`);
+            return(-1);
         }
         
         // Decide ammo type and penalty
@@ -194,13 +253,146 @@ module.exports = {
                 break;
         }
 
+        // Calculate the minimum amount of ammo needed for the gauss config
+        // This comes from Mechan's & Orodruin's google sheet
+        // It is INTENTIONALLY not a mix of small and medium as that makes everything unmanageable - either medium or small is used
+        let ammo_threshold;
+        switch (args.gauss_type) {
+            case "small":
+                switch (args.gauss_number) {
+                    case 1:
+                        switch (args.ammo) {
+                            case "basic":
+                                interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
+                                return(-1);
+                            case "standard":
+                                interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
+                                return(-1);
+                            case "premium":
+                                ammo_threshold = 3816;
+                                break;
+                        }
+                        break;
+                    case 2:
+                        switch (args.ammo) {
+                            case "basic":
+                                ammo_threshold = 417;
+                                return(-1);
+                            case "standard":
+                                ammo_threshold = 317;
+                                return(-1);
+                            case "premium":
+                                ammo_threshold = 255;
+                                break;
+                        }
+                        break;
+                    case 3:
+                        switch (args.ammo) {
+                            case "basic":
+                                ammo_threshold = 300;
+                                break;
+                            case "standard":
+                                ammo_threshold = 251;
+                                break;
+                            case "premium":
+                                ammo_threshold = 210;
+                                break;
+                        }
+                        break;
+                    case 4:
+                        switch (args.ammo) {
+                            case "basic":
+                                ammo_threshold = 266;
+                                break;
+                            case "standard":
+                                ammo_threshold = 229;
+                                break;
+                            case "premium":
+                                ammo_threshold = 195;
+                                break;
+                        }
+                        break;
+                }
+                break;
+                case "medium":
+                    switch (args.gauss_number) {
+                        case 1:
+                            switch (args.ammo) {
+                                case "basic":
+                                    ammo_threshold = 296;
+                                    break;
+                                case "standard":
+                                    ammo_threshold = 211;
+                                    break;
+                                case "premium":
+                                    ammo_threshold = 159;
+                                    break;
+                            }
+                            break;
+                        case 2:
+                            switch (args.ammo) {
+                                case "basic":
+                                    ammo_threshold = 161;
+                                    break;
+                                case "standard":
+                                    ammo_threshold = 139;
+                                    break;
+                                case "premium":
+                                    ammo_threshold = 115;
+                                    break;
+                            }
+                            break;
+                        case 3:
+                            switch (args.ammo) {
+                                case "basic":
+                                    ammo_threshold = 143;
+                                    break;
+                                case "standard":
+                                    ammo_threshold = 129;
+                                    break;
+                                case "premium":
+                                    ammo_threshold = 107;
+                                    break;
+                            }
+                            break;
+                        case 4:
+                            switch (args.ammo) {
+                                case "basic":
+                                    ammo_threshold = 137;
+                                    break;
+                                case "standard":
+                                    ammo_threshold = 125;
+                                    break;
+                                case "premium":
+                                    ammo_threshold = 105;
+                                    break;
+                            }
+                            break;
+                    }
+                    break;
+
+        }
+
+        // Set accuracy threshold
+        // 82% is the current setting for Astraea's Clarity, which is 175 rounds for a 3m basic config, which in turn is 143 rounds minimum
+        // So, for now, applying 82% as the ratio ... which is multiplying by 1.223 and rounding up
+        let accuracy_required;
+        accuracy_required = Math.ceil(ammo_threshold * 1.223);
+
+        // Set myrm_factor based on myrm_threshold - this is done as the basis to calculate a penalty that is consistent across ship sizes, and not punishing for large ships (as the absolute # of seconds used to be)
+        let myrm_factor;
+        myrm_factor = args.time_in_seconds / myrmThreshold;
+
         // Calculations
         let roundPenaltyTotal = 0;
-        if (args.shotsfired > 175) { roundPenaltyTotal = (args.shotsfired - 175) * roundPenalty }
+        if (args.shotsfired > accuracy_required) { roundPenaltyTotal = (args.shotsfired - accuracy_required) * roundPenalty }
         console.log("Ammo Used Penalty:" + roundPenaltyTotal)
 
+        // Factor of -10.8 was obtained by matching penalties from old system with a 30m medium run to new system, as follows
+        // (1800 - 720) * -0.025 = 27
+        // 1800/720 * x = 27 --> x = 27 * 720 / 1800 -> x = 10.8
         let timePenaltyTotal = 0;
-        if (args.time_in_seconds > myrmThreshold) { timePenaltyTotal = (args.time_in_seconds - myrmThreshold) * timePenalty }
+        if (args.time_in_seconds > myrmThreshold) { timePenaltyTotal = (myrm_factor) * 10.8 }
         console.log("Time Taken Penalty:" + timePenaltyTotal)
 
         let vangPenaltyTotal = 0;
@@ -318,24 +510,34 @@ module.exports = {
         interaction.reply(`**__Thank you for submitting a New Ace score request!__**
 *Note: This score calculator is currently in Alpha and may change without notice*
 ---
-This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid} using ${args.shotsfired} rounds
-of ${args.ammo} ammo, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
+This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
+
+With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots
+would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
+
+${interaction.member}'s use of ${args.shotsfired} rounds represents a ${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}% overall accuracy.
+
 ---
 **Base Score:** ${targetRun} AXI points
 ---
-**Vanguard Score Penalty:** -${vangPenaltyTotal} AXI points
-**Ammo Type Penalty:** -${ammoPenalty} AXI points
-**Ammo Used Penalty:** -${roundPenaltyTotal} AXI points
-**Time Taken Penalty:** -${timePenaltyTotal} AXI points
-**Hull Damage Taken Penalty:** -${hullPenaltyTotal} AXI points
+**Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} AXI points
+**Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
+**Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
+**Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
+**Hull Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
 ---
-**Total Score:** ${finalScore} AXI points
+**Total Score:** ${finalScore.toFixed(2)} AXI points`)
+
+        if(args.scorelegend = true) {
+            interaction.channel.send(`
+---
 *Interpret as follows:*
 *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
 *- A collector-level CMDR will typically score about 25-45 pts;*
 *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
 *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
-*- The very best score is presently 98.925 AXI points (obtained in a shielded DBX).*`)
+*- The very best score is presently 99.80 AXI points (obtained in a shielded DBX).*`)
+        }
         const url = chart.getUrl();
         interaction.channel.send({ content: `${url}` });
     },
