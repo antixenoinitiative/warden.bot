@@ -1,7 +1,6 @@
 const moment = require("moment");
 const db = require("../../db/index");
 const Discord = require("discord.js");
-const config = require('../../config.json');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
