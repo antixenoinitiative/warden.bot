@@ -39,7 +39,7 @@ module.exports = {
 
             if (targetUserRoles.cache.has(role)) {
                 if (interaction.options.data.find(arg => arg.name ===`user`) !== undefined) {
-                    targetUserRoles = interaction.optionss.data.find(arg => arg.name === `user`).roles
+                    targetUserRoles = interaction.options.data.find(arg => arg.name === `user`).roles
                     break;
                 }
             } 
