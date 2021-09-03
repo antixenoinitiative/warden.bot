@@ -433,8 +433,7 @@ module.exports = {
         // Print reply
 
         let outputString = `**__Thank you for submitting a New Ace score request!__**
-            *Note: This score calculator is currently in Alpha and may change without notice*
-            ---
+
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
             With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
@@ -455,7 +454,7 @@ module.exports = {
                 ---`
         }
 
-        outputString += `**Your Fight Score:** **__${finalScore.toFixed(2)}__** AXI points\n`
+        outputString += `\n\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** AXI points`
         
         if(args.scorelegend == true) {
             outputString += `
