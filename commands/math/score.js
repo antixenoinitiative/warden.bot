@@ -3,8 +3,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
-const shipData = require("./calc/vanguard.json")
-
+const shipData = require("./calc/shipdata.json")
 
 let options = new SlashCommandBuilder()
 .setName('score')
@@ -68,9 +67,19 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
     .setRequired(true))
+.addBooleanOption(option => option.setName('print_score_breakdown')
+    .setDescription('Print a score breakdown, in addition to the overall score')
+    .setRequired(false))
 .addBooleanOption(option => option.setName('scorelegend')
     .setDescription('Print a description of how to interpret a score')
     .setRequired(false))
+.addBooleanOption(option => option.setName('submit')
+    .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
+    .setRequired(false))
+.addStringOption(option => option.setName('video_link')
+    .setDescription('Link to a video of the fight, for submission purposes')
+    .setRequired(false))
+
 
 module.exports = {
     data: options,
@@ -92,7 +101,9 @@ module.exports = {
         }
 
         // Sanitize inputs
-        if (args.scorelegend !== undefined) { args.scorelegend = false }
+        if (args.scorelegend === undefined) { args.scorelegend = false }
+        if (args.print_score_breakdown === undefined) { args.print_score_breakdown = false }
+        if (args.submit === undefined) { args.submit = false }
         
         if (args.gauss_number > 4) {
             interaction.reply(`More than 4 gauss? Very funny ${interaction.member} ...`);
@@ -147,6 +158,19 @@ module.exports = {
                 ammoPenalty = 0
                 break;
         }
+
+        // Decode SLEF data (to use later)
+        
+        // let totalSmallGauss;
+        // let totalMediumGauss;
+        // let slefJSON = JSON.parse(args.json)
+        // let slef = slefJSON[0]
+
+        // for (let module of slef.data.Modules) {
+        //     let moduleString = module.Item
+        //     if (moduleString.includes("gausscannon_fixed_small")) { totalSmallGauss++ }
+        //     if (moduleString.includes("gausscannon_fixed_medium")) { totalMediumGauss++ }
+        // }
 
         let myrmThreshold;
         let vanguardScore;
@@ -421,28 +445,30 @@ module.exports = {
         // Print reply
 
         let outputString = `**__Thank you for submitting a New Ace score request!__**
-            *Note: This score calculator is currently in Alpha and may change without notice*
-            ---
+
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots
-            would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
+            With ${args.gauss_number} ${args.gauss_type} gauss (or a mix if medium was selected), and using ${args.ammo} ammo, the minimum required number of shots would have been ${ammo_threshold}, which entails a maximum of ${accuracy_required} shots for an 82% accuracy level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${args.shotsfired} rounds represents a ${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}% overall accuracy.
+            ${interaction.member}'s use of ${args.shotsfired} rounds represents a **__${((ammo_threshold / args.shotsfired ).toFixed(4)*(100)).toFixed(2)}%__** overall accuracy.`
+ 
             
-            ---
-            **Base Score:** ${targetRun} AXI points
-            ---
-            **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} AXI points
-            **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} AXI points
-            **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} AXI points
-            **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} AXI points
-            **Hull Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} AXI points
-            ---
-            **Total Score:** ${finalScore.toFixed(2)} AXI points\n`
-        
+        if(args.print_score_breakdown == true) {
+                outputString += `
+                ---
+                **Base Score:** ${targetRun} Ace points
+                ---
+                **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} Ace points
+                **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} Ace points
+                **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} Ace points
+                **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} Ace points
+                **Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} Ace points
+                ---`
+        }
 
-        if(args.scorelegend === true) {
+        outputString += `\n\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
+        
+        if(args.scorelegend == true) {
             outputString += `
                 ---
                 *Interpret as follows:*

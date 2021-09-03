@@ -1,7 +1,6 @@
 const moment = require("moment");
 const db = require("../../db/index");
 const Discord = require("discord.js");
-const config = require('../../config.json');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
@@ -50,7 +49,7 @@ module.exports = {
         .addComponents(new Discord.MessageButton().setCustomId(`event-${eventKey}-leave`).setLabel('Leave').setStyle('DANGER'),)
 
         let embed;
-        if (config.eventchannelid !== undefined) {
+        if (process.env.EVENTCHANNELID !== undefined) {
             embed = interaction.guild.channels.cache.find(x => x.id === process.env.EVENTCHANNELID).send({ embeds: [eventEmbed], components: [row] })
         } else {
             console.warn("The environment variable EVENTCHANNELID is not defined.") 
