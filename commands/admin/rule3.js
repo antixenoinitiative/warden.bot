@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
@@ -37,7 +38,7 @@ module.exports = {
         for (let role of staffRoles) {
 
             if (interaction.author.roles.cache.has(role)) {
-                if (interaction.option.data.find(arg => arg.name ===`user`){
+                if (interaction.option.data.find(arg => arg.name ===`user`)) {
                     targetUserRoles = interaction.option.data.find(arg => arg.name === `user`).roles
                     break;
                 }
