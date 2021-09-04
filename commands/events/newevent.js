@@ -22,9 +22,12 @@ module.exports = {
         let eventName = interaction.options.data.find(arg => arg.name === 'name').value
         let eventDesc = interaction.options.data.find(arg => arg.name === 'description').value
         let eventTime;
-        let formats = [ "YYYY-MM-DD hh:mm", "DD-MM-YYYY hh:mm", "DD/MM/YYYY hh:mm" ];
+        let time = interaction.options.data.find(arg => arg.name === 'time').value
+        console.log(time)
+        let formats = [ "DD-MM-YYYY hh:mm", "DD/MM/YYYY hh:mm" ];
         if (moment(interaction.options.data.find(arg => arg.name === 'time').value,formats).isValid()) {
-            eventTime = moment(interaction.options.data.find(arg => arg.name === 'time').value.value,formats);
+            eventTime = moment(interaction.options.data.find(arg => arg.name === 'time').value,formats).unix();
+            console.log(eventTime)
         }
 
         const getRandomString = (length) => {
@@ -42,7 +45,7 @@ module.exports = {
 		.setColor('#FF7100')
 		.setAuthor(`The Anti-Xeno Initiative`, "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle(`${eventName}`)
-		.setDescription(`${eventDesc}\n\n Event Date: ${eventTime.format()}`)
+		.setDescription(`${eventDesc}\n\n Event Date: <t:${eventTime}>`)
 
         const row = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setCustomId(`event-${eventKey}-enroll`).setLabel('Sign Up').setStyle('SUCCESS'),)
