@@ -3,7 +3,7 @@
 /* eslint-disable no-nested-ternary */
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
-const { queryLeaderboard } = require("../../db/index");
+const { queryWarden } = require("../../db/index");
 
 function dynamicSort(property) {
     var sortOrder = 1;
@@ -52,7 +52,7 @@ module.exports = {
         switch (args.leaderboard) {
             case ("speedruns"):
                 embedDescription = `Speedrun results for Class: **${args.class}** Variant: **${args.variant}**`
-                res = await queryLeaderboard(`SELECT * FROM speedrun WHERE approval = true AND class = '${args.class}' AND variant = '${args.variant}'`)
+                res = await queryWarden(`SELECT * FROM speedrun WHERE approval = true AND class = '${args.class}' AND variant = '${args.variant}'`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the **${args.variant} ${args.class}** ${leaderboardNameCaps} Leaderboard`)
                     return
