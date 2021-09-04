@@ -542,7 +542,7 @@ module.exports = {
         // Avoid funnies with >100% accuracy fake submissions
         // Allow funnies if Aran is involved
         if (shot_damage_fired < damage_threshold) {
-            if(interaction.member.id === "634034293399879720"){ // 346415786505666560 - Aran
+            if(interaction.member.id === "346415786505666560"){ // 346415786505666560 - Aran
                 interaction.reply(`Thank you ${interaction.member} for breaking my accuracy calculations again! Please let me know where I have failed, and I will fix it - CMDR Mechan`);
             } else {
                 interaction.reply(`Comrade ${interaction.member} ... It appears your entry results in greater than 100% accuracy. Unfortunately [PC] CMDR Aranionros Stormrage is the only one allowed to achieve >100% accuracy. Since you are not [PC] CMDR Aranionros Stormrage, please check your inputs and try again.`);
