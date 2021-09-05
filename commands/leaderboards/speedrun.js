@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
-const { queryLeaderboard } = require("../../db/index");
+const { queryWarden } = require("../../db/index");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -56,7 +56,7 @@ module.exports = {
 			return interaction.reply({ content: `Staff Channel not found` })
 		}
 		try {
-			res = await queryLeaderboard("INSERT INTO speedrun(user_id, name, time, class, ship, variant, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+			res = await queryWarden("INSERT INTO speedrun(user_id, name, time, class, ship, variant, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
 				user,
 				name,
 				args.time,
@@ -72,7 +72,7 @@ module.exports = {
 			return interaction.reply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
 		}
 		
-		res = await queryLeaderboard(`SELECT id FROM speedrun WHERE date = $1`, [timestamp])
+		res = await queryWarden(`SELECT id FROM speedrun WHERE date = $1`, [timestamp])
 
 		// Print out data
 		let submissionId = res.rows[0].id

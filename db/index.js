@@ -11,7 +11,7 @@ const pool = new Pool({
     }
 })
 
-const leaderboard = new Pool({
+const warden = new Pool({
     connectionString: process.env.HEROKU_POSTGRESQL_SILVER_URL,
     ssl: {
         rejectUnauthorized: false
@@ -28,9 +28,9 @@ module.exports = {
         }
     },
 
-    queryLeaderboard: async (text, params, callback) => {
+    queryWarden: async (text, params, callback) => {
         try {
-            let res = leaderboard.query(text, params, callback);
+            let res = warden.query(text, params, callback);
             return res;
         } catch {
             return "Failed";

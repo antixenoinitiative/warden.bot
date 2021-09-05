@@ -43,19 +43,19 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Nnumber of MEDIUM gauss cannons outfitted')
     .setRequired(true)
-    .addChoice('Zero', 0)
-    .addChoice('One', 1)
-    .addChoice('Two', 2)
-    .addChoice('Three', 3)
-    .addChoice('Four', 4))
+    .addChoice('0', 0)
+    .addChoice('1', 1)
+    .addChoice('2', 2)
+    .addChoice('3', 3)
+    .addChoice('4', 4))
 .addIntegerOption(option => option.setName('gauss_small_number')
     .setDescription('Number of SMALL gauss cannons outfitted')
     .setRequired(true)
-    .addChoice('Zero', 0)
-    .addChoice('One', 1)
-    .addChoice('Two', 2)
-    .addChoice('Three', 3)
-    .addChoice('Four', 4))
+    .addChoice('0', 0)
+    .addChoice('1', 1)
+    .addChoice('2', 2)
+    .addChoice('3', 3)
+    .addChoice('4', 4))
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used')
     .setRequired(true)
@@ -542,7 +542,7 @@ module.exports = {
         // Avoid funnies with >100% accuracy fake submissions
         // Allow funnies if Aran is involved
         if (shot_damage_fired < damage_threshold) {
-            if(interaction.member === "[PC] CMDR Aranionros Stormrage"){
+            if(interaction.member.id === "346415786505666560"){ // 346415786505666560 - Aran
                 interaction.reply(`Thank you ${interaction.member} for breaking my accuracy calculations again! Please let me know where I have failed, and I will fix it - CMDR Mechan`);
             } else {
                 interaction.reply(`Comrade ${interaction.member} ... It appears your entry results in greater than 100% accuracy. Unfortunately [PC] CMDR Aranionros Stormrage is the only one allowed to achieve >100% accuracy. Since you are not [PC] CMDR Aranionros Stormrage, please check your inputs and try again.`);

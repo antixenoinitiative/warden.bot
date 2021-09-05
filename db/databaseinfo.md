@@ -27,10 +27,10 @@ CREATE TABLE incursionV2 (
     week            int,
     time            bigint,
 );
-CREATE TABLE users(
-    id              text,
-    roles           text[],
-    last_saved      bigint
+CREATE TABLE backups(
+    id              SERIAL PRIMARY KEY,
+    data            text[],
+    timestamp       bigint
 );
 CREATE TABLE events(
     event_id        text,
