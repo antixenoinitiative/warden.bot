@@ -541,7 +541,7 @@ module.exports = {
 
         // Avoid funnies with >100% accuracy fake submissions
         // Allow funnies if Aran is involved
-        if (shot_damage_fired < damage_threshold) {
+        if (shot_damage_fired.toFixed(2) < damage_threshold) {
             if(interaction.member.id === "346415786505666560"){ // 346415786505666560 - Aran
                 interaction.reply(`Thank you ${interaction.member} for breaking my accuracy calculations again! Please let me know where I have failed, and I will fix it - CMDR Mechan`);
             } else {
