@@ -2,7 +2,7 @@
 <img src="https://user-images.githubusercontent.com/85346345/128631152-1b2fb9d3-b5cf-4451-a287-a6a7124e1818.png" width="250">
 </p>
 
-# Warden
+# Warden 
 [![ESLint Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml)
 [![Security Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml)
 
