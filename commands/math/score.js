@@ -537,7 +537,7 @@ module.exports = {
             }
                 
         // Medium gauss does 28.18 damage on a Dusa, small gauss does 16.16 per round
-        let shot_damage_fired = args.shots_medium_fired * 28.18 + args.shots_small_fired * 16.16;
+        let shot_damage_fired = args.shots_medium_fired * 28.28 + args.shots_small_fired * 16.16;
 
         // Avoid funnies with >100% accuracy fake submissions
         // Allow funnies if Aran is involved
