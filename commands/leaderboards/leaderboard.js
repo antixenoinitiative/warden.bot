@@ -36,7 +36,11 @@ module.exports = {
             .setRequired(true)
             .addChoice('Small', 'small')
             .addChoice('Medium', 'medium')
-            .addChoice('Large', 'large'))),
+            .addChoice('Large', 'large'))
+        .addStringOption(option => option.setName('options')
+            .setDescription('Ship Class')
+            .setRequired(false)
+            .addChoice('Show Video Links', 'links'))),
 	permissions: 0,
 	async execute(interaction) {
         let args = []
@@ -60,7 +64,10 @@ module.exports = {
                 for (let entry of res.rows) {
                     entry.timeFormatted = new Date(entry.time * 1000).toISOString().substr(11, 8)
                     let name = await interaction.guild.members.fetch(entry.user_id)
-                    let string = `${entry.timeFormatted} - ${name} - ${entry.ship}\n    Video: [${entry.link}]`
+                    let string = `${entry.timeFormatted} - ${name} - ${entry.ship}`
+                    if (args.options !== undefined && args.options === "links") {
+                        string += `\nVideo: [${entry.link}]`
+                    }
                     leaderboardResults.push({ time: entry.time, text: string})
                 }
                 leaderboardResults.sort(dynamicSort("time"))
