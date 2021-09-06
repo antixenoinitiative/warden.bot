@@ -60,7 +60,8 @@ module.exports = {
                 for (let entry of res.rows) {
                     entry.timeFormatted = new Date(entry.time * 1000).toISOString().substr(11, 8)
                     let name = await interaction.guild.members.fetch(entry.user_id)
-                    leaderboardResults.push({ time: entry.time, text: `${entry.timeFormatted} - ${name} - ${entry.ship} - (${entry.link})`})
+                    let string = '`' + `${entry.timeFormatted} - ${name} - ${entry.ship} - (${entry.link})` + '`'
+                    leaderboardResults.push({ time: entry.time, text: string})
                 }
                 leaderboardResults.sort(dynamicSort("time"))
             break;
