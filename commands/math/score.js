@@ -562,7 +562,7 @@ module.exports = {
 
         // Calculations
         let roundPenaltyTotal = 0;
-        if (shot_damage_fired > accuracy_required) { roundPenaltyTotal = (shot_damage_fired - accuracy_required)/((28.18*args.gauss_medium_number+16.16*args.gauss_small_number)/(args.gauss_medium_number+args.gauss_small_number)) * roundPenalty }
+        if (shot_damage_fired > accuracy_required) { roundPenaltyTotal = (shot_damage_fired - accuracy_required)/accuracy_required * roundPenalty }
         console.log("Ammo Used Penalty:" + roundPenaltyTotal)
 
         // Factor of -10.8 was obtained by matching penalties from old system with a 30m medium run to new system, as follows
@@ -687,11 +687,11 @@ module.exports = {
 
         let outputString = `**__Thank you for submitting a New Ace score request!__**
 
-            This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
+            This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_medium_number} medium gauss and ${args.gauss_small_number} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold.toFixed(0)}hp, which entails a maximum of ${accuracy_required.toFixed(0)}hp in damage-of-shots-fired for an 82% firing efficiency level (Astraea's Clarity level).
+            With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo.toFixed(0)} ammo, the minimum required damage done would have been ${damage_threshold.toFixed(0)}hp, which entails a maximum of ${accuracy_required.toFixed(0)}hp in damage-of-shots-fired for an 82% firing efficiency level (Astraea's Clarity level).
             
-            ${interaction.member}'s use of ${shot_damage_fired}hp damage-of-shots-fired (${args.shots_medium_fired} medium rounds @ 28.28hp each and ${args.shots_small_fired} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall firing efficiency.`
+            ${interaction.member}'s use of ${shot_damage_fired.toFixed(0)}hp damage-of-shots-fired (${args.shots_medium_fired.toFixed(0)} medium rounds @ 28.28hp each and ${args.shots_small_fired.toFixed(0)} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall firing efficiency.`
  
         if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
                 outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
