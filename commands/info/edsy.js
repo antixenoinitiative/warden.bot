@@ -1,0 +1,11 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+	.setName('edsy')
+	.setDescription('Link to the ED Shipyard'),
+    permissions: 0,
+    execute(interaction) {
+        interaction.reply({ content: "🚀 https://edsy.org/" });
+    }
+};
