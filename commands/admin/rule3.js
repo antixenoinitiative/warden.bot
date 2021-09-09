@@ -45,7 +45,7 @@ module.exports = {
         
 
         let inGameName = interaction.options.data.find(arg => arg.name === `ign`).value;
-        let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`).value;
+        let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`)?.value;
 
         let newNickname;
         let platforms = [];
