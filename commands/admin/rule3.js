@@ -1,3 +1,4 @@
+/* eslint-disable max-depth */
 /* eslint-disable complexity */
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
@@ -39,7 +40,15 @@ module.exports = {
 
             if (interaction.member.roles.cache.has(role)) {
                 if (interaction.options.data.find(arg => arg.name === `user`)?.value !== undefined) {
-                    targetUserRoles = interaction.options.data.find(arg => arg.name === `user`).getMember()?.roles
+                    try {
+                        targetUserRoles = interaction.options.data.getMember(arg => arg.name === `user`)?.roles
+                    } catch (err) {
+                        if (err instanceof TypeError) {
+                            interaction.reply({ content: `That user does not exist/the field was empty. Please try again`, ephemeral: true })
+                        } else {
+                            throw err
+                        }
+                    }
                     break;
                 }
             }
