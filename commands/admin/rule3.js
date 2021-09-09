@@ -25,27 +25,24 @@ module.exports = {
     permissions: 2,
 
     async execute(interaction) {
-        let targetUserRoles = interaction.member.roles
 
-        console.log(interaction.member.roles.cache.some(role => role.name === "XB"))
+        // const staffRoles = [
+        //     "380249268818018304",
+        //     "380248896385056769",
+        //     "380248192534577152",
+        //     "880618812792262692"
+        // ]
+
+        // for (let role of staffRoles) {
+
+        //     if (interaction.member.roles.cache.has(role)) {
+        //         if (interaction.options.data.find(arg => arg.name === `user`) !== undefined) {
+        //             interaction.member.roles = interaction.options.data.find(arg => arg.name === `user`).roles
+        //             break;
+        //         }
+        //     }
+        // }
         
-        const staffRoles = [
-            "380249268818018304",
-            "380248896385056769",
-            "380248192534577152",
-            "880618812792262692"
-        ]
-
-        for (let role of staffRoles) {
-
-            if (targetUserRoles.cache.has(role)) {
-                if (interaction.options.data.find(arg => arg.name === `user`) !== undefined) {
-                    targetUserRoles = interaction.options.data.find(arg => arg.name === `user`).roles
-                    break;
-                }
-            }
-        }
-
 
         let inGameName = interaction.options.data.find(arg => arg.name === `ign`).value;
         let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`).value;
@@ -53,18 +50,18 @@ module.exports = {
         let newNickname;
         let platforms = [];
 
-        if (targetUserRoles.cache.some(role => role.name === "PC")) {
+        if (interaction.member.roles.cache.some(role => role.name === "PC")) {
             if (interaction.options.data.find(arg => arg.name === `vr`) === "yes") {
                 platforms.push("PC-VR");
             } else {
                 platforms.push("PC");
             }
         }
-        if (targetUserRoles.cache.some(role => role.name === "XB")) {
+        if (interaction.member.roles.cache.some(role => role.name === "XB")) {
             platforms.push("XB");
             console.log(`Has platform xb`);
         }
-        if (targetUserRoles.cache.some(role => role.name === "PS")) {
+        if (interaction.member.roles.cache.some(role => role.name === "PS")) {
             platforms.push("PS");
             console.log(`Has platform xb`);
         }
