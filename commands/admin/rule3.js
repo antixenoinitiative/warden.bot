@@ -58,20 +58,33 @@ module.exports = {
                 platforms.push("PC");
             }
         }
-        if (targetUserRoles.cache.some(role => role.name === "XB")) {platforms.push("XB");}
-        if (targetUserRoles.cache.some(role => role.name === "PS")) {platforms.push("PS");}
+        if (targetUserRoles.cache.some(role => role.name === "XB")) {
+            platforms.push("XB");
+            console.log(`Has platform xb`);
+        }
+        if (targetUserRoles.cache.some(role => role.name === "PS")) {
+            platforms.push("PS");
+            console.log(`Has platform xb`);
+        }
 
         if (platforms.length === 1) {
             newNickname = `[${platforms[0]}] CMDR ${inGameName}${returnSquadronTag()}`;
+            console.log(`set ${interaction.member.nickname}'s username to ${newNickname}`);
+
         } else if (platforms.length === 2) {
             newNickname = `[${platforms[0]}/${platforms[1]}] CMDR ${inGameName}${returnSquadronTag()}`;
+            console.log(`set ${interaction.member.nickname}'s username to ${newNickname}`);
+
         } else if (platforms.length === 3) {
+
             newNickname = `[${platforms[0]}/${platforms[1]}/${platforms[2]}] CMDR ${inGameName}${returnSquadronTag()}`;
+            console.log(`set ${interaction.member.nickname}'s username to ${newNickname}`);
+
         }
         
         await interaction.member.setNickname(newNickname, "Rule 3")
 
-        interaction.reply({ content: `Your nickname is now ${newNickname}`})
+        interaction.reply({ content: `Your nickname is now ${newNickname}`, ephemeral: true})
 
         function returnSquadronTag() {
             if (squadronCode) {
