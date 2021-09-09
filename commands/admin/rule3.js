@@ -27,7 +27,7 @@ module.exports = {
     async execute(interaction) {
 
         let targetUserRoles = interaction.member.roles;
-        
+
         const staffRoles = [
             "380249268818018304",
             "380248896385056769",
@@ -37,7 +37,7 @@ module.exports = {
 
         for (let role of staffRoles) {
 
-            if (targetUserRoles.cache.has(role)) {
+            if (interaction.member.roles.cache.has(role)) {
                 if (interaction.options.data.find(arg => arg.name === `user`)?.value !== undefined) {
                     targetUserRoles = interaction.options.data.find(arg => arg.name === `user`).roles
                     break;
