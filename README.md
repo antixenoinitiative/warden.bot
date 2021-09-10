@@ -11,6 +11,7 @@ Warden is a discord bot for the Anti-Xeno Initiative Discord Server. Based on Di
 [![AXI Discord](https://discord.com/api/guilds/380246809076826112/embed.png?style=banner3)](https://discord.gg/bqmDxdm)
 
 ## Development  
+Setting up a local copy of the bot for development.
 
 1. Clone the repository to your system
 2. Run `npm i` to install dependencies
