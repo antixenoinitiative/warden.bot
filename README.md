@@ -28,6 +28,7 @@ The `SETUP.ps1` file will create a `.env` file in your root directory, if you ne
 
 
 ## Useful Links
+For working with google cloud vision (sentry commands)
 https://discordjs.guide/preparations/setting-up-a-bot-application.html#creating-your-bot
 https://medium.com/analytics-vidhya/setting-up-google-cloud-vision-api-with-node-js-db29d1b6fbe2
 
