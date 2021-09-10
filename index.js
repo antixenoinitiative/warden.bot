@@ -146,7 +146,10 @@ bot.on('interactionCreate', async interaction => {
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
 		if (!command) return;
-		const args = interaction.options.data
+		let args;
+		if (interaction.options !== undefined) {
+			args = JSON.stringify(interaction.options.data)
+		}
 		if (command.permissions != 0) {
 			if (checkPermissions(command, interaction) === false) { 
 				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")  
@@ -155,7 +158,8 @@ bot.on('interactionCreate', async interaction => {
 		}
 		try {
 			await command.execute(interaction, args);
-			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}`, "low");
+			
+			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
 		} catch (error) {
 			console.error(error);
 			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
