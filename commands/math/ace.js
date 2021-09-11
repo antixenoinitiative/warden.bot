@@ -422,7 +422,7 @@ module.exports = {
             "data": {
               "labels": [
                 "Time\nPenalty",
-                "Ammo\nUsage Penalty",
+                "Ammo\nUsage\nPenalty",
                 "Damage\nPenalty"
               ],
               "datasets": [
