@@ -524,8 +524,7 @@ module.exports = {
         }
             
         if(args.print_score_breakdown == true) {
-                outputString += `
-                ---
+                outputString += `---
                 **Base Score:** ${targetRun} Ace points
                 ---
                 **Time Taken Penalty:** ${timeTakenPenalty.toFixed(2)} Ace points
