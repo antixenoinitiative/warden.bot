@@ -397,7 +397,7 @@ module.exports = {
         console.log("Time Taken Penalty:" + timeTakenPenalty)
 
         let ammoEffPenalty = 0;
-        ammoEffPenalty = 100 / 3 * Math.log10(shot_damage_fired/damage_threshold) / Math.log10(ammoEffZeroBaseline)
+        ammoEffPenalty = 100 / 3 * Math.log10(damage_threshold/shot_damage_fired) / Math.log10(ammoEffZeroBaseline)
         console.log("Ammo Efficiency Penalty:" + ammoEffPenalty)
 
         let damageTakenPenalty = 0;
@@ -421,9 +421,9 @@ module.exports = {
             "type": "radar",
             "data": {
               "labels": [
-                "Time Taken",
-                "Ammo Efficiency",
-                "Damage Taken"
+                "Time Penalty",
+                "Ammo Usage Penalty",
+                "Damage Penalty"
               ],
               "datasets": [
                 {
@@ -483,7 +483,7 @@ module.exports = {
                     "ticks": {
                         "max": 34,
                         "min": 0,
-                        "stepSize": 4,
+                        "stepSize": 10,
                         "backdropColor": "transparent"
                     },
                 },
