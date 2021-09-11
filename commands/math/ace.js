@@ -400,10 +400,12 @@ module.exports = {
         ammoEffPenalty = 100 / 3 * Math.log10(shot_damage_fired/damage_threshold) / Math.log10(ammoEffZeroBaseline)
         console.log("Ammo Efficiency Penalty:" + ammoEffPenalty)
 
-        let damageTakenPenalty = 100 / 3 * Math.log10(1+args.percenthulllost/100) / Math.log10(1+hullLostZeroBaseline/100)
+        let damageTakenPenalty = 0;
+        damageTakenPenalty = 100 / 3 * Math.log10(1+args.percenthulllost/100) / Math.log10(1+hullLostZeroBaseline/100)
         console.log("Damage Taken Penalty:" + damageTakenPenalty)
 
-        let totalPenalty = ammoEffPenalty + timeTakenPenalty + ammoEffPenalty + damageTakenPenalty
+        let totalPenalty = 0;
+        totalPenalty = timeTakenPenalty + ammoEffPenalty + damageTakenPenalty
         console.log("Total Penalty:" + totalPenalty)
 
         let finalScore = targetRun - totalPenalty
@@ -428,9 +430,9 @@ module.exports = {
                   "backgroundColor": "rgba(228, 107, 26, 0.2)",
                   "borderColor": "rgb(228, 107, 26)",
                   "data": [
-                    100 - timeTakenPenalty,
-                    100 - ammoEffPenalty,
-                    100 - damageTakenPenalty
+                    timeTakenPenalty,
+                    ammoEffPenalty,
+                    damageTakenPenalty
                     
                   ],
                   "label": "Your Run"
@@ -479,9 +481,9 @@ module.exports = {
                     },
 
                     "ticks": {
-                        "max": 100,
+                        "max": 34,
                         "min": 0,
-                        "stepSize": 20,
+                        "stepSize": 4,
                         "backdropColor": "transparent"
                     },
                 },
@@ -526,9 +528,9 @@ module.exports = {
                 ---
                 **Base Score:** ${targetRun} Ace points
                 ---
-                **Time Taken Penalty:** -${timeTakenPenalty.toFixed(2)} Ace points
-                **Ammo Used Penalty:** -${ammoEffPenalty.toFixed(2)} Ace points
-                **Damage Taken Penalty:** -${damageTakenPenalty.toFixed(2)} Ace points
+                **Time Taken Penalty:** ${timeTakenPenalty.toFixed(2)} Ace points
+                **Ammo Used Penalty:** ${ammoEffPenalty.toFixed(2)} Ace points
+                **Damage Taken Penalty:** ${damageTakenPenalty.toFixed(2)} Ace points
                 ---`
         }
 
