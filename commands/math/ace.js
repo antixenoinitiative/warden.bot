@@ -421,9 +421,9 @@ module.exports = {
             "type": "radar",
             "data": {
               "labels": [
-                "Time Penalty",
-                "Ammo Usage Penalty",
-                "Damage Penalty"
+                "Time\nPenalty",
+                "Ammo\nUsage Penalty",
+                "Damage\nPenalty"
               ],
               "datasets": [
                 {
@@ -481,7 +481,7 @@ module.exports = {
                     },
 
                     "ticks": {
-                        "max": 34,
+                        "max": 40,
                         "min": 0,
                         "stepSize": 10,
                         "backdropColor": "transparent"
