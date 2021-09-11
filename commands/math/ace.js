@@ -422,7 +422,7 @@ module.exports = {
             "data": {
               "labels": [
                 "Time\nPenalty",
-                "Ammo\nUsage Penalty",
+                "Ammo\nUsage\nPenalty",
                 "Damage\nPenalty"
               ],
               "datasets": [
@@ -511,9 +511,9 @@ module.exports = {
 
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold.toFixed(0)}hp, which entails a maximum of ${damage_threshold.toFixed(0)}hp in damage-of-shots-fired for 100% ammo usage efficiency.
+            With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold.toFixed(0)}hp.
             
-            ${interaction.member}'s use of ${shot_damage_fired.toFixed(0)}hp damage-of-shots-fired (${args.shots_medium_fired.toFixed(0)} medium rounds @ 28.28hp each and ${args.shots_small_fired.toFixed(0)} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** ammo usage efficiency.`
+            ${interaction.member}'s use of ${shot_damage_fired.toFixed(0)}hp damage-of-shots-fired (${args.shots_medium_fired.toFixed(0)} medium rounds @ 28.28hp each and ${args.shots_small_fired.toFixed(0)} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** ammo usage efficiency.\n`
  
         if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
                 outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
@@ -524,8 +524,7 @@ module.exports = {
         }
             
         if(args.print_score_breakdown == true) {
-                outputString += `
-                ---
+                outputString += `---
                 **Base Score:** ${targetRun} Ace points
                 ---
                 **Time Taken Penalty:** ${timeTakenPenalty.toFixed(2)} Ace points
@@ -543,8 +542,7 @@ module.exports = {
                 *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
                 *- A collector-level CMDR will typically score about 25-45 pts;*
                 *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
-                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
-                *- The very best score is presently 99.80 AXI points.*`
+                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*`
         }
         const url = chart.getUrl();
 
