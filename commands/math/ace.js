@@ -3,39 +3,15 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
-const shipData = require("./calc/shipdata.json")
+// const shipData = require("./calc/shipdata.json")
 
 let options = new SlashCommandBuilder()
-.setName('score')
+.setName('ace')
 .setDescription('Score your fight based on the revised Ace Scoring System')
 .addStringOption(option => option.setName('shiptype')
-    .setDescription('Ship you used')
+    .setDescription('Ship you used - Ace challenge requires an Alliance Chieftain')
     .setRequired(true)
-    .addChoice('Alliance Challenger', 'challenger')
-    .addChoice('Alliance Chieftain', 'chieftain')
-    .addChoice('Alliance Crusader', 'crusader')
-    .addChoice('Anaconda', 'anaconda')
-    .addChoice('Asp Explorer', 'aspx')
-    .addChoice('Beluga Liner', 'beluga')
-    .addChoice('Diamondback Explorer', 'dbx')
-    .addChoice('Diamondback Scout', 'dbs')
-    .addChoice('Federal Assault Ship', 'fas')
-    .addChoice('Federal Corvette', 'corvette')
-    .addChoice('Federal Dropship', 'fds')
-    .addChoice('Federal Gunship', 'fgs')
-    .addChoice('Fer-de-Lance', 'fdl')
-    .addChoice('Hauler', 'hauler')
-    .addChoice('Imperial Clipper', 'clipper')
-    .addChoice('Imperial Courier', 'icourier')
-    .addChoice('Imperial Cutter', 'cutter')
-    .addChoice('Krait Mk. II', 'km2')
-    .addChoice('Krait Phantom', 'kph')
-    .addChoice('Mamba', 'mamba')
-    .addChoice('Python', 'python')
-    .addChoice('Type-10 Defender', 't10')
-    .addChoice('Viper MK III', 'vmk3')
-    .addChoice('Viper MK IV', 'vmk4')
-    .addChoice('Vulture', 'vulture'))
+    .addChoice('Alliance Chieftain', 'chieftain'))
 .addStringOption(option => option.setName('goid')
     .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
     .setRequired(true)
@@ -57,11 +33,9 @@ let options = new SlashCommandBuilder()
     .addChoice('3', 3)
     .addChoice('4', 4))
 .addStringOption(option => option.setName('ammo')
-    .setDescription('Ammo type used')
+    .setDescription('Ammo type used - Ace challenge requires that you use basic ammo')
     .setRequired(true)
-    .addChoice('Basic', 'basic')
-    .addChoice('Standard', 'standard')
-    .addChoice('Premium', 'premium'))
+    .addChoice('Basic', 'basic'))
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
@@ -94,11 +68,28 @@ module.exports = {
 
         // Scoring Factors
         let targetRun = 100
-        let roundPenalty = 0.125
-        let hullPenalty = 0.2
-        let standardPenalty = 12.5
-        let premiumPenalty = 25
-        let vanguardOver40Penalty = 0.25
+
+        // "Target" Points Run
+        
+        // The baseline for time taken penalty to be zero, set at 2m45s based on the very best medium time to-date being 3m04s (Aran in a Chally); 2m45s is supposed to be practically impossible in a Chieftain
+        let timeTakenTargetBaseline = 165
+
+        // The baseline for ammo efficiency penalty to be zero, set at "perfect ammo efficiency" of 100%; this is possible but exceptionally difficult in practice
+        // let ammoEffTargetBaseline = 1
+        
+        // The baseline for hull lost penalty to be zero, set at "less than 1% hull lost" of 0%; this is possible but very difficult in practice
+        // let hullLostTargetBaseline = 0
+
+        // "Zero" Points Run
+        
+        // The baseline for time taken penalty to be [100/3] points, set conventionally at 35% based on a "new Serpent Nemesis run" of 1800s time taken, 35% accuracy, 125% hull lost; 35%
+        let timeTakenZeroBaseline = 1800
+
+        // The baseline for ammo efficiency penalty to be [100/3] points, set conventionally at 35% based on a "new Serpent Nemesis run" of 1800s time taken, 35% accuracy, 125% hull lost; 35%
+        let ammoEffZeroBaseline = 0.35
+        
+        // The baseline for hull lost penalty to be [100/3] points, set conventionally at 125% based on a "new Serpent Nemesis run" of 1800s time taken, 35% accuracy, 125% hull lost
+        let hullLostZeroBaseline = 125
 
         // Managing Inputs
         let args = {}
@@ -157,24 +148,10 @@ module.exports = {
         }
 
         if (args.shots_medium_fired > 0 && args.gauss_medium_number === 0) {
-            interaction.reply(`Hey ${interaction.member} ... it appears you have medium gauss shots fired, but no small gauss outfitted on your ship. Please check your inputs and try again.`);
+            interaction.reply(`Hey ${interaction.member} ... it appears you have medium gauss shots fired, but no medium gauss outfitted on your ship. Please check your inputs and try again.`);
             return(-1);
         }
         
-        // Decide ammo type and penalty
-        let ammoPenalty;
-        switch (args.ammo) {
-            case "premium":
-                ammoPenalty = premiumPenalty;
-                break;
-            case "standard":
-                ammoPenalty = standardPenalty;
-                break;
-            case "basic":
-                ammoPenalty = 0
-                break;
-        }
-
         // Decode SLEF data (to use later)
         
         // let totalSmallGauss;
@@ -187,145 +164,6 @@ module.exports = {
         //     if (moduleString.includes("gausscannon_fixed_small")) { totalSmallGauss++ }
         //     if (moduleString.includes("gausscannon_fixed_medium")) { totalMediumGauss++ }
         // }
-
-        let myrmThreshold;
-        let vanguardScore;
-
-        let shipInfo = shipData.find(ship => ship.ShortName == args.shiptype)
-        vanguardScore = shipInfo.Score
-        switch (shipInfo.Size) {
-            case ("small"):
-                myrmThreshold = 1440
-                break
-            case ("medium"):
-                myrmThreshold = 720
-                break
-            case ("large"):
-                myrmThreshold = 360
-                break
-        }
-
-        // Calculate the minimum amount of ammo needed for the gauss config
-        // This comes from Mechan's & Orodruin's google sheet
-        // It is INTENTIONALLY not a mix of small and medium as that makes everything unmanageable - either medium or small is used
-        // THIS IS NOW DEPRECATED IN FAVOR OF THE DAMAGE METHOD, WHICH INSTEAD ALLOWS TO COMPARE ALSO A MIX OF WEAPONS
-//        let ammo_threshold;
-//       switch (args.gauss_type) {
-//            case "small":
-//               switch (args.gauss_number) {
-//                    case 1:
-//                        switch (args.ammo) {
-//                            case "basic":
-//                                interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
-//                                return(-1);
-//                            case "standard":
-//                                interaction.reply(`Sorry, a ${args.goid} run with ${args.gauss_number} ${args.gauss_type} gauss with ${args.ammo} ammo isn't possible.`);
-//                                return(-1);
-//                            case "premium":
-//                                ammo_threshold = 3816;
-//                                break;
-//                        }
-//                        break;
-//                    case 2:
-//                        switch (args.ammo) {
-//                            case "basic":
-//                                ammo_threshold = 417;
-//                                return(-1);
-//                            case "standard":
-//                                ammo_threshold = 317;
-//                                return(-1);
-//                            case "premium":
-//                                ammo_threshold = 255;
-//                                break;
-//                        }
-//                        break;
-//                    case 3:
-//                        switch (args.ammo) {
-//                            case "basic":
-//                                ammo_threshold = 300;
-//                                break;
-//                            case "standard":
-//                                ammo_threshold = 251;
-//                                break;
-//                            case "premium":
-//                                ammo_threshold = 210;
-//                                break;
-//                        }
-//                        break;
-//                    case 4:
-//                        switch (args.ammo) {
-//                            case "basic":
-//                                ammo_threshold = 266;
-//                                break;
-//                            case "standard":
-//                                ammo_threshold = 229;
-//                                break;
-//                            case "premium":
-//                                ammo_threshold = 195;
-//                                break;
-//                        }
-//                        break;
-//               }
-//                break;
-//                case "medium":
-//                    switch (args.gauss_number) {
-//                        case 1:
-//                            switch (args.ammo) {
-//                                case "basic":
-//                                    ammo_threshold = 296;
-//                                    break;
-//                                case "standard":
-//                                    ammo_threshold = 211;
-//                                    break;
-//                                case "premium":
-//                                    ammo_threshold = 159;
-//                                    break;
-//                            }
-//                            break;
-//                        case 2:
-//                            switch (args.ammo) {
-//                                case "basic":
-//                                    ammo_threshold = 161;
-//                                    break;
-//                                case "standard":
-//                                    ammo_threshold = 139;
-//                                    break;
-//                                case "premium":
-//                                    ammo_threshold = 115;
-//                                    break;
-//                            }
-//                            break;
-//                        case 3:
-//                            switch (args.ammo) {
-//                                case "basic":
-//                                    ammo_threshold = 143;
-//                                    break;
-//                                case "standard":
-//                                    ammo_threshold = 129;
-//                                    break;
-//                                case "premium":
-//                                    ammo_threshold = 107;
-//                                    break;
-//                            }
-//                            break;
-//                        case 4:
-//                            switch (args.ammo) {
-//                                case "basic":
-//                                    ammo_threshold = 137;
-//                                    break;
-//                                case "standard":
-//                                    ammo_threshold = 125;
-//                                    break;
-//                                case "premium":
-//                                    ammo_threshold = 105;
-//                                    break;
-//                            }
-//                            break;
-//                    }
-//                    break;
-//
-//        }
-
 
         // Calculate the minimum damage required for the given gauss config
         // This comes from Mechan's & Orodruin's google sheet
@@ -550,39 +388,27 @@ module.exports = {
             return(-1);
         }
 
-        // Set accuracy threshold
-        // 82% is the current setting for Astraea's Clarity, which is 175 rounds for a 3m basic config, which in turn is 143 rounds minimum
-        // So, for now, applying 82% as the ratio ... which is multiplying by 1.223 and rounding up
-        let accuracy_required;
-        accuracy_required = Math.ceil(damage_threshold * 1.223);
 
-        // Set myrm_factor based on myrm_threshold - this is done as the basis to calculate a penalty that is consistent across ship sizes, and not punishing for large ships (as the absolute # of seconds used to be)
-        let myrm_factor;
-        myrm_factor = args.time_in_seconds / myrmThreshold;
 
         // Calculations
-        let roundPenaltyTotal = 0;
-        if (shot_damage_fired > accuracy_required) { roundPenaltyTotal = (shot_damage_fired - accuracy_required)/accuracy_required * roundPenalty }
-        console.log("Ammo Used Penalty:" + roundPenaltyTotal)
 
-        // Factor of -0.108 was obtained by matching penalties from old system with a 30m medium run to new system, as follows
-        // (1800 - 720) * -0.025 = 27; Old system
-        // 1800/720 * 100x = 27 --> x = 27 * 720 / 1800 / 100 -> x = 0.108; New system
-        let timePenaltyTotal = 0;
-        if (args.time_in_seconds > myrmThreshold) { timePenaltyTotal = (myrm_factor) * 10.8 }
-        console.log("Time Taken Penalty:" + timePenaltyTotal)
+        let timeTakenPenalty = 0;
+        timeTakenPenalty = 100 / 3 * Math.log10(args.time_in_seconds/timeTakenTargetBaseline) / Math.log10(timeTakenZeroBaseline/timeTakenTargetBaseline)
+        console.log("Time Taken Penalty:" + timeTakenPenalty)
 
-        let vangPenaltyTotal = 0;
-        if (vanguardScore > 40) { vangPenaltyTotal = (vanguardScore - 40) * vanguardOver40Penalty }
-        console.log("Vanguard Score Penalty:" + vangPenaltyTotal)
+        let ammoEffPenalty = 0;
+        ammoEffPenalty = 100 / 3 * Math.log10(damage_threshold/shot_damage_fired) / Math.log10(ammoEffZeroBaseline)
+        console.log("Ammo Efficiency Penalty:" + ammoEffPenalty)
 
-        let hullPenaltyTotal = args.percenthulllost * hullPenalty
-        console.log("Hull Penalty:" + hullPenaltyTotal)
+        let damageTakenPenalty = 0;
+        damageTakenPenalty = 100 / 3 * Math.log10(1+args.percenthulllost/100) / Math.log10(1+hullLostZeroBaseline/100)
+        console.log("Damage Taken Penalty:" + damageTakenPenalty)
 
-        let penaltyTotal = ammoPenalty + timePenaltyTotal + roundPenaltyTotal + vangPenaltyTotal + hullPenaltyTotal
-        console.log("Penalty Total:" + penaltyTotal)
+        let totalPenalty = 0;
+        totalPenalty = timeTakenPenalty + ammoEffPenalty + damageTakenPenalty
+        console.log("Total Penalty:" + totalPenalty)
 
-        let finalScore = targetRun - penaltyTotal
+        let finalScore = targetRun - totalPenalty
         
         // Chart creation
 
@@ -595,22 +421,18 @@ module.exports = {
             "type": "radar",
             "data": {
               "labels": [
-                "Vanguard Score",
-                "Ammo Type",
-                "Ammo Used",
-                "Time Taken",
-                "Damage Taken"
+                "Time\nPenalty",
+                "Ammo\nUsage Penalty",
+                "Damage\nPenalty"
               ],
               "datasets": [
                 {
                   "backgroundColor": "rgba(228, 107, 26, 0.2)",
                   "borderColor": "rgb(228, 107, 26)",
                   "data": [
-                    100 - vangPenaltyTotal,
-                    100 - ammoPenalty,
-                    100 - roundPenaltyTotal,
-                    100 - timePenaltyTotal,
-                    100 - hullPenaltyTotal
+                    timeTakenPenalty,
+                    ammoEffPenalty,
+                    damageTakenPenalty
                     
                   ],
                   "label": "Your Run"
@@ -659,9 +481,9 @@ module.exports = {
                     },
 
                     "ticks": {
-                        "max": 100,
+                        "max": 40,
                         "min": 0,
-                        "stepSize": 20,
+                        "stepSize": 10,
                         "backdropColor": "transparent"
                     },
                 },
@@ -689,9 +511,9 @@ module.exports = {
 
             This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
             
-            With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold.toFixed(0)}hp, which entails a maximum of ${accuracy_required.toFixed(0)}hp in damage-of-shots-fired for an 82% firing efficiency level (Astraea's Clarity level).
+            With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damage_threshold.toFixed(0)}hp, which entails a maximum of ${damage_threshold.toFixed(0)}hp in damage-of-shots-fired for 100% ammo usage efficiency.
             
-            ${interaction.member}'s use of ${shot_damage_fired.toFixed(0)}hp damage-of-shots-fired (${args.shots_medium_fired.toFixed(0)} medium rounds @ 28.28hp each and ${args.shots_small_fired.toFixed(0)} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** overall firing efficiency.`
+            ${interaction.member}'s use of ${shot_damage_fired.toFixed(0)}hp damage-of-shots-fired (${args.shots_medium_fired.toFixed(0)} medium rounds @ 28.28hp each and ${args.shots_small_fired.toFixed(0)} small rounds @ 16.16hp each) represents a **__${((damage_threshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** ammo usage efficiency.`
  
         if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
                 outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
@@ -706,11 +528,9 @@ module.exports = {
                 ---
                 **Base Score:** ${targetRun} Ace points
                 ---
-                **Vanguard Score Penalty:** -${vangPenaltyTotal.toFixed(2)} Ace points
-                **Ammo Type Penalty:** -${ammoPenalty.toFixed(2)} Ace points
-                **Ammo Used Penalty:** -${roundPenaltyTotal.toFixed(2)} Ace points
-                **Time Taken Penalty:** -${timePenaltyTotal.toFixed(2)} Ace points
-                **Damage Taken Penalty:** -${hullPenaltyTotal.toFixed(2)} Ace points
+                **Time Taken Penalty:** ${timeTakenPenalty.toFixed(2)} Ace points
+                **Ammo Used Penalty:** ${ammoEffPenalty.toFixed(2)} Ace points
+                **Damage Taken Penalty:** ${damageTakenPenalty.toFixed(2)} Ace points
                 ---`
         }
 
