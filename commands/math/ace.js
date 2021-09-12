@@ -429,7 +429,7 @@ module.exports = {
         let da = 2; // Shape of the curve, as determined by Orodruin
 
         let ammoEffPenalty = 0;
-        damageTakenPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((shot_damage_fired/damage_threshold + da)/(a0_2+da))*((a0_3-shot_damage_fired/damage_threshold)/(a0_3-a0_2))*((a0_2-a0_1)/(shot_damage_fired/damage_threshold-a0_1))));
+        ammoEffPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((shot_damage_fired/damage_threshold + da)/(a0_2+da))*((a0_3-shot_damage_fired/damage_threshold)/(a0_3-a0_2))*((a0_2-a0_1)/(shot_damage_fired/damage_threshold-a0_1))));
         
         // Older version
         //ammoEffPenalty = 100 / 3 * Math.log10(damage_threshold/shot_damage_fired) / Math.log10(ammoEffZeroBaseline)
