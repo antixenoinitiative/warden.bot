@@ -3,6 +3,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
+const { queryWarden } = require("../../db/index");
 // const shipData = require("./calc/shipdata.json")
 
 let options = new SlashCommandBuilder()
@@ -57,14 +58,14 @@ let options = new SlashCommandBuilder()
 .addBooleanOption(option => option.setName('submit')
     .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
     .setRequired(false))
-.addStringOption(option => option.setName('video_link')
+.addStringOption(option => option.setName('link')
     .setDescription('Link to a video of the fight, for submission purposes')
     .setRequired(false))
 
 module.exports = {
     data: options,
 	permissions: 0,
-    execute(interaction) {
+    async execute(interaction) {
 
         // Scoring Factors
         let targetRun = 100
@@ -557,24 +558,24 @@ module.exports = {
             
         if(args.print_score_breakdown == true) {
                 outputString += `---
-**Base Score:** ${targetRun} Ace points
----
-**Time Taken Penalty:** ${(timeTakenPenalty/3).toFixed(2)} Ace points
-**Ammo Used Penalty:** ${(ammoEffPenalty/3).toFixed(2)} Ace points
-**Damage Taken Penalty:** ${(damageTakenPenalty/3).toFixed(2)} Ace points
----`
+                    **Base Score:** ${targetRun} Ace points
+                    ---
+                    **Time Taken Penalty:** ${(timeTakenPenalty/3).toFixed(2)} Ace points
+                    **Ammo Used Penalty:** ${(ammoEffPenalty/3).toFixed(2)} Ace points
+                    **Damage Taken Penalty:** ${(damageTakenPenalty/3).toFixed(2)} Ace points
+                    ---`
         }
 
         outputString += `\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
         
         if(args.scorelegend == true) {
             outputString += `
----
-*Interpret as follows:*
-*- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
-*- A collector-level CMDR will typically score about 25-45 pts;*
-*- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
-*- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*`
+                ---
+                *Interpret as follows:*
+                *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
+                *- A collector-level CMDR will typically score about 25-45 pts;*
+                *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
+                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*`
         }
         const url = chart.getUrl();
 
@@ -586,8 +587,90 @@ module.exports = {
         .setImage(url)
 
 		const buttonRow = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setLabel('Learn more about the Ace Score Calculator').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/Ace-Score-Calculator'),)
+        .addComponents(new Discord.MessageButton().setLabel('Learn more about the Ace Score Calculator').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/Ace-Rank-Rework'),)
 
         interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
+
+        // Leaderboard Submissions
+        if (args.submit === true) {
+            let userID = interaction.member.id
+            let name = interaction.member.displayName
+            let timestamp = Date.now()
+            let staffChannel = process.env.STAFFCHANNELID
+            let res;
+
+            // Checks
+            if (args.link === undefined) { return interaction.followUp({ content: "❌ Please include a `link` when submitting a score to leaderboards" }) }
+            if (!args.link.startsWith('https://')) { return interaction.followUp({ content: `❌ Please enter a valid URL, eg: https://...` }) }
+
+            // Submit
+            if(interaction.guild.channels.cache.get(staffChannel) === undefined)  { // Check for staff channel
+                return interaction.followUp({ content: `Staff Channel not found` })
+            }
+
+            try {
+                res = await queryWarden("SELECT * FROM ace WHERE user_id = $1 AND approval = true", [userID])
+                if (res.rowCount != 0 ) {
+                    console.log(res.rows[0].score, finalScore.toFixed(2))
+                    if (parseFloat(res.rows[0].score) > parseFloat(finalScore.toFixed(2))) {
+                        return interaction.followUp({ content: "Error: Your existing entry has a higher score, submission denied."})
+                    }
+                    interaction.followUp({ content: "Warning: If approved, this submission will overwrite your current submission!"})
+                }
+            } catch (err) {
+                console.log(err)
+                return interaction.followUp({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
+            }
+
+            try {
+                res = await queryWarden("INSERT INTO ace(user_id, name, timetaken, mgauss, sgauss, mgaussfired, sgaussfired, percenthulllost,score, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", [
+                    userID,
+                    name,
+                    args.time_in_seconds,
+                    args.gauss_medium_number,
+                    args.gauss_small_number,
+                    args.shots_medium_fired,
+                    args.shots_small_fired,
+                    args.percenthulllost,
+                    finalScore.toFixed(2),
+                    args.link,
+                    false,
+                    timestamp
+                ])
+            } catch (err) {
+                console.log(err)
+                return interaction.followUp({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
+            }
+            
+            res = await queryWarden(`SELECT id FROM ace WHERE date = $1`, [timestamp])
+
+            // Print out data
+            let submissionId = res.rows[0].id
+            const returnEmbed = new Discord.MessageEmbed()
+            .setColor('#FF7100')
+            .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+            .setTitle(`**Ace Submission Complete**`)
+            .setDescription(`Congratulations <@${interaction.member.id}>, your submission is complete. Please be patient while our staff approve your submission. Submission ID: #${submissionId}`)
+            .addFields(
+            {name: "Pilot", value: `<@${userID}>`, inline: true},
+            {name: "Score", value: `${finalScore.toFixed(2)}`, inline: true},
+            {name: "link", value: `${args.link}`, inline: true})
+            interaction.followUp({ embeds: [returnEmbed.setTimestamp()] });
+
+            // Create staff interaction
+            const staffEmbed = new Discord.MessageEmbed()
+            .setColor('#FF7100')
+            .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+            .setTitle(`**New Ace Submission**`)
+            .setDescription(`Please select Approve or Deny below if the video is legitimate and matches the fields below. NOTE: This will not assign any ranks, only approve to the Leaderboard.`)
+            .addFields(
+            {name: "Pilot", value: `<@${userID}>`, inline: true},
+            {name: "Score", value: `${finalScore.toFixed(2)}`, inline: true},
+            {name: "link", value: `${args.link}`, inline: true})
+            const row = new Discord.MessageActionRow()
+            .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
+            .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)
+            await interaction.guild.channels.cache.get(staffChannel).send({ embeds: [staffEmbed], components: [row] });
+        }
     },
 };

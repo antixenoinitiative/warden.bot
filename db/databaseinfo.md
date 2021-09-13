@@ -56,3 +56,19 @@ CREATE TABLE speedrun(
     approval        bool,
     date            bigint,
 );
+
+CREATE TABLE ace(
+    id              SERIAL PRIMARY KEY,
+    user_id         text,
+    name            text,
+    timetaken       int,
+    mgauss          int,
+    sgauss          int,
+    mgaussfired     int,
+    sgaussfired     int,
+    percenthulllost int,
+    score           decimal,
+    link            text,
+    approval        bool,
+    date            bigint,
+);
