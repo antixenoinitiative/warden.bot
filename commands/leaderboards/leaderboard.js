@@ -40,7 +40,13 @@ module.exports = {
         .addStringOption(option => option.setName('options')
             .setDescription('Ship Class')
             .setRequired(false)
-            .addChoice('Show Video Links', 'links'))),
+            .addChoice('Show Video Links', 'links')))
+        .addSubcommand(subcommand => subcommand
+            .setName('ace')
+            .setDescription('Ace Leaderboard')
+            .addBooleanOption(option => option.setName('links')
+                .setDescription('show links')
+                .setRequired(true))),
 	permissions: 0,
 	async execute(interaction) {
         let args = []
@@ -53,6 +59,7 @@ module.exports = {
         for (let key of interaction.options.data[0].options) {
             args[key.name] = key.value
         }
+
         switch (args.leaderboard) {
             case ("speedruns"):
                 embedDescription = `Speedrun results for Class: **${args.class}** Variant: **${args.variant}**`
@@ -65,8 +72,10 @@ module.exports = {
                     entry.timeFormatted = new Date(entry.time * 1000).toISOString().substr(11, 8)
                     let name = await interaction.guild.members.fetch(entry.user_id)
                     let string = `${entry.timeFormatted} - ${name} - ${entry.ship}`
-                    if (args.options !== undefined && args.options === "links") {
-                        string += `\nVideo: [${entry.link}]`
+                    if (args.options !== undefined) {
+                        if (args.options === "links") {
+                            string += `\nVideo: [${entry.link}]`
+                        }
                     }
                     leaderboardResults.push({ time: entry.time, text: string})
                 }
@@ -76,7 +85,7 @@ module.exports = {
                 embedDescription = `Ace results`
                 res = await queryWarden(`SELECT * FROM ace WHERE approval = true`)
                 if (res.rowCount === 0) {
-                    interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
+                    interaction.reply(`Sorry, no entries found in the **${args.variant} ${args.class}** ${leaderboardNameCaps} Leaderboard`)
                     return
                 }
                 for (let entry of res.rows) {

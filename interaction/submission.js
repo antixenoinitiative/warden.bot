@@ -16,6 +16,13 @@ module.exports = {
             console.log(err)
         }
         if (eventType === "approve") {
+            if (leaderboard === "ace") {
+                let res = await db.queryWarden("SELECT user_id FROM ace WHERE id = $1", [submissionId])
+                if (res.rowCount != 0) {
+                    let userID = res.rows[0].user_id;
+                    await db.queryWarden(`DELETE FROM ace WHERE user_id = $1 AND approval = true AND id != $2`, [userID, submissionId])
+                }
+            }
             try {
                 db.queryWarden(`UPDATE ${leaderboard} SET approval = true WHERE id = $1`, [submissionId])
             } catch (err) {
