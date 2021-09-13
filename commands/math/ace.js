@@ -611,7 +611,6 @@ module.exports = {
             try {
                 res = await queryWarden("SELECT * FROM ace WHERE user_id = $1 AND approval = true", [userID])
                 if (res.rowCount != 0 ) {
-                    console.log(res.rows[0].score, finalScore.toFixed(2))
                     if (parseFloat(res.rows[0].score) > parseFloat(finalScore.toFixed(2))) {
                         return interaction.followUp({ content: "Error: Your existing entry has a higher score, submission denied."})
                     }
