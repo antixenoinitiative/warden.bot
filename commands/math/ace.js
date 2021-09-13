@@ -559,9 +559,9 @@ module.exports = {
                 outputString += `---
 **Base Score:** ${targetRun} Ace points
 ---
-**Time Taken Penalty:** ${timeTakenPenalty.toFixed(2)/3} Ace points
-**Ammo Used Penalty:** ${ammoEffPenalty.toFixed(2)/3} Ace points
-**Damage Taken Penalty:** ${damageTakenPenalty.toFixed(2)/3} Ace points
+**Time Taken Penalty:** ${(timeTakenPenalty/3).toFixed(2)} Ace points
+**Ammo Used Penalty:** ${(ammoEffPenalty/3).toFixed(2)} Ace points
+**Damage Taken Penalty:** ${(damageTakenPenalty/3).toFixed(2)} Ace points
 ---`
         }
 
