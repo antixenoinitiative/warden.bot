@@ -72,6 +72,23 @@ module.exports = {
                 }
                 leaderboardResults.sort(dynamicSort("time"))
             break;
+            case ("ace"):
+                embedDescription = `Ace results`
+                res = await queryWarden(`SELECT * FROM ace WHERE approval = true`)
+                if (res.rowCount === 0) {
+                    interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
+                    return
+                }
+                for (let entry of res.rows) {
+                    let name = await interaction.guild.members.fetch(entry.user_id)
+                    let string = `${entry.score} - ${name}`
+                    if (args.links === true) {
+                        string += `\nVideo: [${entry.link}]`
+                    }
+                    leaderboardResults.push({ score: entry.score, text: string})
+                }
+                leaderboardResults.sort(dynamicSort("score"))
+            break;
         }
 
         let leaderboardString = "";
