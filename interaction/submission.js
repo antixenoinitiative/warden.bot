@@ -16,7 +16,7 @@ module.exports = {
             console.log(err)
         }
         if (eventType === "approve") {
-            if (leaderboard === "ace") {
+            if (leaderboard === "ace") { // Overwrite existing ace score
                 let res = await db.queryWarden("SELECT user_id FROM ace WHERE id = $1", [submissionId])
                 if (res.rowCount != 0) {
                     let userID = res.rows[0].user_id;

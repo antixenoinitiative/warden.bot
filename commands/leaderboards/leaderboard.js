@@ -85,7 +85,7 @@ module.exports = {
                 embedDescription = `Ace results`
                 res = await queryWarden(`SELECT * FROM ace WHERE approval = true`)
                 if (res.rowCount === 0) {
-                    interaction.reply(`Sorry, no entries found in the **${args.variant} ${args.class}** ${leaderboardNameCaps} Leaderboard`)
+                    interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
                     return
                 }
                 for (let entry of res.rows) {
