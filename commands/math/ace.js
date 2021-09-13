@@ -72,7 +72,7 @@ module.exports = {
         // "Target" Points Run
         
         // The baseline for time taken penalty to be zero, set at 2m45s based on the very best medium time to-date being 3m04s (Aran in a Chally); 2m45s is supposed to be practically impossible in a Chieftain
-        let timeTakenTargetBaseline = 165
+        // let timeTakenTargetBaseline = 165
 
         // The baseline for ammo efficiency penalty to be zero, set at "perfect ammo efficiency" of 100%; this is possible but exceptionally difficult in practice
         // let ammoEffTargetBaseline = 1
@@ -83,13 +83,13 @@ module.exports = {
         // "Zero" Points Run
         
         // The baseline for time taken penalty to be [100/3] points, set conventionally at 35% based on a "new Serpent Nemesis run" of 1800s time taken, 35% accuracy, 125% hull lost; 35%
-        let timeTakenZeroBaseline = 1800
+        // let timeTakenZeroBaseline = 1800
 
         // The baseline for ammo efficiency penalty to be [100/3] points, set conventionally at 35% based on a "new Serpent Nemesis run" of 1800s time taken, 35% accuracy, 125% hull lost; 35%
-        let ammoEffZeroBaseline = 0.35
+        // let ammoEffZeroBaseline = 0.35
         
         // The baseline for hull lost penalty to be [100/3] points, set conventionally at 125% based on a "new Serpent Nemesis run" of 1800s time taken, 35% accuracy, 125% hull lost
-        let hullLostZeroBaseline = 125
+        // let hullLostZeroBaseline = 125
 
         // Managing Inputs
         let args = {}
@@ -392,23 +392,55 @@ module.exports = {
 
         // Calculations
 
-        let timeTakenPenalty = 0;
-        timeTakenPenalty = 100 / 3 * Math.log10(args.time_in_seconds/timeTakenTargetBaseline) / Math.log10(timeTakenZeroBaseline/timeTakenTargetBaseline)
-        console.log("Time Taken Penalty:" + timeTakenPenalty)
+        // I have no idea what this is; Orodruin says "p0 is related to the score of the "good" run" :)
+        let p0 = Math.tan((1/10-0.5)*Math.PI);
 
-        let ammoEffPenalty = 0;
-        ammoEffPenalty = 100 / 3 * Math.log10(damage_threshold/shot_damage_fired) / Math.log10(ammoEffZeroBaseline)
-        console.log("Ammo Efficiency Penalty:" + ammoEffPenalty)
+        // Time taken parameters
+        let t0_1 = 2.75 // 2 minutes and 45 seconds - thought to be the upper limit of a medium-ship perfect time
+        let t0_2 = 18 // 18 minutes - thought to be a good time for a damage-less run
+        let t0_3 = 30; // 30 minutes; is conventionally "new serpent's nemesis level"
+        let dt = 100; // Shape of the curve, as determined by Orodruin
+
+        let timeTakenPenalty = 0;
+        timeTakenPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((args.time_in_seconds/60 + dt)/(t0_2+dt))*((t0_3-args.time_in_seconds/60)/(t0_3-t0_2))*((t0_2-t0_1)/(args.time_in_seconds/60-t0_1))));
+
+        // Older version
+        // timeTakenPenalty = 100 / 3 * Math.log10(args.time_in_seconds/timeTakenTargetBaseline) / Math.log10(timeTakenZeroBaseline/timeTakenTargetBaseline)
+        // console.log("Time Taken Penalty:" + timeTakenPenalty)
+
+        // Hull lost parameter
+        let h0_1 = 0 // No hull lost; perfect "100% club" run
+        let h0_2 = 0.1 // 10% hull lost; is conventially "good run"
+        let h0_3 = 1.25 // 125% total hull lost; is conventionally "new serpent's nemesis level"
+        let dh = 5; // Shape of the curve, as determined by Orodruin
 
         let damageTakenPenalty = 0;
-        damageTakenPenalty = 100 / 3 * Math.log10(1+args.percenthulllost/100) / Math.log10(1+hullLostZeroBaseline/100)
-        console.log("Damage Taken Penalty:" + damageTakenPenalty)
+        damageTakenPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((args.percenthulllost/100 + dh)/(h0_2+dh))*((h0_3-args.percenthulllost/100)/(h0_3-h0_2))*((h0_2-h0_1)/(args.percenthulllost/100-h0_1))));
+        
+        // Older version
+        // damageTakenPenalty = 100 / 3 * Math.log10(1+args.percenthulllost/100) / Math.log10(1+hullLostZeroBaseline/100)
+        // console.log("Damage Taken Penalty:" + damageTakenPenalty)
+        // damageTakenPenalty = 100 / 3 * Math.log(1+args.percenthulllost/100)
 
-        let totalPenalty = 0;
-        totalPenalty = timeTakenPenalty + ammoEffPenalty + damageTakenPenalty
-        console.log("Total Penalty:" + totalPenalty)
+        // Ammo efficiency parameters
+        let a0_1 = 1 // This is 100% ammo efficiency
+        let a0_2 = 1 / 0.82 // 82% is Astrae's level
+        let a0_3 = 1 / 0.35 // 35% is conventionally "new serpent's nemesis level"
+        let da = 2; // Shape of the curve, as determined by Orodruin
 
-        let finalScore = targetRun - totalPenalty
+        let ammoEffPenalty = 0;
+        ammoEffPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((shot_damage_fired/damage_threshold + da)/(a0_2+da))*((a0_3-shot_damage_fired/damage_threshold)/(a0_3-a0_2))*((a0_2-a0_1)/(shot_damage_fired/damage_threshold-a0_1))));
+        
+        // Older version
+        //ammoEffPenalty = 100 / 3 * Math.log10(damage_threshold/shot_damage_fired) / Math.log10(ammoEffZeroBaseline)
+        // console.log("Ammo Efficiency Penalty:" + ammoEffPenalty)
+
+        // Older version
+        // let totalPenalty = 0;
+        // totalPenalty = timeTakenPenalty + ammoEffPenalty + damageTakenPenalty
+        // console.log("Total Penalty:" + totalPenalty)
+
+        let finalScore = targetRun - (1/3)*(timeTakenPenalty + ammoEffPenalty + damageTakenPenalty)
         
         // Chart creation
 
@@ -430,9 +462,9 @@ module.exports = {
                   "backgroundColor": "rgba(228, 107, 26, 0.2)",
                   "borderColor": "rgb(228, 107, 26)",
                   "data": [
-                    timeTakenPenalty,
-                    ammoEffPenalty,
-                    damageTakenPenalty
+                    timeTakenPenalty/3,
+                    ammoEffPenalty/3,
+                    damageTakenPenalty/3
                     
                   ],
                   "label": "Your Run"
@@ -525,24 +557,24 @@ module.exports = {
             
         if(args.print_score_breakdown == true) {
                 outputString += `---
-                **Base Score:** ${targetRun} Ace points
-                ---
-                **Time Taken Penalty:** ${timeTakenPenalty.toFixed(2)} Ace points
-                **Ammo Used Penalty:** ${ammoEffPenalty.toFixed(2)} Ace points
-                **Damage Taken Penalty:** ${damageTakenPenalty.toFixed(2)} Ace points
-                ---`
+**Base Score:** ${targetRun} Ace points
+---
+**Time Taken Penalty:** ${(timeTakenPenalty/3).toFixed(2)} Ace points
+**Ammo Used Penalty:** ${(ammoEffPenalty/3).toFixed(2)} Ace points
+**Damage Taken Penalty:** ${(damageTakenPenalty/3).toFixed(2)} Ace points
+---`
         }
 
         outputString += `\n**Your Fight Score:** **__${finalScore.toFixed(2)}__** Ace points.`
         
         if(args.scorelegend == true) {
             outputString += `
-                ---
-                *Interpret as follows:*
-                *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
-                *- A collector-level CMDR will typically score about 25-45 pts;*
-                *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
-                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*`
+---
+*Interpret as follows:*
+*- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
+*- A collector-level CMDR will typically score about 25-45 pts;*
+*- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
+*- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*`
         }
         const url = chart.getUrl();
 
