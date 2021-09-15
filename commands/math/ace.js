@@ -389,8 +389,6 @@ module.exports = {
             return(-1);
         }
 
-
-
         // Calculations
 
         // I have no idea what this is; Orodruin says "p0 is related to the score of the "good" run" :)
@@ -401,46 +399,26 @@ module.exports = {
         let t0_2 = 18 // 18 minutes - thought to be a good time for a damage-less run
         let t0_3 = 30; // 30 minutes; is conventionally "new serpent's nemesis level"
         let dt = 100; // Shape of the curve, as determined by Orodruin
-
         let timeTakenPenalty = 0;
         timeTakenPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((args.time_in_seconds/60 + dt)/(t0_2+dt))*((t0_3-args.time_in_seconds/60)/(t0_3-t0_2))*((t0_2-t0_1)/(args.time_in_seconds/60-t0_1))));
-
-        // Older version
-        // timeTakenPenalty = 100 / 3 * Math.log10(args.time_in_seconds/timeTakenTargetBaseline) / Math.log10(timeTakenZeroBaseline/timeTakenTargetBaseline)
-        // console.log("Time Taken Penalty:" + timeTakenPenalty)
 
         // Hull lost parameter
         let h0_1 = 0 // No hull lost; perfect "100% club" run
         let h0_2 = 0.1 // 10% hull lost; is conventially "good run"
         let h0_3 = 1.25 // 125% total hull lost; is conventionally "new serpent's nemesis level"
         let dh = 5; // Shape of the curve, as determined by Orodruin
-
         let damageTakenPenalty = 0;
         damageTakenPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((args.percenthulllost/100 + dh)/(h0_2+dh))*((h0_3-args.percenthulllost/100)/(h0_3-h0_2))*((h0_2-h0_1)/(args.percenthulllost/100-h0_1))));
         
-        // Older version
-        // damageTakenPenalty = 100 / 3 * Math.log10(1+args.percenthulllost/100) / Math.log10(1+hullLostZeroBaseline/100)
-        // console.log("Damage Taken Penalty:" + damageTakenPenalty)
-        // damageTakenPenalty = 100 / 3 * Math.log(1+args.percenthulllost/100)
-
         // Ammo efficiency parameters
         let a0_1 = 1 // This is 100% ammo efficiency
-        let a0_2 = 1 / 0.82 // 82% is Astrae's level
+        let a0_2 = 1 / (143 / 175) // 82% is Astrae's level ... 175 is Astrae limit
         let a0_3 = 1 / 0.35 // 35% is conventionally "new serpent's nemesis level"
         let da = 2; // Shape of the curve, as determined by Orodruin
-
         let ammoEffPenalty = 0;
         ammoEffPenalty = 200 * (0.5 + (1/Math.PI)*Math.atan(p0*((shot_damage_fired/damage_threshold + da)/(a0_2+da))*((a0_3-shot_damage_fired/damage_threshold)/(a0_3-a0_2))*((a0_2-a0_1)/(shot_damage_fired/damage_threshold-a0_1))));
         
-        // Older version
-        //ammoEffPenalty = 100 / 3 * Math.log10(damage_threshold/shot_damage_fired) / Math.log10(ammoEffZeroBaseline)
-        // console.log("Ammo Efficiency Penalty:" + ammoEffPenalty)
-
-        // Older version
-        // let totalPenalty = 0;
-        // totalPenalty = timeTakenPenalty + ammoEffPenalty + damageTakenPenalty
-        // console.log("Total Penalty:" + totalPenalty)
-
+        // Calculate the final score
         let finalScore = targetRun - (1/3)*(timeTakenPenalty + ammoEffPenalty + damageTakenPenalty)
         
         // Chart creation
