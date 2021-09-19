@@ -25,5 +25,11 @@
                 "880618812792262692"
             ]
         }
-    }
+    },
+    "dateFormatPattern": "DD.MM.YY, HH:mm",
+    "maxMessageLength": 2000,
+    "zenURL": "https://zenquotes.io/api/random",
+    "tickURL": "https://elitebgs.app/api/ebgs/v5/ticks",
+    "factionURL": "https://elitebgs.app/api/ebgs/v5/factions",
+    "systemURL": "https://elitebgs.app/api/ebgs/v5/systems"
 }
