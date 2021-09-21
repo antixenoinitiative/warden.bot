@@ -12,7 +12,7 @@ module.exports = {
         fetch(`${zenURL}`)
             .then(res => res.json())
             .then(data => data[0]["q"] + " - *" + data[0]["a"] +"*")
-            .then(quote => interaction.channel.send(quote));
+            .then(quote => interaction.channel.send({ content: quote }));
 	}
 };
 
