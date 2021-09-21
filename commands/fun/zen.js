@@ -1,9 +1,12 @@
 /**
+ * /zen
  * A fun command to get a random 'zen' quote from https://zenquotes.io
- * Note: leads to funny moments as the quote often match the situation :D
+ * Note: Leads to funny moments as the quote often match the situation :D
  * 
- * @author F0rd Pr3f3ct
+ * @see <a href="https://zenquotes.io">https://zenquotes.io</a>
+ * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
+
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const fetch = require("node-fetch");
 const { zenURL } = require('../../config.json');

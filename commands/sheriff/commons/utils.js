@@ -1,6 +1,7 @@
 /**
- * @author F0rd Pr3f3ct
- * A collection of util method uses in several files accross the application.
+ * A collection of util methods used in several files accross the application.
+ * 
+ * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
 exports.dynamicsort = function (property,order) {

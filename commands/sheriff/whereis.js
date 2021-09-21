@@ -1,9 +1,10 @@
 /**
  * /whereis <faction name>
- * The command utilizes the http://elitebgs API endpoint to get the systems a given faciton is present. 
- * It also lists the current influence value
- * @see https://elitebgs.app/api/ebgs/v5/factions
- * @author F0rd Pr3f3ct
+ * The command utilizes a http://elitebgs API endpoint to get the systems a given faciton is present. 
+ * It also lists the current influence value.
+ * 
+ * @see <a href="https://elitebgs.app/api/ebgs/v5/factions">https://elitebgs.app/api/ebgs/v5/factions</a>
+ * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
 const { SlashCommandBuilder } = require('@discordjs/builders');
