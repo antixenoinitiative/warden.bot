@@ -6,6 +6,7 @@
  * @see <a href="https://elitebgs.app/api/ebgs/v5/systems">https://elitebgs.app/api/ebgs/v5/systems</a>
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
+
  const { SlashCommandBuilder } = require("@discordjs/builders");
  const fetch = require("node-fetch");
  const { systemURL, dateFormatPattern } = require("../../config.json");

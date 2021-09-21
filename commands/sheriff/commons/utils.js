@@ -27,6 +27,11 @@ exports.isNoneOrEmpty = function (aString){
     return (!aString || aString.length === 0) ? 'None' : aString;
 }
 
+exports.isNoneOrEmptyArray = function (anArray) {
+    return (!anArray || anArray.length === 0);
+}
+
+
 exports.abbrieviate = function (longName){
     var tokens = longName.split(' ');
     return tokens.map((token) => token[0]).join('');
