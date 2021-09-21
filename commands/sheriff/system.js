@@ -46,7 +46,13 @@
             var updatedAt = doc["updated_at"];
             var state = doc["state"];
             var conflicts = doc["conflicts"];
-            var conflictsFormatted = (!conflicts || conflicts.length === 0) ? "" : "Conflicts: \n" + formatConflicts(conflicts);
+
+            var conflictsFormatted;
+            if(!conflicts || conflicts.length === 0) {
+                conflictsFormatted = ""
+            } else {
+                conflictsFormatted = "Conflicts: \n" + formatConflicts(conflicts);
+            }
 
             var result = "There is *" + state + "* in " + name + ".\n" +
                 "Report time: " + reportTime + "\n" +

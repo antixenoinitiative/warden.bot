@@ -9,22 +9,31 @@ exports.dynamicsort = function (property,order) {
     if(order === "desc"){
         sort_order = -1;
     }
-    return function (a, b){
-        // a should come before b in the sorted order
-        if(a[property] < b[property]){
-                return -1 * sort_order;
-        // a should come after b in the sorted order
-        }else if(a[property] > b[property]){
-                return 1 * sort_order;
+    return function (a, b) {
+        var result;
+        // a should be before b in the sorted order
+        if (a[property] < b[property]) {
+            result = -1 * sort_order;
+        // a should be after b in the sorted order
+        } else if (a[property] > b[property]) {
+            result = sort_order;
         // a and b are the same
-        }else{
-                return 0 * sort_order;
+        } else {
+            result = 0;
         }
+        return result;
     }
 }
 
 exports.isNoneOrEmpty = function (aString){
-    return (!aString || aString.length === 0) ? 'None' : aString;
+    var result
+    if(!aString || aString.length === 0){
+        result = 'None';
+     } else {
+        result = aString;
+     }
+         
+    return result;
 }
 
 exports.isNoneOrEmptyArray = function (anArray) {
@@ -41,12 +50,11 @@ exports.expand = function (abbreviation){
     switch (abbreviation) {
         case 'AXI':
             return "Anti Xeno Initiative";
-            break;
+
         case 'XRG':
-            return "Xeno Research Group"
-            break;
+            return "Xeno Research Group";
+
         default:
             return "Sorry, I do not know the abbreviation '" + abbreviation + "'.";
-            break;
     }
 }
