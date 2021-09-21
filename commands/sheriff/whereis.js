@@ -15,7 +15,7 @@ const utils = require("./commons/utils.js");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName(`whereis`)
-        .setDescription(`Shows the presences adn influence of the faction given by the argument.`)
+        .setDescription(`Shows the presences and influence of a given faction.`)
         .addStringOption(option => option.setName('faction')
             .setDescription(`The faction's name. I understand the abbrieviations "AXI" and "XRG".`)
             .setRequired(true)),
