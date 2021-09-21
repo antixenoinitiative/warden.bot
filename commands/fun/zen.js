@@ -15,4 +15,3 @@ module.exports = {
             .then(quote => interaction.channel.send({ content: quote }));
 	}
 };
-
