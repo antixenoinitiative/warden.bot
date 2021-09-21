@@ -7,28 +7,28 @@
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const { SlashCommandBuilder } = require("@discordjs/builders");
 const fetch = require("node-fetch");
-const { factionURL, dateFormatPattern } = require('../../config.json');
+const { factionURL, dateFormatPattern } = require("../../config.json");
 const moment = require("moment");
 const utils = require("./commons/utils.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName(`whereis`)
-        .setDescription(`Shows the presences and influence of a given faction.`)
-        .addStringOption(option => option.setName('faction')
+        .setName("whereis")
+        .setDescription("Shows the presences and influence of a given faction.")
+        .addStringOption(option => option.setName("faction")
             .setDescription(`The faction's name. I understand the abbrieviations "AXI" and "XRG".`)
             .setRequired(true)),
     permissions: 0,
     execute (interaction) {
-        var factionOption = interaction.options.getString('faction');
+        var factionOption = interaction.options.getString("faction");
         console.log("FactionOption: " + factionOption);
         
-        if(factionOption.toLowerCase() === 'axi') { factionOption = utils.expand('AXI'); }
-        if(factionOption.toLowerCase() === 'xrg') { factionOption = utils.expand('XRG'); }
+        if(factionOption.toLowerCase() === "axi") { factionOption = utils.expand("AXI"); }
+        if(factionOption.toLowerCase() === "xrg") { factionOption = utils.expand("XRG"); }
 
-        var factionName = factionOption.split(' ').join('%20');
+        var factionName = factionOption.split(" ").join("%20");
         var fetchURL = `${factionURL}?name=${factionName}`;
         
         console.log("GET " + fetchURL);
