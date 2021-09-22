@@ -103,8 +103,8 @@ function formatConflicts(conflicts){
             f1Name + "(" + f1NameShort + ") vs " +
             f2Name + "(" + f2NameShort + "): " + f1DaysWon + " - " + f2DaysWon + "\n" +
             "Stakes: " + 
-            f1NameShort + ":" + utils.isNoneOrEmpty(f1stake) + ", " +
-            f2NameShort + ":" + utils.isNoneOrEmpty(f2stake) + "\n";
+            f1NameShort + ":" + utils.renderNoneIfEmpty(f1stake) + ", " +
+            f2NameShort + ":" + utils.renderNoneIfEmpty(f2stake) + "\n";
     });
     return result;
 }

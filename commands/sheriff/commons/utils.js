@@ -3,6 +3,7 @@
  * 
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
+const utils = require("./utils.js");
 
 exports.dynamicsort = function (property,order) {
     var sort_order = 1;
@@ -25,15 +26,18 @@ exports.dynamicsort = function (property,order) {
     }
 }
 
-exports.isNoneOrEmpty = function (aString){
-    var result
-    if(!aString || aString.length === 0){
-        result = 'None';
-     } else {
+exports.renderNoneIfEmpty = function(aString) {
+    var result;
+    if (utils.isNoneOrEmpty(aString)) {
+        result = "None";
+    } else {
         result = aString;
-     }
-         
+    }
     return result;
+}
+
+exports.isNoneOrEmpty = function (aString){
+    return (!aString || aString.length === 0);
 }
 
 exports.isNoneOrEmptyArray = function (anArray) {
