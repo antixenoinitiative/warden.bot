@@ -43,7 +43,7 @@ function generateReport() {
         var systemsInvadedByThargoids = "";
         docs.forEach(doc => {
             var systemName = doc["name"];
-            systemsInvadedByThargoids += systemName + ` (Population: ${doc["population"]}, Allegiance: ${doc["allegiance"]}\n`;
+            systemsInvadedByThargoids += systemName + ` (Population: ${doc["population"]}, Allegiance: ${doc["allegiance"]})\n`;
         });
         report.body = systemsInvadedByThargoids;
                 
@@ -54,6 +54,8 @@ function generateReport() {
 
 /*
 var testDataEmpty = { "docs": [] };
+*/
+/*
 var testData = {
     "docs": [
         {
