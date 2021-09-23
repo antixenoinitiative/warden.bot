@@ -7,7 +7,7 @@ module.exports = {
 	.setName('wiki')
 	.setDescription('Search the AXI Wiki')
 	.addStringOption(option => option.setName('term')
-		.setDescription('Serch terms')
+		.setDescription('Search terms')
 		.setRequired(true)),
 	permissions: 0,
 	execute(interaction) {
