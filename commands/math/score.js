@@ -563,24 +563,19 @@ module.exports = {
         // Calculations
         let roundPenaltyTotal = 0;
         if (shot_damage_fired > accuracy_required) { roundPenaltyTotal = (shot_damage_fired - accuracy_required)/accuracy_required * roundPenalty }
-        console.log("Ammo Used Penalty:" + roundPenaltyTotal)
 
         // Factor of -0.108 was obtained by matching penalties from old system with a 30m medium run to new system, as follows
         // (1800 - 720) * -0.025 = 27; Old system
         // 1800/720 * 100x = 27 --> x = 27 * 720 / 1800 / 100 -> x = 0.108; New system
         let timePenaltyTotal = 0;
         if (args.time_in_seconds > myrmThreshold) { timePenaltyTotal = (myrm_factor) * 10.8 }
-        console.log("Time Taken Penalty:" + timePenaltyTotal)
 
         let vangPenaltyTotal = 0;
         if (vanguardScore > 40) { vangPenaltyTotal = (vanguardScore - 40) * vanguardOver40Penalty }
-        console.log("Vanguard Score Penalty:" + vangPenaltyTotal)
 
         let hullPenaltyTotal = args.percenthulllost * hullPenalty
-        console.log("Hull Penalty:" + hullPenaltyTotal)
 
         let penaltyTotal = ammoPenalty + timePenaltyTotal + roundPenaltyTotal + vangPenaltyTotal + hullPenaltyTotal
-        console.log("Penalty Total:" + penaltyTotal)
 
         let finalScore = targetRun - penaltyTotal
         
