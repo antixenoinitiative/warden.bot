@@ -97,6 +97,7 @@ module.exports = {
                     leaderboardResults.push({ score: entry.score, text: string})
                 }
                 leaderboardResults.sort(dynamicSort("score"))
+                leaderboardResults = leaderboardResults.reverse();
             break;
         }
 
