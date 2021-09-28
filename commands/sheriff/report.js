@@ -45,7 +45,7 @@ module.exports = {
         interaction.deferReply();
         
         var systemDetails = "true"; // adds systemdetail (controlling_minor_faction, other factions, conflits )
-        buildReport(faction, systemDetails)
+        buildReport(interaction, faction, systemDetails)
         .then(report => {
             if(templateOption) {
                 sendAsTemplate(interaction, report);
@@ -104,7 +104,7 @@ async function sendAsMultiMessage(interaction, report){
         }
 }
 
-async function buildReport(faction, systemDetails) {
+async function buildReport(message, faction, systemDetails) {
     //vor 48h: moment().subtract(48, 'hours').valueOf() = 1618941697832
     //https://elitebgs.app/api/ebgs/v5/ticks?timeMin=1618941697832
     //https://elitebgs.app/api/ebgs/v5/factions?name=Anti Xeno Initiative&timeMin=1619022540000
@@ -140,8 +140,8 @@ async function buildReport(faction, systemDetails) {
     var otherSystems = (presences.filter(presence => !controlledSystems.includes(presence))).sort(utils.dynamicsort("system_name"));
     var history = doc["history"];
 
-    var controlledSystemsView = await reportFactionPresences("**Controlled Systems:**\n", tickCurrent, controlledSystems, history); 
-    var otherSystemsView = await reportFactionPresences("**Other Systems:**\n", tickCurrent, otherSystems, history);
+    var controlledSystemsView = await reportFactionPresences(message, tickCurrent, controlledSystems, history); 
+    var otherSystemsView = await reportFactionPresences(message, tickCurrent, otherSystems, history);
 
     var report = {
         header : ":star: ***Deputy Sheriff Report " + reportTime + "*** :star:\n" +
@@ -165,20 +165,20 @@ function filterControlledSystems(presences, factionName){
     return results;
 }
 
-async function reportFactionPresences(heading, tick, presences, history) {
+async function reportFactionPresences(message, tick, presences, history) {
     var results = "";
     for (const presence of presences) {
-        results += await reportFactionPresence(tick, presence, history) + "\n";
+        results += await reportFactionPresence(message, tick, presence, history) + "\n";
     }
     if(results.length > 10 ) {
-        results = heading + results;
+        results = "**Controlled Systems:**\n" + results;
     } else {
         results = null;
     }
     return results;
 }
 
-async function reportFactionPresence(tick, presence, history) {
+async function reportFactionPresence(message, tick, presence, history) {
     var result = "";
     var separator = " / ";
     
@@ -194,7 +194,7 @@ async function reportFactionPresence(tick, presence, history) {
     var inf = (infRaw * 100).toFixed(2);
     var infDeltaValue = (calculateFactionInfluenceDelta(presence, history) * 100).toFixed(2);
     var infDelta = (infDeltaValue > 0 ) ? "+"+infDeltaValue : infDeltaValue;
-    var infTrend = formatInfluenceTrend(infDeltaValue);
+    var infTrend = formatInfluenceTrend(message, infDeltaValue);
     var influenceView = "Inf: " + inf + " % " + infTrend + " " + infDelta + " % ";/*(raw: " + infRaw + ")"*/
 
     var securityView = "";
@@ -334,7 +334,7 @@ function formatConflict(conflict){
     return result;
 }
 
-function formatInfluenceTrend(infDeltaValue){
+function formatInfluenceTrend(message, infDeltaValue){
     var result = "";
     
     var inf_e = "≈";
