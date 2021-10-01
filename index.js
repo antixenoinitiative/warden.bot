@@ -2,7 +2,6 @@ require("dotenv").config();
 const { deployCommands } = require('./deploy-commands'); // Re-register slash commands
 const { readdirSync } = require('fs');
 const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
-const event = require('./interaction/event.js');
 const { leaderboardInteraction } = require('./interaction/submission.js');
 const { prefix, icon, securityGroups } = require('./config.json');
 
@@ -167,17 +166,6 @@ bot.on('interactionCreate', async interaction => {
 	}
 
 	if (interaction.isButton()) {
-		if (interaction.customId.startsWith("event")) {
-			interaction.deferUpdate();
-			let response = interaction.customId.split("-");
-			if (response[2] === "enroll") {
-				event.joinEvent(interaction, response[1])
-			}
-			if (response[2] === "leave") {
-				event.leaveEvent(interaction, response[1])
-			}
-			return;
-		}
 		if (interaction.customId.startsWith("submission")) {
 			interaction.deferUpdate();
 			leaderboardInteraction(interaction);
