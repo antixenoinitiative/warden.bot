@@ -147,7 +147,11 @@ bot.on('interactionCreate', async interaction => {
 		if (!command) return;
 		let args;
 		if (interaction.options !== undefined) {
-			args = JSON.stringify(interaction.options.data)
+			try {
+				args = JSON.stringify(interaction.options.data)
+			} catch (err) {
+				console.warn(`WARNING: Unable to create arguments for legacy commands, this may not affect modern slash commands: ${err}`)
+			}
 		}
 		if (command.permissions != 0) {
 			if (checkPermissions(command, interaction) === false) { 
@@ -157,7 +161,6 @@ bot.on('interactionCreate', async interaction => {
 		}
 		try {
 			await command.execute(interaction, args);
-			
 			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
 		} catch (error) {
 			console.error(error);
