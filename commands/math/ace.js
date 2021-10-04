@@ -643,7 +643,13 @@ module.exports = {
             .addFields(
             {name: "Pilot", value: `<@${userID}>`, inline: true},
             {name: "Score", value: `${finalScore.toFixed(2)}`, inline: true},
-            {name: "link", value: `${args.link}`, inline: true})
+            {name: "link", value: `${args.link}`, inline: true},
+            {name: "Time(sec)", value: `${args.time_in_seconds}`, inline: true},
+            {name: "Medium Gauss Modules", value: `${args.gauss_medium_number}`, inline: true},
+            {name: "Small Gauss Modules", value: `${args.gauss_small_number}`, inline: true},
+            {name: "Medium Gauss Fired", value: `${args.shots_medium_fired}`, inline: true},
+            {name: "Small Gauss Fired", value: `${args.shots_small_fired}`, inline: true},
+            {name: "Hull % Lost", value: `${args.percenthulllost}`, inline: true})
             const row = new Discord.MessageActionRow()
             .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
             .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)
