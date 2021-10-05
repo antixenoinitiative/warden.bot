@@ -28,9 +28,11 @@ module.exports = {
         }
         console.log(args)
         try
-        {
-            if(interaction.mentions.roles.length != undefined || interaction.mentions.members.length != undefined)
+        {   
+            if (interaction.mentions !== undefined) {
+                if(interaction.mentions.roles.length != undefined || interaction.mentions.members.length != undefined)
                 throw("Illegal input detected!")
+            }
             let inputMode = interaction.options.data.find(arg => arg.name === 'mode').value
             let roles = []
             let count = 0
