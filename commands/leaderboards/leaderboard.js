@@ -104,7 +104,9 @@ module.exports = {
         let leaderboardString = "";
         let position = 1
         for (let result of leaderboardResults) {
-            if (position <= 10) {result.text += ` <:Ace:893332550536286228>`}
+            if (args.leaderboard === "ace") {
+                if (position <= 10) {result.text += ` <:Ace:893332550536286228>`}
+            }
             leaderboardString += `**#${position}** ${result.text}\n`
             position++
         }
