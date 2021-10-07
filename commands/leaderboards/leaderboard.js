@@ -82,7 +82,7 @@ module.exports = {
                 leaderboardResults.sort(dynamicSort("time"))
             break;
             case ("ace"):
-                embedDescription = `Ace results`
+                embedDescription = `**Ace Leaderboard Results** (Top 10 recieve the <@&650449319262158868> Role)`
                 res = await queryWarden(`SELECT * FROM ace WHERE approval = true`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
