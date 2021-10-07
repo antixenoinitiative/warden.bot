@@ -101,27 +101,22 @@ module.exports = {
             break;
         }
 
-        //let leaderboardString = "";
+        let leaderboardString = "";
         let position = 1
-        /*for (let result of leaderboardResults) {
+        for (let result of leaderboardResults) {
             if (args.leaderboard === "ace") {
                 if (position <= 10) {result.text += ` <:Ace:893332550536286228>`}
             }
             leaderboardString += `**#${position}** ${result.text}\n`
             position++
-        }*/
+        }
 
         const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle(`**${leaderboardNameCaps} Leaderboard**`)
-        .setDescription(embedDescription)
+        .setDescription(`${embedDescription}\n${leaderboardString}`)
         //.addField(`Leaderboard`, `${leaderboardString}`)
-
-        for (let result of leaderboardResults) {
-            returnEmbed.addField(`**#${position}**`,`${result.text}`)
-            position++
-        }
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
     }
 }
