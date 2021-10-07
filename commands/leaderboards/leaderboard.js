@@ -115,7 +115,7 @@ module.exports = {
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle(`**${leaderboardNameCaps} Leaderboard**`)
-        .setDescription(`${embedDescription}\n${leaderboardString}`)
+        .setDescription(`${embedDescription}\n\n${leaderboardString}`)
         //.addField(`Leaderboard`, `${leaderboardString}`)
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
     }
