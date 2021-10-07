@@ -1,4 +1,3 @@
-//const { cleanString } = require("../discord/cleanString")
 module.exports = {
       /**
      * Function takes a input string and returns the closest matching Server Role ID
