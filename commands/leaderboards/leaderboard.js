@@ -46,7 +46,7 @@ module.exports = {
         .setDescription('Ace Leaderboard')
         .addBooleanOption(option => option.setName('links')
             .setDescription('show links')
-            .setRequired(false))),
+            .setRequired(true))),
 	permissions: 0,
 	async execute(interaction) {
         let args = []
@@ -59,7 +59,6 @@ module.exports = {
         for (let key of interaction.options.data[0].options) {
             args[key.name] = key.value
         }
-        if (args.links === undefined) { console.log("nolinks") }
 
         switch (args.leaderboard) {
             case ("speedruns"):
