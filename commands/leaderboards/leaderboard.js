@@ -59,7 +59,6 @@ module.exports = {
         for (let key of interaction.options.data[0].options) {
             args[key.name] = key.value
         }
-        if (args.links === undefined) {args.links = false}
 
         switch (args.leaderboard) {
             case ("speedruns"):
