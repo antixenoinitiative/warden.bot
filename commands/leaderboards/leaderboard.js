@@ -49,7 +49,7 @@ module.exports = {
             .setRequired(true)
             .addChoice('Chieftain', 'chieftain')
             .addChoice('Challenger', 'challenger')
-            .addChoice('Krait MkII', 'kraitmk2'))
+            .addChoice('Krait MkII', 'kraitmk2')
             .addChoice('Fer-de-Lance', 'fdl'))
         .addBooleanOption(option => option.setName('links')
             .setDescription('show links')
