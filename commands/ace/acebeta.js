@@ -102,7 +102,7 @@ module.exports = {
                 result = Score.challenger(args)
                 break;
             case "kraitmk2":
-                result = Score.challenger(args)
+                result = Score.kraitmk2(args)
                 break;
         }
 
