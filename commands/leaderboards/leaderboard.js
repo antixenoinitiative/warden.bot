@@ -44,9 +44,15 @@ module.exports = {
     .addSubcommand(subcommand => subcommand
         .setName('ace')
         .setDescription('Ace Leaderboard')
+        .addStringOption(option => option.setName('shiptype')
+            .setDescription('Ship Type')
+            .setRequired(true)
+            .addChoice('Chieftain', 'chieftain')
+            .addChoice('Challenger', 'challenger')
+            .addChoice('Krait MkII', 'kraitmk2'))
         .addBooleanOption(option => option.setName('links')
             .setDescription('show links')
-            .setRequired(true))),
+            .setRequired(false))),
 	permissions: 0,
 	async execute(interaction) {
         let args = []
@@ -59,6 +65,8 @@ module.exports = {
         for (let key of interaction.options.data[0].options) {
             args[key.name] = key.value
         }
+
+        if (args.links === undefined) { args.links = false }
 
         switch (args.leaderboard) {
             case ("speedruns"):
@@ -82,8 +90,8 @@ module.exports = {
                 leaderboardResults.sort(dynamicSort("time"))
             break;
             case ("ace"):
-                embedDescription = `**Ace Leaderboard Results** (Top 10 recieve the <@&650449319262158868> Role)`
-                res = await queryWarden(`SELECT * FROM ace WHERE approval = true`)
+                embedDescription = `**Ace Leaderboard Results** (Top 10 recieve the <@&650449319262158868> Role) for ${args.shiptype}`
+                res = await queryWarden(`SELECT * FROM ace WHERE approval = true AND shiptype = '${args.shiptype}'`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
                     return
