@@ -42,7 +42,7 @@ let options = new SlashCommandBuilder()
 .addStringOption(option => option.setName('submit')
     .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
     .setRequired(false))
-.addBooleanOption(option => option.setName('print_breakdown')
+.addBooleanOption(option => option.setName('print_score_breakdown')
     .setDescription('Print a score breakdown, in addition to the overall score')
     .setRequired(false))
 .addBooleanOption(option => option.setName('scorelegend')
@@ -102,7 +102,7 @@ module.exports = {
                 result = Score.challenger(args)
                 break;
             case "kraitmk2":
-                result = Score.challenger(args)
+                result = Score.kraitmk2(args)
                 break;
         }
 
