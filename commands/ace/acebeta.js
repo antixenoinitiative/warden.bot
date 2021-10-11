@@ -15,6 +15,8 @@ let options = new SlashCommandBuilder()
     .setDescription('Ship you used - Ace challenge requires an Alliance Chieftain')
     .setRequired(true)
     .addChoice('Alliance Chieftain', 'chieftain'))
+    .addChoice('Alliance Challenger', 'challenger'))
+    .addChoice('Krait Mk2', 'kraitmk2'))
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Number of MEDIUM gauss cannons outfitted')
     .setRequired(true))
@@ -96,8 +98,11 @@ module.exports = {
             case "chieftain":
                 result = Score.chieftain(args)
                 break;
-            case "hauler":
-                result = Score.hauler(args)
+            case "challenger":
+                result = Score.challenger(args)
+                break;
+            case "kraitmk2":
+                result = Score.challenger(args)
                 break;
         }
 
@@ -106,7 +111,7 @@ module.exports = {
         
         // Print Results
 
-        let outputString = `**__Thank you for submitting a New Ace score request!__**
+        let outputString = `**__Thank you for requesting a New Ace score calculation!__**
 
         This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
         
@@ -141,7 +146,8 @@ module.exports = {
                 *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
                 *- A collector-level CMDR will typically score about 25-45 pts;*
                 *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
-                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*`
+                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*
+                *- Please note that scores of different ships cannot be compared with each other!*`
         }
 
         const returnEmbed = new Discord.MessageEmbed()
