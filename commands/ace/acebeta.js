@@ -1,0 +1,163 @@
+/* eslint-disable no-bitwise */
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { calculateThreshold } = require('./commons/damageThreshold');
+const { testInputs } = require('./commons/testInput');
+const { getChart } = require('./commons/getChart');
+const { submitResult } = require('./commons/submit');
+const Score = require('./commons/scoring');
+const Discord = require("discord.js");
+// const shipData = require("./calc/shipdata.json")
+
+let options = new SlashCommandBuilder()
+.setName('ace-beta')
+.setDescription('Score your fight based on the revised Ace Scoring System')
+.addStringOption(option => option.setName('shiptype')
+    .setDescription('Ship you used - Ace challenge requires an Alliance Chieftain')
+    .setRequired(true)
+    .addChoice('Alliance Chieftain', 'chieftain'))
+.addIntegerOption(option => option.setName('gauss_medium_number')
+    .setDescription('Number of MEDIUM gauss cannons outfitted')
+    .setRequired(true))
+.addIntegerOption(option => option.setName('shots_medium_fired')
+    .setDescription('Total number of MEDIUM gauss ammo rounds fired')
+    .setRequired(true))
+.addIntegerOption(option => option.setName('gauss_small_number')
+    .setDescription('Number of SMALL gauss cannons outfitted')
+    .setRequired(true))
+.addIntegerOption(option => option.setName('shots_small_fired')
+    .setDescription('Total number of SMALL gauss ammo rounds fired')
+    .setRequired(true))
+.addStringOption(option => option.setName('ammo')
+    .setDescription('Ammo type used - Ace challenge requires that you use basic ammo')
+    .setRequired(true)
+    .addChoice('Basic', 'basic'))
+.addIntegerOption(option => option.setName('time_in_seconds')
+    .setDescription('Time taken in Seconds')
+    .setRequired(true))
+.addIntegerOption(option => option.setName('percenthulllost')
+    .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
+    .setRequired(true))
+.addStringOption(option => option.setName('submit')
+    .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
+    .setRequired(false))
+.addBooleanOption(option => option.setName('print_breakdown')
+    .setDescription('Print a score breakdown, in addition to the overall score')
+    .setRequired(false))
+.addBooleanOption(option => option.setName('scorelegend')
+    .setDescription('Print a description of how to interpret a score')
+    .setRequired(false))
+module.exports = {
+    data: options,
+	permissions: 0,
+    async execute(interaction) {
+
+        // Arg Handling
+        let args = {}
+        for (let key of interaction.options.data) {
+            args[key.name] = key.value
+        }
+
+        // Set Globals
+        args.targetRun = 100;
+
+        // Set Defaults
+        if (args.scorelegend === undefined) { args.scorelegend = false }
+        if (args.print_score_breakdown === undefined) { args.print_score_breakdown = false }
+
+        // Test Inputs
+        let testPassed = testInputs(args, interaction)
+        if (testPassed != true) {
+            interaction.reply(testPassed)
+            return
+        }
+
+        // Calculate Damage Threshold
+        let damageThreshold = calculateThreshold(args);
+        args.damage_threshold = damageThreshold
+
+        // Medium gauss does 28.28 damage on a Dusa, small gauss does 16.16 per round
+        let shot_damage_fired = args.shots_medium_fired * 28.28 + args.shots_small_fired * 16.16;
+        args.shot_damage_fired = shot_damage_fired
+
+        // Avoid funnies with >100% accuracy fake submissions
+        // Allow funnies if Aran is involved
+        if (shot_damage_fired.toFixed(2) < damageThreshold) {
+            if(interaction.member.id === "346415786505666560"){ // 346415786505666560 - Aran
+                interaction.reply(`Thank you ${interaction.member} for breaking my accuracy calculations again! Please let me know where I have failed, and I will fix it - CMDR Mechan`);
+            } else {
+                interaction.reply(`Comrade ${interaction.member} ... It appears your entry results (${shot_damage_fired}) vs (${damageThreshold}) in greater than 100% accuracy. Unfortunately [PC] CMDR Aranionros Stormrage is the only one allowed to achieve >100% accuracy. Since you are not [PC] CMDR Aranionros Stormrage, please check your inputs and try again.`);
+            }
+            return(-1);
+        }
+
+        // Calculate Score
+        let result;
+        switch(args.shiptype) {
+            case "chieftain":
+                result = Score.chieftain(args)
+                break;
+            case "hauler":
+                result = Score.hauler(args)
+                break;
+        }
+
+        // Create Chart
+        let url = getChart(result)
+        
+        // Print Results
+
+        let outputString = `**__Thank you for submitting a New Ace score request!__**
+
+        This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
+        
+        With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damageThreshold.toFixed(0)}hp.
+        
+        ${interaction.member}'s use of ${shot_damage_fired.toFixed(0)}hp damage-of-shots-fired (${args.shots_medium_fired.toFixed(0)} medium rounds @ 28.28hp each and ${args.shots_small_fired.toFixed(0)} small rounds @ 16.16hp each) represents a **__${((damageThreshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** ammo usage efficiency.\n`
+
+        if (args.shots_medium_fired === 0 && args.gauss_medium_number > 0) {
+                outputString += `\n\n**__WARNING__**: It appears you have medium gauss outfitted, but no medium gauss shots fired. Please make sure this is intended.`
+        }
+
+        if (args.shots_small_fired === 0 && args.gauss_small_number > 0) {
+            outputString += `\n\n**__WARNING__**: It appears you have small gauss outfitted, but no small gauss shots fired. Please make sure this is intended.`
+        }
+            
+        if(args.print_score_breakdown == true) {
+                outputString += `---
+                    **Base Score:** ${result.targetRun} Ace points
+                    ---
+                    **Time Taken Penalty:** ${(result.timePenalty/3).toFixed(2)} Ace points
+                    **Ammo Used Penalty:** ${(result.ammoPenalty/3).toFixed(2)} Ace points
+                    **Damage Taken Penalty:** ${(result.damagePenalty/3).toFixed(2)} Ace points
+                    ---`
+        }
+
+        outputString += `\n**Your Fight Score:** **__${result.score.toFixed(2)}__** Ace points.`
+        
+        if(args.scorelegend == true) {
+            outputString += `
+                ---
+                *Interpret as follows:*
+                *- CMDRs at their first Medusa fight will typically score 0-10 pts (and will occasionally score well into the negative for fights that go sideways);*
+                *- A collector-level CMDR will typically score about 25-45 pts;*
+                *- A Herculean Conqueror / early-challenge-rank CMDR will typically score about 45-65 (on a good run);* 
+                *- An advanced challenge-level CMDR will typically score about 65-85 (on a good run);*`
+        }
+
+        const returnEmbed = new Discord.MessageEmbed()
+        .setColor('#FF7100')
+        .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
+        .setTitle("**Ace Score Calculation**")
+        .setDescription(`${outputString}`)
+        .setImage(url)
+
+        const buttonRow = new Discord.MessageActionRow()
+        .addComponents(new Discord.MessageButton().setLabel('Learn more about the Ace Score Calculator').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/Ace-Rank-Rework'),)
+
+        interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
+
+        if (args.submit !== undefined) {
+            submitResult(args, result, interaction)
+        }
+    }
+}
