@@ -49,7 +49,8 @@ module.exports = {
             .setRequired(true)
             .addChoice('Chieftain', 'chieftain')
             .addChoice('Challenger', 'challenger')
-            .addChoice('Krait MkII', 'kraitmk2'))
+            .addChoice('Krait MkII', 'kraitmk2')
+            .addChoice('Fer-de-Lance', 'fdl'))
         .addBooleanOption(option => option.setName('links')
             .setDescription('show links')
             .setRequired(false))),
@@ -90,7 +91,7 @@ module.exports = {
                 leaderboardResults.sort(dynamicSort("time"))
             break;
             case ("ace"):
-                embedDescription = `**Ace Leaderboard Results** (Top 10 recieve the <@&650449319262158868> Role) for ${args.shiptype}`
+                embedDescription = `**Ace Leaderboard Results for ${args.shiptype}** (Top10 Chieftain CMDRs receives the <@&650449319262158868> Role)`
                 res = await queryWarden(`SELECT * FROM ace WHERE approval = true AND shiptype = '${args.shiptype}'`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
@@ -112,9 +113,12 @@ module.exports = {
         let leaderboardString = "";
         let position = 1
         for (let result of leaderboardResults) {
-            if (args.leaderboard === "ace") {
+            if (args.leaderboard === "ace" && args.shiptype === "chieftain") {
                 if (position <= 10) {result.text += ` <:Ace:893332550536286228>`}
             }
+            //if (args.leaderboard === "ace" && args.shiptype !== "chieftain") {
+            //    if (position <= 1) {result.text += ` <:Ace:893332550536286228>`}
+            //}
             leaderboardString += `**#${position}** ${result.text}\n`
             position++
         }

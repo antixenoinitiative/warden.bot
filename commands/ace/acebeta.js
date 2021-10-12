@@ -16,6 +16,7 @@ let options = new SlashCommandBuilder()
     .setRequired(true)
     .addChoice('Alliance Chieftain', 'chieftain')
     .addChoice('Alliance Challenger', 'challenger')
+    .addChoice('Fer-de-Lance', 'fdl')
     .addChoice('Krait Mk2', 'kraitmk2'))
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Number of MEDIUM gauss cannons outfitted')
@@ -39,14 +40,14 @@ let options = new SlashCommandBuilder()
 .addIntegerOption(option => option.setName('percenthulllost')
     .setDescription('Total percentage of hull lost in fight (incl. repaired with limpets)')
     .setRequired(true))
-.addStringOption(option => option.setName('submit')
-    .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
-    .setRequired(false))
 .addBooleanOption(option => option.setName('print_score_breakdown')
     .setDescription('Print a score breakdown, in addition to the overall score')
     .setRequired(false))
 .addBooleanOption(option => option.setName('scorelegend')
     .setDescription('Print a description of how to interpret a score')
+    .setRequired(false))
+.addStringOption(option => option.setName('submit_url')
+    .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
     .setRequired(false))
 module.exports = {
     data: options,
@@ -94,15 +95,24 @@ module.exports = {
 
         // Calculate Score
         let result;
+        let goidType;
+        let targetRun = 100;
         switch(args.shiptype) {
             case "chieftain":
-                result = Score.chieftain(args)
+                result = Score.medium_standard(args)
+                goidType = "Medusa";
                 break;
             case "challenger":
-                result = Score.challenger(args)
+                result = Score.medium_standard(args)
+                goidType = "Medusa";
                 break;
             case "kraitmk2":
-                result = Score.kraitmk2(args)
+                result = Score.medium_standard(args)
+                goidType = "Medusa";
+                break;
+            case "fdl":
+                result = Score.medium_standard(args)
+                goidType = "Medusa";
                 break;
         }
 
@@ -113,7 +123,7 @@ module.exports = {
 
         let outputString = `**__Thank you for requesting a New Ace score calculation!__**
 
-        This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${args.goid}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
+        This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${goidType}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
         
         With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damageThreshold.toFixed(0)}hp.
         
@@ -129,7 +139,7 @@ module.exports = {
             
         if(args.print_score_breakdown == true) {
                 outputString += `---
-                    **Base Score:** ${result.targetRun} Ace points
+                    **Base Score:** ${targetRun} Ace points
                     ---
                     **Time Taken Penalty:** ${(result.timePenalty/3).toFixed(2)} Ace points
                     **Ammo Used Penalty:** ${(result.ammoPenalty/3).toFixed(2)} Ace points
@@ -162,8 +172,10 @@ module.exports = {
 
         interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
 
-        if (args.submit !== undefined) {
+        console.log(args.submit_url);
+        if (args.submit_url !== undefined) {
             submitResult(args, result, interaction)
+            console.log("Submission triggered");
         }
     }
 }
