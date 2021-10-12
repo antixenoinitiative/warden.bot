@@ -46,7 +46,7 @@ let options = new SlashCommandBuilder()
 .addBooleanOption(option => option.setName('scorelegend')
     .setDescription('Print a description of how to interpret a score')
     .setRequired(false))
-.addStringOption(option => option.setName('submit(URL)')
+.addStringOption(option => option.setName('submit_url')
     .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
     .setRequired(false))
 module.exports = {
@@ -172,7 +172,7 @@ module.exports = {
 
         interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
 
-        if (args.submit !== undefined) {
+        if (args.submit_url !== undefined) {
             submitResult(args, result, interaction)
         }
     }
