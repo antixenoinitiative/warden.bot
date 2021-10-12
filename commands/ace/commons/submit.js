@@ -10,6 +10,7 @@ module.exports = {
         let res;
 
         // Checks
+        console.log(staffChannel);
         if (!args.submit.startsWith('https://')) { return interaction.followUp({ content: `❌ Please enter a valid URL, eg: https://...` }) }
 
         // Submit
