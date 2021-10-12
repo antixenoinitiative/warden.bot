@@ -600,7 +600,7 @@ module.exports = {
             }
 
             try {
-                res = await queryWarden("INSERT INTO ace(user_id, name, timetaken, mgauss, sgauss, mgaussfired, sgaussfired, percenthulllost,score, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", [
+                res = await queryWarden("INSERT INTO ace(user_id, name, timetaken, mgauss, sgauss, mgaussfired, sgaussfired, percenthulllost,score, link, approval, date, shiptype) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", [
                     userID,
                     name,
                     args.time_in_seconds,
@@ -612,7 +612,8 @@ module.exports = {
                     finalScore.toFixed(2),
                     args.link,
                     false,
-                    timestamp
+                    timestamp,
+                    args.shiptype
                 ])
             } catch (err) {
                 console.log(err)
