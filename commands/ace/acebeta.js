@@ -174,6 +174,7 @@ module.exports = {
 
         if (args.submit_url !== undefined) {
             submitResult(args, result, interaction)
+            console.log("Submission triggered");
         }
     }
 }
