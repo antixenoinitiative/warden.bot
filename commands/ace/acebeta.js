@@ -172,6 +172,7 @@ module.exports = {
 
         interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
 
+        console.log(args.submit_url);
         if (args.submit_url !== undefined) {
             submitResult(args, result, interaction)
             console.log("Submission triggered");
