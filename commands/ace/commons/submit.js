@@ -11,7 +11,7 @@ module.exports = {
 
         // Checks
         console.log(staffChannel);
-        if (!args.submit.startsWith('https://')) { return interaction.followUp({ content: `❌ Please enter a valid URL, eg: https://...` }) }
+        if (!args.submit_url.startsWith('https://')) { return interaction.followUp({ content: `❌ Please enter a valid URL, eg: https://...` }) }
 
         // Submit
         if(interaction.guild.channels.cache.get(staffChannel) === undefined)  { // Check for staff channel
@@ -44,7 +44,7 @@ module.exports = {
                 args.shots_small_fired,
                 args.percenthulllost,
                 result.score.toFixed(2),
-                args.submit,
+                args.submit_url,
                 false,
                 timestamp,
                 args.shiptype
@@ -67,7 +67,7 @@ module.exports = {
         {name: "Pilot", value: `<@${userID}>`, inline: true},
         {name: "Ship", value: `${args.shiptype}`, inline: true},
         {name: "Score", value: `${result.score.toFixed(2)}`, inline: true},
-        {name: "link", value: `${args.submit}`, inline: true})
+        {name: "link", value: `${args.submit_url}`, inline: true})
         interaction.followUp({ embeds: [returnEmbed.setTimestamp()] });
 
         // Create staff interaction
@@ -80,7 +80,7 @@ module.exports = {
         {name: "Pilot", value: `<@${userID}>`, inline: true},
         {name: "Pilot", value: `${args.shiptype}`, inline: true},
         {name: "Score", value: `${result.score.toFixed(2)}`, inline: true},
-        {name: "link", value: `${args.submit}`, inline: true},
+        {name: "link", value: `${args.submit_url}`, inline: true},
         {name: "Time(sec)", value: `${args.time_in_seconds}`, inline: true},
         {name: "Medium Gauss Modules", value: `${args.gauss_medium_number}`, inline: true},
         {name: "Small Gauss Modules", value: `${args.gauss_small_number}`, inline: true},
