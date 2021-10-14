@@ -106,7 +106,7 @@ module.exports = {
                         shipName = "Krait Mk.II"
                         break;
                 }
-                embedDescription = `Ace Leaderboard Results for **${shipName}** (Top10 Chieftain CMDRs receives the <@&650449319262158868> Role)`
+                embedDescription = `Ace Leaderboard Results for **${shipName}** (Top #10 CMDRs receives the <@&650449319262158868> Role)`
                 res = await queryWarden(`SELECT * FROM ace WHERE approval = true AND shiptype = '${args.shiptype}'`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
