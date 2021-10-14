@@ -61,6 +61,7 @@ module.exports = {
         let leaderboardResults = [] // Must become a SORTED array of objects with { text: <information> } as a property
         let leaderboardNameCaps
         let embedDescription = ""
+        let shipName;
         args["leaderboard"] = interaction.options.data[0].name
         leaderboardNameCaps = args.leaderboard.charAt(0).toUpperCase() + args.leaderboard.slice(1)
         for (let key of interaction.options.data[0].options) {
@@ -91,7 +92,21 @@ module.exports = {
                 leaderboardResults.sort(dynamicSort("time"))
             break;
             case ("ace"):
-                embedDescription = `**Ace Leaderboard Results for ${args.shiptype}** (Top10 Chieftain CMDRs receives the <@&650449319262158868> Role)`
+                switch (args.shiptype) {
+                    case "fdl":
+                        shipName = "Fer-De-Lance"
+                        break;
+                    case "chieftain":
+                        shipName = "Alliance Chieftain"
+                        break;
+                    case "challenger":
+                        shipName = "Alliance Challenger"
+                        break;
+                    case "kraitmk2":
+                        shipName = "Krait Mk.II"
+                        break;
+                }
+                embedDescription = `Ace Leaderboard Results for **${shipName}** (Top10 Chieftain CMDRs receives the <@&650449319262158868> Role)`
                 res = await queryWarden(`SELECT * FROM ace WHERE approval = true AND shiptype = '${args.shiptype}'`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
