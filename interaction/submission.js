@@ -17,10 +17,11 @@ module.exports = {
         }
         if (eventType === "approve") {
             if (leaderboard === "ace") { // Overwrite existing ace score
-                let res = await db.queryWarden("SELECT user_id FROM ace WHERE id = $1", [submissionId])
+                let res = await db.queryWarden("SELECT * FROM ace WHERE id = $1", [submissionId])
                 if (res.rowCount != 0) {
                     let userID = res.rows[0].user_id;
-                    await db.queryWarden(`DELETE FROM ace WHERE user_id = $1 AND approval = true AND id != $2`, [userID, submissionId])
+                    let ship = res.rows[0].shiptype;
+                    await db.queryWarden(`DELETE FROM ace WHERE user_id = $1 AND approval = true AND id != $2 AND shiptype = $3`, [userID, submissionId, ship])
                 }
             }
             try {
