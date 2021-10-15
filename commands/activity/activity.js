@@ -94,7 +94,7 @@ module.exports = {
             .addIntegerOption(option => option.setName('record_id')
                 .setDescription('ID of the Record to Delete')
                 .setRequired(true))),
-	permissions: 1,
+	permissions: 0,
 	async execute(interaction) {
         let args = {}
         let action = interaction.options.data[0].name
