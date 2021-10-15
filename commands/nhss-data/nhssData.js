@@ -1,6 +1,32 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
 const { queryWarden } = require("../../db/index");
+const fetch = require('node-fetch')
+
+const downloadCsv = async (url) => {
+    let data;
+    try {
+        const target = url; //file
+        //const target = `https://SOME_DOMAIN.com/api/data/log_csv?$"queryString"`; //target can also be api with req.query
+        
+        const res = await fetch(target, {
+            method: 'get',
+            headers: {
+                'content-type': 'text/csv;charset=UTF-8',
+                //'Authorization': //in case you need authorisation
+            }
+        });
+
+        if (res.status === 200) {
+            data = await res.text();
+        } else {
+            return `error`;
+        }
+        return data;
+    } catch (err) {
+        console.log(err)
+    }
+}
 
 async function createRecord(args) {
     let res;
@@ -102,7 +128,13 @@ module.exports = {
                 .setRequired(true)
                 .addChoice('Website', 'web')
                 .addChoice('CSV', 'csv')
-                .addChoice('JSON', 'json'))),
+                .addChoice('JSON', 'json')))
+        .addSubcommand(subcommand => subcommand
+            .setName('import')
+            .setDescription('Import CSV Data, use `/nhss-data view csv` for a template file')
+            .addStringOption(option => option.setName('csv_url')
+                .setDescription('URL to your .csv file, upload to discord for a quick link')
+                .setRequired(true))),
 	permissions: 0,
 	async execute(interaction) {
         let args = {}
@@ -169,6 +201,35 @@ module.exports = {
                     break;
             }
             interaction.reply({ content: "**NHSS Database**", components: [buttonRow] });
+        }
+
+        if (action === 'import') {
+            let data = await downloadCsv(args.csv_url)
+            if (data === "error") {
+                return interaction.reply(`CSV not found. Try uploading the csv file to discord and copying the file link (right click the download button > copy link)`)
+            }
+            let rowStrings = data.split("\r\n");
+            let rows = []
+            for (let row of rowStrings) {
+                rows.push(row.split(","));
+            }
+            let sysNameCol = rows[0].indexOf("sys_name")
+            let densityCol = rows[0].indexOf("density")
+            rows.shift()
+            let importedCount = 0;
+            interaction.reply(`Uploading Data, this may take a while...`)
+            for (let row of rows) {
+                if (row[sysNameCol] !== undefined) {
+                    args.system_name = row[sysNameCol]
+                    args.nhss_density = row[densityCol]
+                    args.x_coordinates = "null"
+                    args.y_coordinates = "null"
+                    args.timestamp = Date.now()
+                    await createRecord(args)
+                    importedCount++;
+                }
+            }
+            interaction.followUp(`CSV Uploaded successfully, imported ${importedCount} records.`)
         }
     }
 }
