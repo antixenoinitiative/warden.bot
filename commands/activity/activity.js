@@ -7,8 +7,8 @@ async function createRecord(args) {
     try {
         res = await queryWarden('INSERT INTO activity(sys_name, density, x_coord, y_coord, date) VALUES($1, $2, $3, $4, $5) RETURNING id',
         [args.system_name, args.nhss_density, args.x_coordinates, args.y_coordinates, args.timestamp])
-    } catch (res) {
-        console.error(res)
+    } catch (err) {
+        console.error(err)
     }
     return res.rows[0].id;
 }
@@ -17,22 +17,30 @@ async function getRecord(id) {
     let res;
     try {
         res = await queryWarden('SELECT * FROM activity WHERE id = $1',[id])
-    } catch (res) {
-        console.error(res)
+    } catch (err) {
+        console.error(err)
     }
-    let data = res.rows[0]
-    return data;
+    return res;
 }
 
 async function getRecordByName(name) {
     let res;
     try {
         res = await queryWarden('SELECT * FROM activity WHERE sys_name = $1',[name])
-    } catch (res) {
-        console.error(res)
+    } catch (err) {
+        console.error(err)
     }
     let data = res.rows
     return data;
+}
+
+async function deleteRecord(id) {
+    try {
+        await queryWarden('DELETE FROM activity WHERE id = $1',[id])
+    } catch (err) {
+        return `Record #${id}: Failed to delete, please contact Staff - ERROR: ${err}`
+    }
+    return `Record #${id}: Deleted Successfully`
 }
 
 function decodeDensity(density) {
@@ -79,6 +87,12 @@ module.exports = {
             .setDescription('Get information about NHSS History')
             .addStringOption(option => option.setName('system_name')
                 .setDescription('Name of the system')
+                .setRequired(true)))
+        .addSubcommand(subcommand => subcommand
+            .setName('delete')
+            .setDescription('Delete a record from the Database')
+            .addIntegerOption(option => option.setName('record_id')
+                .setDescription('ID of the Record to Delete')
                 .setRequired(true))),
 	permissions: 1,
 	async execute(interaction) {
@@ -91,7 +105,8 @@ module.exports = {
 
         if (action === 'record') {
             let id = await createRecord(args)
-            let data = await getRecord(parseInt(id))
+            let res = await getRecord(parseInt(id))
+            let data = res.rows[0]
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
@@ -110,7 +125,7 @@ module.exports = {
             if (data.length === 0) {return interaction.reply("Sorry, no data has been recorded for that system yet. Use `/activity record` to be the first")}
             let historyString = ""
             for (let record of data) {
-                historyString += `<t:${Math.round(parseInt(record.date) / 1000)}> - ${decodeDensity(record.density)}\n`
+                historyString += `<t:${Math.round(parseInt(record.date) / 1000)}> - ${decodeDensity(record.density)} - ID: ${record.id}\n`
             }
 
             const returnEmbed = new Discord.MessageEmbed()
@@ -126,5 +141,9 @@ module.exports = {
             interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
         }
         
+        if (action === 'delete') {
+            let deleted = await deleteRecord(args.record_id)
+            return interaction.reply(`${deleted}`)
+        }
     }
 }
