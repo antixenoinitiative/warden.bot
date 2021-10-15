@@ -60,7 +60,7 @@ function decodeDensity(density) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-	.setName('activity')
+	.setName('nhss-data')
 	.setDescription('Thargoid Activity')
     .addSubcommand(subcommand => subcommand
         .setName('record')
@@ -93,7 +93,16 @@ module.exports = {
             .setDescription('Delete a record from the Database')
             .addIntegerOption(option => option.setName('record_id')
                 .setDescription('ID of the Record to Delete')
-                .setRequired(true))),
+                .setRequired(true)))
+        .addSubcommand(subcommand => subcommand
+            .setName('view')
+            .setDescription('View the Database')
+            .addStringOption(option => option.setName('options')
+                .setDescription('How to view the Database')
+                .setRequired(true)
+                .addChoice('Website', 'web')
+                .addChoice('CSV', 'csv')
+                .addChoice('JSON', 'json'))),
 	permissions: 0,
 	async execute(interaction) {
         let args = {}
@@ -144,6 +153,22 @@ module.exports = {
         if (action === 'delete') {
             let deleted = await deleteRecord(args.record_id)
             return interaction.reply(`${deleted}`)
+        }
+
+        if (action === 'view') {
+            const buttonRow = new Discord.MessageActionRow()
+            switch (args.options) {
+                case "web":
+                    buttonRow.addComponents(new Discord.MessageButton().setLabel('View full Database').setStyle('LINK').setURL('https://data.heroku.com/dataclips/nfpuhwvjqsdefzexjgrtcojgjneu'),)
+                    break;
+                case "csv":
+                    buttonRow.addComponents(new Discord.MessageButton().setLabel('Download CSV').setStyle('LINK').setURL('https://data.heroku.com/dataclips/nfpuhwvjqsdefzexjgrtcojgjneu.csv'),)
+                    break;
+                case "json":
+                    buttonRow.addComponents(new Discord.MessageButton().setLabel('Download JSON').setStyle('LINK').setURL('https://data.heroku.com/dataclips/nfpuhwvjqsdefzexjgrtcojgjneu.json'),)
+                    break;
+            }
+            interaction.reply({ content: "Thargoid Activity Database", components: [buttonRow] });
         }
     }
 }
