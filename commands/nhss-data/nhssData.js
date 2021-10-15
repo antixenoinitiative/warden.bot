@@ -61,7 +61,7 @@ function decodeDensity(density) {
 module.exports = {
     data: new SlashCommandBuilder()
 	.setName('nhss-data')
-	.setDescription('Thargoid Activity')
+	.setDescription('NHSS Database')
     .addSubcommand(subcommand => subcommand
         .setName('record')
         .setDescription('Record NHSS in a system')
@@ -119,7 +119,7 @@ module.exports = {
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-            .setTitle(`**Thargoid Activity Logged**`)
+            .setTitle(`**NHSS Database Activity Logged**`)
             .setDescription(`Thargoid NHSS Activity Logged in Database`)
             .addField(`System Name`, `${data.sys_name}`, true)
             .addField(`NHSS Density`, `${decodeDensity(data.density)}`, true)
@@ -140,7 +140,7 @@ module.exports = {
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-            .setTitle(`**Thargoid Activity Log**`)
+            .setTitle(`**NHSS Database**`)
             .setDescription(`Thargoid NHSS Activity Log for **${args.system_name}**
             
             ${historyString}`)
@@ -168,7 +168,7 @@ module.exports = {
                     buttonRow.addComponents(new Discord.MessageButton().setLabel('Download JSON').setStyle('LINK').setURL('https://data.heroku.com/dataclips/nfpuhwvjqsdefzexjgrtcojgjneu.json'),)
                     break;
             }
-            interaction.reply({ content: "Thargoid Activity Database", components: [buttonRow] });
+            interaction.reply({ content: "**NHSS Database**", components: [buttonRow] });
         }
     }
 }
