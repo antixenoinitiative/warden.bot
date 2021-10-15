@@ -128,10 +128,11 @@ module.exports = {
                 .setRequired(true)
                 .addChoice('Website', 'web')
                 .addChoice('CSV', 'csv')
-                .addChoice('JSON', 'json')))
+                .addChoice('JSON', 'json')
+                .addChoice('Template', 'template')))
         .addSubcommand(subcommand => subcommand
             .setName('import')
-            .setDescription('Import CSV Data, use `/nhss-data view csv` for a template file')
+            .setDescription('Import CSV Data, use `/nhss-data view template` for a template file')
             .addStringOption(option => option.setName('csv_url')
                 .setDescription('URL to your .csv file, upload to discord for a quick link')
                 .setRequired(true))),
@@ -198,6 +199,9 @@ module.exports = {
                     break;
                 case "json":
                     buttonRow.addComponents(new Discord.MessageButton().setLabel('Download JSON').setStyle('LINK').setURL('https://data.heroku.com/dataclips/nfpuhwvjqsdefzexjgrtcojgjneu.json'),)
+                    break;
+                case "template":
+                    buttonRow.addComponents(new Discord.MessageButton().setLabel('Download Template CSV').setStyle('LINK').setURL('https://cdn.discordapp.com/attachments/880618814100865083/898423063094390804/importtemplate.csv'),)
                     break;
             }
             interaction.reply({ content: "**NHSS Database**", components: [buttonRow] });
