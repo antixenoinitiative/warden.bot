@@ -79,5 +79,6 @@ CREATE TABLE activity(
     density         text,
     x_coord         text,
     y_coord         text,
+    dist_merope     decimal,
     date            bigint,
 );

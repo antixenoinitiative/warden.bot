@@ -31,8 +31,8 @@ const downloadCsv = async (url) => {
 async function createRecord(args) {
     let res;
     try {
-        res = await queryWarden('INSERT INTO activity(sys_name, density, x_coord, y_coord, date) VALUES($1, $2, $3, $4, $5) RETURNING id',
-        [args.system_name, args.nhss_density, args.x_coordinates, args.y_coordinates, args.timestamp])
+        res = await queryWarden('INSERT INTO activity(sys_name, density, x_coord, y_coord, dist_merope, date) VALUES($1, $2, $3, $4, $5, $6) RETURNING id',
+        [args.system_name, args.nhss_density, args.x_coordinates, args.y_coordinates, parseFloat(args.dist_merope).toFixed(2), args.timestamp])
     } catch (err) {
         console.error(err)
     }
@@ -107,6 +107,9 @@ module.exports = {
             .setRequired(true))
         .addStringOption(option => option.setName('y_coordinates')
             .setDescription('Y Coordinates of the System')
+            .setRequired(true))
+        .addStringOption(option => option.setName('dist_merope')
+            .setDescription('Distance to Merope in LY. Eg: 20.45')
             .setRequired(true)))
         .addSubcommand(subcommand => subcommand
             .setName('fetch')
@@ -157,6 +160,7 @@ module.exports = {
             .addField(`System Name`, `${data.sys_name}`, true)
             .addField(`NHSS Density`, `${decodeDensity(data.density)}`, true)
             .addField(`X,Y Coordinates`, `${data.x_coord},${data.y_coord}`,true)
+            .addField(`Distance to Merope`, `${data.dist_merope}`,true)
             .addField(`Date Logged`, `<t:${Math.round(parseInt(data.date) / 1000)}>`, true)
             .setFooter(`ID: ${data.id}`)
             interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
@@ -201,7 +205,7 @@ module.exports = {
                     buttonRow.addComponents(new Discord.MessageButton().setLabel('Download JSON').setStyle('LINK').setURL('https://data.heroku.com/dataclips/nfpuhwvjqsdefzexjgrtcojgjneu.json'),)
                     break;
                 case "template":
-                    buttonRow.addComponents(new Discord.MessageButton().setLabel('Download Template CSV').setStyle('LINK').setURL('https://cdn.discordapp.com/attachments/880618814100865083/898423063094390804/importtemplate.csv'),)
+                    buttonRow.addComponents(new Discord.MessageButton().setLabel('Download Template CSV').setStyle('LINK').setURL('https://cdn.discordapp.com/attachments/880618814100865083/898426750168612874/importtemplate.csv'),)
                     break;
             }
             interaction.reply({ content: "**NHSS Database**", components: [buttonRow] });
@@ -219,6 +223,7 @@ module.exports = {
             }
             let sysNameCol = rows[0].indexOf("sys_name")
             let densityCol = rows[0].indexOf("density")
+            let distMeropeCol = rows[0].indexOf("dist_merope")
             rows.shift()
             let importedCount = 0;
             interaction.reply(`Uploading Data, this may take a while...`)
@@ -226,6 +231,7 @@ module.exports = {
                 if (row[sysNameCol] !== undefined) {
                     args.system_name = row[sysNameCol]
                     args.nhss_density = row[densityCol]
+                    args.dist_merope = row[distMeropeCol]
                     args.x_coordinates = "null"
                     args.y_coordinates = "null"
                     args.timestamp = Date.now()
