@@ -9,7 +9,8 @@ https://github.com/antixenoinitiative/sentry.api
 CREATE TABLE systems (
     system_id       SERIAL PRIMARY KEY,
     name            VARCHAR(50),
-    status          bool
+    status          bool,
+    presence        int
 );
 CREATE TABLE incursions (
     inc_id          SERIAL PRIMARY KEY,
