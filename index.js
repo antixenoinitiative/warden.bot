@@ -85,6 +85,7 @@ const checkPermissions = (command, interaction) => {
 	return allowed
 }
 
+// Sets up permissions for Slash Commands
 const deployPermissions = async () => {
 	const fullPermissions = []
 	const commands = await bot.guilds.cache.get(process.env.GUILDID)?.commands.fetch()

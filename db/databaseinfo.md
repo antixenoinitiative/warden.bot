@@ -73,3 +73,13 @@ CREATE TABLE ace(
     approval        bool,
     date            bigint,
 );
+
+CREATE TABLE activity(
+    id              SERIAL PRIMARY KEY,
+    sys_name        text,
+    density         text,
+    x_coord         text,
+    y_coord         text,
+    dist_merope     decimal,
+    date            bigint,
+);

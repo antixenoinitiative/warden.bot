@@ -78,7 +78,7 @@ module.exports = {
         .setDescription(`Please select Approve or Deny below if the video is legitimate and matches the fields below. NOTE: This will not assign any ranks, only approve to the Leaderboard.`)
         .addFields(
         {name: "Pilot", value: `<@${userID}>`, inline: true},
-        {name: "Pilot", value: `${args.shiptype}`, inline: true},
+        {name: "Ship", value: `${args.shiptype}`, inline: true},
         {name: "Score", value: `${result.score.toFixed(2)}`, inline: true},
         {name: "link", value: `${args.submit_url}`, inline: true},
         {name: "Time(sec)", value: `${args.time_in_seconds}`, inline: true},
