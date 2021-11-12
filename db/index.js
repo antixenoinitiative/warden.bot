@@ -5,7 +5,7 @@ const weeks = require("./weeks/weeks.json");
 
 //credentials from Heroku
 const pool = new Pool({
-    connectionString: process.env.HEROKU_POSTGRESQL_AMBER,
+    connectionString: process.env.DATABASE_URL,
     ssl: {
         rejectUnauthorized: false
     }
