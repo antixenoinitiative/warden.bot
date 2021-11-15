@@ -53,7 +53,7 @@ module.exports = {
             }
             
             await db.query('UPDATE systems SET presence = $1 WHERE system_id = $2',[presenceLevel, data.system_id])
-            interaction.reply({ content: `Presence updated for **${systemName}** to **${getPresence(parseInt(presenceLevel))}**`})
+            interaction.reply({ content: `✅ Presence updated for **${systemName}** to **${getPresence(parseInt(presenceLevel))}**`})
 
 
 		} catch (err) {

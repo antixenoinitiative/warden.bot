@@ -43,6 +43,9 @@ module.exports = {
             let presencelist = "List of active Thargoid incursions.\n\n";
             for (let system of data) {
                 presence = getPresence(system.presence)
+                if (system.priority > 0) {
+                    presence += ` - **#${system.priority}**`
+                }
                 presencelist += `${system.name} - ${presence}\n`
             }
             returnEmbed.setDescription(`${presencelist}`)
