@@ -13,7 +13,8 @@ module.exports = {
 		.setRequired(true)
         .addChoice('#1', '1')
         .addChoice('#2', '2')
-        .addChoice('#3', '3')),
+        .addChoice('#3', '3')
+        .addChoice('None', '0')),
 	permissions: 1,
 	async execute(interaction) {
         await interaction.deferReply();
