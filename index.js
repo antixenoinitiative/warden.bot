@@ -149,6 +149,7 @@ bot.once("ready", async() => {
  * @author  (Mgram) Marcus Ingram
  */
 bot.on('interactionCreate', async interaction => {
+	console.log('INFO: interactionCreate called');
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
 		if (!command) {
