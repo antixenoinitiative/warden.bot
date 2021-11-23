@@ -122,7 +122,7 @@ bot.once("ready", async() => {
 	await deployCommands();
 	await deployPermissions();
 	botLog(`Warden is now online! ⚡`, `high`);
-	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
+	console.log(`[✔] Discord bot Logged in as TESTDEVTESTDEV ${bot.user.tag}!`);
 
 	if(!process.env.MESSAGEID){
 		console.log("ERROR: No MESSAGEID for incursion embed has been set up.");
