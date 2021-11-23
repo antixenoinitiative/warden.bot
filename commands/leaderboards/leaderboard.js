@@ -115,17 +115,22 @@ module.exports = {
                 }
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
-                    let user = await interaction.guild.members.fetch(entry.user_id);
-                    let userName = user.displayName;
-                    /*let userName = '';
-                    //userName = entry.user_id;
+                    //let user = await interaction.guild.members.fetch(entry.user_id);
+                    //let userName = user.displayName;
+                    
+                    /* version1 */
+                    let userName = '';
                     await interaction.guild.members
-                        .fetch(entry.user_id).then(user => { userName = user.displayName; })
+                        .fetch(entry.user_id)
+                        .then(user => { 
+                            console.log(`INFO: resolved user_id ${entry.user_id} to ${user.displayName}`);
+                            userName = user.displayName; 
+                        })
                         .catch(error => {
                             console.error('ERROR: ' + error  + ` ${entry.user_id}`);
                             userName = entry.user_id;
                         });
-*/
+                    
                     var timetaken = entry.timetaken;
                     var date = new Date(0);
                     date.setSeconds(timetaken);
