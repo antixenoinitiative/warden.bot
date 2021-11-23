@@ -118,10 +118,11 @@ module.exports = {
                     //let user = await interaction.guild.members.fetch(entry.user_id);
                     //let userName = user.displayName;
                     let userName;
-                    let user = await interaction.guild.members.fetch(entry.user_id).catch(error => {
+                    let user = await interaction.guild.members.fetch(entry.user_id);
+                        /*.catch(error => {
                         console.error(`ERROR: Couldn't resolve user for id ${entry.user_id}: ${error}`);
                         userName = error + ' ' + entry.user_id;
-                    });
+                    });*/
 
                     if(user === undefined) {
                         userName = entry.user_id;
