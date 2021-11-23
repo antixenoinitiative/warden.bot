@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 /* eslint-disable multiline-ternary */
 /* eslint-disable no-ternary */
 /* eslint-disable no-nested-ternary */
@@ -56,7 +57,6 @@ module.exports = {
             .setRequired(false))),
 	permissions: 0,
 	async execute(interaction) {
-        console.log('leaderbord cmd called');
         let args = []
         let res;
         let leaderboardResults = [] // Must become a SORTED array of objects with { text: <information> } as a property
@@ -115,13 +115,14 @@ module.exports = {
                 }
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
-                    let user = await interaction.guild.members.fetch(entry.user_id)
-                    console.log('got entry for ' + user);
+
+                    let userName = 'Unknown Member'; //await buildUserInfo(entry);
+                    
                     let time = entry.timetaken;
                     let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's ';
                     let hull = entry.percenthulllost;
                     let aceRunStats = `(T:${time}s, A: ${ammo}, H: ${hull}%)`;
-                    let leaderboardEntry = `${entry.score} ${aceRunStats} - ${user.displayName}`
+                    let leaderboardEntry = `${entry.score} ${aceRunStats} - ${userName}`
                     if (args.links === true) {
                         leaderboardEntry += `\nVideo: [${entry.link}]`
                     }
@@ -152,5 +153,17 @@ module.exports = {
         .setDescription(`${embedDescription}\n\n${leaderboardString}`)
         //.addField(`Leaderboard`, `${leaderboardString}`)
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
+
+        async function buildUserInfo(entry) {
+            let result = '';
+            try {
+                let user = await interaction.guild.members.fetch(entry.user_id);
+                result = user.displayName;
+            } catch (DiscordAPIError) {
+                console.error(DiscordAPIError);
+                result = 'Unknown Member: ' + entry.user_id;
+            }
+            return result;
+        }
     }
 }
