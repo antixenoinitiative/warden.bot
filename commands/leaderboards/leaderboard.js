@@ -116,14 +116,14 @@ module.exports = {
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
                     let userName = '';
-                    userName = entry.user_id;
-                    interaction.guild.members
-                        .fetch(entry.user_id).then(result => { userName = result; })
+                    userName = '';
+                    userName = await interaction.guild.members.fetch(entry.user_id);
+/*                        .then(result => { userName = result; })
                         .catch(error => {
                             console.error('ERROR: ' + error  + ` ${entry.user_id}`);
                             userName = entry.user_id;
                         });
-
+*/
                     var timetaken = entry.timetaken;
                     var date = new Date(0);
                     date.setSeconds(timetaken);
