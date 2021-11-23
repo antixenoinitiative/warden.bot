@@ -115,10 +115,10 @@ module.exports = {
                 }
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
-                    let userName = '';
-                    userName = '';
-                    userName = await interaction.guild.members.fetch(entry.user_id);
-/*                        .then(result => { userName = result; })
+                    let user = await interaction.guild.members.fetch(entry.user_id);
+                    let userName = user.displayName;
+                    
+/*                        .then(user => { userName = user.displayName; })
                         .catch(error => {
                             console.error('ERROR: ' + error  + ` ${entry.user_id}`);
                             userName = entry.user_id;
