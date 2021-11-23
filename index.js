@@ -149,7 +149,6 @@ bot.once("ready", async() => {
  * @author  (Mgram) Marcus Ingram
  */
 bot.on('interactionCreate', async interaction => {
-	console.log('INFO: interactionCreate called');
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
 		if (!command) {
@@ -171,11 +170,7 @@ bot.on('interactionCreate', async interaction => {
 			}
 		}
 		try {
-			
-			console.log(`INFO: executing command '${interaction.commandName}'`);
 			await command.execute(interaction, args);
-			console.log(`INFO: done executing command '${interaction.commandName}''`);
-
 			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
 		} catch (error) {
 			console.error(error);
