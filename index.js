@@ -124,18 +124,24 @@ bot.once("ready", async() => {
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
 
-	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
-	bot.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
-		messageToUpdate = message
-		const currentEmbed = message.embeds[0]
-		incursionsEmbed.description = currentEmbed.description
-		currentEmbed.fields.forEach((field) => {
-			incursionsEmbed.addField(field.name, field.value)
-		})
-	}).catch(err => {
-		console.error(err)
-	})
+	if(!process.env.MESSAGEID){
+		console.log("ERROR: No MESSAGEID for incursion embed has been set up.");
+	} else {
+		bot.guilds.cache.get(process.env.GUILDID)
+			.channels.cache.get(process.env.CHANNELID)
+			.messages.fetch(process.env.MESSAGEID).then(message =>{
 
+			messageToUpdate = message
+			const currentEmbed = message.embeds[0]
+			incursionsEmbed.description = currentEmbed.description
+			currentEmbed.fields.forEach((field) => {
+				incursionsEmbed.addField(field.name, field.value)
+			})
+		}).catch(err => {
+			console.error(err)
+		})
+	}
+	console.log(`[✔] Warden bot 'ready' done.`);
 })
 
 /**
@@ -145,7 +151,10 @@ bot.once("ready", async() => {
 bot.on('interactionCreate', async interaction => {
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
-		if (!command) return;
+		if (!command) {
+			console.warn('WARNING: Unknown command detected.');
+			return;
+		}
 		let args;
 		if (interaction.options !== undefined) {
 			try {
@@ -161,7 +170,11 @@ bot.on('interactionCreate', async interaction => {
 			}
 		}
 		try {
+			
+			console.log(`INFO: executing command '${interaction.commandName}'`);
 			await command.execute(interaction, args);
+			console.log(`INFO: done executing command '${interaction.commandName}''`);
+
 			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
 		} catch (error) {
 			console.error(error);
