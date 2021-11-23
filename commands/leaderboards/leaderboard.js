@@ -116,8 +116,22 @@ module.exports = {
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
 
-                    let userName = 'Unknown Member'; //await buildUserInfo(entry);
+                    //let userName = await buildUserInfo(interaction, entry);
                     
+                    /*async function buildUserInfo(entry) {
+                        let result = '';
+                        try {
+                            let user = await interaction.guild.members.fetch(entry.user_id);
+                            result = user.displayName;
+                        } catch (DiscordAPIError) {
+                            console.error(DiscordAPIError);
+                            result = 'Unknown Member: ' + entry.user_id;
+                        }
+                        return result;
+                    }*/
+                    let userName = 'Unknown Member: ' + entry.user_id;
+
+
                     let time = entry.timetaken;
                     let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's ';
                     let hull = entry.percenthulllost;
@@ -154,16 +168,6 @@ module.exports = {
         //.addField(`Leaderboard`, `${leaderboardString}`)
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 
-        async function buildUserInfo(entry) {
-            let result = '';
-            try {
-                let user = await interaction.guild.members.fetch(entry.user_id);
-                result = user.displayName;
-            } catch (DiscordAPIError) {
-                console.error(DiscordAPIError);
-                result = 'Unknown Member: ' + entry.user_id;
-            }
-            return result;
-        }
+        
     }
 }
