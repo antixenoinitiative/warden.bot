@@ -117,11 +117,11 @@ module.exports = {
                 for (let entry of res.rows) {
                     let userName = '';
                     //userName = 'Unknown Member: ' + entry.user_id;
-                    userName = await interaction.guild.members.fetch(entry.user_id)
-                        .catch(error => { 
+                    userName = await interaction.guild.members.fetch(entry.user_id);
+/*                        .catch(error => { 
                             console.error(error + ': ' + entry.user_id);
                             userName = error + ': ' + entry.user_id;
-                        });
+                        });*/
 
                     var timetaken = entry.timetaken;
                     var date = new Date(0);
