@@ -115,27 +115,22 @@ module.exports = {
                 }
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
+                    let userName = '';
+                    //userName = 'Unknown Member: ' + entry.user_id;
+                    userName = await interaction.guild.members.fetch(entry.user_id)
+                        .catch(error => { 
+                            console.error(error + ': ' + entry.user_id);
+                            userName = error + ': ' + entry.user_id;
+                        });
 
-                    //let userName = await buildUserInfo(interaction, entry);
-                    
-                    /*async function buildUserInfo(entry) {
-                        let result = '';
-                        try {
-                            let user = await interaction.guild.members.fetch(entry.user_id);
-                            result = user.displayName;
-                        } catch (DiscordAPIError) {
-                            console.error(DiscordAPIError);
-                            result = 'Unknown Member: ' + entry.user_id;
-                        }
-                        return result;
-                    }*/
-                    let userName = 'Unknown Member: ' + entry.user_id;
+                    var timetaken = entry.timetaken;
+                    var date = new Date(0);
+                    date.setSeconds(timetaken);
+                    var time = date.toISOString().substr(11, 8);
 
-
-                    let time = entry.timetaken;
                     let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's ';
                     let hull = entry.percenthulllost;
-                    let aceRunStats = `(T:${time}s, A: ${ammo}, H: ${hull}%)`;
+                    let aceRunStats = `(T:${time}, A: ${ammo}, H: ${hull}%)`;
                     let leaderboardEntry = `${entry.score} ${aceRunStats} - ${userName}`
                     if (args.links === true) {
                         leaderboardEntry += `\nVideo: [${entry.link}]`
