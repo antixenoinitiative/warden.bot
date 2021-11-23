@@ -56,6 +56,7 @@ module.exports = {
             .setRequired(false))),
 	permissions: 0,
 	async execute(interaction) {
+        console.log('leaderbord cmd called');
         let args = []
         let res;
         let leaderboardResults = [] // Must become a SORTED array of objects with { text: <information> } as a property
