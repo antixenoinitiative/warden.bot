@@ -54,6 +54,9 @@ module.exports = {
             .addChoice('Fer-de-Lance', 'fdl'))
         .addBooleanOption(option => option.setName('links')
             .setDescription('show links')
+            .setRequired(false))
+        .addBooleanOption(option => option.setName('stats')
+            .setDescription('show statistics A(mmo), T(ime), H(ull)')
             .setRequired(false))),
 	permissions: 0,
 	async execute(interaction) {
@@ -131,17 +134,21 @@ module.exports = {
                             userName = entry.user_id;
                         });
                     
-                    var timetaken = entry.timetaken;
-                    var date = new Date(0);
-                    date.setSeconds(timetaken);
-                    var time = date.toISOString().substr(11, 8);
+                    //let leaderboardEntry = `${entry.score} ${aceRunStats} - ${userName}`
+                    let leaderboardEntry = `${entry.score} - ${userName}`
+                    if (args.stats === true) {
+                        var timetaken = entry.timetaken;
+                        var date = new Date(0);
+                        date.setSeconds(timetaken);
+                        var time = date.toISOString().substr(11, 8);
 
-                    let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's ';
-                    let hull = entry.percenthulllost;
-                    let aceRunStats = `(T:${time}, A: ${ammo}, H: ${hull}%)`;
-                    let leaderboardEntry = `${entry.score} ${aceRunStats} - ${userName}`
+                        let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's ';
+                        let hull = entry.percenthulllost;
+                        let aceRunStats = `T: ${time}, A: ${ammo}, H: ${hull}%`;
+                        leaderboardEntry += `\n  Stats: ${aceRunStats}`
+                    }
                     if (args.links === true) {
-                        leaderboardEntry += `\nVideo: [${entry.link}]`
+                        leaderboardEntry += `\n  Video: [${entry.link}]`
                     }
                     leaderboardResults.push({ score: entry.score, text: leaderboardEntry})
                 }
