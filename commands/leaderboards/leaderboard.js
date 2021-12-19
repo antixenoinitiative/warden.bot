@@ -113,8 +113,7 @@ module.exports = {
                     return
                 }
                 for (let entry of res.rows) {
-                    let user = await interaction.guild.members.fetch(entry.user_id)
-                    let string = `${entry.score} - ${user.displayName}`
+                    let string = `${entry.score} - ${entry.name}`
                     if (args.links === true) {
                         string += `\nVideo: [${entry.link}]`
                     }
