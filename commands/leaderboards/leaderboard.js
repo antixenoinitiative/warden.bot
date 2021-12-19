@@ -114,7 +114,6 @@ module.exports = {
                     return
                 }
                 for (let entry of res.rows) {
-                    console.log(entry)
                     let string
                     try {
                         let user = await interaction.guild.members.fetch(entry.user_id)
