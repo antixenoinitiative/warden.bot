@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 /* eslint-disable multiline-ternary */
 /* eslint-disable no-ternary */
 /* eslint-disable no-nested-ternary */
@@ -113,7 +114,14 @@ module.exports = {
                     return
                 }
                 for (let entry of res.rows) {
-                    let string = `${entry.score} - ${entry.name}`
+                    console.log(entry)
+                    let string
+                    try {
+                        let user = await interaction.guild.members.fetch(entry.user_id)
+                        string = `${entry.score} - ${user.displayName}`
+                    } catch {
+                        string = `${entry.score} - ${entry.name}`
+                    }
                     if (args.links === true) {
                         string += `\nVideo: [${entry.link}]`
                     }
