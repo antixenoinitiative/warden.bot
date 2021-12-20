@@ -138,7 +138,14 @@ module.exports = {
             .setDescription('Import CSV Data, use `/nhss-data view template` for a template file')
             .addStringOption(option => option.setName('csv_url')
                 .setDescription('URL to your .csv file, upload to discord for a quick link')
-                .setRequired(true))),
+                .setRequired(true)))
+        .addSubcommand(subcommand => subcommand
+            .setName('max')
+            .setDescription('Max Distance recorded from Thargoid Bubble Center')
+            .addStringOption(option => option.setName('csv_url')
+                .setDescription('URL to your .csv file, upload to discord for a quick link')
+                .setRequired(true)
+                .addChoice('Merope', 'merope'))),
 	permissions: 0,
 	async execute(interaction) {
         let args = {}
@@ -240,6 +247,10 @@ module.exports = {
                 }
             }
             interaction.followUp(`CSV Uploaded successfully, imported ${importedCount} records.`)
+        }
+
+        if (action === "max") {
+            let res = await queryWarden("SELECT * FROM activity WHERE ")
         }
     }
 }
