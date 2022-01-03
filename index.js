@@ -117,18 +117,14 @@ bot.once("ready", async() => {
 	await deployPermissions();
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
-
-	if(!process.env.MESSAGEID){
-		console.log("ERROR: No MESSAGEID for incursion embed has been set up.");
-	} else {
-		bot.guilds.cache.get(process.env.GUILDID)
-			.channels.cache.get(process.env.CHANNELID)
-			.messages.fetch(process.env.MESSAGEID).then(message =>{
-		}).catch(err => {
-			console.error(err)
-		})
-	}
-	console.log(`[✔] Warden bot 'ready' done.`);
+	/*
+	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
+	bot.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
+		//message is the discord message the bot is updating with the snapshot
+	}).catch(err => {
+		console.error(err)
+	})
+	*/
 })
 
 /**
