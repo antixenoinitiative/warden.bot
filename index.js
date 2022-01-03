@@ -148,13 +148,13 @@ bot.on('interactionCreate', async interaction => {
 		}
 		if (command.permissions != 0) {
 			if (checkPermissions(command, interaction) === false) {
-				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")
+				botLog('**' + interaction.user.tag + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")
 				return interaction.reply("You don't have permission to use that command!")
 			}
 		}
 		try {
 			await command.execute(interaction, args);
-			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
+			botLog('**' + interaction.user.tag + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
 		} catch (error) {
 			console.error(error);
 			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
@@ -171,17 +171,17 @@ bot.on('interactionCreate', async interaction => {
 			interaction.deferUpdate();
 			interaction.member.roles.add("428260067901571073")
 			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+			botLog(`Welcome Verification passed - User: **${interaction.user.tag}**`, "low")
 		} else if (interaction.customId === "platformxb") {
 			interaction.deferUpdate();
 			interaction.member.roles.add("533774176478035991")
 			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+			botLog(`Welcome Verification passed - User: **${interaction.user.tag}**`, "low")
 		} else if (interaction.customId === "platformps") {
 			interaction.deferUpdate();
 			interaction.member.roles.add("428259777206812682")
 			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+			botLog(`Welcome Verification passed - User: **${interaction.user.tag}**`, "low")
 		}
 		interaction.member.roles.add("642840406580658218");
 		interaction.member.roles.add("642839749777948683");
