@@ -118,39 +118,17 @@ module.exports = {
                 }
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
-                    //let user = await interaction.guild.members.fetch(entry.user_id);
-                    //let userName = user.displayName;
-                    
-                    /* version1 */
-                    let userName = '';
-                    await interaction.guild.members
-                        .fetch(entry.user_id)
-                        .then(user => { 
-                            console.log(`INFO: resolved user_id ${entry.user_id} to ${user.displayName}`);
-                            userName = user.displayName; 
-                        })
-                        .catch(error => {
-                            console.error('ERROR: ' + error  + ` ${entry.user_id}`);
-                            userName = entry.user_id;
-                        });
-                    
-                    //let leaderboardEntry = `${entry.score} ${aceRunStats} - ${userName}`
-                    let leaderboardEntry = `${entry.score} - ${userName}`
-                    if (args.stats === true) {
-                        var timetaken = entry.timetaken;
-                        var date = new Date(0);
-                        date.setSeconds(timetaken);
-                        var time = date.toISOString().substr(11, 8);
-
-                        let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's ';
-                        let hull = entry.percenthulllost;
-                        let aceRunStats = `T: ${time}, A: ${ammo}, H: ${hull}%`;
-                        leaderboardEntry += `\n  Stats: ${aceRunStats}`
+                    let string
+                    try {
+                        let user = await interaction.guild.members.fetch(entry.user_id)
+                        string = `${entry.score} - ${user.displayName}`
+                    } catch {
+                        string = `${entry.score} - ${entry.name}`
                     }
                     if (args.links === true) {
-                        leaderboardEntry += `\n  Video: [${entry.link}]`
+                        string += `\nVideo: [${entry.link}]`
                     }
-                    leaderboardResults.push({ score: entry.score, text: leaderboardEntry})
+                    leaderboardResults.push({ score: entry.score, text: string})
                 }
                 leaderboardResults.sort(dynamicSort("score"))
                 leaderboardResults = leaderboardResults.reverse();

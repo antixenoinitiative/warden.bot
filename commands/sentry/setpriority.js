@@ -13,8 +13,9 @@ module.exports = {
 		.setRequired(true)
         .addChoice('#1', '1')
         .addChoice('#2', '2')
-        .addChoice('#3', '3')),
-	permissions: 1,
+        .addChoice('#3', '3')
+        .addChoice('None', '0')),
+	permissions: 2,
 	async execute(interaction) {
         await interaction.deferReply();
 		try {
