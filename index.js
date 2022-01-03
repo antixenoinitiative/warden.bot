@@ -33,12 +33,6 @@ for (const folder of commandFolders) {
 	}
 }
 
-const incursionsEmbed = new MessageEmbed()
-.setColor('#FF7100')
-.setAuthor('The Anti-Xeno Initiative', icon)
-.setTitle("**Defense Targets**")
-let messageToUpdate
-
 /**
  * Log a discord bot event in the Log Channel
  * @author  (Mgram) Marcus Ingram
@@ -130,13 +124,6 @@ bot.once("ready", async() => {
 		bot.guilds.cache.get(process.env.GUILDID)
 			.channels.cache.get(process.env.CHANNELID)
 			.messages.fetch(process.env.MESSAGEID).then(message =>{
-
-			messageToUpdate = message
-			const currentEmbed = message.embeds[0]
-			incursionsEmbed.description = currentEmbed.description
-			currentEmbed.fields.forEach((field) => {
-				incursionsEmbed.addField(field.name, field.value)
-			})
 		}).catch(err => {
 			console.error(err)
 		})
