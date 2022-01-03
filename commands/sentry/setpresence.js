@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const db = require("../../db/index");
+const setPresence = require("./commons/updatepresence")
 
 function getPresence(presence) {
     switch (presence) {
@@ -37,24 +37,21 @@ module.exports = {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
             let presenceLevel = interaction.options.data.find(arg => arg.name === 'presence-level').value.toLowerCase();
 
-            let res = await db.query(`SELECT * FROM systems WHERE name = $1`,[systemName])
-            let data = res.rows[0]
+            let status = setPresence(systemName, presenceLevel)
 
-            // Check if exists
-            if (res.rowCount === 0) {
+            if (status === "notfound") {
                 interaction.reply({ content: `Sorry, "**${systemName}**" could not be found in the database, it may not have been detected by sentry yet. Please visit the system with EDMC running.`})
                 return;
             }
 
-            // Check if submitted status is different
-            if (data.presence == presenceLevel) {
+            if (status === "nochange") {
                 interaction.reply({ content: `**${systemName}** is already set to **${getPresence(parseInt(presenceLevel))}**.`})
                 return;
             }
-            
-            await db.query('UPDATE systems SET presence = $1 WHERE system_id = $2',[presenceLevel, data.system_id])
-            interaction.reply({ content: `✅ Presence updated for **${systemName}** to **${getPresence(parseInt(presenceLevel))}**`})
 
+            if (status === "success") {
+                interaction.reply({ content: `✅ Presence updated for **${systemName}** to **${getPresence(parseInt(presenceLevel))}**`})
+            }
 
 		} catch (err) {
             console.log(err)
