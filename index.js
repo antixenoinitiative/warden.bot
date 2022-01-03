@@ -9,10 +9,10 @@ const { prefix, icon, securityGroups } = require('./config.json');
 const serverIntents = new Intents();
 serverIntents.add(
 	Intents.FLAGS.GUILDS,
-	Intents.FLAGS.GUILD_PRESENCES, 
-	Intents.FLAGS.GUILD_MEMBERS, 
-	Intents.FLAGS.GUILD_MESSAGES, 
-	Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
+	Intents.FLAGS.GUILD_PRESENCES,
+	Intents.FLAGS.GUILD_MEMBERS,
+	Intents.FLAGS.GUILD_MESSAGES,
+	Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
 	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
 );
 const bot = new Client({ intents: serverIntents })
@@ -65,7 +65,7 @@ const botLog = (event, severity) => {
 	if (process.env.LOGCHANNEL) {
 		bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
 	} else {
-		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.") 
+		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
 	}
 }
 
@@ -164,8 +164,8 @@ bot.on('interactionCreate', async interaction => {
 			}
 		}
 		if (command.permissions != 0) {
-			if (checkPermissions(command, interaction) === false) { 
-				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")  
+			if (checkPermissions(command, interaction) === false) {
+				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")
 				return interaction.reply("You don't have permission to use that command!")
 			}
 		}
@@ -240,8 +240,8 @@ bot.on('messageCreate', message => {
 	}
 
 	if (command.permissions != 0) {
-		if (checkPermissions(command, message) === false) { 
-			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
+		if (checkPermissions(command, message) === false) {
+			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")
 			return message.reply("You don't have permission to use that command!")
 		}
 	}
@@ -253,7 +253,7 @@ bot.on('messageCreate', message => {
 		return message.channel.send({ content: `${reply}` });
 	}
 	try {
-		command.execute(message, args, updateEmbedField); // Execute the command
+		command.execute(message, args); // Execute the command
 		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
 	} catch (error) {
 		console.error(error);
@@ -262,40 +262,5 @@ bot.on('messageCreate', message => {
 });
 
 bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
-
-/**
-* Updates or adds a single field to the stored embed and updates the message
-* @author   Airom
-* @param    {Array} field    {name: nameOfField, value: valueOfField}
-*/
-function updateEmbedField(field) {
-	if(!messageToUpdate) return
-	if(field.name === null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
-	const temp = new MessageEmbed()
-	.setColor('#FF7100')
-	.setAuthor('The Anti-Xeno Initiative', icon)
-	.setTitle("**Defense Targets**")
-	.setDescription(incursionsEmbed.description)
-	let isUpdated = false
-	for(const value of incursionsEmbed.fields) {
-		if(value.name === field.name) {
-			if(field.value) {
-				temp.addField(field.name, field.value)
-			}
-			isUpdated = true
-			console.log("Updated existing field: " + field.name)
-		} else {
-			temp.addField(value.name, value.value)
-			console.log("Copied existing field: " + value.name)
-		}
-	}
-	if(!isUpdated && field.value){
-		temp.addField(field.name, field.value)
-		console.log("Added new field: " + field.name)
-	}
-	incursionsEmbed.fields = temp.fields
-	messageToUpdate.edit({ embeds: [incursionsEmbed.setTimestamp()] })
-	console.log(messageToUpdate.embeds[0].fields)
-}
 
 bot.login(process.env.TOKEN)
