@@ -37,7 +37,7 @@ module.exports = {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
             let presenceLevel = interaction.options.data.find(arg => arg.name === 'presence-level').value.toLowerCase();
 
-            let status = setPresence(systemName, presenceLevel)
+            let status = await setPresence(systemName, presenceLevel)
 
             if (status === "notfound") {
                 interaction.reply({ content: `Sorry, "**${systemName}**" could not be found in the database, it may not have been detected by sentry yet. Please visit the system with EDMC running.`})
