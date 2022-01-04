@@ -248,11 +248,5 @@ module.exports = {
             }
             interaction.followUp(`CSV Uploaded successfully, imported ${importedCount} records.`)
         }
-        /*
-        //commented out to appease the linter, looks like an unfinished function here - Airom
-        if (action === "max") {
-            let res = await queryWarden("SELECT * FROM activity WHERE ")
-        }
-        */
     }
 }
