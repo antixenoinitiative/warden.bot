@@ -8,7 +8,7 @@ const downloadCsv = async (url) => {
     try {
         const target = url; //file
         //const target = `https://SOME_DOMAIN.com/api/data/log_csv?$"queryString"`; //target can also be api with req.query
-        
+
         const res = await fetch(target, {
             method: 'get',
             headers: {
@@ -186,14 +186,14 @@ module.exports = {
             .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle(`**NHSS Database**`)
             .setDescription(`Thargoid NHSS Activity Log for **${args.system_name}**
-            
+
             ${historyString}`)
             const buttonRow = new Discord.MessageActionRow()
             .addComponents(new Discord.MessageButton().setLabel('View full Database').setStyle('LINK').setURL('https://data.heroku.com/dataclips/nfpuhwvjqsdefzexjgrtcojgjneu'),)
-    
+
             interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
         }
-        
+
         if (action === 'delete') {
             let deleted = await deleteRecord(args.record_id)
             return interaction.reply(`${deleted}`)
@@ -247,10 +247,6 @@ module.exports = {
                 }
             }
             interaction.followUp(`CSV Uploaded successfully, imported ${importedCount} records.`)
-        }
-
-        if (action === "max") {
-            let res = await queryWarden("SELECT * FROM activity WHERE ")
         }
     }
 }

@@ -53,7 +53,7 @@ module.exports = {
                 }
             }
         }
-        
+
 
         let inGameName = interaction.options.data.find(arg => arg.name === `ign`).value;
         let squadronCode = interaction.options.data.find(arg => arg.name === `squadroncode`)?.value;
@@ -81,16 +81,16 @@ module.exports = {
 
         if (platforms.length === 1) {
             newNickname = `[${platforms[0]}] CMDR ${inGameName}${returnSquadronTag()}`;
-            console.log(`Set ${interaction.member.nickname}'s username to ${newNickname}`);
+            console.log(`Set ${interaction.user.tag}'s username to ${newNickname}`);
 
         } else if (platforms.length === 2) {
             newNickname = `[${platforms[0]}/${platforms[1]}] CMDR ${inGameName}${returnSquadronTag()}`;
-            console.log(`Set ${interaction.member.nickname}'s username to ${newNickname}`);
+            console.log(`Set ${interaction.user.tag}'s username to ${newNickname}`);
 
         } else if (platforms.length === 3) {
 
             newNickname = `[${platforms[0]}/${platforms[1]}/${platforms[2]}] CMDR ${inGameName}${returnSquadronTag()}`;
-            console.log(`Set ${interaction.member.nickname}'s username to ${newNickname}`);
+            console.log(`Set ${interaction.user.tag}'s username to ${newNickname}`);
 
         }
 

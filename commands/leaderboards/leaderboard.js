@@ -54,6 +54,9 @@ module.exports = {
             .addChoice('Fer-de-Lance', 'fdl'))
         .addBooleanOption(option => option.setName('links')
             .setDescription('show links')
+            .setRequired(false))
+        .addBooleanOption(option => option.setName('stats')
+            .setDescription('show statistics A(mmo), T(ime), H(ull)')
             .setRequired(false))),
 	permissions: 0,
 	async execute(interaction) {
@@ -113,6 +116,7 @@ module.exports = {
                     interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
                     return
                 }
+                console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
                     let string
                     try {
@@ -151,5 +155,7 @@ module.exports = {
         .setDescription(`${embedDescription}\n\n${leaderboardString}`)
         //.addField(`Leaderboard`, `${leaderboardString}`)
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
+
+        
     }
 }
