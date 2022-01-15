@@ -3,8 +3,7 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
     .setName(`smol`)
-    .setDescription(`Some cookies from amy`)
-    .setDefaultPermission(false),
+    .setDescription(`Some cookies from amy`),
     permissions: 0,
     execute (interaction) {
         interaction.reply({ content: `<@914605889028247583> says you are smol and gives you cookies.` });
