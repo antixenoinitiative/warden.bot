@@ -6,6 +6,6 @@ module.exports = {
     .setDescription(`Summon aman!`),
     permissions: 0,
     execute (interaction) {
-            interaction.channel.send({ content: `You summoned Aman! <@321304077239582723>` });
+      interaction.reply({ content: `You summoned Aman! <@321304077239582723>` });
     }
 }
