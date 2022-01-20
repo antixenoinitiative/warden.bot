@@ -84,8 +84,13 @@ module.exports = {
                 }
                 for (let entry of res.rows) {
                     entry.timeFormatted = new Date(entry.time * 1000).toISOString().substr(11, 8)
-                    let user = await interaction.guild.members.fetch(entry.user_id)
-                    let string = `${entry.timeFormatted} - ${user.displayName} - ${entry.ship}`
+                    let string = ""
+                    try {
+                        let user = await interaction.guild.members.fetch(entry.user_id)
+                        string = `${entry.timeFormatted} - ${user.displayName} - ${entry.ship}`
+                    } catch {
+                        string = `${entry.timeFormatted} - ${entry.name} - ${entry.ship}`
+                    }
                     if (args.options !== undefined) {
                         if (args.options === "links") {
                             string += `\nVideo: [${entry.link}]`
