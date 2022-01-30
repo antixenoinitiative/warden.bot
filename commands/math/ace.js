@@ -567,7 +567,7 @@ module.exports = {
 		const buttonRow = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setLabel('Learn more about the Ace Score Calculator').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/Ace-Rank-Rework'),)
 
-        interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
+        await interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
 
         // Leaderboard Submissions
         if (args.submit === true) {
