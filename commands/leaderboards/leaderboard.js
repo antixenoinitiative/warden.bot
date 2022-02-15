@@ -123,17 +123,28 @@ module.exports = {
                 }
                 console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
-                    let string
+                    let leaderboardEntry
                     try {
                         let user = await interaction.guild.members.fetch(entry.user_id)
-                        string = `${entry.score} - ${user.displayName}`
+                        leaderboardEntry = `${entry.score} - ${user.displayName}`
                     } catch {
-                        string = `${entry.score} - ${entry.name}`
+                        leaderboardEntry = `${entry.score} - ${entry.name}`
+                    }
+                    if (args.stats === true) {
+                        var timetaken = entry.timetaken;
+                        var date = new Date(0);
+                        date.setSeconds(timetaken);
+                        var time = date.toISOString().substring(11, 19);
+
+                        let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's';
+                        let hull = entry.percenthulllost;
+                        let aceRunStats = `T: ${time}, A: ${ammo}, H: ${hull}%`;
+                        leaderboardEntry += `\n  Stats: ${aceRunStats}`
                     }
                     if (args.links === true) {
-                        string += `\nVideo: [${entry.link}]`
+                        leaderboardEntry += `\n  Video: [${entry.link}]`
                     }
-                    leaderboardResults.push({ score: entry.score, text: string})
+                    leaderboardResults.push({ score: entry.score, text: leaderboardEntry})
                 }
                 leaderboardResults.sort(dynamicSort("score"))
                 leaderboardResults = leaderboardResults.reverse();
