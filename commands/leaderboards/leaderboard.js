@@ -125,8 +125,8 @@ module.exports = {
                 for (let entry of res.rows) {
                     let leaderboardEntry
                     try {
-                        //let user = await interaction.guild.members.fetch(entry.user_id)
-                        leaderboardEntry = `${entry.score} - ${entry.name}`//${user.displayName}`
+                        let user = await interaction.guild.members.fetch(entry.user_id)
+                        leaderboardEntry = `${entry.score} - ${user.displayName}`
                     } catch {
                         leaderboardEntry = `${entry.score} - ${entry.name}`
                     }
