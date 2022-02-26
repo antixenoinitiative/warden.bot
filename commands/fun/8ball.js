@@ -10,10 +10,10 @@ module.exports = {
         .setRequired(true)),
     permissions: 0,
 
-    async execute(interaction) {
+    execute(interaction) {
         let rand = Math.random() * 100;
 
-        interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'your_question').value}"`})
+        interaction.channel.send({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'your_question').value}"`})
 
         if (rand < 50) interaction.channel.send({ content: `Yes` });
         else interaction.channel.send({ content: `No` });
