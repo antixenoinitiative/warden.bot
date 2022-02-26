@@ -74,7 +74,7 @@ module.exports = {
                 .addField("Premium",`${results[2]}`,true)
                 interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
             } catch (err) {
-                interaction.reply({ content: "Something went wrong, please you entered the correct format" });
+                interaction.reply({ content: "Something went wrong, please ensure you have entered the correct format" });
             }
 		} catch (err) {
             console.log(err)
