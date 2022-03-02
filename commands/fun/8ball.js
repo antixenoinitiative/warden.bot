@@ -1,11 +1,10 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const Discord = require("discord.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
     .setName(`8ball`)
     .setDescription(`Ask the magic 8ball whatever questions that are bothering you at this time!`)
-    .addStringOption(option => option.setName('your_question')
+    .addStringOption(option => option.setName('question')
         .setDescription('The thing you wanna ask')
         .setRequired(true)),
     permissions: 0,
@@ -13,9 +12,17 @@ module.exports = {
     execute(interaction) {
         let rand = Math.random() * 100;
 
-        interaction.channel.send({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'your_question').value}"`})
+        try
+        {
+            interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'question').value}"`})
 
-        if (rand < 50) interaction.channel.send({ content: `Yes` });
-        else interaction.channel.send({ content: `No` });
+            if (rand < 50) interaction.channel.send({ content: `Yes` });
+            else interaction.channel.send({ content: `No` });
+        }
+
+        catch (err) {
+            console.log(err);
+            interaction.reply({ content: `Something went wrong!\nERROR: ${err}` });
+        }
     }
 }
