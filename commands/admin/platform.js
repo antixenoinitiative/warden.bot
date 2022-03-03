@@ -19,6 +19,6 @@ module.exports = {
         .addComponents(new Discord.MessageButton().setCustomId('platformxb').setLabel('XB').setStyle('SUCCESS'),)
         .addComponents(new Discord.MessageButton().setCustomId('platformps').setLabel('PS').setStyle('PRIMARY'),)
 
-        interaction.channel.send({ embeds: [returnEmbed], components: [row] });
+        interaction.defer({ embeds: [returnEmbed], components: [row] });
     }
 }
