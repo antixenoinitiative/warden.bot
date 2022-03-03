@@ -40,6 +40,7 @@ module.exports = {
 							{name: "Myrmidon", value: roleCache.get("810410728023916554").members.size.toString(), inline: true},
 							{name: "Vanguard", value: roleCache.get("642840616694317104").members.size.toString(), inline: true},
 						)
+					message.deleteReply();
 					i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 				} catch (err) {
 					console.error(err);
