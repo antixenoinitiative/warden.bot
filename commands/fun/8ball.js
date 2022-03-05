@@ -19,7 +19,7 @@ module.exports = {
             if (rand < 50) {
                 await interaction.followup({ content: `Yes` });
             } else {
-                await interaction.channel.followup({ content: `No` });
+                await interaction.followup({ content: `No` });
             }
         }
 
