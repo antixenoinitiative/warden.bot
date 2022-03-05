@@ -9,15 +9,18 @@ module.exports = {
         .setRequired(true)),
     permissions: 0,
 
-    execute(interaction) {
+    async execute(interaction) {
         let rand = Math.random() * 100;
 
         try
         {
-            interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'question').value}"`})
+            await interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'question').value}"`})
 
-            if (rand < 50) interaction.channel.send({ content: `Yes` });
-            else interaction.channel.send({ content: `No` });
+            if (rand < 50) {
+                await interaction.followup({ content: `Yes` });
+            } else {
+                await interaction.channel.followup({ content: `No` });
+            }
         }
 
         catch (err) {
