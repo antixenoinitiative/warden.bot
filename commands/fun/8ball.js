@@ -17,7 +17,7 @@ module.exports = {
 
         try
         {
-            await interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'question').value}" Answer: ${answer}` })
+            await interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'question').value}" Answer: **${answer}**` })
         }
 
         catch (err) {
