@@ -11,16 +11,15 @@ module.exports = {
 
     async execute(interaction) {
         let rand = Math.random() * 100;
+        
+        let answer = "Yes"
+        if (rand < 50) answer = "No"
 
         try
         {
-            await interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'question').value}"`})
+            await interaction.reply({content: `${interaction.member} asked: "${interaction.options.data.find(arg => arg.name === 'question').value}
 
-            if (rand < 50) {
-                await interaction.followup({ content: `Yes` });
-            } else {
-                await interaction.followup({ content: `No` });
-            }
+            Answer: $(answer)"`})
         }
 
         catch (err) {
