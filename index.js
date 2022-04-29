@@ -57,7 +57,7 @@ const botLog = (event, severity) => {
 			break;
 	}
 	if (process.env.LOGCHANNEL) {
-		bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+		//bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
 	} else {
 		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
 	}
