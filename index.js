@@ -114,7 +114,7 @@ const deployPermissions = async () => {
  */
 bot.once("ready", async() => {
 	await deployCommands();
-	await deployPermissions();
+	//await deployPermissions();
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
 	/*
