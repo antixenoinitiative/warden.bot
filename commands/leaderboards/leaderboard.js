@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 /* eslint-disable multiline-ternary */
 /* eslint-disable no-ternary */
 /* eslint-disable no-nested-ternary */
@@ -41,12 +42,22 @@ module.exports = {
             .setDescription('Ship Class')
             .setRequired(false)
             .addChoice('Show Video Links', 'links')))
-        .addSubcommand(subcommand => subcommand
-            .setName('ace')
-            .setDescription('Ace Leaderboard')
-            .addBooleanOption(option => option.setName('links')
-                .setDescription('show links')
-                .setRequired(true))),
+    .addSubcommand(subcommand => subcommand
+        .setName('ace')
+        .setDescription('Ace Leaderboard')
+        .addStringOption(option => option.setName('shiptype')
+            .setDescription('Ship Type')
+            .setRequired(true)
+            .addChoice('Chieftain', 'chieftain')
+            .addChoice('Challenger', 'challenger')
+            .addChoice('Krait MkII', 'kraitmk2')
+            .addChoice('Fer-de-Lance', 'fdl'))
+        .addBooleanOption(option => option.setName('links')
+            .setDescription('show links')
+            .setRequired(false))
+        .addBooleanOption(option => option.setName('stats')
+            .setDescription('show statistics A(mmo), T(ime), H(ull)')
+            .setRequired(false))),
 	permissions: 0,
 	async execute(interaction) {
         let args = []
@@ -54,11 +65,14 @@ module.exports = {
         let leaderboardResults = [] // Must become a SORTED array of objects with { text: <information> } as a property
         let leaderboardNameCaps
         let embedDescription = ""
+        let shipName;
         args["leaderboard"] = interaction.options.data[0].name
         leaderboardNameCaps = args.leaderboard.charAt(0).toUpperCase() + args.leaderboard.slice(1)
         for (let key of interaction.options.data[0].options) {
             args[key.name] = key.value
         }
+
+        if (args.links === undefined) { args.links = false }
 
         switch (args.leaderboard) {
             case ("speedruns"):
@@ -70,8 +84,13 @@ module.exports = {
                 }
                 for (let entry of res.rows) {
                     entry.timeFormatted = new Date(entry.time * 1000).toISOString().substr(11, 8)
-                    let name = await interaction.guild.members.fetch(entry.user_id)
-                    let string = `${entry.timeFormatted} - ${name} - ${entry.ship}`
+                    let string = ""
+                    try {
+                        let user = await interaction.guild.members.fetch(entry.user_id)
+                        string = `${entry.timeFormatted} - ${user.displayName} - ${entry.ship}`
+                    } catch {
+                        string = `${entry.timeFormatted} - ${entry.name} - ${entry.ship}`
+                    }
                     if (args.options !== undefined) {
                         if (args.options === "links") {
                             string += `\nVideo: [${entry.link}]`
@@ -82,27 +101,65 @@ module.exports = {
                 leaderboardResults.sort(dynamicSort("time"))
             break;
             case ("ace"):
-                embedDescription = `Ace results`
-                res = await queryWarden(`SELECT * FROM ace WHERE approval = true`)
+                switch (args.shiptype) {
+                    case "fdl":
+                        shipName = "Fer-De-Lance"
+                        break;
+                    case "chieftain":
+                        shipName = "Alliance Chieftain"
+                        break;
+                    case "challenger":
+                        shipName = "Alliance Challenger"
+                        break;
+                    case "kraitmk2":
+                        shipName = "Krait Mk.II"
+                        break;
+                }
+                embedDescription = `Ace Leaderboard Results for **${shipName}** (Top #10 CMDRs receives the <@&650449319262158868> Role)`
+                res = await queryWarden(`SELECT * FROM ace WHERE approval = true AND shiptype = '${args.shiptype}'`)
                 if (res.rowCount === 0) {
                     interaction.reply(`Sorry, no entries found in the ${leaderboardNameCaps} Leaderboard`)
                     return
                 }
+                console.log('Got leaderboard ace results from DB, generating report');
                 for (let entry of res.rows) {
-                    let name = await interaction.guild.members.fetch(entry.user_id)
-                    let string = `${entry.score} - ${name}`
-                    if (args.links === true) {
-                        string += `\nVideo: [${entry.link}]`
+                    let leaderboardEntry
+                    try {
+                        let user = await interaction.guild.members.fetch(entry.user_id)
+                        leaderboardEntry = `${entry.score} - ${user.displayName}`
+                    } catch {
+                        leaderboardEntry = `${entry.score} - ${entry.name}`
                     }
-                    leaderboardResults.push({ score: entry.score, text: string})
+                    if (args.stats === true) {
+                        var timetaken = entry.timetaken;
+                        var date = new Date(0);
+                        date.setSeconds(timetaken);
+                        var time = date.toISOString().substring(11, 19);
+
+                        let ammo = entry.mgaussfired + 'm ' + entry.sgaussfired + 's';
+                        let hull = entry.percenthulllost;
+                        let aceRunStats = `T: ${time}, A: ${ammo}, H: ${hull}%`;
+                        leaderboardEntry += `\n  Stats: ${aceRunStats}`
+                    }
+                    if (args.links === true) {
+                        leaderboardEntry += `\n  Video: [${entry.link}]`
+                    }
+                    leaderboardResults.push({ score: entry.score, text: leaderboardEntry})
                 }
                 leaderboardResults.sort(dynamicSort("score"))
+                leaderboardResults = leaderboardResults.reverse();
             break;
         }
 
         let leaderboardString = "";
         let position = 1
         for (let result of leaderboardResults) {
+            if (args.leaderboard === "ace" && args.shiptype === "chieftain") {
+                if (position <= 10) {result.text += ` <:Ace:893332550536286228>`}
+            }
+            //if (args.leaderboard === "ace" && args.shiptype !== "chieftain") {
+            //    if (position <= 1) {result.text += ` <:Ace:893332550536286228>`}
+            //}
             leaderboardString += `**#${position}** ${result.text}\n`
             position++
         }
@@ -111,8 +168,10 @@ module.exports = {
 		.setColor('#FF7100')
 		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle(`**${leaderboardNameCaps} Leaderboard**`)
-        .setDescription(embedDescription)
-        .addField(`Leaderboard`, `${leaderboardString}`)
+        .setDescription(`${embedDescription}\n\n${leaderboardString}`)
+        //.addField(`Leaderboard`, `${leaderboardString}`)
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
+
+        
     }
 }

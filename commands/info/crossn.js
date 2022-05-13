@@ -28,9 +28,11 @@ module.exports = {
         }
         console.log(args)
         try
-        {
-            if(interaction.mentions.roles.length != undefined || interaction.mentions.members.length != undefined)
+        {   
+            if (interaction.mentions !== undefined) {
+                if(interaction.mentions.roles.length != undefined || interaction.mentions.members.length != undefined)
                 throw("Illegal input detected!")
+            }
             let inputMode = interaction.options.data.find(arg => arg.name === 'mode').value
             let roles = []
             let count = 0
@@ -94,7 +96,7 @@ module.exports = {
                     {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                     {name:"Count",value:"```" + count + "```"}
                 )
-                interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] })
+                interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
             }
             else
             {
@@ -105,7 +107,7 @@ module.exports = {
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         {name:"No members were found!",value:"** **"},
                     )
-                    interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] }) 
+                    interaction.reply({ embeds: [returnEmbed.setTimestamp()] }) 
                 }
                 else
                 {
@@ -114,14 +116,14 @@ module.exports = {
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},
                     )
-                    interaction.channel.send({ embeds: [returnEmbed.setTimestamp()] })  
+                    interaction.reply({ embeds: [returnEmbed.setTimestamp()] })  
                 }
             }
         }
         catch(err)
         {
             console.error(err);
-            interaction.channel.send({ content: `An error occured!\n${err}` })
+            interaction.reply({ content: `An error occured!\n${err}` })
         }
     },
 };

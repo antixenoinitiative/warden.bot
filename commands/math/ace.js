@@ -567,7 +567,7 @@ module.exports = {
 		const buttonRow = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setLabel('Learn more about the Ace Score Calculator').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/Ace-Rank-Rework'),)
 
-        interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
+        await interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
 
         // Leaderboard Submissions
         if (args.submit === true) {
@@ -600,7 +600,7 @@ module.exports = {
             }
 
             try {
-                res = await queryWarden("INSERT INTO ace(user_id, name, timetaken, mgauss, sgauss, mgaussfired, sgaussfired, percenthulllost,score, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", [
+                res = await queryWarden("INSERT INTO ace(user_id, name, timetaken, mgauss, sgauss, mgaussfired, sgaussfired, percenthulllost,score, link, approval, date, shiptype) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", [
                     userID,
                     name,
                     args.time_in_seconds,
@@ -612,7 +612,8 @@ module.exports = {
                     finalScore.toFixed(2),
                     args.link,
                     false,
-                    timestamp
+                    timestamp,
+                    args.shiptype
                 ])
             } catch (err) {
                 console.log(err)
@@ -643,7 +644,13 @@ module.exports = {
             .addFields(
             {name: "Pilot", value: `<@${userID}>`, inline: true},
             {name: "Score", value: `${finalScore.toFixed(2)}`, inline: true},
-            {name: "link", value: `${args.link}`, inline: true})
+            {name: "link", value: `${args.link}`, inline: true},
+            {name: "Time(sec)", value: `${args.time_in_seconds}`, inline: true},
+            {name: "Medium Gauss Modules", value: `${args.gauss_medium_number}`, inline: true},
+            {name: "Small Gauss Modules", value: `${args.gauss_small_number}`, inline: true},
+            {name: "Medium Gauss Fired", value: `${args.shots_medium_fired}`, inline: true},
+            {name: "Small Gauss Fired", value: `${args.shots_small_fired}`, inline: true},
+            {name: "Hull % Lost", value: `${args.percenthulllost}`, inline: true})
             const row = new Discord.MessageActionRow()
             .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
             .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)

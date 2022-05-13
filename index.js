@@ -2,7 +2,6 @@ require("dotenv").config();
 const { deployCommands } = require('./deploy-commands'); // Re-register slash commands
 const { readdirSync } = require('fs');
 const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
-const event = require('./interaction/event.js');
 const { leaderboardInteraction } = require('./interaction/submission.js');
 const { prefix, icon, securityGroups } = require('./config.json');
 
@@ -10,10 +9,10 @@ const { prefix, icon, securityGroups } = require('./config.json');
 const serverIntents = new Intents();
 serverIntents.add(
 	Intents.FLAGS.GUILDS,
-	Intents.FLAGS.GUILD_PRESENCES, 
-	Intents.FLAGS.GUILD_MEMBERS, 
-	Intents.FLAGS.GUILD_MESSAGES, 
-	Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
+	Intents.FLAGS.GUILD_PRESENCES,
+	Intents.FLAGS.GUILD_MEMBERS,
+	Intents.FLAGS.GUILD_MESSAGES,
+	Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
 	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
 );
 const bot = new Client({ intents: serverIntents })
@@ -33,12 +32,6 @@ for (const folder of commandFolders) {
 		}
 	}
 }
-
-const incursionsEmbed = new MessageEmbed()
-.setColor('#FF7100')
-.setAuthor('The Anti-Xeno Initiative', icon)
-.setTitle("**Defense Targets**")
-let messageToUpdate
 
 /**
  * Log a discord bot event in the Log Channel
@@ -64,9 +57,9 @@ const botLog = (event, severity) => {
 			break;
 	}
 	if (process.env.LOGCHANNEL) {
-		bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+		//bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
 	} else {
-		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.") 
+		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
 	}
 }
 
@@ -86,6 +79,7 @@ const checkPermissions = (command, interaction) => {
 	return allowed
 }
 
+// Sets up permissions for Slash Commands
 const deployPermissions = async () => {
 	const fullPermissions = []
 	const commands = await bot.guilds.cache.get(process.env.GUILDID)?.commands.fetch()
@@ -120,22 +114,17 @@ const deployPermissions = async () => {
  */
 bot.once("ready", async() => {
 	await deployCommands();
-	await deployPermissions();
+	//await deployPermissions();
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
-
+	/*
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	bot.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
-		messageToUpdate = message
-		const currentEmbed = message.embeds[0]
-		incursionsEmbed.description = currentEmbed.description
-		currentEmbed.fields.forEach((field) => {
-			incursionsEmbed.addField(field.name, field.value)
-		})
+		//message is the discord message the bot is updating with the snapshot
 	}).catch(err => {
 		console.error(err)
 	})
-
+	*/
 })
 
 /**
@@ -145,21 +134,27 @@ bot.once("ready", async() => {
 bot.on('interactionCreate', async interaction => {
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
-		if (!command) return;
+		if (!command) {
+			console.warn('WARNING: Unknown command detected.');
+			return;
+		}
 		let args;
 		if (interaction.options !== undefined) {
-			args = JSON.stringify(interaction.options.data)
+			try {
+				args = JSON.stringify(interaction.options.data)
+			} catch (err) {
+				console.warn(`WARNING: Unable to create arguments for legacy commands, this may not affect modern slash commands: ${err}`)
+			}
 		}
 		if (command.permissions != 0) {
-			if (checkPermissions(command, interaction) === false) { 
-				botLog('**' + interaction.member.nickname + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")  
+			if (checkPermissions(command, interaction) === false) {
+				botLog('**' + interaction.user.tag + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")
 				return interaction.reply("You don't have permission to use that command!")
 			}
 		}
 		try {
 			await command.execute(interaction, args);
-			
-			botLog('**' + interaction.member.nickname + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
+			botLog('**' + interaction.user.tag + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
 		} catch (error) {
 			console.error(error);
 			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
@@ -167,17 +162,6 @@ bot.on('interactionCreate', async interaction => {
 	}
 
 	if (interaction.isButton()) {
-		if (interaction.customId.startsWith("event")) {
-			interaction.deferUpdate();
-			let response = interaction.customId.split("-");
-			if (response[2] === "enroll") {
-				event.joinEvent(interaction, response[1])
-			}
-			if (response[2] === "leave") {
-				event.leaveEvent(interaction, response[1])
-			}
-			return;
-		}
 		if (interaction.customId.startsWith("submission")) {
 			interaction.deferUpdate();
 			leaderboardInteraction(interaction);
@@ -187,17 +171,17 @@ bot.on('interactionCreate', async interaction => {
 			interaction.deferUpdate();
 			interaction.member.roles.add("428260067901571073")
 			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+			botLog(`Welcome Verification passed - User: **${interaction.user.tag}**`, "low")
 		} else if (interaction.customId === "platformxb") {
 			interaction.deferUpdate();
 			interaction.member.roles.add("533774176478035991")
 			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+			botLog(`Welcome Verification passed - User: **${interaction.user.tag}**`, "low")
 		} else if (interaction.customId === "platformps") {
 			interaction.deferUpdate();
 			interaction.member.roles.add("428259777206812682")
 			interaction.member.roles.add("380247760668065802")
-			botLog(`Welcome Verification passed - User: **${interaction.member.nickname}**`, "low")
+			botLog(`Welcome Verification passed - User: **${interaction.user.tag}**`, "low")
 		}
 		interaction.member.roles.add("642840406580658218");
 		interaction.member.roles.add("642839749777948683");
@@ -239,8 +223,8 @@ bot.on('messageCreate', message => {
 	}
 
 	if (command.permissions != 0) {
-		if (checkPermissions(command, message) === false) { 
-			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
+		if (checkPermissions(command, message) === false) {
+			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")
 			return message.reply("You don't have permission to use that command!")
 		}
 	}
@@ -252,7 +236,7 @@ bot.on('messageCreate', message => {
 		return message.channel.send({ content: `${reply}` });
 	}
 	try {
-		command.execute(message, args, updateEmbedField); // Execute the command
+		command.execute(message, args); // Execute the command
 		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
 	} catch (error) {
 		console.error(error);
@@ -261,40 +245,5 @@ bot.on('messageCreate', message => {
 });
 
 bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
-
-/**
-* Updates or adds a single field to the stored embed and updates the message
-* @author   Airom
-* @param    {Array} field    {name: nameOfField, value: valueOfField}
-*/
-function updateEmbedField(field) {
-	if(!messageToUpdate) return
-	if(field.name === null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
-	const temp = new MessageEmbed()
-	.setColor('#FF7100')
-	.setAuthor('The Anti-Xeno Initiative', icon)
-	.setTitle("**Defense Targets**")
-	.setDescription(incursionsEmbed.description)
-	let isUpdated = false
-	for(const value of incursionsEmbed.fields) {
-		if(value.name === field.name) {
-			if(field.value) {
-				temp.addField(field.name, field.value)
-			}
-			isUpdated = true
-			console.log("Updated existing field: " + field.name)
-		} else {
-			temp.addField(value.name, value.value)
-			console.log("Copied existing field: " + value.name)
-		}
-	}
-	if(!isUpdated && field.value){
-		temp.addField(field.name, field.value)
-		console.log("Added new field: " + field.name)
-	}
-	incursionsEmbed.fields = temp.fields
-	messageToUpdate.edit({ embeds: [incursionsEmbed.setTimestamp()] })
-	console.log(messageToUpdate.embeds[0].fields)
-}
 
 bot.login(process.env.TOKEN)

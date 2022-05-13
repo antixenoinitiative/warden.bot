@@ -14,7 +14,6 @@ module.exports = {
   async execute(interaction) {
     try {
       let userID = interaction.options.data.find(arg => arg.name === 'user').value
-      console.log(userID)
       let { rows } = await db.queryWarden("SELECT id FROM backups")
       let backupIndexes = []
       for (let backup of rows) {
@@ -40,7 +39,6 @@ module.exports = {
           namestring+=sortedallvalues[i][1]+"\n"
         }
       }
-      console.log(namestring)
       const returnEmbed = new Discord.MessageEmbed()
         .setColor("#FF7100")
         .setAuthor(
@@ -48,8 +46,10 @@ module.exports = {
           "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png"
         )
         .setTitle("**Roles from Backup**")
-        .setDescription(`Retrieved backup for ${await interaction.guild.members.fetch(userID)}. Backup Date: <t:${timestamp}>`)
-        .addField("Roles", "```" + namestring + "```")
+        .setDescription(`Retrieved backup for ${await interaction.guild.members.fetch(userID)}. Backup Date: <t:${timestamp}>
+        
+        ${namestring}`)
+        //.addField("Roles", "```" + namestring + "```")
       interaction.reply({ embeds: [returnEmbed] });
     } catch (err) {
       interaction.channel.send(`Something went wrong ${err}`);

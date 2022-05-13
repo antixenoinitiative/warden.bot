@@ -29,6 +29,7 @@ module.exports = {
 						.setTitle("**Challenge Ranks**")
 						.setDescription(`Challenge Rank Statistics`)
 						.addFields(
+							{name: "Cerberus' Bane", value: roleCache.get("913848672679247963").members.size.toString(), inline: true},
 							{name: "Caduceus' Glint", value: roleCache.get("810410422871785472").members.size.toString(), inline: true},
 							{name: "Ace", value: roleCache.get("650449319262158868").members.size.toString(), inline: true},
 							{name: "Astraea's Clarity", value: roleCache.get("868809340788834324").members.size.toString(), inline: true},
