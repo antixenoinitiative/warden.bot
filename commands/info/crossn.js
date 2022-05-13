@@ -16,7 +16,7 @@ module.exports = {
 		.setRequired(true)
         .addChoice('Count', 'count')
 		.addChoice('Nickname', 'nickname')
-		.addChoice('Club 10', 'club10'))
+		.addChoice('Club 7', 'club7'))
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
 		.setRequired(false)),
@@ -41,18 +41,15 @@ module.exports = {
             if(inputMode !== "count" && inputMode !== "nickname")
             {
                 mode = "nickname"
-                if(inputMode == "club10")
+                if(inputMode == "club7")
                     roles = [
-                                '477645690630307841', //100% Club
-                                '528577192746287104', //Annihilator
-                                '868809340788834324', //Astrea's clarity
-                                '913848672679247963', //Cerberus' Bane
-                                '963786177306054656', //Hephaestus Shunned
-                                '810410728023916554', //Myrmidon
-                                '508638571565940736', //Snake Eater
-                                '603345251192537098', //Soaring Sleipnir
-                                '973093582481281044', //The Swarm
-                                '642840616694317104', //Vanguard
+                                '477645690630307841', //100club
+                                '528577192746287104', //annihi
+                                '868809340788834324', // Astreas clarity
+                                '810410728023916554', //Myr
+                                '508638571565940736', //snake
+                                '603345251192537098', //soaring
+                                '642840616694317104' //vang
                             ]
                 else
                     args.forEach(arg => roles.push(getRoleID(interaction,arg)))
