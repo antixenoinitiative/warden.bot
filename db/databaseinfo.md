@@ -33,6 +33,13 @@ CREATE TABLE backups(
     data            text[],
     timestamp       bigint
 );
+CREATE TABLE club10(
+    id              SERIAL PRIMARY KEY,
+    user_id         text,
+    name            text,
+    avatar            text,
+    timestamp       bigint
+);
 CREATE TABLE events(
     event_id        text,
     embed_id        text,

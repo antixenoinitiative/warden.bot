@@ -4,6 +4,9 @@ const { readdirSync } = require('fs');
 const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
 const { leaderboardInteraction } = require('./interaction/submission.js');
 const { prefix, icon, securityGroups } = require('./config.json');
+const cron = require('node-cron');
+const { queryWarden } = require("./db");
+const { connect_timeout } = require("pg/lib/defaults");
 
 // Discord client setup
 const serverIntents = new Intents();
@@ -56,9 +59,9 @@ const botLog = (event, severity) => {
 			logEmbed.setDescription(`${event}`)
 			break;
 	}
-	if (process.env.LOGCHANNEL) {
-		//bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
-	} else {
+	try {
+		bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
+	} catch {
 		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
 	}
 }
@@ -79,44 +82,21 @@ const checkPermissions = (command, interaction) => {
 	return allowed
 }
 
-// Sets up permissions for Slash Commands
-const deployPermissions = async () => {
-	const fullPermissions = []
-	const commands = await bot.guilds.cache.get(process.env.GUILDID)?.commands.fetch()
-	for (let [, value] of commands) {
-		let command = bot.commands.get(value.name) // gets command specific info from commandFiles
-		if (command.data !== undefined) {
-			if (command.permissions !== 0) { // checks to see if command requires a securityGroup
-				let requiredRoles = securityGroups[command.permissions].roles // Fetch array of required roles depending on securityGroup
-				let commandPermArray = []
-				for (let role of requiredRoles) {
-					let perm = {
-						id: role,
-						type: 'ROLE',
-						permission: true,
-					}
-					commandPermArray.push(perm)
-				}
-				let commandPermissions = {
-					id: value.id,
-					permissions: commandPermArray,
-				}
-				fullPermissions.push(commandPermissions)
-			}
-		}
-	}
-	await bot.guilds.cache.get(process.env.GUILDID)?.commands.permissions.set({ fullPermissions });
-}
-
 /**
  * Event handler for Bot Login, manages post-login setup
  * @author  (Mgram) Marcus Ingram, (Airom42) Airom
  */
 bot.once("ready", async() => {
 	await deployCommands();
-	//await deployPermissions();
 	botLog(`Warden is now online! ⚡`, `high`);
 	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
+
+	// Scheduled Role Backup Task
+	cron.schedule('*/5 * * * *', function() {
+		console.log('Running Scheduled Task');
+		backupRoles('974673947784269824', 'club10')
+	});
+
 	/*
 	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
 	bot.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
@@ -244,6 +224,43 @@ bot.on('messageCreate', message => {
 	}
 });
 
-bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
+async function backupRoles(roleId, table) {
+	console.log(`Starting Role Backup Job (${table})`)
+	let guilds = bot.guilds.cache.map((guild) => guild);
+	let guild = guilds[0]
+	await guild.members.fetch()
+	let members = guild.roles.cache.get(roleId).members.map(m=>m.user)
+	try {
+		await queryWarden(`DROP TABLE ${table}`)
+	} catch (err) {
+		console.log(`Backup Roles: Unable to delete table: ${err}`)
+	}
+	try {
+		await queryWarden(`CREATE TABLE ${table}(
+			id              SERIAL PRIMARY KEY,
+			user_id         text,
+			name            text,
+			avatar          text
+		);`)
+	} catch (err) {
+		console.log(`Backup Roles: Unable to reset table, exiting task: ${err}`)
+		return;
+	}
 
+	for (let member of members) {
+		let timestamp = Date.now()
+		let name = await guild.members.cache.get(member.id).nickname
+		await queryWarden(`INSERT INTO ${table}(user_id, name, avatar) VALUES($1,$2,$3)`, [
+			member.id,
+			name,
+			member.avatar
+		])
+	}
+	
+	console.log(`Role Backup Job Complete (${table})`)
+}
+
+
+
+bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
 bot.login(process.env.TOKEN)

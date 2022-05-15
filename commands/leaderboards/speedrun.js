@@ -49,7 +49,7 @@ module.exports = {
 		// Checks
 		if (!args.link.startsWith('https://')) { return interaction.reply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
 		if (args.user !== undefined) { user = args.user }
-		let name = await interaction.guild.members.fetch(user).displayName
+		let name = await interaction.guild.members.cache.get(user).nickname
 
 		// Submit
 		if(interaction.guild.channels.cache.get(staffChannel) === undefined)  { // Check for staff channel
