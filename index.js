@@ -6,7 +6,6 @@ const { leaderboardInteraction } = require('./interaction/submission.js');
 const { prefix, icon, securityGroups } = require('./config.json');
 const cron = require('node-cron');
 const { queryWarden } = require("./db");
-const { connect_timeout } = require("pg/lib/defaults");
 
 // Discord client setup
 const serverIntents = new Intents();
