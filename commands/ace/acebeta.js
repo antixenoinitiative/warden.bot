@@ -9,7 +9,7 @@ const Discord = require("discord.js");
 // const shipData = require("./calc/shipdata.json")
 
 let options = new SlashCommandBuilder()
-.setName('ace-beta')
+.setName('ace')
 .setDescription('Score your fight based on the revised Ace Scoring System')
 .addStringOption(option => option.setName('shiptype')
     .setDescription('Ship you used - Ace challenge requires an Alliance Chieftain')
