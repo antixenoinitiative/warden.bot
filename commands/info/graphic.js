@@ -26,7 +26,6 @@ module.exports = {
         if (!isValid(selection)) {
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
-            .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle("Graphics")
             .setDescription("List of valid graphic commands")
             for (const value of data) {
@@ -46,7 +45,6 @@ module.exports = {
         } else if (response.type == "embed") {
             const returnEmbed = new Discord.MessageEmbed()
             .setColor('#FF7100')
-            .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
             .setTitle(response.title)
             .setDescription(response.description)
             .setImage(response.link)

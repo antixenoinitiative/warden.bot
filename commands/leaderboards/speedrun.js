@@ -78,7 +78,6 @@ module.exports = {
 		let submissionId = res.rows[0].id
 		const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
-		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle(`**Speedrun Submission Complete**`)
 		.setDescription(`Congratulations <@${interaction.member.id}>, your submission is complete. Please be patient while our staff approve your submission. Submission ID: #${submissionId}`)
 		.addFields(
@@ -94,7 +93,6 @@ module.exports = {
 		// Create staff interaction
 		const staffEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
-		.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 		.setTitle(`**New Speedrun Submission**`)
 		.setDescription(`Please select Approve or Deny below if the video is legitimate and matches the fields below. NOTE: This will not assign any ranks, only approve to the Leaderboard.`)
 		.addFields(

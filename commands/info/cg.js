@@ -52,8 +52,7 @@ module.exports = {
                             try {
                                 const returnEmbed = new Discord.MessageEmbed()
                                     .setColor('#FF7100')
-                                    .setAuthor(`Community Goal - #${data.id}`, "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-                                    .setTitle(`${data.title}`)
+                                    .setTitle(`#${data.id} - ${data.title}`)
                                     .setDescription(`${data.bulletin}`)
                                     .addFields(
                                         {name: "Location", value: `${data.market_name} - ${data.starsystem_name}`, inline: true},

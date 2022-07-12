@@ -1,4 +1,5 @@
 require("dotenv").config();
+require('log-timestamp');
 const { deployCommands } = require('./deploy-commands'); // Re-register slash commands
 const { readdirSync } = require('fs');
 const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
@@ -42,8 +43,8 @@ for (const folder of commandFolders) {
  * @param	{string} severity	Message severity ("low", "medium", "high").
  */
 const botLog = (event, severity) => {
+	console.log(`${event}`)
 	const logEmbed = new MessageEmbed()
-	.setAuthor('Warden', icon);
 	switch (severity) {
 		case "low":
 			logEmbed.setColor('#42f569')
@@ -66,44 +67,23 @@ const botLog = (event, severity) => {
 }
 
 /**
- * Check command permissions against securityGroups
- * @author  (Mgram) Marcus Ingram
- * @param	{object} command		The command object to check
- * @param	{object} interaction	Message/Interaction Object
- */
-const checkPermissions = (command, interaction) => {
-	let allowedRoles = securityGroups[command.permissions].roles;
-	let userRoles = interaction.member._roles;
-	let allowed = false; // False by default
-	for (let role of allowedRoles) {
-		if (userRoles.includes(role)) { allowed = true }
-	}
-	return allowed
-}
-
-/**
  * Event handler for Bot Login, manages post-login setup
  * @author  (Mgram) Marcus Ingram, (Airom42) Airom
  */
 bot.once("ready", async() => {
 	await deployCommands();
-	botLog(`Warden is now online! ⚡`, `high`);
-	console.log(`[✔] Discord bot Logged in as ${bot.user.tag}!`);
-
+	botLog(`[✔] Warden is now online! logged in as ${bot.user.tag}`, `high`);
 	// Scheduled Role Backup Task
 	cron.schedule('*/5 * * * *', function() {
-		console.log('Running Scheduled Task');
-		backupRoles('974673947784269824', 'club10')
+		try {
+			console.log('Running Ace Backup Task');
+			await backupRoles('974673947784269824', 'club10')
+			console.log(`Role Backup Job Complete (${table})`)
+		} catch (err) {
+			console.log(`Error completing Ace backup task: (${err})`)
+		}
+		
 	});
-
-	/*
-	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
-	bot.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
-		//message is the discord message the bot is updating with the snapshot
-	}).catch(err => {
-		console.error(err)
-	})
-	*/
 })
 
 /**
@@ -114,7 +94,7 @@ bot.on('interactionCreate', async interaction => {
 	if (interaction.isCommand()) {
 		const command = bot.commands.get(interaction.commandName);
 		if (!command) {
-			console.warn('WARNING: Unknown command detected.');
+			console.log('WARNING: Unknown command detected.');
 			return;
 		}
 		let args;
@@ -122,18 +102,12 @@ bot.on('interactionCreate', async interaction => {
 			try {
 				args = JSON.stringify(interaction.options.data)
 			} catch (err) {
-				console.warn(`WARNING: Unable to create arguments for legacy commands, this may not affect modern slash commands: ${err}`)
-			}
-		}
-		if (command.permissions != 0) {
-			if (checkPermissions(command, interaction) === false) {
-				botLog('**' + interaction.user.tag + `** Attempted to use command: **/${interaction.commandName}** Failed: Insufficient Permissions`, "medium")
-				return interaction.reply("You don't have permission to use that command!")
+				console.log(`WARNING: Unable to create arguments for legacy command '${interaction.commandName}', this may not affect modern slash commands: ${err}`)
 			}
 		}
 		try {
-			await command.execute(interaction, args);
 			botLog('**' + interaction.user.tag + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
+			await command.execute(interaction, args);
 		} catch (error) {
 			console.error(error);
 			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
@@ -141,6 +115,7 @@ bot.on('interactionCreate', async interaction => {
 	}
 
 	if (interaction.isButton()) {
+		botLog(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`, "low")
 		if (interaction.customId.startsWith("submission")) {
 			interaction.deferUpdate();
 			leaderboardInteraction(interaction);
@@ -167,61 +142,7 @@ bot.on('interactionCreate', async interaction => {
 	}
 });
 
-/**
- * Event handler for message based events, manages basic commands.
- * @author  (Mgram) Marcus Ingram, (Airom42) Airom
- */
-bot.on('messageCreate', message => {
-	if (!message.content.startsWith(prefix) || message.author.bot) return;
-
-	let args;
-	let commandName;
-	let command;
-	try {
-		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments - Split by spaces, except where there are quotes.
-		args = args.map(arg => arg.replaceAll('"', ''))
-		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
-		command = bot.commands.get(commandName);
-	} catch (err) {
-		console.warn(`Invalid command input: ${err}`)
-	}
-	//checks if command exists, then goes to non-subfiled command
-	if (!bot.commands.has(commandName)) {
-		// Basic Commands
-		if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			message.reply({ content: "Type `/` to view all commands"})
-		}
-
-		if (message.content === `${prefix}ping`) {
-			message.channel.send({ content: `🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(bot.ws.ping)}ms` });
-		}
-		return;
-	}
-	if (command.data !== undefined) {
-		return message.reply({ content: `Sorry, the command **-${command.data.name}** has been upgraded to a ***Slash Command***, please use **/${command.data.name}** instead!` })
-	}
-
-	if (command.permissions != 0) {
-		if (checkPermissions(command, message) === false) {
-			botLog('**' + message.member.nickname + '** Attempted to use command: /`' + message.commandName + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")
-			return message.reply("You don't have permission to use that command!")
-		}
-	}
-	if (command.args && !args.length) {
-		let reply = `You didn't provide any arguments, ${message.author}!`;
-		if (command.usage) {
-			reply = `Expected usage: \`${prefix}${command.name} ${command.usage}\``;
-		}
-		return message.channel.send({ content: `${reply}` });
-	}
-	try {
-		command.execute(message, args); // Execute the command
-		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
-	} catch (error) {
-		console.error(error);
-		message.reply(`there was an error trying to execute that command!: ${error}`);
-	}
-});
+// Role Backup System
 
 async function backupRoles(roleId, table) {
 	console.log(`Starting Role Backup Job (${table})`)
@@ -245,7 +166,6 @@ async function backupRoles(roleId, table) {
 		console.log(`Backup Roles: Unable to reset table, exiting task: ${err}`)
 		return;
 	}
-
 	for (let member of members) {
 		let timestamp = Date.now()
 		let name = await guild.members.cache.get(member.id).nickname
@@ -255,11 +175,7 @@ async function backupRoles(roleId, table) {
 			member.avatar
 		])
 	}
-	
-	console.log(`Role Backup Job Complete (${table})`)
 }
-
-
 
 bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
 bot.login(process.env.TOKEN)
