@@ -74,7 +74,7 @@ bot.once("ready", async() => {
 	await deployCommands();
 	botLog(`[✔] Warden is now online! logged in as ${bot.user.tag}`, `high`);
 	// Scheduled Role Backup Task
-	cron.schedule('*/5 * * * *', function() {
+	cron.schedule('*/5 * * * *', async function() {
 		try {
 			console.log('Running Ace Backup Task');
 			await backupRoles('974673947784269824', 'club10')
