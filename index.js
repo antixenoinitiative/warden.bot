@@ -82,7 +82,6 @@ bot.once("ready", async() => {
 		} catch (err) {
 			console.log(`Error completing Ace backup task: (${err})`)
 		}
-		
 	});
 })
 
@@ -106,7 +105,7 @@ bot.on('interactionCreate', async interaction => {
 			}
 		}
 		try {
-			botLog('**' + interaction.user.tag + `** Used command: /${interaction.commandName}\n\n **Arguments:** ${args}`, "low");
+			botLog(`Command Executed - **${interaction.commandName}** - User: **${interaction.user.tag}** - Arguments: ` + "`" + `${args}` + "`", "low");
 			await command.execute(interaction, args);
 		} catch (error) {
 			console.error(error);
