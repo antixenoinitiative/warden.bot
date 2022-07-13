@@ -1,12 +1,16 @@
+// Imported Modules
 require("dotenv").config();
 require('log-timestamp');
-const { deployCommands } = require('./deploy-commands'); // Re-register slash commands
-const { readdirSync } = require('fs');
 const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
-const { leaderboardInteraction } = require('./interaction/submission.js');
-const { prefix, icon, securityGroups } = require('./config.json');
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
 const cron = require('node-cron');
+const fs = require('fs');
+
+// Local Modules
+const { leaderboardInteraction } = require('./interaction/submission.js');
 const { queryWarden } = require("./db");
+const config = require('./config.json');
 
 // Discord client setup
 const serverIntents = new Intents();
@@ -20,11 +24,14 @@ serverIntents.add(
 );
 const bot = new Client({ intents: serverIntents })
 
-// Command Setup
+/**
+ * Loads command objects from the commands folder
+ * @author  (Airom) Airom42
+ */
 bot.commands = new Collection();
-const commandFolders = readdirSync('./commands');
+const commandFolders = fs.readdirSync('./commands');
 for (const folder of commandFolders) {
-	const commandFiles = readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+	const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
 	for (const file of commandFiles) {
 		const command = require(`./commands/${folder}/${file}`);
 		command.category = folder;
@@ -63,6 +70,39 @@ const botLog = (event, severity) => {
 		bot.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
 	} catch {
 		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
+	}
+}
+
+/**
+ * Deploys Command objects to the Discord API registering any changes
+ * @author  (Mgram) Marcus Ingram
+ */
+async function deployCommands() {
+	const commands = [];
+
+	const commandFolders = fs.readdirSync('./commands');
+	for (const folder of commandFolders) {
+		const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+		for (const file of commandFiles) {
+			const command = require(`./commands/${folder}/${file}`);
+			command.category = folder;
+			if (command.data !== undefined) {
+				commands.push(command.data.toJSON());
+			}
+		}
+	}
+
+	const rest = new REST({ version: '9' }).setToken(process.env.TOKEN);
+	
+	try {
+		await rest.put(
+			Routes.applicationGuildCommands(process.env.CLIENTID, process.env.GUILDID),
+			{ body: commands },
+		);
+
+		console.log('[✔] Successfully registered application commands');
+	} catch (error) {
+		console.error(error);
 	}
 }
 
@@ -141,8 +181,10 @@ bot.on('interactionCreate', async interaction => {
 	}
 });
 
-// Role Backup System
-
+/**
+ * Role backup system, takes the targetted role and table and backs up to SQL database.
+ * @author  (Mgram) Marcus Ingram
+ */
 async function backupRoles(roleId, table) {
 	console.log(`Starting Role Backup Job (${table})`)
 	let guilds = bot.guilds.cache.map((guild) => guild);
