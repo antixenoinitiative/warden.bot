@@ -1,0 +1,11 @@
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+    .setName(`abp`)
+    .setDescription(`Summon aman!`),
+    permissions: 0,
+    execute (interaction) {
+      interaction.reply({ content: `You summoned Aman! <@321304077239582723>` });
+    }
+}

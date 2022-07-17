@@ -1,10 +1,11 @@
 const Discord = require("discord.js");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'ranks',
-	description: 'Get rank statistics',
-	usage: ' ',
-	permlvl: 0,
+	data: new SlashCommandBuilder()
+	.setName('ranks')
+	.setDescription('Get rank statistics'),
+	permissions: 0,
 	async execute(message) {
 
 		// Build the initial message
@@ -13,10 +14,10 @@ module.exports = {
         .addComponents(new Discord.MessageButton().setCustomId('challenge').setLabel('Challenge Ranks').setStyle('PRIMARY'),)
         .addComponents(new Discord.MessageButton().setCustomId('progression').setLabel('Progression Ranks').setStyle('PRIMARY'),)
         .addComponents(new Discord.MessageButton().setCustomId('other').setLabel('Other Ranks').setStyle('PRIMARY'),)
-        message.channel.send({ content: "Select which ranks to list:", components: [row] });
+        message.reply({ content: "Select which ranks to list:", components: [row] });
 
 		// Recieve the button response
-		const filter = i => i.user.id === message.author.id;
+		const filter = i => i.user.id === message.member.id;
 		const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
 		collector.on('collect', async i => {
 			if (i.customId === 'challenge') {
@@ -24,10 +25,10 @@ module.exports = {
 				try {
 					const returnEmbed = new Discord.MessageEmbed()
 						.setColor('#FF7100')
-						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 						.setTitle("**Challenge Ranks**")
 						.setDescription(`Challenge Rank Statistics`)
 						.addFields(
+							{name: "Cerberus' Bane", value: roleCache.get("913848672679247963").members.size.toString(), inline: true},
 							{name: "Caduceus' Glint", value: roleCache.get("810410422871785472").members.size.toString(), inline: true},
 							{name: "Ace", value: roleCache.get("650449319262158868").members.size.toString(), inline: true},
 							{name: "Astraea's Clarity", value: roleCache.get("868809340788834324").members.size.toString(), inline: true},
@@ -49,7 +50,6 @@ module.exports = {
 				try {
 					const returnEmbed = new Discord.MessageEmbed()
 						.setColor('#FF7100')
-						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 						.setTitle("**Progression Ranks**")
 						.setDescription(`Progression Rank Statistics`)
 						.addFields(
@@ -75,7 +75,6 @@ module.exports = {
 				try {
 					const returnEmbed = new Discord.MessageEmbed()
 						.setColor('#FF7100')
-						.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 						.setTitle("**Other Ranks**")
 						.setDescription(`Other Rank Statistics`)
 						.addFields(

@@ -1,47 +1,62 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
-const { getRoleID } = require("../../discord/getRoleID");
 const fs = require('fs')
+const { SlashCommandBuilder } = require('@discordjs/builders');
+
 module.exports = {
-	name: 'members',
-	description: 'Lists the tag/username/id/nickname(default = nickname) of members with given role, limited to maxlength(default = 10) in embed if txt is used. CSV will not embed and gives all of the types, ignores further arguments.',
-    usage: '"role" "csv/txt" "tag/username/id/nickname" "maxlength"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-    args: true,
-    execute (message, args) {
+    data: new SlashCommandBuilder()
+	.setName('members')
+	.setDescription('Lists the tag/username/id/nickname(default = nickname) of members with given role.')
+    .addRoleOption(option => option.setName('role')
+		.setDescription('The role to target')
+		.setRequired(true))
+    .addStringOption(option => option.setName('output')
+		.setDescription('How to output the data')
+		.setRequired(true)
+        .addChoice('CSV', 'csv')
+		.addChoice('TXT', 'txt'))
+    .addStringOption(option => option.setName('type')
+		.setDescription('Type of data to list')
+		.setRequired(true)
+        .addChoice('Tag', 'tag')
+		.addChoice('Username', 'username')
+        .addChoice('ID', 'id')
+        .addChoice('Nickname', 'nickname'))
+    .addIntegerOption(option => option.setName('maxlength')
+		.setDescription('Total number to list')
+		.setRequired(false)),
+	permissions: 0,
+    execute (interaction) {
+        let args = []
+        for (let data of interaction.options.data) {
+            args.push(data.value)
+        }
         try {
-            var roleID = getRoleID(message,args[0].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim())
-            var mode = ""
-            if(args[1] == undefined)
-            {
-                mode = "txt"
-            }
-            else
-            {
-                mode = args[1].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
-            }
-            let memberwithrole = message.guild.roles.cache.get(roleID).members
-            let actualrole = cleanString(message.guild.roles.cache.find(role => role.id == roleID).name)
+            let roleID = interaction.options.data.find(arg => arg.name === 'role').value
+            let mode = "txt"
+            if (interaction.options.data.find(arg => arg.name === 'output') != undefined) { mode = interaction.options.data.find(arg => arg.name === 'output').value }
+            let memberwithrole = interaction.guild.roles.cache.get(roleID).members
+            let actualrole = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
             let memberList = ""
             if(mode == "txt")
             {
-                var type = ""
-                if(args[2] == undefined)
+                let type = ""
+                if(interaction.options.data.find(arg => arg.name === 'type') == undefined)
                 {
                     type = "nickname"
                 }
                 else
                 {
-                    type = args[2].toLowerCase().replace(/["'”`‛′’‘]/g,"").trim()
+                    type = interaction.options.data.find(arg => arg.name === 'type').value
                 }
-                var highlength = 0
-                if(args[3] == undefined)
+                let highlength = 0
+                if(interaction.options.data.find(arg => arg.name === 'maxlength') == undefined)
                 {
                     highlength = 10
                 }
                 else
                 {
-                    highlength = parseInt(args[3].replace(/["'”`‛′’‘]/g,"").trim())
+                    highlength = interaction.options.data.find(arg => arg.name === 'maxlength').value
                 }
                 memberwithrole.map(m =>
                 {
@@ -76,15 +91,14 @@ module.exports = {
                 {
                     const returnEmbed = new Discord.MessageEmbed()
                     .setColor('#FF7100')
-                    .setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
                     .setTitle("**Member List**")
                     returnEmbed.addField("List of members holding rank " + actualrole +":","```"+memberList+"```")
-                    message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+                    interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
                 }
                 else
                 {
                     fs.writeFileSync('tmp/memberlist.txt', memberList);
-                    message.channel.send({
+                    interaction.reply({
                         content:"Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",
                         files:[
                                 "tmp/memberlist.txt"
@@ -103,7 +117,7 @@ module.exports = {
 
                         })
                     fs.writeFileSync('tmp/memberlist.csv',memberList)
-                    message.channel.send({
+                    interaction.reply({
                                 content:"Here's your CSV file:",
                                 files:[
                                         "tmp/memberlist.csv"
@@ -117,7 +131,7 @@ module.exports = {
             }
         } catch(err) {
             console.error(err);
-			message.channel.send(`Something went wrong!\nERROR: ${err}`)
+			interaction.reply(`Something went wrong!\nERROR: ${err}`)
 		}
     }
 }

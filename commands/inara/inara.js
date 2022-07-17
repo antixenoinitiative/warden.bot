@@ -1,14 +1,16 @@
 const Discord = require("discord.js");
-
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	name: 'inara',
-	description: 'Get information from Inara',
-    usage: '"name"',
-	permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-	restricted: false,
-	async execute(message, args) {
-		let name = args[0];
+	data: new SlashCommandBuilder()
+    .setName(`inara`)
+    .setDescription(`Get information from Inara`)
+	.addStringOption(option => option.setName('name')
+		.setDescription('Search for a user name')
+		.setRequired(true)),
+	permissions: 0,
+	async execute(interaction) {
+		let name = interaction.options.data.find(arg => arg.name === 'name').value
 		try {
 			const https = require('https');
 			require("dotenv").config();
@@ -46,14 +48,12 @@ module.exports = {
 			}
 
 			const req = https.request(options, res => {
-				console.log(`statusCode: ${res.statusCode}`)
 
 				res.on('data', d => {
 					let response = JSON.parse(d); //prints inara's output to the node console, process it further here
 					var cmdr = response.events[0].eventData
 					const returnEmbed = new Discord.MessageEmbed()
 					.setColor('#FF7100')
-					.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
 					.setTitle(`CMDR ${cmdr.userName}`)
 					.setFooter(`${cmdr.userName}`, cmdr.avatarImageURL)
 					if (cmdr.preferredGameRole != undefined) { returnEmbed.addField("Role", `${cmdr.preferredGameRole}`) }
@@ -65,7 +65,7 @@ module.exports = {
 					}
 					if (cmdr.inaraURL != undefined) { returnEmbed.addField("Link", `${cmdr.inaraURL}`, true) }
 
-					message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
+					interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 				})
 			})
 
@@ -77,7 +77,7 @@ module.exports = {
 			req.end()
 		} catch (err) {
 			console.error(err);
-			message.channel.send({ content: `Sorry, something went wrong with that command. Please try again.`})
+			interaction.channel.send({ content: `Sorry, something went wrong with that command. Please try again.`})
 		}
 		
 	},

@@ -1,4 +1,3 @@
-const { cleanString } = require("../discord/cleanString")
 module.exports = {
       /**
      * Function takes a input string and returns the closest matching Server Role ID
@@ -8,11 +7,12 @@ module.exports = {
   getSortedRoleIDs: (message) => {
     try {
       let roleNameObj = {};
+      let size = 0;
+      message.guild.roles.cache.forEach(() => {size+=1});
+      size-=1 // removing the count for @everyone from size
       message.guild.roles.cache.forEach((role) => {
         if (role.name != "@everyone" && role.name != "@here") {
-          roleNameObj[70 - parseInt(role.rawPosition)] = [
-            role.id,cleanString(role.name)
-          ];
+          roleNameObj[size - parseInt(role.rawPosition)] = [role.id,`<@&${role.id}>`];
         }
       });
       return roleNameObj

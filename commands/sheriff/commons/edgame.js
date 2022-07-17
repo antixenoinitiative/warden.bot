@@ -1,0 +1,35 @@
+exports.states = {
+    elated: { name: 'Elated', icon: ':star_struck:' },
+    happy: { name: 'Happy', icon: ':blush:' },
+    discontented: { name: 'Discontented', icon: ':neutral_face:' },
+    unhappy: { name: 'Unhappy', icon: ':angry:' },
+    despondent: { name: 'Despondent', icon: ':rage:' },
+
+    investment: { name: 'Investment', icon: ':dollar:' },
+    boom: { name: 'Boom', icon: ':coin:' },
+    none: { name: 'None', icon: ':construction:' },
+    bust: { name: 'Bust', icon: ':part_alternation_mark:' },
+    famine: { name: 'Famine', icon: ':bowl_with_spoon:' },
+
+    civilliberty: { name: 'Civil Liberty', icon: ':statue_of_liberty:' },
+    //none: { name: 'None', icon: ':scales:' },
+    civilunrest: { name: 'Civil Unrest', icon: ':anger_right:' },
+    lockdown: { name: 'Lockdown', icon: ':lock:' },
+
+    publicholiday: { name: 'Public Holiday', icon: ':beach:' },
+    expansion: { name: 'Expansion', icon: ':map:' },
+    retreat: { name: 'Retreat', icon: ':no_entry:' },
+    outbreak: { name: 'Outbreak', icon: ':biohazard:' },
+    election: { name: 'Election', icon: ':ballot_box:' },
+    war: { name: 'War', icon: ':crossed_swords:' },
+    civilwar: { name: 'Civil War', icon: ':crossed_swords:' },
+    incursion: { name: 'Incursion', icon: ':alien:' },
+    infested: { name: 'Infested', icon: ':flying_saucer:' },
+    pirateattack: { name: 'Pirate Attack', icon: ':pirate_flag:' },
+    terroristattack: { name: 'Terrorist Attack', icon: ':firecracker:' },
+    terrorism: {name: 'Terrorism', icon: ':bomb:'},
+    blight: { name: 'Blight', icon: ':fallen_leaf:' },
+    drought: { name: 'Drought', icon: ':non_potable_water:' },
+    infrastructurefailure: { name: 'Infrastructure Failure', icon: ':house_abandoned:' },
+    naturaldisaster: { name: 'Natural Disaster', icon: ':volcano:' }
+}

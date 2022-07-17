@@ -1,66 +1,54 @@
 const db = require("../../db/index");
 const Discord = require("discord.js");
 const { getSortedRoleIDs } = require("../../discord/getSortedRoleIDs");
+const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-  name: "getbackup",
-  description: "Sends a list of the backed up roles in DB",
-  usage: "<userID or @mention>",
-  permlvl: 0, // 0 = Everyone, 1 = Mentor, 2 = Staff
-  execute(message) {
+  data: new SlashCommandBuilder()
+  .setName(`getbackup`)
+  .setDescription(`Get user roles from backup`)
+  .addUserOption(option => option.setName('user')
+			.setDescription('Mention user to get')
+			.setRequired(true)),
+  permissions: 0,
+  async execute(interaction) {
     try {
-      let words = message.content.split(" ");
-      let userID;
-      if (words[1].startsWith("<@&")) {
-        throw "You have to ping a user or type their id";
-      } else {
-        if (words[1].startsWith("<@") && words[1].endsWith(">")) {
-          words[1] = words[1].slice(2, -1);
-          if (words[1].startsWith("!")) {
-            words[1] = words[1].slice(1);
-          }
-        }
-        userID = words[1];
+      let userID = interaction.options.data.find(arg => arg.name === 'user').value
+      let { rows } = await db.queryWarden("SELECT id FROM backups")
+      let backupIndexes = []
+      for (let backup of rows) {
+        let id = parseInt(backup.id)
+        backupIndexes.push(id)
       }
-      let username = "<@!" + userID + ">";
-      db.getBackup(userID).then((value) => {
-        if (value == undefined) {
-          const returnEmbed = new Discord.MessageEmbed()
-            .setColor("#FF7100")
-            .setAuthor(
-              "The Anti-Xeno Initiative",
-              "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png"
-            )
-            .setTitle("**Roles from Backup**")
-            .addField("Name", username)
-            .addField("Backup not found!", "** **");
-          message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
-        } else {
-          let sortedallvalues = getSortedRoleIDs(message);
-          let namestring = "\n"
-          for(var i=0;i<Object.keys(sortedallvalues).length;i++)
-          {
-            if(value.roles.includes(sortedallvalues[i][0]))
-            {
-              namestring+=sortedallvalues[i][1]+"\n"
-            }
-          }
-          let last_updated = new Date(parseInt(value['last_saved'])).toUTCString()
-          const returnEmbed = new Discord.MessageEmbed()
-            .setColor("#FF7100")
-            .setAuthor(
-              "The Anti-Xeno Initiative",
-              "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png"
-            )
-            .setTitle("**Roles from Backup**")
-            .addField("Name", username)
-            .addField("Roles", "```" + namestring + "```")
-            .setFooter(`List was last updated at ${last_updated}`);
-          message.channel.send({ embeds: [returnEmbed] });
+      let res = await db.queryWarden("SELECT * FROM backups WHERE id = $1", [Math.max.apply(null, backupIndexes)])
+      let timestamp = parseInt(res.rows[0].timestamp.slice(0, -3))
+      let data = res.rows[0].data
+      let roles;
+      for (let member of data) {
+        let memberObj = JSON.parse(member)
+        if (memberObj.user_id === userID) {
+          roles = memberObj.roles
         }
-      });
+      }
+      let sortedallvalues = getSortedRoleIDs(interaction);
+      let namestring = "\n"
+      for(var i=0;i<Object.keys(sortedallvalues).length;i++)
+      {
+        if(roles.includes(sortedallvalues[i][0]))
+        {
+          namestring+=sortedallvalues[i][1]+"\n"
+        }
+      }
+      const returnEmbed = new Discord.MessageEmbed()
+        .setColor("#FF7100")
+        .setTitle("**Roles from Backup**")
+        .setDescription(`Retrieved backup for ${await interaction.guild.members.fetch(userID)}. Backup Date: <t:${timestamp}>
+        
+        ${namestring}`)
+        //.addField("Roles", "```" + namestring + "```")
+      interaction.reply({ embeds: [returnEmbed] });
     } catch (err) {
-      message.channel.send(`Something went wrong ${err}`);
+      interaction.channel.send(`Something went wrong ${err}`);
     }
   },
 };

@@ -1,300 +1,276 @@
-//------------------ SWITCHES ----------------------
-// To enable or disble components for testing purposes
-const enableDiscordBot = 1; // Set to 0 to disable discord bot from running
-//--------------------------------------------------
-
+// Imported Modules
 require("dotenv").config();
+//require('log-timestamp');
+const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
+const cron = require('node-cron');
 const fs = require('fs');
-const Discord = require("discord.js");
-const event = require('./events/event.js');
+
+// Local Modules
+const { leaderboardInteraction } = require('./interaction/submission.js');
+const { queryWarden } = require("./db");
 const config = require('./config.json');
-const prefix = config.prefix
 
 // Discord client setup
-const myIntents = new Discord.Intents();
-myIntents.add(
-	Discord.Intents.FLAGS.GUILDS,
-	Discord.Intents.FLAGS.GUILD_PRESENCES, 
-	Discord.Intents.FLAGS.GUILD_MEMBERS, 
-	Discord.Intents.FLAGS.GUILD_MESSAGES, 
-	Discord.Intents.FLAGS.GUILD_MESSAGE_REACTIONS, 
-	Discord.Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
+const serverIntents = new Intents();
+serverIntents.add(
+	Intents.FLAGS.GUILDS,
+	Intents.FLAGS.GUILD_PRESENCES,
+	Intents.FLAGS.GUILD_MEMBERS,
+	Intents.FLAGS.GUILD_MESSAGES,
+	Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
+	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
 );
-const discordClient = new Discord.Client({ intents: myIntents })
+const bot = new Client({ intents: serverIntents })
 
-//Command detection
-discordClient.commands = new Discord.Collection();
+/**
+ * Loads command objects from the commands folder
+ * @author  (Airom) Airom42
+ */
+bot.commands = new Collection();
 const commandFolders = fs.readdirSync('./commands');
 for (const folder of commandFolders) {
 	const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
 	for (const file of commandFiles) {
 		const command = require(`./commands/${folder}/${file}`);
 		command.category = folder;
-		discordClient.commands.set(command.name, command);
+		if (command.data === undefined) {
+			bot.commands.set(command.name, command) // For non-slash commands
+		} else {
+			bot.commands.set(command.data.name, command) // For slash commands
+		}
 	}
 }
-
-//Discord client
-const incursionsEmbed = new Discord.MessageEmbed()
-.setColor('#FF7100')
-.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-.setTitle("**Defense Targets**")
-let messageToUpdate
 
 /**
  * Log a discord bot event in the Log Channel
  * @author  (Mgram) Marcus Ingram
- * @param	{string} event		The message to send.
- * @param	{string} severity	Message severity ("low", "medium", "high").
  */
-function botLog(event, severity) {
-	const logEmbed = new Discord.MessageEmbed()
-	.setAuthor('Warden', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png");
+async function botLog(embed,severity) {
+	let logColor
 	switch (severity) {
-		case "low":
-			logEmbed.setColor('#42f569')
-			logEmbed.setDescription(`${event}`)
+		case 0:
+			logColor = '#42f569'
 			break;
-		case "medium":
-			logEmbed.setColor('#f5bf42')
-			logEmbed.setDescription(`${event}`)
+		case 1:
+			logColor = '#f5bf42'
 			break;
-		case "high":
-			logEmbed.setColor('#f55142')
-			logEmbed.setDescription(`${event}`)
+		case 2:
+			logColor = '#f55142'
 			break;
 	}
-	if (process.env.LOGCHANNEL) {
-		discordClient.channels.cache.find(x => x.id === process.env.LOGCHANNEL).send({ embeds: [logEmbed], })
-	} else {
-		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.") 
+	embed.setColor(logColor)
+	.setTimestamp()
+	.setFooter({ text: 'Warden Logs', iconURL: config.icon });
+	try {
+		await bot.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed], })
+	} catch {
+		console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
 	}
 }
-
-discordClient.once("ready", async() => {
-	botLog(`Warden is now online! ⚡`, `high`);
-	console.log(`[✔] Discord bot Logged in as ${discordClient.user.tag}!`);
-	if(!process.env.MESSAGEID) return console.log("ERROR: No incursion embed detected")
-	discordClient.guilds.cache.get(process.env.GUILDID).channels.cache.get(process.env.CHANNELID).messages.fetch(process.env.MESSAGEID).then(message =>{
-		messageToUpdate = message
-		const currentEmbed = message.embeds[0]
-		incursionsEmbed.description = currentEmbed.description
-		currentEmbed.fields.forEach((field) => {
-			//console.log(field)
-			incursionsEmbed.addField(field.name, field.value)
-		})
-	}).catch(err => {
-		console.error(err)
-	})
-})
-
-async function help(message) {
-	const menu = new Discord.MessageSelectMenu().setCustomId('select').setPlaceholder('Nothing selected')
-		
-		for (const value of commandFolders) {
-			menu.addOptions([
-				{
-					label: `${value}`,
-					description: `${value} commands`,
-					value: `${value}`,
-				},
-			])
-		}
-
-	const row = new Discord.MessageActionRow().addComponents(menu);
-
-	message.channel.send({ content: "Select which commands to list:", components: [row] });
-
-	// Recieve the button response
-	const filter = i => i.user.id === message.author.id;
-	const collector = message.channel.createMessageComponentCollector({ filter, max: 10 });
-	let embed;
-	collector.on('collect', async i => {
-		try {
-			if (embed !== undefined) {
-				i.deferUpdate();
-				const returnEmbed = new Discord.MessageEmbed()
-				.setColor('#FF7100')
-				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-				.setTitle(`**${i.values[0]} commands**`)
-				for (const [key, value] of discordClient.commands.entries()) {
-					//Only commands with permlvl zero are considered unrestricted
-					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
-					}
-				}
-				return embed.edit({ embeds: [returnEmbed.setTimestamp()] });
-			}
-
-			if (commandFolders.includes(i.values[0])) {
-				i.deferUpdate();
-				const returnEmbed = new Discord.MessageEmbed()
-				.setColor('#FF7100')
-				.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-				.setTitle(`**${i.values[0]} commands**`)
-				for (const [key, value] of discordClient.commands.entries()) {
-					//Only commands with permlvl zero are considered unrestricted
-					if (!value.hidden && value.category === i.values[0]) {
-						returnEmbed.addField(`${prefix}${key} ${value.usage}`, `${value.description} ${config.securityGroups[value.permlvl].desc}`)
-					}
-				}
-				embed = await message.channel.send({ embeds: [returnEmbed.setTimestamp()] });
-			}
-		} catch (err) {
-			console.error(`Error handling -help response: ${err}`);
-			message.channel.send({ content: `there was an error trying to execute that command!` })
-		}
-	});
-}
-
-discordClient.on('messageCreate', message => {
-	if (!message.content.startsWith(prefix) || message.author.bot) return;
-
-	// Check if arguments contains forbidden words
-	const forbiddenWords = [ "@everyone", "@here", "everyone", "here" ];
-	for (let value of forbiddenWords) {
-		if (message.content.includes(value)) { // message.content contains a forbidden word; delete message, log, etc.
-			return message.channel.send({ content: `❗ Command contains forbidden words.` })
-		}
-	}
-
-	// Argument Handler and commands
-	let args;
-	let commandName;
-	let command;
-	try {
-		args = message.content.replace(/[”]/g,`"`).slice(prefix.length).trim().match(/(?:[^\s"]+|"[^"]*")+/g); // Format Arguments - Split by spaces, except where there are quotes.
-		args = args.map(arg => arg.replaceAll('"', ''))
-		commandName = args.shift().toLowerCase(); // Convert command to lowercase and remove first string in args (command)
-		command = discordClient.commands.get(commandName); // Gets the command info
-	} catch (err) {
-		console.warn(`Invalid command input: ${err}`)
-	}
-
-	console.log(args)
-
-	//checks if command exists, then goes to non-subfiled commandsp
-	if (!discordClient.commands.has(commandName)) {
-		// Basic Commands
-		if (message.content === `${prefix}help`) { // Unrestricted Commands.
-			help(message);
-		}
-
-		if (message.content === `${prefix}ping`) {
-			message.channel.send({ content: `🏓 Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(discordClient.ws.ping)}ms` });
-		}
-
-		return;
-	}
-
-	if (command.permlvl != 0) {
-		// checks for proper permissions by role against permissions.js
-		let allowedRoles = config.securityGroups[command.permlvl].roles;
-		if (allowedRoles !== 0) {
-			let allowed = 0;
-			for (const value of allowedRoles) {
-				if (message.member.roles.cache.has(value)) {
-					allowed++;
-				}
-			}
-			if (allowed === 0) { 
-				botLog('**' + message.author.username + '#' + message.author.discriminator + '** Attempted to use command: `' + prefix + command.name + ' ' + args + '`' + ' Failed: Insufficient Permissions', "medium")  
-				return message.reply("You don't have permission to use that command!") 
-			} 	// returns false if the member has the role) 
-		}
-	}
-
-
-	if (command.args && !args.length) {
-		let reply = `You didn't provide any arguments, ${message.author}!`;
-		if (command.usage) {
-			reply = `Expected usage: \`${prefix}${command.name} ${command.usage}\``;
-		}
-		return message.channel.send({ content: `${reply}` });
-	}
-	try {
-		command.execute(message, args, updateEmbedField); // Execute the command
-		botLog('**' + message.author.username + '#' + message.author.discriminator + '** Used command: `' + prefix + command.name + ' ' + args + '`', "low");
-	} catch (error) {
-		console.error(error);
-		message.reply(`there was an error trying to execute that command!: ${error}`);
-	}
-});
-
-// Persistent Interaction Handling
-discordClient.on('interactionCreate', b => {
-	if (!b.isButton()) return;
-	
-	// Event Response Handler
-	if (b.customId.startsWith("event")) {
-		b.deferUpdate();
-		let response = b.customId.split("-");
-		if (response[2] === "enroll") {
-			event.joinEvent(b, response[1])
-		}
-		if (response[2] === "leave") {
-			event.leaveEvent(b, response[1])
-		}
-		return;
-	}
-
-	// Platform Response Handler
-	if (b.customId === "platformpc") {
-		b.deferUpdate();
-		b.member.roles.add("428260067901571073")
-		b.member.roles.add("380247760668065802")
-		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
-	} else if (b.customId === "platformxb") {
-		b.deferUpdate();
-		b.member.roles.add("533774176478035991")
-		b.member.roles.add("380247760668065802")
-		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
-	} else if (b.customId === "platformps") {
-		b.deferUpdate();
-		b.member.roles.add("428259777206812682")
-		b.member.roles.add("380247760668065802")
-		botLog(`Welcome Verification passed - User: **${b.member.nickname}**`, "low")
-	}
-	b.member.roles.add("642840406580658218");
-	b.member.roles.add("642839749777948683");
-});
-
-discordClient.on("error", () => { discordClient.login(discordClient.login(process.env.TOKEN)) });
 
 /**
-* Updates or adds a single field to the stored embed and updates the message
-* @author   Airom
-* @param    {Array} field    {name: nameOfField, value: valueOfField}
-*/
-function updateEmbedField(field) {
-	if(!messageToUpdate) return
-	if(field.name === null) return messageToUpdate.edit({ embeds: [incursionsEmbed.setDescription(field.value).setTimestamp()] })
-	const temp = new Discord.MessageEmbed()
-	.setColor('#FF7100')
-	.setAuthor('The Anti-Xeno Initiative', "https://cdn.discordapp.com/attachments/860453324959645726/865330887213842482/AXI_Insignia_Hypen_512.png")
-	.setTitle("**Defense Targets**")
-	.setDescription(incursionsEmbed.description)
-	let isUpdated = false
-	for(const value of incursionsEmbed.fields) {
-		if(value.name === field.name) {
-			if(field.value) {
-				temp.addField(field.name, field.value)
+ * Deploys Command objects to the Discord API registering any changes
+ * @author  (Mgram) Marcus Ingram
+ */
+async function deployCommands() {
+	const commands = [];
+	const commandFolders = fs.readdirSync('./commands');
+	for (const folder of commandFolders) {
+		const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+		for (const file of commandFiles) {
+			const command = require(`./commands/${folder}/${file}`);
+			command.category = folder;
+			if (command.data !== undefined) {
+				commands.push(command.data.toJSON());
 			}
-			isUpdated = true
-			console.log("Updated existing field: " + field.name)
-		} else {
-			temp.addField(value.name, value.value)
-			console.log("Copied existing field: " + value.name)
 		}
 	}
-	if(!isUpdated && field.value){
-		temp.addField(field.name, field.value)
-		console.log("Added new field: " + field.name)
+	const rest = new REST({ version: '9' }).setToken(process.env.TOKEN);
+	
+	try {
+		await rest.put(
+			Routes.applicationGuildCommands(process.env.CLIENTID, process.env.GUILDID),
+			{ body: commands },
+		);
+
+		console.log('✅ Successfully registered application commands');
+	} catch (error) {
+		console.error(error);
 	}
-	incursionsEmbed.fields = temp.fields
-	messageToUpdate.edit({ embeds: [incursionsEmbed.setTimestamp()] })
-	console.log(messageToUpdate.embeds[0].fields)
 }
 
-// Switch Statements
-if (enableDiscordBot === 1) { discordClient.login(process.env.TOKEN) } else { console.error(`WARN: Discord Bot Disabled`)}
+/**
+ * Event handler for Bot Login, manages post-login setup
+ * @author  (Mgram) Marcus Ingram, (Airom42) Airom
+ */
+bot.once("ready", async() => {
+	await deployCommands();
+	botLog(new MessageEmbed().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
+	console.log(`✅ Warden is now online! logged in as ${bot.user.tag}`)
+	// Scheduled Role Backup Task
+	cron.schedule('*/5 * * * *', async function() {
+		try {
+			console.log('Running Ace Backup Task');
+			await backupRoles('974673947784269824', 'club10')
+			console.log(`Role Backup Job Complete (${table})`)
+		} catch (err) {
+			console.log(`Error completing Ace backup task: (${err})`)
+		}
+	});
+})
+
+/**
+ * Event handler for Slash Commands, takes interaction to test before executing command code.
+ * @author  (Mgram) Marcus Ingram
+ */
+bot.on('interactionCreate', async interaction => {
+	if (interaction.isCommand()) {
+		const command = bot.commands.get(interaction.commandName);
+		if (!command) {
+			console.log('WARNING: Unknown command detected.');
+			return;
+		}
+		let args;
+		if (interaction.options !== undefined) {
+			try {
+				args = JSON.stringify(interaction.options.data)
+			} catch (err) {
+				console.log(`WARNING: Unable to create arguments for legacy command '${interaction.commandName}', this may not affect modern slash commands: ${err}`)
+			}
+		}
+		try {
+			botLog(new MessageEmbed().setDescription(`Command used by ${interaction.user.tag} - Command ` + "`" + `${interaction.commandName}` + "`" + ` with arguments: ` + "`" + `${args}` + "`"),0);
+			await command.execute(interaction, args);
+		} catch (error) {
+			console.error(error);
+			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+		}
+	}
+
+	if (interaction.isButton()) {
+		botLog(new MessageEmbed().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
+		if (interaction.customId.startsWith("submission")) {
+			interaction.deferUpdate();
+			leaderboardInteraction(interaction);
+			return;
+		}
+		if (interaction.customId === "platformpc") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("428260067901571073")
+			interaction.member.roles.add("380247760668065802")
+			botLog(new MessageEmbed().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
+		} else if (interaction.customId === "platformxb") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("533774176478035991")
+			interaction.member.roles.add("380247760668065802")
+			botLog(new MessageEmbed().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
+		} else if (interaction.customId === "platformps") {
+			interaction.deferUpdate();
+			interaction.member.roles.add("428259777206812682")
+			interaction.member.roles.add("380247760668065802")
+			botLog(new MessageEmbed().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
+		}
+		interaction.member.roles.add("642840406580658218");
+		interaction.member.roles.add("642839749777948683");
+	}
+});
+
+// Audit Logging Events
+
+bot.on('messageDelete', async message => {
+	try {
+		const fetchedLogs = await message.guild.fetchAuditLogs({
+			limit: 1,
+			type: 'MESSAGE_DELETE',
+		});
+		// Since there's only 1 audit log entry in this collection, grab the first one
+		const deletionLog = fetchedLogs.entries.first();
+		// Perform a coherence check to make sure that there's *something*
+		if (!deletionLog) {
+			botLog(new MessageEmbed().setDescription(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
+			console.log(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found. Message Content: ${message.content}`)
+			return
+		}
+		// Now grab the user object of the person who deleted the message
+		// Also grab the target of this action to double-check things
+		const { executor, target } = deletionLog;
+		// Update the output with a bit more information
+		// Also run a check to make sure that the log returned was for the same author's message
+		if (message.id === deletionLog.id) {
+			botLog(new MessageEmbed().setDescription(`A message by ${message.author.tag} was deleted by ${executor.tag}.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
+			console.log(`A message by ${message.author.tag} was deleted by ${executor.tag}. Message Content: ${message.content}`)
+		} else {
+			botLog(new MessageEmbed().setDescription(`A message by ${message.author.tag} was deleted, but we don't know by who.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
+			console.log(`A message by ${message.author.tag} was deleted, but we don't know by who. Message Content: ${message.content}`)
+		}
+	} catch (err) {
+		botLog(new MessageEmbed().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
+	}
+})
+
+bot.on('messageUpdate', (oldMessage, newMessage) => {
+	botLog(new MessageEmbed()
+		.setDescription(`Message by ${oldMessage.author.tag} was edited.`)
+		.setTitle(`Message Updated`)
+		.setURL(oldMessage.url)
+		.addFields(
+			{ name: `Old Message`, value: `${oldMessage}`},
+			{ name: `New Message`, value: `${newMessage}`},
+		),1)
+	console.log(`Message updated by  ${oldMessage.author.tag}, Old Message: "${oldMessage}", New Message: "${newMessage}"`)
+});
+
+bot.on('guildMemberRemove', member => {
+	let roles = ``
+	member.roles.cache.each(role => roles += `${role}\n`)
+	botLog(new MessageEmbed()
+	.setDescription(`User ${member.user.tag}(${member.displayName}) has left or was kicked from the server.`)
+	.setTitle(`User Left/Kicked from Server`)
+	.addFields(
+		{ name: `ID`, value: `${member.id}`},
+		{ name: `Date Joined`, value: `<t:${(member.joinedTimestamp/1000) >> 0}:F>`},
+		{ name: `Roles`, value: `${roles}`},
+	))
+})
+
+/**
+ * Role backup system, takes the targetted role and table and backs up to SQL database.
+ * @author  (Mgram) Marcus Ingram
+ */
+async function backupRoles(roleId, table) {
+	console.log(`Starting Role Backup Job (${table})`)
+	let guilds = bot.guilds.cache.map((guild) => guild);
+	let guild = guilds[0]
+	await guild.members.fetch()
+	let members = guild.roles.cache.get(roleId).members.map(m=>m.user)
+	try {
+		await queryWarden(`DROP TABLE ${table}`)
+	} catch (err) {
+		console.log(`Backup Roles: Unable to delete table: ${err}`)
+	}
+	try {
+		await queryWarden(`CREATE TABLE ${table}(
+			id              SERIAL PRIMARY KEY,
+			user_id         text,
+			name            text,
+			avatar          text
+		);`)
+	} catch (err) {
+		console.log(`Backup Roles: Unable to reset table, exiting task: ${err}`)
+		return;
+	}
+	for (let member of members) {
+		let timestamp = Date.now()
+		let name = await guild.members.cache.get(member.id).nickname
+		await queryWarden(`INSERT INTO ${table}(user_id, name, avatar) VALUES($1,$2,$3)`, [
+			member.id,
+			name,
+			member.avatar
+		])
+	}
+}
+
+bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
+bot.login(process.env.TOKEN)

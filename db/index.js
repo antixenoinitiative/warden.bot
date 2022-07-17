@@ -5,7 +5,14 @@ const weeks = require("./weeks/weeks.json");
 
 //credentials from Heroku
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL_WATCH,
+    ssl: {
+        rejectUnauthorized: false
+    }
+})
+
+const warden = new Pool({
+    connectionString: process.env.DATABASE_URL_WARDEN,
     ssl: {
         rejectUnauthorized: false
     }
@@ -15,6 +22,15 @@ module.exports = {
     query: async (text, params, callback) => {
         try {
             let res = pool.query(text, params, callback);
+            return res;
+        } catch {
+            return "Failed";
+        }
+    },
+
+    queryWarden: async (text, params, callback) => {
+        try {
+            let res = warden.query(text, params, callback);
             return res;
         } catch {
             return "Failed";
