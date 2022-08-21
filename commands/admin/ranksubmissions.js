@@ -1,4 +1,4 @@
-const Discord = require("discord.js");
+const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
@@ -7,8 +7,8 @@ module.exports = {
     .setDescription(`How to submit for ranks`)
     .setDefaultPermission(false),
     async execute (interaction) {
-        const file = new Discord.AttachmentBuilder('https://axicdn.s3.us-east-1.amazonaws.com/images/km2_explosion.png');
-        const returnEmbed = new Discord.MessageEmbed()
+        const file = new AttachmentBuilder('https://axicdn.s3.us-east-1.amazonaws.com/images/km2_explosion.png');
+        const returnEmbed = new EmbedBuilder()
 		  .setColor('#FF7100')
 		  .setTitle("**How to Submit for Ranks**")
 		  .setAuthor({ name: 'Anti-Xeno Initiative', iconURL: 'https://axicdn.s3.us-east-1.amazonaws.com/images/AXI_Insignia_Hypen_128.png', url: 'https://antixenoinitiative.com' })
