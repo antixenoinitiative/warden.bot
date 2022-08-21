@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const Discord = require('discord.js');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
@@ -7,7 +7,7 @@ module.exports = {
     .setDescription(`Create the Rank Requirement buttons`)
     .setDefaultPermission(false),
     async execute (interaction) {
-        const returnEmbed = new EmbedBuilder()
+        const returnEmbed = new Discord.MessageEmbed()
 		.setColor('#FF7100')
 		.setTitle("**Rank Requirements**")
 		.setAuthor({ name: 'Anti-Xeno Initiative', iconURL: 'https://axicdn.s3.us-east-1.amazonaws.com/images/AXI_Insignia_Hypen_128.png', url: 'https://antixenoinitiative.com' })
