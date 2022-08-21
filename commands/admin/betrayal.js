@@ -2,7 +2,7 @@ const Discord = require("discord.js");
 const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
-      .setName('mechan')
+      .setName('betrayal')
       .setDescription('Gives/Removes conspirator role')
     .addUserOption(option => option.setName('user')
         .setRequired(true)
