@@ -114,9 +114,9 @@ bot.once("ready", async() => {
 		try {
 			console.log('Running Ace Backup Task');
 			await backupRoles('974673947784269824', 'club10')
-			console.log(`Role Backup Job Complete (${table})`)
+			console.log(`Ace Backup Job Complete`)
 		} catch (err) {
-			console.log(`Error completing Ace backup task: (${err})`)
+			console.log(`Error completing Ace backup task`)
 		}
 	});
 })
