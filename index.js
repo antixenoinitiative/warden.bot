@@ -1,7 +1,6 @@
 // Imported Modules
 require("dotenv").config();
-//require('log-timestamp');
-const { Client, Intents, MessageEmbed, Collection } = require("discord.js");
+const { Client, IntentsBitField, EmbedBuilder, Collection } = require("discord.js");
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const cron = require('node-cron');
@@ -13,15 +12,7 @@ const { queryWarden } = require("./db");
 const config = require('./config.json');
 
 // Discord client setup
-const serverIntents = new Intents();
-serverIntents.add(
-	Intents.FLAGS.GUILDS,
-	Intents.FLAGS.GUILD_PRESENCES,
-	Intents.FLAGS.GUILD_MEMBERS,
-	Intents.FLAGS.GUILD_MESSAGES,
-	Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
-	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
-);
+const serverIntents = new IntentsBitField(3276799);
 const bot = new Client({ intents: serverIntents })
 
 /**
@@ -107,18 +98,10 @@ async function deployCommands() {
  */
 bot.once("ready", async() => {
 	await deployCommands();
-	botLog(new MessageEmbed().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
+	botLog(new EmbedBuilder().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
 	console.log(`✅ Warden is now online! logged in as ${bot.user.tag}`)
 	// Scheduled Role Backup Task
-	cron.schedule('*/5 * * * *', async function() {
-		try {
-			console.log('Running Ace Backup Task');
-			await backupRoles('974673947784269824', 'club10')
-			console.log(`Ace Backup Job Complete`)
-		} catch (err) {
-			console.log(`Error completing Ace backup task`)
-		}
-	});
+	cron.schedule('*/5 * * * *', backupRoles('974673947784269824', 'club10'));
 })
 
 /**
@@ -141,7 +124,7 @@ bot.on('interactionCreate', async interaction => {
 			}
 		}
 		try {
-			botLog(new MessageEmbed().setDescription(`Command used by ${interaction.user.tag} - Command ` + "`" + `${interaction.commandName}` + "`" + ` with arguments: ` + "`" + `${args}` + "`"),0);
+			botLog(new EmbedBuilder().setDescription(`Command used by ${interaction.user.tag} - Command ` + "`" + `${interaction.commandName}` + "`" + ` with arguments: ` + "`" + `${args}` + "`"),0);
 			await command.execute(interaction, args);
 		} catch (error) {
 			console.error(error);
@@ -150,7 +133,7 @@ bot.on('interactionCreate', async interaction => {
 	}
 
 	if (interaction.isButton()) {
-		botLog(new MessageEmbed().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
+		botLog(new EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
 		if (interaction.customId.startsWith("submission")) {
 			interaction.deferUpdate();
 			leaderboardInteraction(interaction);
@@ -160,17 +143,17 @@ bot.on('interactionCreate', async interaction => {
 			interaction.deferUpdate();
 			interaction.member.roles.add("428260067901571073")
 			interaction.member.roles.add("380247760668065802")
-			botLog(new MessageEmbed().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
+			botLog(new EmbedBuilder().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
 		} else if (interaction.customId === "platformxb") {
 			interaction.deferUpdate();
 			interaction.member.roles.add("533774176478035991")
 			interaction.member.roles.add("380247760668065802")
-			botLog(new MessageEmbed().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
+			botLog(new EmbedBuilder().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
 		} else if (interaction.customId === "platformps") {
 			interaction.deferUpdate();
 			interaction.member.roles.add("428259777206812682")
 			interaction.member.roles.add("380247760668065802")
-			botLog(new MessageEmbed().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
+			botLog(new EmbedBuilder().setDescription(`Welcome Verification passed - User: **${interaction.user.tag}**`),0)
 		}
 		interaction.member.roles.add("642840406580658218");
 		interaction.member.roles.add("642839749777948683");
@@ -189,7 +172,7 @@ bot.on('messageDelete', async message => {
 		const deletionLog = fetchedLogs.entries.first();
 		// Perform a coherence check to make sure that there's *something*
 		if (!deletionLog) {
-			botLog(new MessageEmbed().setDescription(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
+			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
 			console.log(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found. Message Content: ${message.content}`)
 			return
 		}
@@ -199,19 +182,19 @@ bot.on('messageDelete', async message => {
 		// Update the output with a bit more information
 		// Also run a check to make sure that the log returned was for the same author's message
 		if (message.id === deletionLog.id) {
-			botLog(new MessageEmbed().setDescription(`A message by ${message.author.tag} was deleted by ${executor.tag}.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
+			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted by ${executor.tag}.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
 			console.log(`A message by ${message.author.tag} was deleted by ${executor.tag}. Message Content: ${message.content}`)
 		} else {
-			botLog(new MessageEmbed().setDescription(`A message by ${message.author.tag} was deleted, but we don't know by who.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
+			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted, but we don't know by who.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
 			console.log(`A message by ${message.author.tag} was deleted, but we don't know by who. Message Content: ${message.content}`)
 		}
 	} catch (err) {
-		botLog(new MessageEmbed().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
+		botLog(new EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
 	}
 })
 
 bot.on('messageUpdate', (oldMessage, newMessage) => {
-	botLog(new MessageEmbed()
+	botLog(new EmbedBuilder()
 		.setDescription(`Message by ${oldMessage.author.tag} was edited.`)
 		.setTitle(`Message Updated`)
 		.setURL(oldMessage.url)
@@ -225,7 +208,7 @@ bot.on('messageUpdate', (oldMessage, newMessage) => {
 bot.on('guildMemberRemove', member => {
 	let roles = ``
 	member.roles.cache.each(role => roles += `${role}\n`)
-	botLog(new MessageEmbed()
+	botLog(new EmbedBuilder()
 	.setDescription(`User ${member.user.tag}(${member.displayName}) has left or was kicked from the server.`)
 	.setTitle(`User Left/Kicked from Server`)
 	.addFields(
@@ -262,7 +245,6 @@ async function backupRoles(roleId, table) {
 		return;
 	}
 	for (let member of members) {
-		let timestamp = Date.now()
 		let name = await guild.members.cache.get(member.id).nickname
 		await queryWarden(`INSERT INTO ${table}(user_id, name, avatar) VALUES($1,$2,$3)`, [
 			member.id,
@@ -272,5 +254,5 @@ async function backupRoles(roleId, table) {
 	}
 }
 
-bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
+bot.on("error", () => { bot.login(process.env.TOKEN) });
 bot.login(process.env.TOKEN)

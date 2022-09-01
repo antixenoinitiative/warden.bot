@@ -1,13 +1,12 @@
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('builds')
 	.setDescription('Useful Information and links for AX Ship Builds'),
     permissions: 0,
     execute(interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setColor('#FF7100')
         .setTitle("**AX Ship Builds**")
         .setDescription(`How to build a good Anti-Xeno Combat ship. Guides for both Interceptor and Scout hunting ships included.`)

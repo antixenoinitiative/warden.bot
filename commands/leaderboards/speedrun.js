@@ -1,24 +1,27 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
 const { queryWarden } = require("../../db/index");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('speedrun')
 	.setDescription('Submit your speedrun attempt')
 	.addStringOption(option => option.setName('variant')
 		.setDescription('Thargoid Variant')
 		.setRequired(true)
-		.addChoice('Cyclops', 'cyclops')
-		.addChoice('Basilisk', 'basilisk')
-		.addChoice('Medusa', 'medusa')
-		.addChoice('Hydra', 'hydra'))
+		.addChoices(
+			{ name:'Cyclops', value:'cyclops' },
+			{ name:'Basilisk', value:'basilisk' },
+			{ name:'Medusa', value:'medusa' },
+			{ name:'Hydra', value:'hydra' }
+		))
     .addStringOption(option => option.setName('shipclass')
 		.setDescription('Thargoid Variant')
 		.setRequired(true)
-        .addChoice('Small', 'small')
-		.addChoice('Medium', 'medium')
-        .addChoice('Large', 'large'))
+        .addChoices(
+			{ name: 'Small', value: 'small' },
+			{ name: 'Medium', value: 'medium' },
+			{ name: 'Large', value: 'large' }
+		))
 	.addStringOption(option => option.setName('ship')
 		.setDescription('Ship Model eg: Anaconda, Krait Mk.II, etc')
 		.setRequired(true))
@@ -76,7 +79,7 @@ module.exports = {
 
 		// Print out data
 		let submissionId = res.rows[0].id
-		const returnEmbed = new Discord.MessageEmbed()
+		const returnEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')
 		.setTitle(`**Speedrun Submission Complete**`)
 		.setDescription(`Congratulations <@${interaction.member.id}>, your submission is complete. Please be patient while our staff approve your submission. Submission ID: #${submissionId}`)
@@ -91,7 +94,7 @@ module.exports = {
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 
 		// Create staff interaction
-		const staffEmbed = new Discord.MessageEmbed()
+		const staffEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')
 		.setTitle(`**New Speedrun Submission**`)
 		.setDescription(`Please select Approve or Deny below if the video is legitimate and matches the fields below. NOTE: This will not assign any ranks, only approve to the Leaderboard.`)

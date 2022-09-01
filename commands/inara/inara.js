@@ -1,8 +1,7 @@
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
     .setName(`inara`)
     .setDescription(`Get information from Inara`)
 	.addStringOption(option => option.setName('name')
@@ -52,18 +51,18 @@ module.exports = {
 				res.on('data', d => {
 					let response = JSON.parse(d); //prints inara's output to the node console, process it further here
 					var cmdr = response.events[0].eventData
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 					.setColor('#FF7100')
 					.setTitle(`CMDR ${cmdr.userName}`)
 					.setFooter(`${cmdr.userName}`, cmdr.avatarImageURL)
-					if (cmdr.preferredGameRole != undefined) { returnEmbed.addField("Role", `${cmdr.preferredGameRole}`) }
-					if (cmdr.preferredAllegianceName != undefined) { returnEmbed.addField("Allegiance", `${cmdr.preferredAllegianceName}`, true) }
-					if (cmdr.preferredPowerName != undefined) { returnEmbed.addField("Power", `${cmdr.preferredPowerName}`, true) }
+					if (cmdr.preferredGameRole != undefined) { returnEmbed.addFields([{ name: "Role", value: `${cmdr.preferredGameRole}` }]) }
+					if (cmdr.preferredAllegianceName != undefined) { returnEmbed.addFields({ name:"Allegiance", value:`${cmdr.preferredAllegianceName}`, inline: true, }) }
+					if (cmdr.preferredPowerName != undefined) { returnEmbed.addFields({ name: "Power", value: `${cmdr.preferredPowerName}`, inline: true }) }
 					if (cmdr.commanderSquadron != undefined) { 
-						returnEmbed.addField("Squadron", `[${cmdr.commanderSquadron.squadronName}](${cmdr.commanderSquadron.inaraURL})`)
-						returnEmbed.addField("Squadron Rank", `${cmdr.commanderSquadron.squadronMemberRank}`, true) 
+						returnEmbed.addFields({ name: "Squadron", value: `[${cmdr.commanderSquadron.squadronName}](${cmdr.commanderSquadron.inaraURL})` })
+						returnEmbed.addFields({ name: "Squadron Rank", value: `${cmdr.commanderSquadron.squadronMemberRank}`, inline: true }) 
 					}
-					if (cmdr.inaraURL != undefined) { returnEmbed.addField("Link", `${cmdr.inaraURL}`, true) }
+					if (cmdr.inaraURL != undefined) { returnEmbed.addFields({ name: "Link", value: `${cmdr.inaraURL}`, inline: true }) }
 
 					interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 				})

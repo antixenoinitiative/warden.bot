@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 const db = require("../../db/index");
 const Discord = require("discord.js");
 
@@ -18,7 +18,7 @@ function getPresence(presence) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('incursions')
 	.setDescription('Get a list of active incursion systems'),
 	permissions: 0,
@@ -33,7 +33,7 @@ module.exports = {
                 return;
             }
 
-            const returnEmbed = new Discord.MessageEmbed()
+            const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             .setTitle("**Active Incursions**")
             

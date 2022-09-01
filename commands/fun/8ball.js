@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`8ball`)
     .setDescription(`Ask the magic 8ball whatever questions that are bothering you at this time!`)
     .addStringOption(option => option.setName('question')

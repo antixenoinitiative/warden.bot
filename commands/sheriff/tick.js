@@ -6,13 +6,14 @@
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 const { tickURL, dateFormatPattern } = require('../../config.json');
 const moment = require("moment");
 const fetch = require("node-fetch");
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`tick`)
     .setDescription(`Shows the timestamp, the last tick occured.`),
     permissions: 0,

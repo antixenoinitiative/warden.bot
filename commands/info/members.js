@@ -1,10 +1,9 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const fs = require('fs')
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('members')
 	.setDescription('Lists the tag/username/id/nickname(default = nickname) of members with given role.')
     .addRoleOption(option => option.setName('role')
@@ -13,15 +12,19 @@ module.exports = {
     .addStringOption(option => option.setName('output')
 		.setDescription('How to output the data')
 		.setRequired(true)
-        .addChoice('CSV', 'csv')
-		.addChoice('TXT', 'txt'))
+        .addChoices(
+            {name:'CSV', value:'csv'},
+            {name:'TXT', value:'txt'},
+        ))
     .addStringOption(option => option.setName('type')
 		.setDescription('Type of data to list')
 		.setRequired(true)
-        .addChoice('Tag', 'tag')
-		.addChoice('Username', 'username')
-        .addChoice('ID', 'id')
-        .addChoice('Nickname', 'nickname'))
+        .addChoices(
+            {name:'Tag', value:'tag'},
+            {name:'Username', value:'username'},
+            {name:'ID', value:'id'},
+            {name:'Nickname', value:'nickname'},
+        ))
     .addIntegerOption(option => option.setName('maxlength')
 		.setDescription('Total number to list')
 		.setRequired(false)),
@@ -89,10 +92,10 @@ module.exports = {
                 }
                 if(memberList.match(/[\n]/g).length <= highlength)
                 {
-                    const returnEmbed = new Discord.MessageEmbed()
+                    const returnEmbed = new Discord.EmbedBuilder()
                     .setColor('#FF7100')
                     .setTitle("**Member List**")
-                    returnEmbed.addField("List of members holding rank " + actualrole +":","```"+memberList+"```")
+                    returnEmbed.addFields({ name: "List of members holding rank " + actualrole +":", value: "```"+memberList+"```" })
                     interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
                 }
                 else

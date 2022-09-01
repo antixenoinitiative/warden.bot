@@ -1,67 +1,74 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable complexity */
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const QuickChart = require('quickchart-js');
 const Discord = require("discord.js");
 const shipData = require("./calc/shipdata.json")
 
-let options = new SlashCommandBuilder()
+let options = new Discord.SlashCommandBuilder()
 .setName('score')
 .setDescription('Score your fight based on the revised Ace Scoring System')
 .addStringOption(option => option.setName('shiptype')
     .setDescription('Ship you used')
     .setRequired(true)
-    .addChoice('Alliance Challenger', 'challenger')
-    .addChoice('Alliance Chieftain', 'chieftain')
-    .addChoice('Alliance Crusader', 'crusader')
-    .addChoice('Anaconda', 'anaconda')
-    .addChoice('Asp Explorer', 'aspx')
-    .addChoice('Beluga Liner', 'beluga')
-    .addChoice('Diamondback Explorer', 'dbx')
-    .addChoice('Diamondback Scout', 'dbs')
-    .addChoice('Federal Assault Ship', 'fas')
-    .addChoice('Federal Corvette', 'corvette')
-    .addChoice('Federal Dropship', 'fds')
-    .addChoice('Federal Gunship', 'fgs')
-    .addChoice('Fer-de-Lance', 'fdl')
-    .addChoice('Hauler', 'hauler')
-    .addChoice('Imperial Clipper', 'clipper')
-    .addChoice('Imperial Courier', 'icourier')
-    .addChoice('Imperial Cutter', 'cutter')
-    .addChoice('Krait Mk. II', 'km2')
-    .addChoice('Krait Phantom', 'kph')
-    .addChoice('Mamba', 'mamba')
-    .addChoice('Python', 'python')
-    .addChoice('Type-10 Defender', 't10')
-    .addChoice('Viper MK III', 'vmk3')
-    .addChoice('Viper MK IV', 'vmk4')
-    .addChoice('Vulture', 'vulture'))
+    .addChoices( 
+        { name:'Alliance Challenger', value:'challenger' },
+        { name:'Alliance Chieftain', value:'chieftain' },
+        { name:'Alliance Crusader', value:'crusader' },
+        { name:'Anaconda', value:'anaconda' },
+        { name:'Asp Explorer', value:'aspx' },
+        { name:'Beluga Liner', value:'beluga' },
+        { name:'Diamondback Explorer', value:'dbx' },
+        { name:'Diamondback Scout', value:'dbs' },
+        { name:'Federal Assault Ship', value:'fas' },
+        { name:'Federal Corvette', value:'corvette' },
+        { name:'Federal Dropship', value:'fds' },
+        { name:'Federal Gunship', value:'fgs' },
+        { name:'Fer-de-Lance', value:'fdl' },
+        { name:'Hauler', value:'hauler' },
+        { name:'Imperial Clipper', value:'clipper' },
+        { name:'Imperial Courier', value:'icourier' },
+        { name:'Imperial Cutter', value:'cutter' },
+        { name:'Krait Mk. II', value:'km2' },
+        { name:'Krait Phantom', value:'kph' },
+        { name:'Mamba', value:'mamba' },
+        { name:'Python', value:'python' },
+        { name:'Type-10 Defender', value:'t10' },
+        { name:'Viper MK III', value:'vmk3' },
+        { name:'Viper MK IV', value:'vmk4' },
+        { name:'Vulture', value:'vulture' }
+    ))
 .addStringOption(option => option.setName('goid')
     .setDescription('Type of goid fought - fixed to Medusa for now; may expand in the future')
     .setRequired(true)
-    .addChoice('Medusa', 'medusa'))
+    .addChoices({ name:'Medusa', value:'medusa' }))
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Number of MEDIUM gauss cannons outfitted')
     .setRequired(true)
-    .addChoice('0', 0)
-    .addChoice('1', 1)
-    .addChoice('2', 2)
-    .addChoice('3', 3)
-    .addChoice('4', 4))
+    .addChoices(
+        { name: '0', value: 0 },
+        { name: '1', value: 1 },
+        { name: '2', value: 2 },
+        { name: '3', value: 3 },
+        { name: '4', value: 4 }
+    ))
 .addIntegerOption(option => option.setName('gauss_small_number')
     .setDescription('Number of SMALL gauss cannons outfitted')
     .setRequired(true)
-    .addChoice('0', 0)
-    .addChoice('1', 1)
-    .addChoice('2', 2)
-    .addChoice('3', 3)
-    .addChoice('4', 4))
+    .addChoices(
+        { name: '0', value: 0 },
+        { name: '1', value: 1 },
+        { name: '2', value: 2 },
+        { name: '3', value: 3 },
+        { name: '4', value: 4 }
+    ))
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used')
     .setRequired(true)
-    .addChoice('Basic', 'basic')
-    .addChoice('Standard', 'standard')
-    .addChoice('Premium', 'premium'))
+    .addChoices(
+        { name: 'Basic', value: 'basic' },
+        { name: 'Standard', value: 'standard' },
+        { name: 'Premium', value: 'premium' }
+    ))
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
@@ -723,7 +730,7 @@ module.exports = {
         }
         const url = chart.getUrl();
 
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setColor('#FF7100')
         .setTitle("**Ace Score Calculation**")
         .setDescription(`${outputString}`)

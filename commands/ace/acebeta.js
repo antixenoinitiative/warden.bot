@@ -1,5 +1,4 @@
 /* eslint-disable no-bitwise */
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const { calculateThreshold } = require('./commons/damageThreshold');
 const { testInputs } = require('./commons/testInput');
 const { getChart } = require('./commons/getChart');
@@ -8,16 +7,18 @@ const Score = require('./commons/scoring');
 const Discord = require("discord.js");
 // const shipData = require("./calc/shipdata.json")
 
-let options = new SlashCommandBuilder()
+let options = new Discord.SlashCommandBuilder()
 .setName('ace')
 .setDescription('Score your fight based on the revised Ace Scoring System')
 .addStringOption(option => option.setName('shiptype')
     .setDescription('Ship you used - Ace challenge requires an Alliance Chieftain')
     .setRequired(true)
-    .addChoice('Alliance Chieftain', 'chieftain')
-    .addChoice('Alliance Challenger', 'challenger')
-    .addChoice('Fer-de-Lance', 'fdl')
-    .addChoice('Krait Mk2', 'kraitmk2'))
+    .addChoices(
+        { name: 'Alliance Chieftain', value: 'chieftain' },
+        { name: 'Alliance Challenger', value: 'challenger' },
+        { name: 'Fer-de-Lance', value: 'fdl' },
+        { name: 'Krait Mk2', value: 'kraitmk2' },
+    ))
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Number of MEDIUM gauss cannons outfitted')
     .setRequired(true))
@@ -33,7 +34,7 @@ let options = new SlashCommandBuilder()
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used - Ace challenge requires that you use basic ammo')
     .setRequired(true)
-    .addChoice('Basic', 'basic'))
+    .addChoices({ name: 'Basic', value: 'basic' }))
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
@@ -160,7 +161,7 @@ module.exports = {
                 *- Please note that scores of different ships cannot be compared with each other!*`
         }
 
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setColor('#FF7100')
         .setTitle("**Ace Score Calculation**")
         .setDescription(`${outputString}`)

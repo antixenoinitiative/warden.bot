@@ -7,14 +7,14 @@
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
- const { SlashCommandBuilder } = require("@discordjs/builders");
+ const Discord = require("discord.js");
  const fetch = require("node-fetch");
  const { systemURL, dateFormatPattern } = require("../../config.json");
  const moment = require("moment");
  const utils = require("./commons/utils.js");
  
  module.exports = {
-     data: new SlashCommandBuilder()
+     data: new Discord.SlashCommandBuilder()
      .setName("system")
      .setDescription("Shows detailed information about the system's state and conflict details.")
      .addStringOption(option => option.setName("system")

@@ -1,10 +1,10 @@
 const db = require("../../db/index");
 const Discord = require("discord.js");
 const { getSortedRoleIDs } = require("../../discord/getSortedRoleIDs");
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 
 module.exports = {
-  data: new SlashCommandBuilder()
+  data: new Discord.SlashCommandBuilder()
   .setName(`getbackup`)
   .setDescription(`Get user roles from backup`)
   .addUserOption(option => option.setName('user')
@@ -39,13 +39,12 @@ module.exports = {
           namestring+=sortedallvalues[i][1]+"\n"
         }
       }
-      const returnEmbed = new Discord.MessageEmbed()
+      const returnEmbed = new Discord.EmbedBuilder()
         .setColor("#FF7100")
         .setTitle("**Roles from Backup**")
         .setDescription(`Retrieved backup for ${await interaction.guild.members.fetch(userID)}. Backup Date: <t:${timestamp}>
         
         ${namestring}`)
-        //.addField("Roles", "```" + namestring + "```")
       interaction.reply({ embeds: [returnEmbed] });
     } catch (err) {
       interaction.channel.send(`Something went wrong ${err}`);

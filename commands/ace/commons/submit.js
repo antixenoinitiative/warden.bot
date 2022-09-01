@@ -58,7 +58,7 @@ module.exports = {
 
         // Print out data
         let submissionId = res.rows[0].id
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setColor('#FF7100')
         .setTitle(`**Ace Submission Complete**`)
         .setDescription(`Congratulations <@${interaction.member.id}>, your submission is complete. Please be patient while our staff approve your submission. Submission ID: #${submissionId}`)
@@ -70,7 +70,7 @@ module.exports = {
         interaction.followUp({ embeds: [returnEmbed.setTimestamp()] });
 
         // Create staff interaction
-        const staffEmbed = new Discord.MessageEmbed()
+        const staffEmbed = new Discord.EmbedBuilder()
         .setColor('#FF7100')
         .setTitle(`**New Ace Submission**`)
         .setDescription(`Please select Approve or Deny below if the video is legitimate and matches the fields below. NOTE: This will not assign any ranks, only approve to the Leaderboard.`)

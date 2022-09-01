@@ -1,5 +1,6 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 const db = require("../../db/index");
+const Discord = require("discord.js");
 
 function getPresence(presence) {
     switch (presence) {
@@ -17,7 +18,7 @@ function getPresence(presence) {
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('setpresence')
 	.setDescription('Update the presence of a system in Sentry Database')
     .addStringOption(option => option.setName('system-name')
@@ -26,11 +27,13 @@ module.exports = {
     .addStringOption(option => option.setName('presence-level')
 		.setDescription('Set the presence level')
 		.setRequired(true)
-        .addChoice('Massive', '4')
-		.addChoice('Significant', '3')
-        .addChoice('Moderate', '2')
-        .addChoice('Marginal', '1')
-        .addChoice('Cleared', '0')),
+        .addChoices(
+            { name: 'Massive', value: '4' },
+            { name: 'Significant', value: '3' },
+            { name: 'Moderate', value: '2' },
+            { name: 'Marginal', value: '1' },
+            { name: 'Cleared', value: '0' },
+        )),
 	permissions: 1,
 	async execute(interaction) {
 		try {

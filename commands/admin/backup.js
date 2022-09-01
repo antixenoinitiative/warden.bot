@@ -1,8 +1,8 @@
 const db = require('../../db/index');
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`backup`)
     .setDescription(`Creates a backup of current users and their roles`)
     .setDefaultPermission(false),

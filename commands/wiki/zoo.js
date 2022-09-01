@@ -1,18 +1,17 @@
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('zoo')
 	.setDescription('Learn about the zoo'),
     permissions: 0,
     hidden: false,
     execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')
 		.setTitle("**The Zoo**")
 		.setDescription(`The Zoo is known for being the only system to spawn solo (no-scout) Hydras, in both “guaranteed” (triple icon / debris field) and non-guaranteed (single icon / green cloud) instances. However it has no Nav Beacon.`)
-        .addField("System Name", "```Pleiades Sector MI-S B4-0```")
+        .addFields({ name: "System Name", value: "```Pleiades Sector MI-S B4-0```" })
 
         const buttonRow = new Discord.MessageActionRow()
         .addComponents(new Discord.MessageButton().setLabel('Learn more about the Zoo').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/nhss'),)

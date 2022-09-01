@@ -1,8 +1,7 @@
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
 	.setName('ranks')
 	.setDescription('Get rank statistics'),
 	permissions: 0,
@@ -23,7 +22,7 @@ module.exports = {
 			if (i.customId === 'challenge') {
 				i.deferUpdate();
 				try {
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Challenge Ranks**")
 						.setDescription(`Challenge Rank Statistics`)
@@ -48,7 +47,7 @@ module.exports = {
 			if (i.customId === 'progression') {
 				i.deferUpdate();
 				try {
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Progression Ranks**")
 						.setDescription(`Progression Rank Statistics`)
@@ -73,7 +72,7 @@ module.exports = {
 			if (i.customId === 'other') {
 				i.deferUpdate();
 				try {
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Other Ranks**")
 						.setDescription(`Other Rank Statistics`)

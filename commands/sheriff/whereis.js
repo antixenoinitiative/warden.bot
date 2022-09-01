@@ -7,14 +7,14 @@
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
-const { SlashCommandBuilder } = require("@discordjs/builders");
+const Discord = require("discord.js");
 const fetch = require("node-fetch");
 const { factionURL, dateFormatPattern } = require("../../config.json");
 const moment = require("moment");
 const utils = require("./commons/utils.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
         .setName("whereis")
         .setDescription("Shows the presences and influence of a given faction.")
         .addStringOption(option => option.setName("faction")
