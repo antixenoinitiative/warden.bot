@@ -7,7 +7,7 @@ module.exports =
     permissions: 0,
     async execute(interaction) {
         interaction.reply({
-            content: `:tharghydra: :question: <@319224862235164672>`
+            content: `<:tharghydra:591368703388418080> :question: <@319224862235164672>`
         })
     }
 }
