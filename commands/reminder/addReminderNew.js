@@ -38,8 +38,8 @@ module.exports = {
         timeString = timeString.replace(/ /g, ""); //fuck spaces too
 
         if (timeString == "help") {
-            await interaction.reply({content:"Type in a number followed by a keyword such as 'minutes', 'mins', 'm' etc. "/*, ephemeral: true*/});
-            await interaction.followUp({content: "Example: '1 day 12 hours 30 m'"/*, ephemeral: true*/});
+            await interaction.reply({content:"Type in a number followed by a keyword such as 'minutes', 'mins', 'm' etc. ", ephemeral: true});
+            await interaction.followUp({content: "Example: '1 day 12 hours 30 m'", ephemeral: true});
             return;
         }
 

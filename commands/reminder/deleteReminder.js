@@ -17,7 +17,7 @@ module.exports = {
         let res = await queryWarden("SELECT * FROM reminders WHERE discID = $1 AND id = $2", [discID, reqID]); //makes sure the id belongs to the user attempting to delete it
         
         if (res.rows[0] === undefined) { //checks if the query found an id matching the requested id
-            interaction.reply({content: `The id ${reqID} doesn't match any of your reminder ids`});
+            interaction.reply({content: `The id ${reqID} doesn't match any of your reminder ids`, ephemeral: true});
             return;
         }
         
@@ -25,10 +25,10 @@ module.exports = {
 
         try {
             queryWarden("DELETE FROM reminders WHERE id = $1", [remID]);
-            interaction.reply({content: `Successfully deleted the reminder with the id ${remID}.`/*ephemeral: true*/})
+            interaction.reply({content: `Successfully deleted the reminder with the id ${remID}.`, ephemeral: true})
         }catch (err) {
             console.log(err);
-            interaction.reply({content: `Something went wrong with the deletion of the reminder`});
+            interaction.reply({content: `Something went wrong with the deletion of the reminder`, ephemeral: true});
         }
 	}
 };

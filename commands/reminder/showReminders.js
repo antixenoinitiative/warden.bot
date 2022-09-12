@@ -4,14 +4,14 @@ const { queryWarden } = require('../../db/index');
 module.exports = {
 	data: new SlashCommandBuilder()
                 .setName(`showreminders`)
-                .setDescription(`aaaaaaaaaaaa`),
+                .setDescription(`Shows existing reminders`),
 	async execute(interaction) {
                 let discID = interaction.member.id;
 
                 let res = await queryWarden('SELECT * FROM reminders WHERE discID = $1', [discID])
                 
                 if (res.rowCount == 0) {
-                        interaction.reply({content: "You have no reminders set"});
+                        interaction.reply({content: "You have no reminders set", ephemeral: true});
                         return;
                 }
 
@@ -76,6 +76,6 @@ module.exports = {
                         `**Due in**: ${new Intl.ListFormat('en-GB', {style: 'long', type: 'conjunction'}).format(replyArray)}\n\n`;
                 }
 
-                interaction.reply({content: output/*, ephemeral: true*/});
+                interaction.reply({content: output, ephemeral: true });
 	}
 };
