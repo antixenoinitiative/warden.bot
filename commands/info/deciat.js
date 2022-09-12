@@ -9,6 +9,7 @@ module.exports = {
     execute (interaction) {
         const returnEmbed = new Discord.MessageEmbed()
         .setTitle('Distress Calls Point of Interest')
+        .setColor('#FF7100')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})
         .setThumbnail('https://images-ext-2.discordapp.net/external/yEcAqIKpGHPAh7GPJKiMwTXXqjHaVOV4GAbe55nJ1Kg/https/cdn-longterm.mee6.xyz/plugins/commands/images/380246809076826112/154b822b23bcdb8fe17fcc74a924ee0fb703b04a58b0fa9c9ef7b80bf4f5a24d.png?width=625&height=625')
         .setDescription(`**Distress Call Points Of Interest** that contain megaships or capital ships attacked by thargoids are leftovers of the initial bubble invasion. They have been placed there manually by FDev, who forgot to remove them once the invasion was over. Deciat specifically was attacked on July 5th 2018, and there are about 40+ more systems with the same type of POI all over the bubble and pleiades region.
