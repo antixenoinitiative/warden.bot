@@ -97,6 +97,10 @@ module.exports = {
             }
             else
             {
+                if (role_names_unsorted_list.length >= 1024) {
+                    interaction.reply({ content: `Sorry, there are too many users to display, please use the 'Count' option.`})
+                    return
+                }
                 returnEmbed.setTitle(`**Names of Cross of N roles**`)
                 if(memberList_sorted_string == "\n")
                 {
