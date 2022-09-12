@@ -97,10 +97,6 @@ module.exports = {
             }
             else
             {
-                if (memberList_sorted_string.length > 1023) {
-                    interaction.reply({ content: `Sorry, there are too many users to display, please use the 'Count' option.`})
-                    return
-                }
                 returnEmbed.setTitle(`**Names of Cross of N roles**`)
                 if(memberList_sorted_string == "\n")
                 {
@@ -110,9 +106,10 @@ module.exports = {
                     )
                     interaction.reply({ embeds: [returnEmbed.setTimestamp()] }) 
                 }
-                else
-                {
-                    
+                else if(memberList_sorted_string.length > 1023) {
+                    interaction.reply({ content: `Sorry, there are too many users to display, please use the 'Count' option.`})
+                } 
+                else {
                     returnEmbed.addFields(
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},
