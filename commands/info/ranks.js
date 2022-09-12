@@ -36,7 +36,6 @@ module.exports = {
 							{name: "Astraea's Clarity", value: roleCache.get("868809340788834324").members.size.toString(), inline: true},
 							{name: "Snake Eater", value: roleCache.get("508638571565940736").members.size.toString(), inline: true},
 							{name: "Soaring Sleipnir", value: roleCache.get("603345251192537098").members.size.toString(), inline: true},
-							{name: "Annihilator", value: roleCache.get("528577192746287104").members.size.toString(), inline: true},
 							{name: "100% Club", value: roleCache.get("477645690630307841").members.size.toString(), inline: true},
 							{name: "Myrmidon", value: roleCache.get("810410728023916554").members.size.toString(), inline: true},
 							{name: "Vanguard", value: roleCache.get("642840616694317104").members.size.toString(), inline: true}
@@ -97,6 +96,7 @@ module.exports = {
 						.setTitle("**Other Ranks**")
 						.setDescription(`Other Rank Statistics`)
 						.addFields(
+							{name: "Annihilator", value: roleCache.get("528577192746287104").members.size.toString(), inline: true},
 							{name: "Exterminator", value: roleCache.get("528577143844634644").members.size.toString(), inline: true},
 							{name: "Defender", value: roleCache.get("528576199639957504").members.size.toString(), inline: true},
 							{name: "Mentor", value: roleCache.get("468153018899234816").members.size.toString(), inline: true},
