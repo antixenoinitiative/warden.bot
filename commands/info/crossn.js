@@ -96,7 +96,8 @@ module.exports = {
                 interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
             }
             else
-            {
+            {   
+                console.log(role_names_unsorted_list.length)
                 if (role_names_unsorted_list.length > 1023) {
                     interaction.reply({ content: `Sorry, there are too many users to display, please use the 'Count' option.`})
                     return
