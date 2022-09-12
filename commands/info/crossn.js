@@ -97,7 +97,7 @@ module.exports = {
             }
             else
             {
-                if (role_names_unsorted_list.length >= 1024) {
+                if (role_names_unsorted_list.length > 1023) {
                     interaction.reply({ content: `Sorry, there are too many users to display, please use the 'Count' option.`})
                     return
                 }
