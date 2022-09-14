@@ -20,7 +20,7 @@ module.exports = {
         }
 
         const req = https.request(options, res => {
-            console.log(`statusCode: ${res.statusCode}`)
+            console.log(`CG Request StatusCode: ${res.statusCode}`)
 
             res.on('data', d => {
                 let response = JSON.parse(d).activeInitiatives; //prints inara's output to the node console, process it further here
@@ -46,7 +46,6 @@ module.exports = {
                     if (!interaction.isSelectMenu()) return;
                     for (let data of response) {
                         if (interaction.values[0] === data.id) {
-                            console.log("found");
                             interaction.deferUpdate();
                             try {
                                 const returnEmbed = new Discord.MessageEmbed()
