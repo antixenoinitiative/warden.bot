@@ -5,10 +5,9 @@ module.exports = {
 	.setName('cg')
 	.setDescription('Get current CG info'),
     permissions: 0,
-    async execute (message) {
+    async execute (interaction) {
         const Discord = require('discord.js');
         const https = require('https');
-        message.reply(`Fetching CG Data 📰`)
 
         const options = {
             hostname: 'api.orerve.net',
@@ -38,10 +37,10 @@ module.exports = {
                     ])
                 }
                 const row = new Discord.MessageActionRow().addComponents(menu);
-                message.channel.send({ content: `Please select which Community Goal to view:`, components: [row] }).catch(message.channel.send({ content: `CG data unavailable 🛑`}))
+                interaction.reply({ content: `Please select which Community Goal to view:`, components: [row] }).catch(interaction.reply({ content: `CG data unavailable 🛑`}))
                 
-                const filter = i => i.user.id === message.member.id;
-                const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
+                const filter = i => i.user.id === interaction.member.id;
+                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 15000 });
 
                 collector.on('collect', async interaction => {
                     if (!interaction.isSelectMenu()) return;
