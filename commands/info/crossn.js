@@ -16,7 +16,7 @@ module.exports = {
 		.setRequired(true)
         .addChoice('Count', 'count')
 		.addChoice('Nickname', 'nickname')
-		.addChoice('Club 10', 'club10'))
+		.addChoice('Club 9', 'club9'))
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
 		.setRequired(false)),
@@ -41,10 +41,9 @@ module.exports = {
             if(inputMode !== "count" && inputMode !== "nickname")
             {
                 mode = "nickname"
-                if(inputMode == "club10")
+                if(inputMode == "club9")
                     roles = [
                                 '477645690630307841', //100% Club
-                                '528577192746287104', //Annihilator
                                 '868809340788834324', //Astrea's clarity
                                 '913848672679247963', //Cerberus' Bane
                                 '963786177306054656', //Hephaestus Shunned
