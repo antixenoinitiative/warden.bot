@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, time } = require('@discordjs/builders');
-const { queryWarden } = require('../../db/index');
+const { query } = require('../../db/index');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -8,7 +8,7 @@ module.exports = {
 	async execute(interaction) {
                 let discID = interaction.member.id;
 
-                let res = await queryWarden('SELECT * FROM reminders WHERE discID = $1', [discID])
+                let res = await query('SELECT * FROM reminders WHERE discID = $1', [discID])
                 
                 if (res.rowCount == 0) {
                         interaction.reply({content: "You have no reminders set", ephemeral: true});

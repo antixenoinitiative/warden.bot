@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { queryWarden } = require('../../db/index');
+const { query } = require('../../db/index');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -14,7 +14,7 @@ module.exports = {
 
         //let res = await db.queryReminder('SELECT * FROM reminders WHERE discID = $1', [discID])
         
-        let res = await queryWarden("SELECT * FROM reminders WHERE discID = $1 AND id = $2", [discID, reqID]); //makes sure the id belongs to the user attempting to delete it
+        let res = await query("SELECT * FROM reminders WHERE discID = $1 AND id = $2", [discID, reqID]); //makes sure the id belongs to the user attempting to delete it
         
         if (res.rows[0] === undefined) { //checks if the query found an id matching the requested id
             interaction.reply({content: `The id ${reqID} doesn't match any of your reminder ids`, ephemeral: true});
@@ -24,7 +24,7 @@ module.exports = {
         let remID = res.rows[0].id;
 
         try {
-            queryWarden("DELETE FROM reminders WHERE id = $1", [remID]);
+            query("DELETE FROM reminders WHERE id = $1", [remID]);
             interaction.reply({content: `Successfully deleted the reminder with the id ${remID}.`, ephemeral: true})
         }catch (err) {
             console.log(err);

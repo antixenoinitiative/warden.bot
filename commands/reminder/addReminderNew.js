@@ -1,6 +1,6 @@
 const { SlashCommandBuilder} = require('@discordjs/builders');
 const { CommandInteractionOptionResolver } = require('discord.js');
-const { queryWarden } = require('../../db/index');
+const { query } = require('../../db/index');
 
 class keywordRegex {
     constructor(inputArr, amount, name) {
@@ -44,7 +44,7 @@ module.exports = {
         }
 
         let reminderCap = 10; //the amount of reminders one can have at a time
-        let res = await queryWarden(`SELECT * FROM reminders WHERE discid = $1`, [discID]);
+        let res = await query(`SELECT * FROM reminders WHERE discid = $1`, [discID]);
 
         if (res.rowCount > reminderCap) {
             interaction.reply({content: `Sorry, you can't have more than ${reminderCap} reminders`});
@@ -105,7 +105,7 @@ module.exports = {
         dueDate.setTime(currentDate.getTime() + futureDateInMillis);
 
         try {
-            res = await queryWarden(`INSERT INTO reminders (discID, nickname, memo, dueTime, channelID) VALUES ($1, $2, $3, $4, $5)`, [
+            res = await query(`INSERT INTO reminders (discID, nickname, memo, dueTime, channelID) VALUES ($1, $2, $3, $4, $5)`, [
                 discID, nickname, reminderMemo, dueDate.toJSON(), channelID
             ])
         } catch (err) {

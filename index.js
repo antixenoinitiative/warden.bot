@@ -9,7 +9,7 @@ const fs = require('fs');
 
 // Local Modules
 const { leaderboardInteraction } = require('./interaction/submission.js');
-const { queryWarden } = require("./db");
+const { query } = require("./db");
 const config = require('./config.json');
 
 // Discord client setup
@@ -246,12 +246,12 @@ async function backupRoles(roleId, table) {
 	await guild.members.fetch()
 	let members = guild.roles.cache.get(roleId).members.map(m=>m.user)
 	try {
-		await queryWarden(`DROP TABLE ${table}`)
+		await query(`DROP TABLE ${table}`)
 	} catch (err) {
 		console.log(`Backup Roles: Unable to delete table: ${err}`)
 	}
 	try {
-		await queryWarden(`CREATE TABLE ${table}(
+		await query(`CREATE TABLE ${table}(
 			id              SERIAL PRIMARY KEY,
 			user_id         text,
 			name            text,
@@ -264,7 +264,7 @@ async function backupRoles(roleId, table) {
 	for (let member of members) {
 		let timestamp = Date.now()
 		let name = await guild.members.cache.get(member.id).nickname
-		await queryWarden(`INSERT INTO ${table}(user_id, name, avatar) VALUES($1,$2,$3)`, [
+		await query(`INSERT INTO ${table}(user_id, name, avatar) VALUES($1,$2,$3)`, [
 			member.id,
 			name,
 			member.avatar
@@ -277,7 +277,7 @@ let minutes = 0.1, the_interval = minutes * 60 * 1000; //this sets at what inter
 setInterval(async function() {
 	let currentDate = new Date(Date.now());
 
-	let res = await queryWarden("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
+	let res = await query("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
 
 	if (res.rowCount == 0) return; //if there are no due reminders, exit the function
 
@@ -287,7 +287,7 @@ setInterval(async function() {
 	}	
 
 	try {
-		res = await queryWarden("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
+		res = await query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
 	} catch (err) {
 		console.log(err);
 	}
