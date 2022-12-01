@@ -36,11 +36,11 @@ module.exports = {
 
             if (system) {
                 await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
-                return interaction.Reply({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
+                return interaction.reply({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
             }
             if (!system) {
                 await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,$3)`, [systemName, status, presenceLevel])
-                return interaction.Reply({ content: `System manually added to the Database`})
+                return interaction.reply({ content: `System manually added to the Database`})
             }
 
 		} catch (err) {
