@@ -23,7 +23,7 @@ module.exports = {
         .addChoice('Safe', '0')),
 	permissions: 2,
 	async execute(interaction) {
-        await interaction.deferReply();
+        await interaction.reply({ content: `Updating system info`});
 		try {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
             let status = interaction.options.data.find(arg => arg.name === 'inc-status').value
@@ -36,11 +36,11 @@ module.exports = {
 
             if (system) {
                 await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
-                return interaction.reply({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
+                return interaction.channel.send({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
             }
             if (!system) {
                 await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,$3)`, [systemName, status, presenceLevel])
-                return interaction.reply({ content: `System manually added to the Database`})
+                return interaction.channel.send({ content: `**${systemName}** manually added to the Database`})
             }
 
 		} catch (err) {
