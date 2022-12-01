@@ -12,12 +12,21 @@ module.exports = {
 		.setDescription('Set the priority level')
 		.setRequired(true)
         .addChoice('Active', '1')
-        .addChoice('Inactive', '0')),
+        .addChoice('Inactive', '0'))
+    .addStringOption(option => option.setName('presence-level')
+		.setDescription('Set the presence level')
+		.setRequired(true)
+        .addChoice('Maelstrom', '4')
+		.addChoice('Controlled', '3')
+        .addChoice('Invasion', '2')
+        .addChoice('Alert', '1')
+        .addChoice('Safe', '0')),
 	permissions: 2,
 	async execute(interaction) {
 		try {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
             let status = interaction.options.data.find(arg => arg.name === 'inc-status').value
+            let presenceLevel = interaction.options.data.find(arg => arg.name === 'presence-level').value.toLowerCase();
 
             let res = await db.query(`SELECT * FROM systems`)
             let data = res.rows
@@ -29,7 +38,7 @@ module.exports = {
                 return interaction.Reply({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
             }
             if (!system) {
-                await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,4)`, [systemName, status])
+                await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,$3)`, [systemName, status, presenceLevel])
                 return interaction.Reply({ content: `System manually added to the Database`})
             }
 
