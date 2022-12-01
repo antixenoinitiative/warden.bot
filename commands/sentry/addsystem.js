@@ -27,7 +27,7 @@ module.exports = {
 
             if (system) {
                 await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
-                return interaction.editReply({ content: `**${systemName}** is already in the database, Incursion status has been set to True.`})
+                return interaction.editReply({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
             }
             if (!system) {
                 await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,4)`, [systemName, status])
