@@ -15,7 +15,6 @@ module.exports = {
         .addChoice('Inactive', '0')),
 	permissions: 2,
 	async execute(interaction) {
-        await interaction.deferReply();
 		try {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
             let status = interaction.options.data.find(arg => arg.name === 'inc-status').value
@@ -27,11 +26,11 @@ module.exports = {
 
             if (system) {
                 await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
-                return interaction.editReply({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
+                return interaction.Reply({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
             }
             if (!system) {
                 await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,4)`, [systemName, status])
-                return interaction.editReply({ content: `System manually added to the Database`})
+                return interaction.Reply({ content: `System manually added to the Database`})
             }
 
 		} catch (err) {
