@@ -26,11 +26,11 @@ module.exports = {
     .addStringOption(option => option.setName('presence-level')
 		.setDescription('Set the presence level')
 		.setRequired(true)
-        .addChoice('Massive', '4')
-		.addChoice('Significant', '3')
-        .addChoice('Moderate', '2')
-        .addChoice('Marginal', '1')
-        .addChoice('Cleared', '0')),
+        .addChoice('Maelstrom', '4')
+		.addChoice('Controlled', '3')
+        .addChoice('Invasion', '2')
+        .addChoice('Alert', '1')
+        .addChoice('Safe', '0')),
 	permissions: 1,
 	async execute(interaction) {
 		try {
