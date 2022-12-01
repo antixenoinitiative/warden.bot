@@ -23,6 +23,7 @@ module.exports = {
         .addChoice('Safe', '0')),
 	permissions: 2,
 	async execute(interaction) {
+        await interaction.deferReply();
 		try {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
             let status = interaction.options.data.find(arg => arg.name === 'inc-status').value
