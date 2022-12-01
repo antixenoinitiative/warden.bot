@@ -4,15 +4,15 @@ const db = require("../../db/index");
 function getPresence(presence) {
     switch (presence) {
         case 0:
-            return "Cleared"
+            return "Safe"
         case 1:
-            return "Marginal"
+            return "Alert"
         case 2:
-            return "Moderate"
+            return "Invasion"
         case 3:
-            return "Significant"
+            return "Controlled"
         case 4:
-            return "Massive"
+            return "Maelstrom"
     }
 }
 
