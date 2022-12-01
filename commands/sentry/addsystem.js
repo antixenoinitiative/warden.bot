@@ -25,10 +25,10 @@ module.exports = {
 
             let system = data.find(element => element.name === systemName)
 
-            if (!system) {
+            if (system) {
                 await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
                 return interaction.editReply({ content: `**${systemName}** is already in the database, Incursion status has been set to True.`})
-            } else if (system) {
+            } else if (!system) {
                 await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,4)`, [systemName, status])
                 return interaction.editReply({ content: `System manually added to the Database`})
             }
