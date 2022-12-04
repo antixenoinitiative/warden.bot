@@ -41,7 +41,7 @@ module.exports = {
                 }
                 if (presenceLevel) {
                     await db.query(`UPDATE systems SET presence = $1 WHERE name = $2`, [presenceLevel, systemName])
-                    interaction.channel.send({ content: `System status updated to: **${presenceLevel}**`})
+                    interaction.channel.send({ content: `Presence Level updated to: **${presenceLevel}**`})
                 }
             }
             if (!system) {
