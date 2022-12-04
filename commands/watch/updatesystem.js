@@ -10,12 +10,12 @@ module.exports = {
 		.setRequired(true))
     .addStringOption(option => option.setName('inc-status')
 		.setDescription('Incursions State')
-		.setRequired(false)
+		.setRequired(true)
         .addChoice('Active', '1')
         .addChoice('Inactive', '0'))
     .addStringOption(option => option.setName('presence-level')
 		.setDescription('Set the presence level')
-		.setRequired(false)
+		.setRequired(true)
         .addChoice('Maelstrom', '4')
 		.addChoice('Controlled', '3')
         .addChoice('Invasion', '2')
@@ -26,19 +26,8 @@ module.exports = {
         await interaction.reply({ content: `Updating system info`});
 		try {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
-            let status
-            try {
-                status = interaction.options.data.find(arg => arg.name === 'inc-status').value
-            } catch {
-                status = null
-            }
-            try {
-                presenceLevel = interaction.options.data.find(arg => arg.name === 'presence-level').value.toLowerCase();
-            } catch {
-                presenceLevel = null
-            }
-            
-
+            let status = interaction.options.data.find(arg => arg.name === 'inc-status').value
+            let presenceLevel = interaction.options.data.find(arg => arg.name === 'presence-level').value.toLowerCase();
             let res = await db.query(`SELECT * FROM systems`)
             let data = res.rows
 
@@ -46,11 +35,11 @@ module.exports = {
 
             if (system) {
                 interaction.channel.send({ content: `**${systemName}** is already in the database, updating fields.`})
-                if (status != null) {
+                if (status) {
                     await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
                     interaction.channel.send({ content: `System status updated to: **${status}**`})
                 }
-                if (presenceLevel != null) {
+                if (presenceLevel) {
                     await db.query(`UPDATE systems SET presence = $1 WHERE name = $2`, [presenceLevel, systemName])
                     interaction.channel.send({ content: `System status updated to: **${presenceLevel}**`})
                 }
