@@ -26,8 +26,18 @@ module.exports = {
         await interaction.reply({ content: `Updating system info`});
 		try {
             let systemName = interaction.options.data.find(arg => arg.name === 'system-name').value
-            let status = interaction.options.data.find(arg => arg.name === 'inc-status').value
-            let presenceLevel = interaction.options.data.find(arg => arg.name === 'presence-level').value.toLowerCase();
+            let status
+            try {
+                status = interaction.options.data.find(arg => arg.name === 'inc-status').value
+            } catch {
+                status = null
+            }
+            try {
+                presenceLevel = interaction.options.data.find(arg => arg.name === 'presence-level').value.toLowerCase();
+            } catch {
+                presenceLevel = null
+            }
+            
 
             let res = await db.query(`SELECT * FROM systems`)
             let data = res.rows
@@ -36,11 +46,11 @@ module.exports = {
 
             if (system) {
                 interaction.channel.send({ content: `**${systemName}** is already in the database, updating fields.`})
-                if (status) {
+                if (status != null) {
                     await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
                     interaction.channel.send({ content: `System status updated to: **${status}**`})
                 }
-                if (presenceLevel) {
+                if (presenceLevel != null) {
                     await db.query(`UPDATE systems SET presence = $1 WHERE name = $2`, [presenceLevel, systemName])
                     interaction.channel.send({ content: `System status updated to: **${presenceLevel}**`})
                 }
