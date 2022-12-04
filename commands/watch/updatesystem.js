@@ -9,13 +9,13 @@ module.exports = {
 		.setDescription('Name of the System')
 		.setRequired(true))
     .addStringOption(option => option.setName('inc-status')
-		.setDescription('Set the priority level')
-		.setRequired(true)
+		.setDescription('Incursions State')
+		.setRequired(false)
         .addChoice('Active', '1')
         .addChoice('Inactive', '0'))
     .addStringOption(option => option.setName('presence-level')
 		.setDescription('Set the presence level')
-		.setRequired(true)
+		.setRequired(false)
         .addChoice('Maelstrom', '4')
 		.addChoice('Controlled', '3')
         .addChoice('Invasion', '2')
@@ -35,8 +35,15 @@ module.exports = {
             let system = data.find(element => element.name === systemName)
 
             if (system) {
-                await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
-                return interaction.channel.send({ content: `**${systemName}** is already in the database, Incursion status has been updated`})
+                interaction.channel.send({ content: `**${systemName}** is already in the database, updating fields.`})
+                if (status) {
+                    await db.query(`UPDATE systems SET status = $1 WHERE name = $2`, [status, systemName])
+                    interaction.channel.send({ content: `System status updated to: **${status}**`})
+                }
+                if (presenceLevel) {
+                    await db.query(`UPDATE systems SET presence = $1 WHERE name = $2`, [presenceLevel, systemName])
+                    interaction.channel.send({ content: `System status updated to: **${presenceLevel}**`})
+                }
             }
             if (!system) {
                 await db.query(`INSERT INTO systems(name,status,presence)VALUES($1,$2,$3)`, [systemName, status, presenceLevel])
