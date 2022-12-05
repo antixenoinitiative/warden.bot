@@ -4,15 +4,15 @@ const db = require("../../db/index");
 function getPresence(presence) {
     switch (presence) {
         case 0:
-            return "Cleared"
+            return "Safe"
         case 1:
-            return "Marginal"
+            return "Alert"
         case 2:
-            return "Moderate"
+            return "Invasion"
         case 3:
-            return "Significant"
+            return "Controlled"
         case 4:
-            return "Massive"
+            return "Maelstrom"
     }
 }
 
@@ -26,11 +26,11 @@ module.exports = {
     .addStringOption(option => option.setName('presence-level')
 		.setDescription('Set the presence level')
 		.setRequired(true)
-        .addChoice('Massive', '4')
-		.addChoice('Significant', '3')
-        .addChoice('Moderate', '2')
-        .addChoice('Marginal', '1')
-        .addChoice('Cleared', '0')),
+        .addChoice('Maelstrom', '4')
+		.addChoice('Controlled', '3')
+        .addChoice('Invasion', '2')
+        .addChoice('Alert', '1')
+        .addChoice('Safe', '0')),
 	permissions: 1,
 	async execute(interaction) {
 		try {
