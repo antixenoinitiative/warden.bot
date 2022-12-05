@@ -20,7 +20,8 @@ serverIntents.add(
 	Intents.FLAGS.GUILD_MEMBERS,
 	Intents.FLAGS.GUILD_MESSAGES,
 	Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
-	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS
+	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS,
+	Intents.FLAGS.GUILD_VOICE_STATES
 );
 const bot = new Client({ intents: serverIntents })
 
@@ -235,6 +236,103 @@ bot.on('guildMemberRemove', member => {
 	))
 })
 
+bot.on('voiceStateUpdate', (oldState,newState) => {
+	//For new OPS VC
+	if(newState.channelId === process.env.OPSVOICECHANNELID)
+	{
+		newState.guild.channels.create(
+			`${newState.member.displayName}'s OPS`,
+			{
+				type:'GUILD_VOICE',
+				parent:process.env.VOICECHANNELCATEGORYID,
+				userLimit:75,
+			}
+		)
+		.then(vc => {
+			botLog(new MessageEmbed()
+				.setDescription(`Created a new OPS channel for User ${newState.member.displayName}`)
+				.setTitle(`Created a new voice channel`)
+				.addFields(
+				{ name: `User`, value: `${newState.member.displayName}`},
+				{ name: `User ID`, value: `${newState.member.id}`},
+				{ name: `VC Name`, value: `${vc.name}`},
+				{ name: `VC ID`, value: `${vc.id}`},
+			))
+			botLog(new MessageEmbed()
+				.setDescription(`Moving User ${newState.member.displayName} to a new Voice Channel`)
+				.setTitle(`Moving a user in a voice channel`)
+				.addFields(
+				{ name: `User`, value: `${newState.member.displayName}`},
+				{ name: `User ID`, value: `${newState.member.id}`},
+				{ name: `From VC`, value: `${process.env.VOICECHANNELCATEGORYID}`},
+				{ name: `To VC`, value: `${vc.name}`},
+			))
+			newState.setChannel(vc)
+
+		})
+	}
+	if(oldState.channel?.name === `${oldState.member.displayName}'s OPS`)
+	{
+		botLog(new MessageEmbed()
+				.setDescription(`Deleting an OPS channel of User ${oldState.member.displayName}`)
+				.setTitle(`Deleted an OPS channel`)
+				.addFields(
+				{ name: `User`, value: `${oldState.member?.displayName}`},
+				{ name: `ID`, value: `${oldState.member?.id}`},
+				{ name: `VC Name`, value: `${oldState.channel?.name}`},
+				{ name: `VC ID`, value: `${oldState.channel?.id}`},
+			))
+		oldState.channel?.delete()
+	}
+	//For new Wing VC
+	if(newState.channelId === process.env.WINGVOICECHANNELID)
+	{
+		newState.guild.channels.create(
+			`${newState.member.displayName}'s Wing`,
+			{
+				type:'GUILD_VOICE',
+				parent:process.env.VOICECHANNELCATEGORYID,
+				userLimit:4,
+			}
+		)
+		.then(vc => {
+			botLog(new MessageEmbed()
+				.setDescription(`Created a new Wing channel for User ${newState.member.displayName}`)
+				.setTitle(`Created a new voice channel`)
+				.addFields(
+				{ name: `User`, value: `${newState.member.displayName}`},
+				{ name: `User ID`, value: `${newState.member.id}`},
+				{ name: `VC Name`, value: `${vc.name}`},
+				{ name: `VC ID`, value: `${vc.id}`},
+			))
+			botLog(new MessageEmbed()
+				.setDescription(`Moving a User ${newState.member.displayName} to a new Voice Channel`)
+				.setTitle(`Moving a user in a voice channel`)
+				.addFields(
+				{ name: `User`, value: `${newState.member.displayName}`},
+				{ name: `User ID`, value: `${newState.member.id}`},
+				{ name: `From VC`, value: `${process.env.VOICECHANNELCATEGORYID}`},
+				{ name: `To VC`, value: `${vc.name}`},
+			))
+			newState.setChannel(vc)
+
+		})
+	}
+	if(oldState.channel?.name === `${oldState.member.displayName}'s Wing`)
+	{
+		botLog(new MessageEmbed()
+				.setDescription(`Deleting a Wing channel of User ${oldState.member.displayName}`)
+				.setTitle(`Deleted a Wing channel`)
+				.addFields(
+				{ name: `User`, value: `${oldState.member?.displayName}`},
+				{ name: `ID`, value: `${oldState.member?.id}`},
+				{ name: `VC Name`, value: `${oldState.channel?.name}`},
+				{ name: `VC ID`, value: `${oldState.channel?.id}`},
+			))
+		oldState.channel?.delete()
+	}
+})
+
 /**
  * Role backup system, takes the targetted role and table and backs up to SQL database.
  * @author  (Mgram) Marcus Ingram
@@ -295,3 +393,7 @@ setInterval(async function() {
 
 bot.on("error", () => { bot.login(bot.login(process.env.TOKEN)) });
 bot.login(process.env.TOKEN)
+//For personal warden to work without the database stuff
+// process.on('uncaughtException', function (err) {
+// 	console.log(err)
+// }); 
