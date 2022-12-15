@@ -37,7 +37,7 @@ module.exports = {
                     ])
                 }
                 const row = new Discord.MessageActionRow().addComponents(menu);
-                interaction.reply({ content: `Please select which Community Goal to view:`, components: [row] })
+                interaction.reply({ content: `Please select which Community Goal to view:`, components: [row], ephemeral:true})
                 
                 const filter = i => i.user.id === interaction.member.id;
                 const collector = interaction.channel.createMessageComponentCollector({ filter, time: 15000 });
