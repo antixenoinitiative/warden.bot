@@ -101,7 +101,7 @@ bot.once("ready", async() => {
 	botLog(new EmbedBuilder().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
 	console.log(`✅ Warden is now online! logged in as ${bot.user.tag}`)
 	// Scheduled Role Backup Task
-	cron.schedule('*/5 * * * *', backupRoles('974673947784269824', 'club10'));
+	//cron.schedule('*/5 * * * *', backupRoles('974673947784269824', 'club10'));
 })
 
 /**

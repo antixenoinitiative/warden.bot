@@ -2,7 +2,7 @@ const { query } = require('../../db/index');
 const Discord = require("discord.js");
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
                 .setName(`showreminders`)
                 .setDescription(`Shows existing reminders`),
 	async execute(interaction) {
