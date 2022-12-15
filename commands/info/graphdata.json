@@ -26,5 +26,12 @@
         "description": "Multiple flak launchers is a waste *IF* the flak are not spread out very far, flak have a limited explosion radius and if that radius overlaps it is not more effective, by spreading flak out as far as possible (like the wing-tips of a cutter) it becomes beneficial. **This is most effective for Medusa and Hydra where the swarm spreads out into a wide circle** *'If convergence is wack, then it's good for flak'* - Shwinky, 2k20",
         "link": "https://cdn.discordapp.com/attachments/625989888432537611/674485116604776448/Flak.png",
         "type": "embed"
+    },
+    {
+        "argument": "fss",
+        "title": "Always find lone Interceptors",
+        "description": "While using the FSS, you are able to distinguish between instances containing only Scouts and instances containing only Interceptors by closely looking at where you put your tuner on the signal source, as seen in the graph below. By placing the tuner on the far left edge you will get only **Scout** instances, by placing it on the far right edge you will get either **Interceptor or empty** instances and by placing it in the middle you'll get both",
+        "link":"https://wiki.antixenoinitiative.com/signalsourcesboth.png",
+        "type":"embed"
     }
 ]

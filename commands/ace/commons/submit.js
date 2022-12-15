@@ -1,4 +1,4 @@
-const { queryWarden } = require("../../../db/index");
+const { query } = require("../../../db/index");
 const Discord = require("discord.js");
 
 module.exports = {
@@ -19,7 +19,7 @@ module.exports = {
         }
 
         try {
-            res = await queryWarden("SELECT * FROM ace WHERE user_id = $1 AND approval = true", [userID])
+            res = await query("SELECT * FROM ace WHERE user_id = $1 AND approval = true", [userID])
             if (res.rowCount != 0 ) {
                 if (res.rows[0].shiptype == args.shiptype) {
                     if (parseFloat(res.rows[0].score) > parseFloat(result.score.toFixed(2))) {
@@ -34,7 +34,7 @@ module.exports = {
         }
 
         try {
-            res = await queryWarden("INSERT INTO ace(user_id, name, timetaken, mgauss, sgauss, mgaussfired, sgaussfired, percenthulllost,score, link, approval, date, shiptype) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", [
+            res = await query("INSERT INTO ace(user_id, name, timetaken, mgauss, sgauss, mgaussfired, sgaussfired, percenthulllost,score, link, approval, date, shiptype) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", [
                 userID,
                 name,
                 args.time_in_seconds,
@@ -54,7 +54,7 @@ module.exports = {
             return interaction.followUp({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
         }
         
-        res = await queryWarden(`SELECT id FROM ace WHERE date = $1`, [timestamp])
+        res = await query(`SELECT id FROM ace WHERE date = $1`, [timestamp])
 
         // Print out data
         let submissionId = res.rows[0].id

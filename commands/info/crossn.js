@@ -17,7 +17,7 @@ module.exports = {
         .addChoices(
             { name:'Count', value:'count' },
             { name:'Nickname', value:'nickname' },
-            { name:'Club 10', value:'club10' },
+            { name:'Club 9', value:'club9' },
         ))
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
@@ -43,10 +43,9 @@ module.exports = {
             if(inputMode !== "count" && inputMode !== "nickname")
             {
                 mode = "nickname"
-                if(inputMode == "club10")
+                if(inputMode == "club9")
                     roles = [
                                 '477645690630307841', //100% Club
-                                '528577192746287104', //Annihilator
                                 '868809340788834324', //Astrea's clarity
                                 '913848672679247963', //Cerberus' Bane
                                 '963786177306054656', //Hephaestus Shunned
@@ -108,9 +107,10 @@ module.exports = {
                     )
                     interaction.reply({ embeds: [returnEmbed.setTimestamp()] }) 
                 }
-                else
-                {
-                    
+                else if(memberList_sorted_string.length > 1023) {
+                    interaction.reply({ content: `Sorry, there are too many users to display, please use the 'Count' option.`})
+                } 
+                else {
                     returnEmbed.addFields(
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},

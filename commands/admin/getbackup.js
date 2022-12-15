@@ -14,13 +14,13 @@ module.exports = {
   async execute(interaction) {
     try {
       let userID = interaction.options.data.find(arg => arg.name === 'user').value
-      let { rows } = await db.queryWarden("SELECT id FROM backups")
+      let { rows } = await db.query("SELECT id FROM backups")
       let backupIndexes = []
       for (let backup of rows) {
         let id = parseInt(backup.id)
         backupIndexes.push(id)
       }
-      let res = await db.queryWarden("SELECT * FROM backups WHERE id = $1", [Math.max.apply(null, backupIndexes)])
+      let res = await db.query("SELECT * FROM backups WHERE id = $1", [Math.max.apply(null, backupIndexes)])
       let timestamp = parseInt(res.rows[0].timestamp.slice(0, -3))
       let data = res.rows[0].data
       let roles;

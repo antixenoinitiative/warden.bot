@@ -17,7 +17,7 @@ module.exports = {
             })
         }
         try {
-            await db.queryWarden("INSERT INTO backups(data, timestamp) VALUES($1, $2)", [backup, Date.now()])
+            await db.query("INSERT INTO backups(data, timestamp) VALUES($1, $2)", [backup, Date.now()])
         } catch (err) {
             interaction.reply({ content: "Something went wrong taking a backup. Please check event logs"})
             return

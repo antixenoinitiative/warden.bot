@@ -5,15 +5,15 @@ const Discord = require("discord.js");
 function getPresence(presence) {
     switch (presence) {
         case 0:
-            return "Cleared"
+            return "Safe"
         case 1:
-            return "Marginal"
+            return "Alert"
         case 2:
-            return "Moderate"
+            return "Invasion"
         case 3:
-            return "Significant"
+            return "Controlled"
         case 4:
-            return "Massive"
+            return "Maelstrom"
     }
 }
 
@@ -28,11 +28,11 @@ module.exports = {
 		.setDescription('Set the presence level')
 		.setRequired(true)
         .addChoices(
-            { name: 'Massive', value: '4' },
-            { name: 'Significant', value: '3' },
-            { name: 'Moderate', value: '2' },
-            { name: 'Marginal', value: '1' },
-            { name: 'Cleared', value: '0' },
+            { name: 'Maelstrom', value: '4' },
+            { name: 'Controlled', value: '3' },
+            { name: 'Invasion', value: '2' },
+            { name: 'Alert', value: '1' },
+            { name: 'Safe', value: '0' },
         )),
 	permissions: 1,
 	async execute(interaction) {

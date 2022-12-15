@@ -7,7 +7,7 @@ module.exports = {
         let res;
         let user;
         try {
-            res = await db.queryWarden(`SELECT * FROM ${leaderboard} WHERE id = $1`, [submissionId])
+            res = await db.query(`SELECT * FROM ${leaderboard} WHERE id = $1`, [submissionId])
             if (res.rowCount === 0) {
                 interaction.channel.send({ content: `⛔ Error: ${interaction.member} That submission no longer exists, it may have already been denied.` })
                 return
@@ -17,15 +17,15 @@ module.exports = {
         }
         if (eventType === "approve") {
             if (leaderboard === "ace") { // Overwrite existing ace score
-                let res = await db.queryWarden("SELECT * FROM ace WHERE id = $1", [submissionId])
+                let res = await db.query("SELECT * FROM ace WHERE id = $1", [submissionId])
                 if (res.rowCount != 0) {
                     let userID = res.rows[0].user_id;
                     let ship = res.rows[0].shiptype;
-                    await db.queryWarden(`DELETE FROM ace WHERE user_id = $1 AND approval = true AND id != $2 AND shiptype = $3`, [userID, submissionId, ship])
+                    await db.query(`DELETE FROM ace WHERE user_id = $1 AND approval = true AND id != $2 AND shiptype = $3`, [userID, submissionId, ship])
                 }
             }
             try {
-                db.queryWarden(`UPDATE ${leaderboard} SET approval = true WHERE id = $1`, [submissionId])
+                db.query(`UPDATE ${leaderboard} SET approval = true WHERE id = $1`, [submissionId])
             } catch (err) {
                 console.log(err)
                 interaction.channel.send({ content: `Something went wrong approving a Submission, please try again or contact staff!` })
@@ -36,7 +36,7 @@ module.exports = {
             user.send(`Hey! 👋 This is Warden just letting you know that your ${leaderboard} submission has been approved! go check it out in the AXI with the **/leaderboard** command. Submission ID: #${res.rows[0].id}`)
         } else if (eventType === "deny") {
             try {
-                db.queryWarden(`DELETE FROM ${leaderboard} WHERE id = $1`, [submissionId])
+                db.query(`DELETE FROM ${leaderboard} WHERE id = $1`, [submissionId])
             } catch (err) {
                 console.log(err)
                 interaction.channel.send({ content: `Something went wrong deleting a submission, please try again or contact staff!` })
