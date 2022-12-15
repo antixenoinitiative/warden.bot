@@ -1,6 +1,7 @@
-const { SlashCommandBuilder} = require('@discordjs/builders');
+
 const { CommandInteractionOptionResolver } = require('discord.js');
 const { query } = require('../../db/index');
+const Discord = require("discord.js");
 
 class keywordRegex {
     constructor(inputArr, amount, name) {
@@ -14,7 +15,7 @@ class keywordRegex {
 }
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
         .setName(`addreminder`)
         .setDescription(`Adds a new reminder. Type "help" in the time field`)
 

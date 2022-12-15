@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
 const config = require('../../config.json');
+
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`deciat`)
     .setDescription(`Posts the Deciat Infographic`),
     permissions: 0,

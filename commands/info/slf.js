@@ -1,8 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
 const config = require('../../config.json');
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`slf`)
     .setDescription(`Posts the SLF Infographic`),
     permissions: 0,

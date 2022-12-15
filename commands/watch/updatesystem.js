@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const db = require("../../db/index");
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('updatesystem')
 	.setDescription('Add or update a system to Thargoid.Watch')
     .addStringOption(option => option.setName('system-name')
@@ -11,16 +11,20 @@ module.exports = {
     .addStringOption(option => option.setName('inc-status')
 		.setDescription('Incursions State')
 		.setRequired(true)
-        .addChoice('Active', '1')
-        .addChoice('Inactive', '0'))
+        .addChoices(
+            { name: 'Active', value: '1' },
+            { name: 'Inactive', value: '0' }
+        ))
     .addStringOption(option => option.setName('presence-level')
 		.setDescription('Set the presence level')
 		.setRequired(true)
-        .addChoice('Maelstrom', '4')
-		.addChoice('Controlled', '3')
-        .addChoice('Invasion', '2')
-        .addChoice('Alert', '1')
-        .addChoice('Safe', '0')),
+        .addChoices(
+            { name: 'Maelstrom', value: '4' },
+            { name: 'Controlled', value: '3' },
+            { name: 'Invasion', value: '2' },
+            { name: 'Alert', value: '1' },
+            { name: 'Safe', value: '0' },
+        )),
 	permissions: 2,
 	async execute(interaction) {
         await interaction.reply({ content: `Updating system info`});

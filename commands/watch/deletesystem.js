@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const db = require("../../db/index");
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('deletesystem')
 	.setDescription('Remove a system from Thargoid.watch')
     .addStringOption(option => option.setName('system-name')

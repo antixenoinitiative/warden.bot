@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, time } = require('@discordjs/builders');
 const { query } = require('../../db/index');
+const Discord = require("discord.js");
 
 module.exports = {
 	data: new SlashCommandBuilder()

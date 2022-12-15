@@ -1,4 +1,3 @@
-
 const db = require("../../db/index");
 const Discord = require("discord.js");
 

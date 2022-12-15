@@ -173,7 +173,6 @@ bot.on('messageDelete', async message => {
 		// Perform a coherence check to make sure that there's *something*
 		if (!deletionLog) {
 			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
-			console.log(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found. Message Content: ${message.content}`)
 			return
 		}
 		// Now grab the user object of the person who deleted the message
@@ -183,10 +182,8 @@ bot.on('messageDelete', async message => {
 		// Also run a check to make sure that the log returned was for the same author's message
 		if (message.id === deletionLog.id) {
 			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted by ${executor.tag}.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
-			console.log(`A message by ${message.author.tag} was deleted by ${executor.tag}. Message Content: ${message.content}`)
 		} else {
 			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted, but we don't know by who.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
-			console.log(`A message by ${message.author.tag} was deleted, but we don't know by who. Message Content: ${message.content}`)
 		}
 	} catch (err) {
 		botLog(new EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
@@ -194,7 +191,8 @@ bot.on('messageDelete', async message => {
 })
 
 bot.on('messageUpdate', (oldMessage, newMessage) => {
-	botLog(new EmbedBuilder()
+	if (oldMessage != newMessage) {
+		botLog(new EmbedBuilder()
 		.setDescription(`Message by ${oldMessage.author.tag} was edited.`)
 		.setTitle(`Message Updated`)
 		.setURL(oldMessage.url)
@@ -202,7 +200,7 @@ bot.on('messageUpdate', (oldMessage, newMessage) => {
 			{ name: `Old Message`, value: `${oldMessage}`},
 			{ name: `New Message`, value: `${newMessage}`},
 		),1)
-	console.log(`Message updated by  ${oldMessage.author.tag}, Old Message: "${oldMessage}", New Message: "${newMessage}"`)
+	}
 });
 
 bot.on('guildMemberRemove', member => {
