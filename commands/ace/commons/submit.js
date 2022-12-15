@@ -85,9 +85,9 @@ module.exports = {
         {name: "Medium Gauss Fired", value: `${args.shots_medium_fired}`, inline: true},
         {name: "Small Gauss Fired", value: `${args.shots_small_fired}`, inline: true},
         {name: "Hull % Lost", value: `${args.percenthulllost}`, inline: true})
-        const row = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
-        .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)
+        const row = new Discord.ActionRowBuilder()
+        .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-ace-approve-${submissionId}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+        .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-ace-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
         await interaction.guild.channels.cache.get(staffChannel).send({ embeds: [staffEmbed], components: [row] });
     }
 }

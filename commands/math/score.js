@@ -736,8 +736,8 @@ module.exports = {
         .setDescription(`${outputString}`)
         .setImage(url)
 
-		const buttonRow = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setLabel('Learn more about the Ace Score Calculator').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/Ace-Score-Calculator'),)
+		const buttonRow = new Discord.ActionRowBuilder()
+        .addComponents(new Discord.ButtonBuilder().setLabel('Learn more about the Ace Score Calculator').setStyle(Discord.ButtonStyle.Link).setURL('https://wiki.antixenoinitiative.com/en/Ace-Score-Calculator'),)
 
         interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
     },

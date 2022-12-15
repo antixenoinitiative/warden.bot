@@ -9,11 +9,11 @@ module.exports = {
 
 		// Build the initial message
 		const roleCache = message.guild.roles.cache
-		const row = new Discord.MessageActionRow()
-			.addComponents(new Discord.MessageButton().setCustomId('challenge').setLabel('Challenge Ranks').setStyle('PRIMARY'),)
-			.addComponents(new Discord.MessageButton().setCustomId('competitive').setLabel('Competitive Ranks').setStyle('PRIMARY'),)
-			.addComponents(new Discord.MessageButton().setCustomId('progression').setLabel('Progression Ranks').setStyle('PRIMARY'),)
-			.addComponents(new Discord.MessageButton().setCustomId('other').setLabel('Other Ranks').setStyle('PRIMARY'),)
+		const row = new Discord.ActionRowBuilder()
+			.addComponents(new Discord.ButtonBuilder().setCustomId('challenge').setLabel('Challenge Ranks').setStyle(Discord.ButtonStyle.Primary),)
+			.addComponents(new Discord.ButtonBuilder().setCustomId('competitive').setLabel('Competitive Ranks').setStyle(Discord.ButtonStyle.Primary),)
+			.addComponents(new Discord.ButtonBuilder().setCustomId('progression').setLabel('Progression Ranks').setStyle(Discord.ButtonStyle.Primary),)
+			.addComponents(new Discord.ButtonBuilder().setCustomId('other').setLabel('Other Ranks').setStyle(Discord.ButtonStyle.Primary),)
 		message.reply({ content: "Select which ranks to list:", components: [row], ephemeral: true });
 
 		// Recieve the button response

@@ -106,9 +106,9 @@ module.exports = {
 		{name: "Class", value: `${args.shipclass}`, inline: true},
 		{name: "link", value: `${args.link}`, inline: true},
 		{name: "Comments", value: `${args.comments}`, inline: true})
-		const row = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setCustomId(`submission-speedrun-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
-        .addComponents(new Discord.MessageButton().setCustomId(`submission-speedrun-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)
+		const row = new Discord.ActionRowBuilder()
+        .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-approve-${submissionId}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+        .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
         await interaction.guild.channels.cache.get(staffChannel).send({ embeds: [staffEmbed], components: [row] });
     }
 }

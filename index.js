@@ -101,7 +101,7 @@ bot.once("ready", async() => {
 	botLog(new EmbedBuilder().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
 	console.log(`✅ Warden is now online! logged in as ${bot.user.tag}`)
 	// Scheduled Role Backup Task
-	//cron.schedule('*/5 * * * *', backupRoles('974673947784269824', 'club10'));
+	cron.schedule('*/5 * * * *', backupRoles('974673947784269824', 'club10'));
 })
 
 /**
@@ -220,26 +220,15 @@ bot.on('guildMemberRemove', member => {
  * Role backup system, takes the targetted role and table and backs up to SQL database.
  * @author  (Mgram) Marcus Ingram
  */
-async function backupRoles(roleId, table) {
-	console.log(`Starting Role Backup Job (${table})`)
+async function backupClubRoles() {
 	let guilds = bot.guilds.cache.map((guild) => guild);
 	let guild = guilds[0]
 	await guild.members.fetch()
-	let members = guild.roles.cache.get(roleId).members.map(m=>m.user)
+	let members = guild.roles.cache.get('974673947784269824').members.map(m=>m.user)
 	try {
-		await query(`DROP TABLE ${table}`)
+		await query(`DELETE FROM club10`)
 	} catch (err) {
-		console.log(`Backup Roles: Unable to delete table: ${err}`)
-	}
-	try {
-		await query(`CREATE TABLE ${table}(
-			id              SERIAL PRIMARY KEY,
-			user_id         text,
-			name            text,
-			avatar          text
-		);`)
-	} catch (err) {
-		console.log(`Backup Roles: Unable to reset table, exiting task: ${err}`)
+		console.log(`Unable to delete rows from table`)
 		return;
 	}
 	for (let member of members) {
@@ -250,6 +239,7 @@ async function backupRoles(roleId, table) {
 			member.avatar
 		])
 	}
+	console.log('Club 10 table updated')
 }
 
 //the following part handles the triggering of reminders

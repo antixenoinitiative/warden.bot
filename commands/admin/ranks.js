@@ -16,8 +16,8 @@ module.exports = {
 
 Please click the link below to view our Ranks website to find all the up-to-date information on how to earn your first AX combat rank. This can also be found by visiting our website at www.antixenoinitiative.com.`)
 
-        const row = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setLabel('View Rank Requirements').setStyle('LINK').setURL('https://antixenoinitiative.com/ranks'),)
+        const row = new Discord.ActionRowBuilder()
+        .addComponents(new Discord.ButtonBuilder().setLabel('View Rank Requirements').setStyle(Discord.ButtonStyle.Link).setURL('https://antixenoinitiative.com/ranks'),)
 
         interaction.channel.send({ embeds: [returnEmbed], components: [row] });
     }

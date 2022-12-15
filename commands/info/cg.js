@@ -36,7 +36,7 @@ module.exports = {
                         },
                     ])
                 }
-                const row = new Discord.MessageActionRow().addComponents(menu);
+                const row = new Discord.ActionRowBuilder().addComponents(menu);
                 interaction.reply({ content: `Please select which Community Goal to view:`, components: [row], ephemeral:true})
                 
                 const filter = i => i.user.id === interaction.member.id;

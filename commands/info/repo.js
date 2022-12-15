@@ -7,11 +7,11 @@ module.exports = {
     permissions: 0,
     execute(interaction) {
         const link = "https://docs.google.com/spreadsheets/d/1tshjtvrFU9lDkd8kGcnsE1dRdGaDwqz-KKAr0RkDzWg/"
-        const row = new Discord.MessageActionRow()
+        const row = new Discord.ActionRowBuilder()
                     .addComponents(
-                        new Discord.MessageButton()
+                        new Discord.ButtonBuilder()
                         .setLabel("Visit Anti-Xeno Initiative's Ship Build Repository")
-                        .setStyle("LINK")
+                        .setStyle(Discord.ButtonStyle.Link)
                         .setURL(link)
                     )
         interaction.reply({ 

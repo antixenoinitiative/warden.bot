@@ -13,9 +13,9 @@ module.exports = {
         .addFields({ name: "**NOTE:** If a Nonhuman Signal Source has a Salvage Icon (cylinder) in the navigation panel, it will always be a solo Thargoid Interceptor.", value: "Click the button below for more." })
         .addFields({ name: "Always get interceptors using Full Spectrum System (FSS) Scanner:", value: "When using the FSS, you are able to filter which kind of instance you will get based on where you put your tuner. Click the button below for more." })
 
-		const buttonRow = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setLabel('Learn more about NHSS').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/nhss'),)
-	.addComponents(new Discord.MessageButton().setLabel('FSS Filter Trick').setStyle('LINK').setURL('https://wiki.antixenoinitiative.com/en/nhssviafss'),)
+		const buttonRow = new Discord.ActionRowBuilder()
+        .addComponents(new Discord.ButtonBuilder().setLabel('Learn more about NHSS').setStyle(Discord.ButtonStyle.Link).setURL('https://wiki.antixenoinitiative.com/en/nhss'),)
+	.addComponents(new Discord.ButtonBuilder().setLabel('FSS Filter Trick').setStyle(Discord.ButtonStyle.Link).setURL('https://wiki.antixenoinitiative.com/en/nhssviafss'),)
 
         interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
     }

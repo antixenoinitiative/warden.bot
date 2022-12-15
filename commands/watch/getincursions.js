@@ -54,8 +54,8 @@ module.exports = {
             }
             returnEmbed.setDescription(`${presencelist}`)
 
-            const buttonRow = new Discord.MessageActionRow()
-            .addComponents(new Discord.MessageButton().setLabel('Go to the Thargoid.watch Website').setStyle('LINK').setURL('https://www.thargoid.watch/'),)
+            const buttonRow = new Discord.ActionRowBuilder()
+            .addComponents(new Discord.ButtonBuilder().setLabel('Go to the Thargoid.watch Website').setStyle(Discord.ButtonStyle.Link).setURL('https://www.thargoid.watch/'),)
             
             interaction.reply({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] });
 

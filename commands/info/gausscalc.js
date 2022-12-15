@@ -7,11 +7,11 @@ module.exports = {
     permissions: 0,
     execute(interaction) {
         const link = "https://docs.google.com/spreadsheets/d/1bviDWAJewa6KPyOfU7maWjnIsGxZjxeTmzPCPsQ1drs/"
-        const row = new Discord.MessageActionRow()
+        const row = new Discord.ActionRowBuilder()
                     .addComponents(
-                        new Discord.MessageButton()
+                        new Discord.ButtonBuilder()
                         .setLabel("Visit Orodruin's Gauss Shot Calculator")
-                        .setStyle("LINK")
+                        .setStyle(Discord.ButtonStyle.Link)
                         .setURL(link)
                     )
         interaction.reply({ 
