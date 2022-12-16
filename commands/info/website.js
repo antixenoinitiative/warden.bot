@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('website')
 	.setDescription('Link to the AXI Home Website'),
     permissions: 0,

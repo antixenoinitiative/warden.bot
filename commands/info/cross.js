@@ -1,9 +1,8 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
 	.setName('cross')
 	.setDescription('How many people with rank1 also have rank2?')
 	.addRoleOption(option => option.setName('first-rank')
@@ -16,7 +15,7 @@ module.exports = {
 	execute(interaction) {
 		try {
 			let count = 0
-			const returnEmbed = new Discord.MessageEmbed()
+			const returnEmbed = new Discord.EmbedBuilder()
 			.setColor('#FF7100')
             .setTitle("**Count**")
 			let actualrole1 = ""
@@ -53,9 +52,9 @@ module.exports = {
 					}
 				})
 			})
-			returnEmbed.addField("Members with rank " + actualrole1,"```" + countrole1 + "```",true)
-			returnEmbed.addField("Members with rank " + actualrole2,"```" + countrole2 + "```",true)
-			returnEmbed.addField("Members with rank " + actualrole1 + " having rank " + actualrole2, "```" + count + "```")
+			returnEmbed.addFields({ name:"Members with rank " + actualrole1, value: "```" + countrole1 + "```", inline: true })
+			returnEmbed.addFields({ name:"Members with rank " + actualrole2, value: "```" + countrole2 + "```", inline: true })
+			returnEmbed.addFields({ name:"Members with rank " + actualrole1 + " having rank " + actualrole2, value: "```" + count + "```" })
 			interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
 		} catch(err) {
 			console.error(err);

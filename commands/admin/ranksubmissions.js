@@ -1,13 +1,13 @@
 const Discord = require('discord.js');
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`ranksubmissions`)
     .setDescription(`How to submit for ranks`)
     .setDefaultPermission(false),
     async execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')
 		.setTitle("**How to Submit for Ranks**")
 		.setImage('https://axicloud.blob.core.windows.net/public/images/km2_explosion.png')

@@ -1,8 +1,7 @@
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-  data: new SlashCommandBuilder()
+  data: new Discord.SlashCommandBuilder()
 	.setName('roleinfo')
 	.setDescription('Get information about a role')
   .addRoleOption(option => option.setName('role')
@@ -15,7 +14,7 @@ module.exports = {
       let role = interaction.guild.roles.cache.get(roleID)
       console.log(role)
 
-      const returnEmbed = new Discord.MessageEmbed()
+      const returnEmbed = new Discord.EmbedBuilder()
       .setColor('#FF7100')
       .setTitle(`**Role Info - ${role.name}**`)
       .setDescription(`Role information for ${role}`)

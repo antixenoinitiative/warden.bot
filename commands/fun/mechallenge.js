@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const Discord = require("discord.js");
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
     .setName(`mechallenge`)
     .setDescription(`Challenges @user to do the Mechan Challenge! :smiling_imp:`)
 	.addUserOption(option => option.setName('user')

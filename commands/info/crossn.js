@@ -1,22 +1,24 @@
 const Discord = require("discord.js");
 const { cleanString } = require("../../discord/cleanString");
 const { getRoleID } = require("../../discord/getRoleID");
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 
 function checker(memberrolearray, requestedroles) {
     return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
 }
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('crossn')
 	.setDescription('How many people with rank1 also have rank2... also have rankn?')
     .addStringOption(option => option.setName('mode')
 		.setDescription('Which mode to run the command as.')
 		.setRequired(true)
-        .addChoice('Count', 'count')
-		.addChoice('Nickname', 'nickname')
-		.addChoice('Club 9', 'club9'))
+        .addChoices(
+            { name:'Count', value:'count' },
+            { name:'Nickname', value:'nickname' },
+            { name:'Club 9', value:'club9' },
+        ))
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
 		.setRequired(false)),
@@ -61,7 +63,7 @@ module.exports = {
                 mode = inputMode
                 args.slice(1,).forEach(arg => roles.push(getRoleID(interaction,arg)))
             }
-            const returnEmbed = new Discord.MessageEmbed()
+            const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             interaction.guild.members.cache.each(member => {
                 let memberroles = member._roles

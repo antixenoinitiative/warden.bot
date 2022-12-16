@@ -1,15 +1,17 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('lfw')
 	.setDescription('Gives you a role pingable by others if you are looking for group')
     .addStringOption(option => option.setName('platform')
 		.setDescription('Select which platform you want to find a wing on.')
 		.setRequired(false)
-        .addChoice('PC', 'pc')
-		.addChoice('Playstation', 'ps')
-		.addChoice('XBox', 'xb')),
+        .addChoices(
+            { name:'PC', value:'pc' },
+            { name:'Playstation', value:'ps' },
+            { name:'XBox', value:'xb' }
+        )),
     permissions: 0,
     async execute(interaction) {
         let member = interaction.member._roles;

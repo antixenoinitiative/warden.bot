@@ -1,9 +1,8 @@
 const wiki = require('.././../graphql/index');
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
 	.setName('wiki')
 	.setDescription('Search the AXI Wiki')
 	.addStringOption(option => option.setName('term')
@@ -14,12 +13,12 @@ module.exports = {
 		let searchTerm = interaction.options.data.find(arg => arg.name === 'term').value
 		try {
 			wiki.search(searchTerm).then((res) => {
-				const returnEmbed = new Discord.MessageEmbed()
+				const returnEmbed = new Discord.EmbedBuilder()
 				.setColor('#FF7100')
 				.setTitle("**Wiki Search**")
 				.setDescription(`Found **${res.length}** search results for "${searchTerm}"`)
 				for (let i = 0; i < res.length; i++) {
-				returnEmbed.addField(res[i].title,`https://wiki.antixenoinitiative.com/en/${res[i].path}`)
+				returnEmbed.addFields({ name: res[i].title, value: `https://wiki.antixenoinitiative.com/en/${res[i].path}`})
 				}
 				interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
 			})

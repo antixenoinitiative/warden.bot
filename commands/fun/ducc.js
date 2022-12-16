@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`ducc`)
     .setDescription(`Summon the Ducc!`),
     permissions: 0,
@@ -27,6 +27,6 @@ module.exports = {
             interaction.reply({ content: `Who summons the duck-man?! <@211624816619290624>` });
             interaction.channel.send({ content: "https://cdn.discordapp.com/attachments/625989888432537611/668012845925138442/duckswag.gif" });
         }
-        
+
     }
 }

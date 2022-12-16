@@ -1,8 +1,9 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 const db = require("../../db/index");
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('setpriority')
 	.setDescription('Update the priority of a system in Sentry Database')
     .addStringOption(option => option.setName('system-name')
@@ -11,10 +12,12 @@ module.exports = {
     .addStringOption(option => option.setName('priority')
 		.setDescription('Set the priority level')
 		.setRequired(true)
-        .addChoice('#1', '1')
-        .addChoice('#2', '2')
-        .addChoice('#3', '3')
-        .addChoice('None', '0')),
+        .addChoices(
+            { name: '#1', value: '1' },
+            { name: '#2', value: '2' },
+            { name: '#3', value: '3' },
+            { name: 'None', value: '0' },
+        )),
 	permissions: 2,
 	async execute(interaction) {
         await interaction.deferReply();

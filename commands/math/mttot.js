@@ -1,27 +1,31 @@
 const Discord = require("discord.js");
 const { calcMTTOT } = require("./calc/calc");
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
 	.setName('mttot')
 	.setDescription('Calculate Theoretical Time on Target')
     .addStringOption(option => option.setName('variant')
 		.setDescription('Thargoid Variant')
 		.setRequired(true)
-        .addChoice('Cyclops', 'cyclops')
-		.addChoice('Basilisk', 'basilisk')
-        .addChoice('Medusa', 'medusa')
-        .addChoice('Hydra', 'hydra'))
+		.addChoices(
+			{ name:'Cyclops', value:'cyclops' },
+			{ name:'Basilisk', value:'basilisk' },
+			{ name:'Medusa', value:'medusa' },
+			{ name:'Hydra', value:'hydra' }
+		))
     .addStringOption(option => option.setName('weapon-codes')
 		.setDescription('Use standard codes to assign weapons eg: 2m2s, 1lfaxmc, 2sfgc')
 		.setRequired(true))
     .addStringOption(option => option.setName('accuracy')
 		.setDescription('Accuracy Rating')
 		.setRequired(true)
-        .addChoice('100%', '100')
-		.addChoice('75%', '75')
-        .addChoice('50%', '50'))
+        .addChoices(
+            {name: '100%',value:'100'},
+            {name: '75%', value:'75'},
+            {name: '50%', value:'50'}
+        ))
     .addIntegerOption(option => option.setName('range')
 		.setDescription('Range in Meters')
 		.setRequired(false)),
@@ -64,13 +68,13 @@ module.exports = {
             }
 
             try {
-                const returnEmbed = new Discord.MessageEmbed()
+                const returnEmbed = new Discord.EmbedBuilder()
                 .setColor('#FF7100')
                 .setTitle("**MTTOT Calculator**")
                 .setDescription(`**${accuracy}%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
-                .addField("Basic",`${results[0]}`,true)
-                .addField("Standard",`${results[1]}`,true)
-                .addField("Premium",`${results[2]}`,true)
+                .addFields({ name: "Basic", value: `${results[0]}`, inline: true })
+                .addFields({ name: "Standard", value: `${results[1]}`, inline: true })
+                .addFields({ name: "Premium", value: `${results[2]}`, inline: true })
                 interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
             } catch (err) {
                 interaction.reply({ content: "Something went wrong, please you entered the correct format" });
