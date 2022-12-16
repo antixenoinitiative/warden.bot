@@ -50,7 +50,9 @@ module.exports = {
 						.setDescription(`Challenge Rank Statistics`);
 					Object.keys(ch_ranks_amount_name).sort().forEach(key => {
 						ch_ranks_amount_name[key].forEach(rank => {
-							returnEmbed.addField(rank,key,true);
+							returnEmbed.addFields(
+								{ name: rank, value: key, inline: true} 
+							);
 						});
 					});
 					i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
@@ -65,7 +67,7 @@ module.exports = {
 					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Competitive Ranks**")
-						.setDescription(`Competitive Rank Statistics`)
+						.setDescription(`Competitive a Statistics`)
 						.addFields(
 							{ name: "Caduceus' Glint", value: roleCache.get("810410422871785472").members.size.toString(), inline: true },
 							{ name: "Ace", value: roleCache.get("650449319262158868").members.size.toString(), inline: true }
