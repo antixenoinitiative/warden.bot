@@ -165,7 +165,7 @@ bot.on('interactionCreate', async interaction => {
 // Message Deleted by user
 bot.on('messageDelete', async message => {
 	try {
-		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```' })
+		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `🗑️ Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```' })
 	} catch (err) {
 		botLog(new EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
 	}
@@ -174,7 +174,7 @@ bot.on('messageDelete', async message => {
 // Message Updated by user
 bot.on('messageUpdate', (oldMessage, newMessage) => {
 	if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID) {
-		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`})
+		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `📝 Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`})
 	}
 });
 
@@ -244,5 +244,5 @@ bot.login(process.env.TOKEN)
 // General error handling
 process.on('uncaughtException', function (err) {
 	console.error(err);
-	bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `Fatal error experienced: ${err}` })
+	bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced: ${err}` })
 });
