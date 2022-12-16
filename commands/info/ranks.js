@@ -1,20 +1,19 @@
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('ranks')
-		.setDescription('Get rank statistics'),
+	data: new Discord.SlashCommandBuilder()
+	.setName('ranks')
+	.setDescription('Get rank statistics'),
 	permissions: 0,
 	async execute(message) {
 
 		// Build the initial message
 		const roleCache = message.guild.roles.cache
-		const row = new Discord.MessageActionRow()
-			.addComponents(new Discord.MessageButton().setCustomId('challenge').setLabel('Challenge Ranks').setStyle('PRIMARY'),)
-			.addComponents(new Discord.MessageButton().setCustomId('competitive').setLabel('Competitive Ranks').setStyle('PRIMARY'),)
-			.addComponents(new Discord.MessageButton().setCustomId('progression').setLabel('Progression Ranks').setStyle('PRIMARY'),)
-			.addComponents(new Discord.MessageButton().setCustomId('other').setLabel('Other Ranks').setStyle('PRIMARY'),)
+		const row = new Discord.ActionRowBuilder()
+			.addComponents(new Discord.ButtonBuilder().setCustomId('challenge').setLabel('Challenge Ranks').setStyle(Discord.ButtonStyle.Primary),)
+			.addComponents(new Discord.ButtonBuilder().setCustomId('competitive').setLabel('Competitive Ranks').setStyle(Discord.ButtonStyle.Primary),)
+			.addComponents(new Discord.ButtonBuilder().setCustomId('progression').setLabel('Progression Ranks').setStyle(Discord.ButtonStyle.Primary),)
+			.addComponents(new Discord.ButtonBuilder().setCustomId('other').setLabel('Other Ranks').setStyle(Discord.ButtonStyle.Primary),)
 		message.reply({ content: "Select which ranks to list:", components: [row], ephemeral: true });
 
 		// Recieve the button response
@@ -45,7 +44,7 @@ module.exports = {
 						else
 							ch_ranks_amount_name[rank_holder_count] = [rank_name];
 					});
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Challenge Ranks**")
 						.setDescription(`Challenge Rank Statistics`);
@@ -63,7 +62,7 @@ module.exports = {
 			if (i.customId === 'competitive') {
 				i.deferUpdate();
 				try {
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Competitive Ranks**")
 						.setDescription(`Competitive Rank Statistics`)
@@ -80,7 +79,7 @@ module.exports = {
 			if (i.customId === 'progression') {
 				i.deferUpdate();
 				try {
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Progression Ranks**")
 						.setDescription(`Progression Rank Statistics`)
@@ -105,7 +104,7 @@ module.exports = {
 			if (i.customId === 'other') {
 				i.deferUpdate();
 				try {
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Other Ranks**")
 						.setDescription(`Other Rank Statistics`)

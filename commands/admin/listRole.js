@@ -1,8 +1,8 @@
 const Discord = require("discord.js");
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
       .setName('listrole')
       .setDescription('List all users in a role')
     .addRoleOption(option => option.setName('role')
@@ -20,7 +20,7 @@ module.exports = {
             }
 
     
-            const returnEmbed = new Discord.MessageEmbed()
+            const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             .setTitle(`**Role List - ${role.name}**`)
             .setDescription(`User List for ${role}`)

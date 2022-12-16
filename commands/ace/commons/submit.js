@@ -58,7 +58,7 @@ module.exports = {
 
         // Print out data
         let submissionId = res.rows[0].id
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setColor('#FF7100')
         .setTitle(`**Ace Submission Complete**`)
         .setDescription(`Congratulations <@${interaction.member.id}>, your submission is complete. Please be patient while our staff approve your submission. Submission ID: #${submissionId}`)
@@ -70,7 +70,7 @@ module.exports = {
         interaction.followUp({ embeds: [returnEmbed.setTimestamp()] });
 
         // Create staff interaction
-        const staffEmbed = new Discord.MessageEmbed()
+        const staffEmbed = new Discord.EmbedBuilder()
         .setColor('#FF7100')
         .setTitle(`**New Ace Submission**`)
         .setDescription(`Please select Approve or Deny below if the video is legitimate and matches the fields below. NOTE: This will not assign any ranks, only approve to the Leaderboard.`)
@@ -85,9 +85,9 @@ module.exports = {
         {name: "Medium Gauss Fired", value: `${args.shots_medium_fired}`, inline: true},
         {name: "Small Gauss Fired", value: `${args.shots_small_fired}`, inline: true},
         {name: "Hull % Lost", value: `${args.percenthulllost}`, inline: true})
-        const row = new Discord.MessageActionRow()
-        .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-approve-${submissionId}`).setLabel('Approve').setStyle('SUCCESS'),)
-        .addComponents(new Discord.MessageButton().setCustomId(`submission-ace-deny-${submissionId}`).setLabel('Delete').setStyle('DANGER'),)
+        const row = new Discord.ActionRowBuilder()
+        .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-ace-approve-${submissionId}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+        .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-ace-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
         await interaction.guild.channels.cache.get(staffChannel).send({ embeds: [staffEmbed], components: [row] });
     }
 }

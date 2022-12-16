@@ -3,7 +3,6 @@
 </p>
 
 # Warden.bot
-[![ESLint Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/eslint.yml)
 [![Security Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml)
 
 Warden is a discord bot for the Anti-Xeno Initiative Discord Server. Based on Discord.js warden is a combination of systems that culminate in a relatively advanced custom built discord bot for the needs of the AXI.
@@ -55,10 +54,10 @@ Use the following as a boilerplate for your commands.
 Command name and description are defined in the `data:` field, this feeds into discord to allow the slash command UI to make easy command browsing, here you can also specify special argument fields (more below).
 
 ```js
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
 	.setName('myCommandName') // What the user types to call the command
 	.setDescription('myCommandDescription'), // The Discord Description for the command
 	permissions: 0,
@@ -74,10 +73,10 @@ You can set options for commands, this allows users to have extra inputs with ea
 Example with Slash Command Options:
 
 ```js
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
 	.setName('myCommandName') // What the user types to call the command
 	.setDescription('myCommandDescription')
     .addStringOption(option => option.setName('myArgument') // Create the option

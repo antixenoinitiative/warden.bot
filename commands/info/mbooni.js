@@ -1,13 +1,12 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
 const config = require('../../config.json');
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`mbooni`)
     .setDescription(`Where to purchase pre-engineered AX weaponry`),
     permissions: 0,
     execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Pre-engineered Weapons')
 //         .setURL('https://www.antixenoinitiative.com/wiki/ship-builds/common-mistakes') will add an updated weapons page at some point
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})

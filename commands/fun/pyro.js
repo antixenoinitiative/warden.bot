@@ -1,7 +1,6 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-
+const Discord = require("discord.js");
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`pyro`)
     .setDescription(`Summons the mythical Fire Chicken`),
     permissions: 0,

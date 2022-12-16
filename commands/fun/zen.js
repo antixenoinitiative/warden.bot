@@ -7,12 +7,13 @@
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
-const { SlashCommandBuilder } = require('@discordjs/builders');
+
 const fetch = require("node-fetch");
 const { zenURL } = require('../../config.json');
+const Discord = require("discord.js");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`zen`)
     .setDescription(`Gets you a random quote from https://zenquotes.io`),
     permissions: 0,

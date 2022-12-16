@@ -1,13 +1,12 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
 const config = require('../../config.json');
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`pg`)
     .setDescription(`Posts info on how to join the Anti-Xeno Initiative Private Group`),
     permissions: 0,
     execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Anti-Xeno Initiative Private Group')
         .setColor('#FF7100')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})

@@ -1,13 +1,13 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const Discord = require("discord.js");
 const config = require('../../config.json');
+
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`deciat`)
     .setDescription(`Posts the Deciat Infographic`),
     permissions: 0,
     execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Distress Calls Point of Interest')
         .setColor('#FF7100')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})

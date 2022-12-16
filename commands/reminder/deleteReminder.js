@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
 const { query } = require('../../db/index');
+const Discord = require("discord.js");
 
 module.exports = {
-	data: new SlashCommandBuilder()
+	data: new Discord.SlashCommandBuilder()
         .setName(`deletereminder`)
         .setDescription(`deletes your reminder (use /showreminders to check which id corresponds to which reminder)`)
     .addIntegerOption(option => option.setName('remid')

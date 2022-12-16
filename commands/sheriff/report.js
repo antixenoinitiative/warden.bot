@@ -5,7 +5,7 @@
  * @author F0rd Pr3f3ct (@FPr3f3ct)
  */
 
-const { SlashCommandBuilder } = require("@discordjs/builders");
+ const Discord = require("discord.js");
 
 const fetch = require("node-fetch");
 const moment = require("moment");
@@ -14,7 +14,7 @@ const edgame = require("./commons/edgame.js");
 const { tickURL, factionURL, systemURL, dateFormatPattern, maxMessageLength} = require("../../config.json");
 
 module.exports = {
-    data: new SlashCommandBuilder()
+    data: new Discord.SlashCommandBuilder()
     .setName(`report`)
     .setDescription(`Shows the ***Deputy Sheriff's Report***`)
     .addBooleanOption(option => option.setName("template")
