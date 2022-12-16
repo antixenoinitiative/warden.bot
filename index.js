@@ -189,7 +189,7 @@ bot.on('guildMemberRemove', member => {
 		{ name: `ID`, value: `${member.id}`},
 		{ name: `Date Joined`, value: `<t:${(member.joinedTimestamp/1000) >> 0}:F>`},
 		{ name: `Roles`, value: `${roles}`},
-	))
+	),2)
 })
 
 /**
