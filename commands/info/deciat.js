@@ -7,7 +7,7 @@ module.exports = {
     .setDescription(`Posts the Deciat Infographic`),
     permissions: 0,
     execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Distress Calls Point of Interest')
         .setColor('#FF7100')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})

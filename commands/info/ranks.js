@@ -44,7 +44,7 @@ module.exports = {
 						else
 							ch_ranks_amount_name[rank_holder_count] = [rank_name];
 					});
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Challenge Ranks**")
 						.setDescription(`Challenge Rank Statistics`);
@@ -62,7 +62,7 @@ module.exports = {
 			if (i.customId === 'competitive') {
 				i.deferUpdate();
 				try {
-					const returnEmbed = new Discord.MessageEmbed()
+					const returnEmbed = new Discord.EmbedBuilder()
 						.setColor('#FF7100')
 						.setTitle("**Competitive Ranks**")
 						.setDescription(`Competitive Rank Statistics`)

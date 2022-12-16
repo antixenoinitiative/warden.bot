@@ -101,7 +101,7 @@ bot.once("ready", async() => {
 	botLog(new EmbedBuilder().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
 	console.log(`✅ Warden is now online! logged in as ${bot.user.tag}`)
 	// Scheduled Role Backup Task
-	cron.schedule('*/5 * * * *', backupRoles('974673947784269824', 'club10'));
+	//cron.schedule('*/5 * * * *', backupClubRoles());
 })
 
 /**
@@ -162,47 +162,23 @@ bot.on('interactionCreate', async interaction => {
 
 // Audit Logging Events
 
+// Message Deleted by user
 bot.on('messageDelete', async message => {
 	try {
-		const fetchedLogs = await message.guild.fetchAuditLogs({
-			limit: 1,
-			type: 'MESSAGE_DELETE',
-		});
-		// Since there's only 1 audit log entry in this collection, grab the first one
-		const deletionLog = fetchedLogs.entries.first();
-		// Perform a coherence check to make sure that there's *something*
-		if (!deletionLog) {
-			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted, but no relevant audit logs were found.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
-			return
-		}
-		// Now grab the user object of the person who deleted the message
-		// Also grab the target of this action to double-check things
-		const { executor, target } = deletionLog;
-		// Update the output with a bit more information
-		// Also run a check to make sure that the log returned was for the same author's message
-		if (message.id === deletionLog.id) {
-			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted by ${executor.tag}.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
-		} else {
-			botLog(new EmbedBuilder().setDescription(`A message by ${message.author.tag} was deleted, but we don't know by who.\n\n Message Content:` + "```" + `${message.content}` + "```").setTitle(`Message Deleted`),1);
-		}
+		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```' })
 	} catch (err) {
 		botLog(new EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
 	}
 })
 
+// Message Updated by user
 bot.on('messageUpdate', (oldMessage, newMessage) => {
-	if (oldMessage != newMessage) {
-		botLog(new EmbedBuilder()
-		.setDescription(`Message by ${oldMessage.author.tag} was edited.`)
-		.setTitle(`Message Updated`)
-		.setURL(oldMessage.url)
-		.addFields(
-			{ name: `Old Message`, value: `${oldMessage}`},
-			{ name: `New Message`, value: `${newMessage}`},
-		),1)
+	if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID) {
+		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`})
 	}
 });
 
+// User leaving server
 bot.on('guildMemberRemove', member => {
 	let roles = ``
 	member.roles.cache.each(role => roles += `${role}\n`)
@@ -233,7 +209,7 @@ async function backupClubRoles() {
 	}
 	for (let member of members) {
 		let name = await guild.members.cache.get(member.id).nickname
-		await query(`INSERT INTO ${table}(user_id, name, avatar) VALUES($1,$2,$3)`, [
+		await query(`INSERT INTO club10(user_id, name, avatar) VALUES($1,$2,$3)`, [
 			member.id,
 			name,
 			member.avatar
@@ -263,5 +239,10 @@ setInterval(async function() {
 	}
 }, the_interval);
 
-bot.on("error", () => { bot.login(process.env.TOKEN) });
 bot.login(process.env.TOKEN)
+
+// General error handling
+process.on('uncaughtException', function (err) {
+	console.error(err);
+	bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `Fatal error experienced: ${err}` })
+});

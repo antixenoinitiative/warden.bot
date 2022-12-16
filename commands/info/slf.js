@@ -6,7 +6,7 @@ module.exports = {
     .setDescription(`Posts the SLF Infographic`),
     permissions: 0,
     execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Ship-Launched Fighters')
         .setURL('https://www.antixenoinitiative.com/wiki/ship-builds/common-mistakes')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})

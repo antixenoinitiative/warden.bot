@@ -6,7 +6,7 @@ module.exports = {
     .setDescription(`Posts the T10 Infographic`),
     permissions: 0,
     execute (interaction) {
-        const returnEmbed = new Discord.MessageEmbed()
+        const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Type-10 Defender')
         .setAuthor( {name: 'Anti-Xeno Initiative',iconURL: config.icon} )
         .setThumbnail('https://images-ext-2.discordapp.net/external/WoTs_UEfXkb6LQ6MdGXGznAPj5Fm12KsH6GmT4drd9I/https/cdn-longterm.mee6.xyz/plugins/commands/images/380246809076826112/50872c245865c41fd7045a2c26e57caba882e377df970b3991452da2ac7d2e1a.png')
