@@ -12,7 +12,6 @@ module.exports = {
 		try {
       let roleID = interaction.options.data.find(arg => arg.name === 'role').value
       let role = interaction.guild.roles.cache.get(roleID)
-      console.log(role)
 
       const returnEmbed = new Discord.EmbedBuilder()
       .setColor('#FF7100')
