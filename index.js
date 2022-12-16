@@ -51,13 +51,13 @@ async function botLog(embed,severity) {
 	let logColor
 	switch (severity) {
 		case 0:
-			logColor = '#42f569'
+			logColor = '0x42f569'
 			break;
 		case 1:
-			logColor = '#f5bf42'
+			logColor = '0xf5bf42'
 			break;
 		case 2:
-			logColor = '#f55142'
+			logColor = '0xf55142'
 			break;
 	}
 	embed.setColor(logColor)
