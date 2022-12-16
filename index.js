@@ -165,7 +165,7 @@ bot.on('interactionCreate', async interaction => {
 // Message Deleted by user
 bot.on('messageDelete', async message => {
 	try {
-		botLog(new EmbedBuilder().setDescription(`Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```').setTitle(`🗑️ Message Deleted`),1)
+		botLog(new EmbedBuilder().setDescription(`Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```').setTitle(`Message Deleted 🗑️`),1)
 	} catch (err) {
 		botLog(new EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
 	}
@@ -174,7 +174,7 @@ bot.on('messageDelete', async message => {
 // Message Updated by user
 bot.on('messageUpdate', (oldMessage, newMessage) => {
 	if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID) {
-		botLog(new EmbedBuilder().setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`).setTitle(`📝 Message Updated`),1)
+		botLog(new EmbedBuilder().setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`).setTitle(`Message Updated 📝`),1)
 	}
 });
 
