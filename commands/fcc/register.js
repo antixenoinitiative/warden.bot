@@ -31,7 +31,16 @@ module.exports = {
                     mission,
                     false
                 ])
-                interaction.reply({ content })
+                let confirmEmbed = new Discord.EmbedBuilder()
+                    .setColor('#FF7100')
+                    .setTitle("**FC Command Application**")
+                    .setDescription(`Thank you, ${interaction.member}, your application has been recieved and is pending approval.`)
+                    .addFields(
+                        { name: 'Fleet Carrier ID', value: `${fcid}` },
+                        { name: 'Fleet Carrier Name', value: `${fcname}` },
+                        { name: 'Mission', value: `${mission}` },
+                    );
+                interaction.reply({ embeds: [confirmEmbed.setTimestamp()] })
                 let approvalembed = new Discord.EmbedBuilder()
                     .setColor('#FF7100')
                     .setTitle("**FC Command Application**")
@@ -41,7 +50,7 @@ module.exports = {
                         { name: 'Fleet Carrier Name', value: `${fcname}` },
                         { name: 'Mission', value: `${mission}` },
                     );
-                await interaction.guild.channels.cache.get(process.env.STAFFCHANNELID).send({ embeds: [approvalembed] });
+                await interaction.guild.channels.cache.get(process.env.STAFFCHANNELID).send({ embeds: [approvalembed.setTimestamp()] });
             } else (
                 interaction.reply(`Sorry, that FC already exists in the database.`)
             )
