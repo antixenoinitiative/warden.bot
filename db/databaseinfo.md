@@ -50,6 +50,14 @@ CREATE TABLE events(
     date            bigint,
 );
 
+CREATE TABLE carriers(
+    fcid            text PRIMARY KEY,
+    fcname          text,
+    user_id         text,
+    mission         text,
+    approval        bool,
+);
+
 ## Tables (Leaderboard DB)
 
 CREATE TABLE speedrun(

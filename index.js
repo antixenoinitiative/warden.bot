@@ -101,8 +101,9 @@ bot.once("ready", async() => {
 	botLog(new EmbedBuilder().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
 	console.log(`✅ Warden is now online! logged in as ${bot.user.tag}`)
 	// Scheduled Role Backup Task
-	//cron.schedule('*/5 * * * *', backupClubRoles());
+	cron.schedule('*/5 * * * *', backupClubRoles());
 })
+
 
 /**
  * Event handler for Slash Commands, takes interaction to test before executing command code.
