@@ -2,11 +2,13 @@ const db = require('../db/index');
 
 module.exports = {
     fccinteraction: async (interaction) => {
-        let response = interaction.customId.split("-");
+        let response = interaction.customId.split("_");
 		let [ , eventType, fcid ] = response
+        console.log(fcid)
         try {
             res = await db.query(`SELECT * FROM carriers WHERE fcid = $1`, [fcid])
-            if (res.rowCount === 0) {
+            console.log(res)
+            if (res.rowCount == 0) {
                 interaction.channel.send({ content: `⛔ Error: ${interaction.member} That submission no longer exists, it may have already been denied.` })
                 return
             }

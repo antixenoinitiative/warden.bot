@@ -59,8 +59,8 @@ module.exports = {
                 );
                 
                 const buttons = new Discord.ActionRowBuilder()
-                .addComponents(new Discord.ButtonBuilder().setCustomId(`fcc-approve-${fcid}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
-                .addComponents(new Discord.ButtonBuilder().setCustomId(`fcc-deny-${fcid}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
+                .addComponents(new Discord.ButtonBuilder().setCustomId(`fcc_approve_${fcid}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+                .addComponents(new Discord.ButtonBuilder().setCustomId(`fcc_deny_${fcid}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
                 await interaction.guild.channels.cache.get(process.env.STAFFCHANNELID).send({ embeds: [approvalembed.setTimestamp()], components: [buttons]});
             } else (
                 interaction.reply(`Sorry, that FC already exists in the database.`)
