@@ -17,14 +17,21 @@ module.exports = {
 	permissions: 2,
 	async execute(interaction) {
 		try {
-            let fcid = interaction.options.data.find(arg => arg.name === 'fcid').value
-            let fcname = interaction.options.data.find(arg => arg.name === 'fcname').value;
-            let mission = interaction.options.data.find(arg => arg.name === 'mission').value;
+            console.log(interaction)
+            // Arg Handling
+            let args = {}
+            for (let key of interaction.options.data) {
+                args[key.name] = key.value
+            }
 
-            let res = await db.query(`SELECT * FROM carriers WHERE fcid = $1` [fcid])
+            let fcid = args.fcid
+            let fcname = args.fcname
+            let mission = args.mission
 
+            let res = await db.query(`SELECT * FROM carriers WHERE fcid = $1`, [fcid])
+            console.log(res)
             if (res.rowCount == 0) {
-                await db.query(`INSERT INTO carriers (fcid, fcname, user_id, mission, approval) WHERE ($1, $2, $3, $4, $5)` [
+                await db.query(`INSERT INTO carriers(fcid, fcname, user_id, mission, approval) VALUES ($1, $2, $3, $4, $5)`, [
                     fcid,
                     fcname,
                     interaction.member.id,
@@ -38,19 +45,23 @@ module.exports = {
                     .addFields(
                         { name: 'Fleet Carrier ID', value: `${fcid}` },
                         { name: 'Fleet Carrier Name', value: `${fcname}` },
-                        { name: 'Mission', value: `${mission}` },
+                        { name: 'Current Mission', value: `${mission}` },
                     );
                 interaction.reply({ embeds: [confirmEmbed.setTimestamp()] })
                 let approvalembed = new Discord.EmbedBuilder()
                     .setColor('#FF7100')
                     .setTitle("**FC Command Application**")
-                    .setDescription(`${interaction.member} has submitted their FC for Carrier Command Registration, please use /approvefc to register the FC.`)
+                    .setDescription(`${interaction.member} has submitted their FC for Carrier Command Registration, please approve below.`)
                     .addFields(
                         { name: 'Fleet Carrier ID', value: `${fcid}` },
                         { name: 'Fleet Carrier Name', value: `${fcname}` },
                         { name: 'Mission', value: `${mission}` },
-                    );
-                await interaction.guild.channels.cache.get(process.env.STAFFCHANNELID).send({ embeds: [approvalembed.setTimestamp()] });
+                );
+                
+                const buttons = new Discord.ActionRowBuilder()
+                .addComponents(new Discord.ButtonBuilder().setCustomId(`fcc-approve-${fcid}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+                .addComponents(new Discord.ButtonBuilder().setCustomId(`fcc-deny-${fcid}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
+                await interaction.guild.channels.cache.get(process.env.STAFFCHANNELID).send({ embeds: [approvalembed.setTimestamp()], components: [buttons]});
             } else (
                 interaction.reply(`Sorry, that FC already exists in the database.`)
             )

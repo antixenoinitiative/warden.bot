@@ -10,6 +10,7 @@ const fs = require('fs');
 const { leaderboardInteraction } = require('./interaction/submission.js');
 const { query } = require("./db");
 const config = require('./config.json');
+const { fccinteraction } = require("./interaction/fcc.js");
 
 // Discord client setup
 const serverIntents = new IntentsBitField(3276799);
@@ -138,6 +139,11 @@ bot.on('interactionCreate', async interaction => {
 		if (interaction.customId.startsWith("submission")) {
 			interaction.deferUpdate();
 			leaderboardInteraction(interaction);
+			return;
+		}
+		if (interaction.customId.startsWith("fcc")) {
+			interaction.deferUpdate();
+			fccinteraction(interaction);
 			return;
 		}
 		if (interaction.customId === "platformpc") {
