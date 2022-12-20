@@ -27,6 +27,7 @@ module.exports = {
                     temperature: 0.4,
                     frequency_penalty: 1,
                     presence_penalty: 0.5,
+                    stop: '${interaction.member}:'
                 });
                 interaction.editReply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `${completion.data.choices[0].text}`})
             } catch (err) {
