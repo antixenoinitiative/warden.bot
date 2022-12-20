@@ -24,7 +24,7 @@ module.exports = {
                 // Writes the prompt to the memory file
                 await fs.appendFileSync(fileName, `${interaction.member.displayName}:${interaction.options.data.find(arg => arg.name === 'question').value}\n`)
                 let memories = await fs.readFileSync(fileName)
-                let recentMemories = memories.toString().slice(-1000)
+                let recentMemories = memories.toString().slice(-2000)
 
                 // Fetches a response from chatGPT API
                 const completion = await openai.createCompletion({
