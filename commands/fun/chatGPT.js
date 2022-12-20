@@ -20,7 +20,7 @@ module.exports = {
             {
                 const completion = await openai.createCompletion({
                     model: "text-davinci-002",
-                    prompt: `Your name is Warden and you are an assistant bot in the Anti-Xeno Initiative Discord Server. My name is ${interaction.member}. ${interaction.options.data.find(arg => arg.name === 'question').value}`,
+                    prompt: `My name is ${interaction.member}. Your name is Warden, and you are an assistant bot in the Anti-Xeno Initiative Discord Server. Please reply to the following prompt: ${interaction.options.data.find(arg => arg.name === 'question').value}`,
                     max_tokens: 150,
                     temperature: 0.4,
                     frequency_penalty: 1,
