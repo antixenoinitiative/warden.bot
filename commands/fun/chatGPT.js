@@ -18,6 +18,7 @@ module.exports = {
         .setRequired(true)),
     permissions: 0,
     async execute(interaction) {
+        interaction.deferReply()
         if (process.env.CHATGPTKEY) {
             try
             {
@@ -39,7 +40,7 @@ module.exports = {
                 
                 // Writes response to memories
                 await fs.appendFileSync(fileName, `Warden:${completion.data.choices[0].text}\n`);
-                interaction.reply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
+                interaction.editReply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
             
             } catch (err) {
                 console.log(err);
