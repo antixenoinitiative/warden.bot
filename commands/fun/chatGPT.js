@@ -4,8 +4,7 @@ const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
     apiKey: process.env.CHATGPTKEY,
 });
-
-
+const openai = new OpenAIApi(configuration);
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`question`)
@@ -19,12 +18,12 @@ module.exports = {
         if (process.env.CHATGPTKEY) {
             try
             {
-                const openai = new OpenAIApi(configuration);
                 const completion = await openai.createCompletion({
                     model: "text-davinci-002",
                     prompt: interaction.options.data.find(arg => arg.name === 'question').value,
                     max_tokens: 100,
-                    temperature: 0.5,
+                    temperature: 0.4,
+                    frequency_penalty: 1,
                 });
                 interaction.editReply({ content: `${interaction.member} asked "${interaction.options.data.find(arg => arg.name === 'question').value}"${completion.data.choices[0].text}`})
             } catch (err) {
