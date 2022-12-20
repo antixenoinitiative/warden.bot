@@ -20,14 +20,16 @@ module.exports = {
             {
                 const completion = await openai.createCompletion({
                     model: "text-davinci-002",
-                    prompt: `${interaction.options.data.find(arg => arg.name === 'question').value}`,
+                    prompt: `You are an assistant bot in the Anti-Xeno Initiative Discord Server. 
+                    ${interaction.member}:${interaction.options.data.find(arg => arg.name === 'question').value}
+                    Warden:`,
                     max_tokens: 150,
                     temperature: 0.4,
                     frequency_penalty: 1,
                     presence_penalty: 0.5,
                     stop: '${interaction.member}:'
                 });
-                interaction.editReply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `${completion.data.choices[0].text}`})
+                interaction.editReply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
             } catch (err) {
                 console.log(err);
                 interaction.reply({ content: `Sorry, something went wrong!` });
