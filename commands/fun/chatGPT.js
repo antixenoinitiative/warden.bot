@@ -22,7 +22,7 @@ module.exports = {
 
                 // Fetches a response from chatGPT API
                 const completion = await openai.createCompletion({
-                    model: "text-babbage-001",
+                    model: "text-curie-001",
                     prompt: `${interaction.member.displayName}:${interaction.options.data.find(arg => arg.name === 'question').value}\nWarden:`,
                     max_tokens: 500,
                     temperature: 0.5,
