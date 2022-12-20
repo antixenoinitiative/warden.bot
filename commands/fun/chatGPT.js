@@ -22,7 +22,7 @@ module.exports = {
 
                 // Fetches a response from chatGPT API
                 const completion = await openai.createCompletion({
-                    model: "text-curie-001",
+                    model: "text-babbage-001",
                     prompt: `${interaction.member.displayName}:${interaction.options.data.find(arg => arg.name === 'question').value}\nWarden:`,
                     max_tokens: 500,
                     temperature: 0.5,
@@ -32,7 +32,7 @@ module.exports = {
                 });
                 
                 // Writes response
-                interaction.reply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
+                interaction.editReply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
             
             } catch (err) {
                 console.log(err);
