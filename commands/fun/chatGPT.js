@@ -19,11 +19,14 @@ module.exports = {
         if (process.env.CHATGPTKEY) {
             try
             {
+                let prompt = interaction.options.data.find(arg => arg.name === 'question').value
+                prompt = prompt.toString().substr(250)
+                console.log(prompt)
 
                 // Fetches a response from chatGPT API
                 const completion = await openai.createCompletion({
                     model: "text-curie-001",
-                    prompt: `${interaction.options.data.find(arg => arg.name === 'question').value}`,
+                    prompt: `${prompt}`,
                     max_tokens: 256,
                     temperature: 1,
                     frequency_penalty: 1,
