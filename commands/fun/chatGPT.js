@@ -15,6 +15,7 @@ module.exports = {
         .setRequired(true)),
     permissions: 0,
     async execute(interaction) {
+        interaction.deferReply()
         if (process.env.CHATGPTKEY) {
             try
             {
