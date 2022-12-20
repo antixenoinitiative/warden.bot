@@ -1,12 +1,9 @@
 const Discord = require("discord.js");
 const { Configuration, OpenAIApi } = require("openai");
-const fs = require('fs');
 
 const configuration = new Configuration({
     apiKey: process.env.CHATGPTKEY,
 });
-
-const fileName = 'memories.txt';
 
 const openai = new OpenAIApi(configuration);
 module.exports = {
@@ -21,24 +18,19 @@ module.exports = {
         if (process.env.CHATGPTKEY) {
             try
             {
-                // Writes the prompt to the memory file
-                await fs.appendFileSync(fileName, `${interaction.member.displayName}:${interaction.options.data.find(arg => arg.name === 'question').value}\n`)
-                let memories = await fs.readFileSync(fileName)
-                let recentMemories = memories.toString().slice(-2000)
 
                 // Fetches a response from chatGPT API
                 const completion = await openai.createCompletion({
                     model: "text-davinci-002",
-                    prompt: `${recentMemories}\nWarden:`,
-                    max_tokens: 150,
-                    temperature: 0.4,
+                    prompt: `${interaction.member.displayName}:${interaction.options.data.find(arg => arg.name === 'question').value}\nWarden:`,
+                    max_tokens: 100,
+                    temperature: 0.5,
                     frequency_penalty: 1,
                     presence_penalty: 0.5,
                     stop: `${interaction.member.displayName}:`
                 });
                 
-                // Writes response to memories
-                await fs.appendFileSync(fileName, `Warden:${completion.data.choices[0].text}\n`);
+                // Writes response
                 interaction.reply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
             
             } catch (err) {
