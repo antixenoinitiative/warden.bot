@@ -36,7 +36,7 @@ module.exports = {
             
             } catch (err) {
                 console.log(err);
-                interaction.editReply({ content: `Sorry, something went wrong!` });
+                interaction.editReply({ content: `Sorry, something went wrong!`, ephemeral: true });
             }
         } else {
             interaction.editReply({ content: `Sorry, bot is missing an API key`})
