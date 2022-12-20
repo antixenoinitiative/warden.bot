@@ -20,7 +20,7 @@ module.exports = {
             {
                 const completion = await openai.createCompletion({
                     model: "text-davinci-002",
-                    prompt: `You are an assistant bot in the Anti-Xeno Initiative Discord Server. 
+                    prompt: `The following is a conversation with Warden, an intelligent, helpful and friendly assistant AI in the Anti-Xeno Initiative. 
                     ${interaction.member}:${interaction.options.data.find(arg => arg.name === 'question').value}
                     Warden:`,
                     max_tokens: 150,
