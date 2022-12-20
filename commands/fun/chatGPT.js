@@ -1,10 +1,15 @@
 const Discord = require("discord.js");
-const ChatGPT = require('chatgpt');
+const { Configuration, OpenAIApi } = require("openai");
+
+const configuration = new Configuration({
+    apiKey: process.env.CHATGPTKEY,
+});
+
 
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`question`)
-    .setDescription(`Ask the warden something?`)
+    .setDescription(`Ask the warden something?, WARNING: good advice not guaranteed.`)
     .addStringOption(option => option.setName('question')
         .setDescription('The thing you wanna ask')
         .setRequired(true)),
@@ -14,12 +19,14 @@ module.exports = {
         if (process.env.CHATGPTKEY) {
             try
             {
-                const chatGpt = new ChatGPT(process.env.CHATGPTKEY);
-                const message = 'Hello, ChatGPT!';
-                chatGpt.send(message).then(response => {
-                    console.log(response.data.choices[0].text);
-                    interaction.reply({ content: `${response.data.choices[0].text}`})
-                  });
+                const openai = new OpenAIApi(configuration);
+                const completion = await openai.createCompletion({
+                    model: "text-davinci-002",
+                    prompt: interaction.options.data.find(arg => arg.name === 'question').value,
+                    max_tokens: 200,
+                    temperature: 0.5,
+                });
+                interaction.editReply({ content: `${interaction.member} asked "${interaction.options.data.find(arg => arg.name === 'question').value}"${completion.data.choices[0].text}`})
             } catch (err) {
                 console.log(err);
                 interaction.reply({ content: `Sorry, something went wrong!` });
