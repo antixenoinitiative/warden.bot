@@ -1,9 +1,13 @@
 const Discord = require("discord.js");
 const { Configuration, OpenAIApi } = require("openai");
+const fs = require('fs');
 
 const configuration = new Configuration({
     apiKey: process.env.CHATGPTKEY,
 });
+
+const fileName = 'memories.txt';
+
 const openai = new OpenAIApi(configuration);
 module.exports = {
     data: new Discord.SlashCommandBuilder()
@@ -14,22 +18,29 @@ module.exports = {
         .setRequired(true)),
     permissions: 0,
     async execute(interaction) {
-        interaction.deferReply()
         if (process.env.CHATGPTKEY) {
             try
             {
+                // Writes the prompt to the memory file
+                await fs.appendFileSync(fileName, `${interaction.member.displayName}:${interaction.options.data.find(arg => arg.name === 'question').value}\n`)
+                let memories = await fs.readFileSync(fileName)
+                let recentMemories = memories.toString().slice(-1000)
+
+                // Fetches a response from chatGPT API
                 const completion = await openai.createCompletion({
                     model: "text-davinci-002",
-                    prompt: `The following is a conversation with Warden, an intelligent, helpful and friendly assistant AI in the Anti-Xeno Initiative. 
-                    ${interaction.member}:${interaction.options.data.find(arg => arg.name === 'question').value}
-                    Warden:`,
+                    prompt: `${recentMemories}\nWarden:`,
                     max_tokens: 150,
                     temperature: 0.4,
                     frequency_penalty: 1,
                     presence_penalty: 0.5,
-                    stop: '${interaction.member}:'
+                    stop: `${interaction.member.displayName}:`
                 });
-                interaction.editReply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
+                
+                // Writes response to memories
+                await fs.appendFileSync(fileName, `Warden:${completion.data.choices[0].text}\n`);
+                interaction.reply({ content: `${interaction.member} asked` + "`" + ` "${interaction.options.data.find(arg => arg.name === 'question').value}" ` + '`' + `\n${completion.data.choices[0].text}`})
+            
             } catch (err) {
                 console.log(err);
                 interaction.reply({ content: `Sorry, something went wrong!` });
