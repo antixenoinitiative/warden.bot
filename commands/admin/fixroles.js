@@ -20,7 +20,7 @@ module.exports = {
                 if (!value.roles.cache.find(r => r.id === "380247760668065802")) {
                     try {
                         await value.roles.add('380247760668065802');
-                        console.log(`Adding role ${recruitid} to user ${value}`)
+                        console.log(`Adding role Recruit to user ${value}`)
                         count++
                     } catch (err) {
                         console.log(err)
