@@ -3,39 +3,33 @@ const Discord = require("discord.js");
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`fixroles`)
-    .setDescription(`Fixes user roles to have correct seperators`)
+    .setDescription(`Makes sure all users have Recruit or Apollo and fix seperators. WARNING, CREATES A LOT OF SPAM.`)
     .setDefaultPermission(false),
     permissions: 2,
     async execute (interaction) {
+        interaction.deferReply()
         try {
             interaction.channel.send({ content: "Processing, this may take a while."})
             let updated = 0
             let count = 0
 
-            // Fix missing Recruits
-            let pc = interaction.guild.roles.cache.get("428260067901571073").members
-            for (let [, value] of pc) {
-                if (!value.roles.cache.find(r => r.id === "380254463170183180") && !value.roles.cache.find(r => r.id === "380247760668065802")) {
-                    await value.roles.add("380247760668065802");
-                    updated++
+            // fix all missing recruits
+            let users = await interaction.guild.members.fetch()
+            console.log(users)
+            for (let [, value] of users) {
+                if (!value.roles.cache.find(r => r.id === "380247760668065802")) {
+                    try {
+                        await value.roles.add('380247760668065802');
+                        console.log(`Adding role ${recruitid} to user ${value}`)
+                        count++
+                    } catch (err) {
+                        console.log(err)
+                    }
                 }
             }
-            let xb = interaction.guild.roles.cache.get("533774176478035991").members
-            for (let [, value] of xb) {
-                if (!value.roles.cache.find(r => r.id === "380254463170183180") && !value.roles.cache.find(r => r.id === "380247760668065802")) {
-                    await value.roles.add("380247760668065802");
-                    updated++
-                }
-            }
-            let ps = interaction.guild.roles.cache.get("428259777206812682").members
-            for (let [, value] of ps) {
-                if (!value.roles.cache.find(r => r.id === "380254463170183180") && !value.roles.cache.find(r => r.id === "380247760668065802")) {
-                    await value.roles.add("380247760668065802");
-                    updated++
-                }
-            }
-            interaction.reply({ content: `Stage 1 Complete, ${count} processed total, ${updated} recruits fixed, starting Stage 2...`})
 
+            interaction.editReply({ content: `Stage 1 Complete, ${count} processed total, ${updated} recruits fixed`})
+            
             // Fix Leftover Recruits on Apollos + Seperators
             updated = 0
             let apollo = interaction.guild.roles.cache.get("380254463170183180").members
@@ -56,6 +50,7 @@ module.exports = {
                 count++;
             }
             interaction.channel.send({ content: `Stage 3 Complete, ${count} processed total. ${updated} roles updated.`})
+            
         } catch (err) {
             console.error(err)
         }
