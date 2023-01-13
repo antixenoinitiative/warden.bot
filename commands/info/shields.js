@@ -16,7 +16,7 @@ module.exports = {
         2. Shields have a larger hitbox, making you a larger target for the swarm
         3. Thargoid attacks phase through shields, meaning you still need hull under the shields
         4. Having a shield means you cannot employ silent running to instantly mask your heat signature
-        5. Thargoid lightning deals significantly higher damage to shields than to hull')
+        5. Thargoid lightning deals significantly higher damage to shields than to hull.`)
         .setFooter({ text: 'Why shields are bad', iconURL: config.icon });
         interaction.reply({embeds: [returnEmbed]})
     }
