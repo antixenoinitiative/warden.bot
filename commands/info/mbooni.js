@@ -8,7 +8,7 @@ module.exports = {
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Pre-engineered Weapons')
-//         .setURL('https://www.antixenoinitiative.com/wiki/ship-builds/common-mistakes') will add an updated weapons page at some point
+        .setURL('https://wiki.antixenoinitiative.com/en/weapons')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})
         .setDescription(`Modified Guardian Weapons are available at Prospect's Deep, a planetary port found in the Mbooni system.
           You will need a permit to access Mbooni, which can be earned at the "Glorious Prospect" in LHS 1163 through work for Azimuth Biotech.
