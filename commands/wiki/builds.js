@@ -13,7 +13,6 @@ module.exports = {
         .addFields(
             {name: "Recommended Builds", value: "https://wiki.antixenoinitiative.com/en/builds" },
             {name: "Ship Build Theory", value: "https://wiki.antixenoinitiative.com/en/shipbuildtheory"},
-            {name: "Build Repository", value: "https://wiki.antixenoinitiative.com/en/buildrepository"},
         )
         interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
     }
