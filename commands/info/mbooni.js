@@ -15,6 +15,6 @@ module.exports = {
           Additionally, you can now obtain pre-engineered Heatsinks at certain locations. Just like the Modified Guardian Weapons, these are pay-per-module.
           You can find them at Tech Brokers on the Sirius megaships listed below.`)
         interaction.reply({embeds: [returnEmbed]})
-        interaction.channel.send({content:`https://cdn.discordapp.com/attachments/832092794293190706/1060318125943439380/image.png`})
+        interaction.channel.send({content:`https://cdn.discordapp.com/attachments/393381262355595265/1048559484181680239/image.png`})
     }
 }
