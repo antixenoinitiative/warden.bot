@@ -20,4 +20,4 @@ module.exports = {
         .setFooter({ text: 'Why shields are bad', iconURL: config.icon });
         interaction.reply({embeds: [returnEmbed]})
     }
-};
+}
