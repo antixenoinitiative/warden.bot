@@ -10,7 +10,7 @@ module.exports = {
         .setTitle('Shields')
         .setColor('#FF7100')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})
-        .setDescription(`While shields in AX can be viable on large vessels fitted with reinforced prismatic shields, on medium and small ships they are not recommended. This is because, fundimentally, the shield serves no purpose. A shields primary function is to provide a regenerating health pool. In AX, we use repair limpets and hull as a regenerating health pool.
+        .setDescription(`While shields in AX can be viable on large vessels fitted with reinforced prismatic shields, on medium and small ships they are not recommended. This is because the disadvantages of flying with a shield greatly outweigh the benefits a shield provides. A shield's primary function is to provide a regenerating health pool. In AX, we use repair limpets and hull as a regenerating health pool.
         In addition:
         1. Shields drain your SYS capacitor, meaning less pips for weapons
         2. Shields have a larger hitbox, making you a larger target for the swarm
