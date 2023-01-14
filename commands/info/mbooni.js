@@ -14,7 +14,7 @@ module.exports = {
           You will need a permit to access Mbooni, which can be earned at the "Glorious Prospect" in LHS 1163 through work for Azimuth Biotech.
           Additionally, you can now obtain pre-engineered Heatsinks at certain locations. Just like the Modified Guardian Weapons, these are pay-per-module.
           You can find them at Tech Brokers on the Sirius megaships listed below.`)
-        interaction.reply({embeds: [returnEmbed]})
-        interaction.channel.send({content:`https://cdn.discordapp.com/attachments/832092794293190706/1060318125943439380/image.png`})
+        .setImage('https://cdn.discordapp.com/attachments/832092794293190706/1060318125943439380/image.png')
+        interaction.reply({embeds: [returnEmbed.setTimestamp()]})
     }
 }

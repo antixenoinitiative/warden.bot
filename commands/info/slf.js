@@ -19,8 +19,8 @@ module.exports = {
         
         _SIDE NOTE:_
         - Fighter Pilots also steal half your combat EXP and a portion of your credits, even when not equipped.`)
+        .setImage(`https://media.discordapp.net/attachments/625989888432537611/707451541405171733/SL-OOOF.gif`)
         .setFooter({ text: 'Ship-Launched Fighters', iconURL: config.icon });
         interaction.reply({embeds: [returnEmbed]})
-        interaction.channel.send({content:`https://media.discordapp.net/attachments/625989888432537611/707451541405171733/SL-OOOF.gif`})
     }
 }
