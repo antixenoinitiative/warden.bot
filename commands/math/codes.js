@@ -21,14 +21,16 @@ module.exports = {
         
         The Standard for Weapon codes is as follows:
         - Number/Size/Mount/Weapon
+
+        Size can be small (s), medium (m) or large (l).
+        Mount can be fixed(f), gimballed (g), or turreted (t).
+        Note that not all existing mount/size combos are supported, just common ones.
         
         for example:
         - 2lfaxmc = 2x Large Fixed AX Multicannons
         - 1mtpc = 1x Medium Turreted Plasma Charger
-        - 4mfsc = 4x Medium Fixed Shard Cannons
-        
-        **Note:** These codes can all be used with the **/mttot** command`)
-		.addFields({ name: `Codes`, value: `${types}` });
+        - 4mfsc = 4x Medium Fixed Shard Cannons`)
+		.addFields({ name: `Supported Codes:`, value: `${types}` });
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
     }
 }

@@ -1,5 +1,5 @@
 const thargoids = require("./thargoiddata.json")
-const weapons = require("./weapondata.json")
+const weaponData = require("./weapondata.json")
 
 function arrayTotal(arr) {
     var total = 0;
@@ -37,12 +37,12 @@ function calcDPS(target, inputcode, range) {
                 break;
         }
 
-        let nDPS = weapons[inputcode].sustaxdps * multi;
-        let DPS = nDPS * weapons[inputcode].ap / thargoids[target].ar;
-        let finaldamage = DPS * Math.min((1 - ((range - weapons[inputcode].falloff) / (weapons[inputcode].maxrange - weapons[inputcode].falloff))), 1)
+        let nDPS = weaponData[inputcode].sustaxdps * multi;
+        let DPS = nDPS * weaponData[inputcode].ap / thargoids[target].ar;
+        let finaldamage = DPS * Math.min((1 - ((range - weaponData[inputcode].falloff) / (weaponData[inputcode].maxrange - weaponData[inputcode].falloff))), 1)
 
-        let finaldamagestd = finaldamage * weapons[inputcode].stdammopercent
-        let finaldamageprem = finaldamage * weapons[inputcode].premammopercent
+        let finaldamagestd = finaldamage * weaponData[inputcode].stdammopercent
+        let finaldamageprem = finaldamage * weaponData[inputcode].premammopercent
 
         let result = { "basic": finaldamage, "standard": finaldamagestd, "premium": finaldamageprem }
         return result;
