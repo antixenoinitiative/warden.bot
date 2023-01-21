@@ -14,8 +14,7 @@ module.exports = {
                 interaction.reply({content: "No more, <@231298589148577792>"});
                 break;
             default:
-                await interaction.reply( {content: `<@274853598280810496> AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA 
-https://cdn.discordapp.com/attachments/763535317360705606/919244730691358770/200w.gif`} );
+                await interaction.reply( {content: `<@274853598280810496> AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`, files:["https://cdn.discordapp.com/attachments/763535317360705606/919244730691358770/200w.gif"]} );
         }
     }
 }
