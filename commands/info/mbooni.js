@@ -8,13 +8,13 @@ module.exports = {
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Pre-engineered Weapons')
-//         .setURL('https://www.antixenoinitiative.com/wiki/ship-builds/common-mistakes') will add an updated weapons page at some point
+        .setURL('https://wiki.antixenoinitiative.com/en/weapons')
         .setAuthor({name: 'Anti-Xeno Initiative',iconURL: config.icon})
         .setDescription(`Modified Guardian Weapons are available at Prospect's Deep, a planetary port found in the Mbooni system.
           You will need a permit to access Mbooni, which can be earned at the "Glorious Prospect" in LHS 1163 through work for Azimuth Biotech.
           Additionally, you can now obtain pre-engineered Heatsinks at certain locations. Just like the Modified Guardian Weapons, these are pay-per-module.
           You can find them at Tech Brokers on the Sirius megaships listed below.`)
-        interaction.reply({embeds: [returnEmbed]})
-        interaction.channel.send({content:`https://cdn.discordapp.com/attachments/393381262355595265/1048559484181680239/image.png`})
+        .setImage('https://cdn.discordapp.com/attachments/832092794293190706/1060318125943439380/image.png')
+        interaction.reply({embeds: [returnEmbed.setTimestamp()]})
     }
 }
