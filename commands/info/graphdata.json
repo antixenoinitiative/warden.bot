@@ -33,5 +33,12 @@
         "description": "While using the FSS, you are able to distinguish between instances containing only Scouts and instances containing only Interceptors by closely looking at where you put your tuner on the signal source, as seen in the graph below. By placing the tuner on the far left edge you will get only **Scout** instances, by placing it on the far right edge you will get either **Interceptor or empty** instances and by placing it in the middle you'll get both",
         "link":"https://wiki.antixenoinitiative.com/signalsourcesboth.png",
         "type":"embed"
+    },
+    {
+        "argument": "small",
+        "title": "Small Ship Disclaimer",
+        "description": "Small Ship Disclaimer",
+        "link": "https://media.discordapp.net/attachments/426833664362414082/1066305186185879612/image.png",
+        "type": "text"
     }
 ]
