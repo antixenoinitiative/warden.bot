@@ -37,7 +37,7 @@ function calcDPS(target, inputcode, range) {
                 break;
         }
 
-        let nDPS = weaponData[inputcode].sustaxdps * multi;
+        let nDPS = (weaponData[inputcode].axsdps + weaponData[inputcode].humansdps * 0.01) * multi;
         let DPS = nDPS * weaponData[inputcode].ap / thargoids[target].ar;
         let finaldamage = DPS * Math.min((1 - ((range - weaponData[inputcode].falloff) / (weaponData[inputcode].maxrange - weaponData[inputcode].falloff))), 1)
 

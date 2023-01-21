@@ -5,14 +5,7 @@ module.exports = {
     .setName(`codes`)
     .setDescription(`How to write Weapon-Codes`),
     permissions: 0,
-    execute (interaction) {
-        let types = "";
-
-        const weapons = require("./calc/weapondata.json")
-        for (let [key, value] of Object.entries(weapons)) {
-            types += `${key} = Size ${value.size} ${value.type} ${value.weapon}\n`
-        }
-        
+    execute (interaction) {        
         const returnEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')
 		.setTitle("**Weapon Codes**")
@@ -20,17 +13,24 @@ module.exports = {
         is the "2m2s" code, which means, 2 Medium Gauss and 2 Small Gauss.
         
         The Standard for Weapon codes is as follows:
-        - Number/Size/Mount/Weapon
+        - Number/Size/Mount/Modifier/Weapon
 
-        Size can be small (s), medium (m) or large (l).
-        Mount can be fixed(f), gimballed (g), or turreted (t).
-        Note that not all existing mount/size combos are supported, just common ones.
-        
+        **Size** can be small (s), medium (m) or large (l).
+        **Mount** can be fixed(f), gimballed (g), or turreted (t).
+        **Modifiers** can be enhanced(e) or modified(m).
+        **Weapon** names are as follows:
+        gc = Gauss Cannon
+        pc = Plasma Charger
+        sc = Shard Cannon
+        axmc = AX Multicannon
+        axmr = AX Missile Rack
+
         for example:
         - 2lfaxmc = 2x Large Fixed AX Multicannons
         - 1mtpc = 1x Medium Turreted Plasma Charger
-        - 4mfsc = 4x Medium Fixed Shard Cannons`)
-		.addFields({ name: `Supported Codes:`, value: `${types}` });
+        - 4mfsc = 4x Medium Fixed Shard Cannons
+        - 2mfmsc = 4x Medium Fixed Modified Shard Cannons
+        - 2lfeaxmr = 2 Large Fixed Enhanced AX Missile Racks`)
 		interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
     }
 }

@@ -83,7 +83,7 @@ module.exports = {
                         inputcode = "sfgc";
                         break;
                 }
-                weaponNames.push("\n" + multi + "x " + weaponData[inputcode].type + " " + weaponData[inputcode].weapon + ", class " + weaponData[inputcode].size);
+                weaponNames.push("\n" + multi + "x " + weaponData[inputcode].size + " " + weaponData[inputcode].mount + " " + weaponData[inputcode].weapon);
             }
 
 
