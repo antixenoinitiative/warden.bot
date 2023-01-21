@@ -1,5 +1,6 @@
 const Discord = require("discord.js");
 const { calcMTTOT } = require("./calc/calc");
+const weaponData = require("./calc/weapondata.json")
 
 
 module.exports = {
@@ -20,7 +21,7 @@ module.exports = {
 		.setRequired(true))
     .addStringOption(option => option.setName('accuracy')
 		.setDescription('Accuracy Rating')
-		.setRequired(true)
+		.setRequired(false)
         .addChoices(
             {name: '100%',value:'100'},
             {name: '75%', value:'75'},
@@ -34,8 +35,9 @@ module.exports = {
         let result;
 		try {
             let range = 1500
-            let accuracy = interaction.options.data.find(arg => arg.name === 'accuracy').value
             if (interaction.options.data.find(arg => arg.name === 'range') != undefined) { range = interaction.options.data.find(arg => arg.name === 'range').value }
+            let accuracy = '100'
+            if (interaction.options.data.find(arg => arg.name === 'accuracy') != undefined) { accuracy = interaction.options.data.find(arg => arg.name === 'accuracy').value }
             let target = interaction.options.data.find(arg => arg.name === 'variant').value
             let codes = interaction.options.data.find(arg => arg.name === 'weapon-codes').value.toLowerCase();
 
@@ -54,6 +56,37 @@ module.exports = {
             // Get Data
             result = calcMTTOT(target, weapons, range); // [ basic100, std100, prem100, basic75, std75, prem75, basic50, std50, prem50 ]
 
+            let weaponNames = []
+            for (let i = 0; i < weapons.length; i++) {
+                inputcode = weapons[i];
+                if (inputcode.match(/^\d/)) {
+                    multi = inputcode.charAt(0); // Get Multiplier
+                    inputcode = inputcode.substring(1); // Remove Multiplier from code
+                }
+                switch (inputcode) {
+                    case "mgauss":
+                        inputcode = "mfgc";
+                        break;
+                    case "sgauss":
+                        inputcode = "sfgc";
+                        break;
+                    case "mfgauss":
+                        inputcode = "mfgc";
+                        break;
+                    case "sfgauss":
+                        inputcode = "sfgc";
+                        break;
+                    case "m":
+                        inputcode = "mfgc";
+                        break;
+                    case "s":
+                        inputcode = "sfgc";
+                        break;
+                }
+                weaponNames.push("\n" + multi + "x " + weaponData[inputcode].size + " " + weaponData[inputcode].mount + " " + weaponData[inputcode].weapon);
+            }
+
+
             let results = []
             switch (accuracy) {
                 case "100":
@@ -71,7 +104,8 @@ module.exports = {
                 const returnEmbed = new Discord.EmbedBuilder()
                 .setColor('#FF7100')
                 .setTitle("**MTTOT Calculator**")
-                .setDescription(`**${accuracy}%** Accuracy Results for Variant: **${target}**, Weapons: **${weapons}**, Range: **${range}**`)
+                .setDescription(`Minimum time on target for **${target}** variant, **${accuracy}%** accuracy, **${range}**m range, using:**${weaponNames}**\n(weapon string: ${weapons})`)
+                // .setDescription(`**${accuracy}%** Accuracy Results for Variant: **${target}**, Range: **${range}**, Weapons: **${weaponNames}**`)
                 .addFields({ name: "Basic", value: `${results[0]}`, inline: true })
                 .addFields({ name: "Standard", value: `${results[1]}`, inline: true })
                 .addFields({ name: "Premium", value: `${results[2]}`, inline: true })
