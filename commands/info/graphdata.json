@@ -40,5 +40,33 @@
         "description": "Small Ship Disclaimer",
         "link": "https://media.discordapp.net/attachments/426833664362414082/1066305186185879612/image.png",
         "type": "text"
+    },
+    {
+        "argument": "modguardian",
+        "title": "Modified vs Stok Guardian Weapons",
+        "description": "Stock guardian shard cannons and plasma chargers are **considerably worse** than their modified counterparts.\nOn the other hand, stock gauss cannons are **better** than their modified counterparts.",
+        "link":"https://cdn.discordapp.com/attachments/865043404479791135/1067469573240127538/Modified_vs_Stock_Guardian_Weapons.png",
+        "type":"embed"
+    },
+    {
+        "argument": "axmcbad",
+        "title": "Shows how AXMCs are not useful",
+        "description": "AXMC vs Gauss",
+        "link": "https://cdn.discordapp.com/attachments/865043404479791135/1067471307576442920/AXMCs_vs_Gauss_Cannons.png",
+        "type": "text"
+    },
+    {
+        "argument": "axdpschart",
+        "title": "Shows the dps chart for all AX Weapons exc. Turrets",
+        "description": "Every. Single. One. (except turrets)",
+        "link": "https://cdn.discordapp.com/attachments/865043404479791135/1067475575742140567/Sustained_Damage_per_Second_of_AX_Weapons_exc._Turrets.png",
+        "type": "text"
+    },
+    {
+        "argument": "axdpschartall",
+        "title": "Shows the dps chart for all AX Weapons",
+        "description": "Every. Single. One",
+        "link": "https://cdn.discordapp.com/attachments/865043404479791135/1067474652689072198/Sustained_Damage_per_Second_of_AX_Weapons.png",
+        "type": "text"
     }
 ]
