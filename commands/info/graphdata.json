@@ -43,7 +43,7 @@
     },
     {
         "argument": "modguardian",
-        "title": "Modified vs Stok Guardian Weapons",
+        "title": "Modified vs Stock Guardian Weapons",
         "description": "Stock guardian shard cannons and plasma chargers are **considerably worse** than their modified counterparts.\nOn the other hand, stock gauss cannons are **better** than their modified counterparts.",
         "link":"https://cdn.discordapp.com/attachments/865043404479791135/1067469573240127538/Modified_vs_Stock_Guardian_Weapons.png",
         "type":"embed"
@@ -67,6 +67,13 @@
         "title": "Shows the dps chart for all AX Weapons",
         "description": "Every. Single. One",
         "link": "https://cdn.discordapp.com/attachments/865043404479791135/1067474652689072198/Sustained_Damage_per_Second_of_AX_Weapons.png",
+        "type": "text"
+    },
+    {
+        "argument": "mttot",
+        "title": "MTToT for 2m2s Gauss Cannons",
+        "description": "MTToT for 2m2s Gauss Cannons",
+        "link": "https://cdn.discordapp.com/attachments/427410720477675530/1060283596969087096/MTToT_Chart.png",
         "type": "text"
     }
 ]
