@@ -16,6 +16,7 @@ module.exports = {
             {name: "Engineering and Module Unlock Costs", value: "https://inara.cz/elite/techbroker/\nList of module unlock costs and engineering roll costs."},
             {name: "AXI Odyssey Engineering", value: "https://wiki.antixenoinitiative.com/en/engineering-odyssey\nAXI's guide to odyssey engineering materials."},
             {name: "AXI Horizons Engineering", value: "https://wiki.antixenoinitiative.com/en/engineering\nAXI's engineering material guide."},
+            {name: "AXI Synthesis Calculator", value: "https://wiki.antixenoinitiative.com/en/synthesis\nInfo on AX synth costs."},
         )
         interaction.reply({embeds: [returnEmbed.setTimestamp()]})
     }
