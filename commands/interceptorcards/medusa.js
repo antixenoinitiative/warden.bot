@@ -6,6 +6,6 @@ module.exports = {
     .setDescription(`Medusa info card`),
     permissions: 0,
     execute (interaction) {
-        interaction.reply({ content: "https://cdn.discordapp.com/attachments/763535317360705606/808376871485964338/Medusa.png" });
+        interaction.reply({ content: "https://cdn.discordapp.com/attachments/955583721883467787/1075228406133817384/Medusa.png" });
     }
 }
