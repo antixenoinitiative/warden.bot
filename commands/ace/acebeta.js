@@ -3,6 +3,7 @@ const { calculateThreshold } = require('./commons/damageThreshold');
 const { testInputs } = require('./commons/testInput');
 const { getChart } = require('./commons/getChart');
 const { submitResult } = require('./commons/submit');
+const { getInterceptorByShip } = require('./commons/interceptorByShip');
 const Score = require('./commons/scoring');
 const Discord = require("discord.js");
 // const shipData = require("./calc/shipdata.json")
@@ -18,6 +19,7 @@ let options = new Discord.SlashCommandBuilder()
         { name: 'Alliance Challenger', value: 'challenger' },
         { name: 'Fer-de-Lance', value: 'fdl' },
         { name: 'Krait Mk2', value: 'kraitmk2' },
+        { name: 'Hauler', value: 'hauler' },
     ))
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Number of MEDIUM gauss cannons outfitted')
@@ -34,7 +36,11 @@ let options = new Discord.SlashCommandBuilder()
 .addStringOption(option => option.setName('ammo')
     .setDescription('Ammo type used - Ace challenge requires that you use basic ammo')
     .setRequired(true)
-    .addChoices({ name: 'Basic', value: 'basic' }))
+    .addChoices(
+	{ name: 'Basic', value: 'basic' },
+	{ name: 'Standard', value: 'standard' },
+	{ name: 'Premium', value: 'premium},
+     ))
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
     .setRequired(true))
@@ -74,13 +80,42 @@ module.exports = {
             interaction.reply(testPassed)
             return
         }
+	    
+	// Get target interceptor, required for damage calculation
+	let targetInterceptor = getInterceptorByShip(args)
+	args.interceptor = targetInterceptor
 
         // Calculate Damage Threshold
         let damageThreshold = calculateThreshold(args);
         args.damage_threshold = damageThreshold
+	
+	// Calculate damage multiplier
+	let dmgMult = 1.01
+	switch (args.interceptor){
+		case 'Cyclops':
+		case 'Basilisk':
+			break;
+		case 'Medusa':
+			dmgMult = dmgMult * 140.0/175.0;
+			break;
+		case 'Hydra':
+			dmgMult = dmgMult * 140.0/220.0;
+			break;
+	}
+	switch (args.ammo){
+		case 'basic':
+			break;
+		case 'standard':
+			dmgMult = dmgMult * 1.15;
+			break;
+		case 'premium':
+			dmgMult = dmgMult * 1.3;
+			break;
+	}
 
-        // Medium gauss does 28.28 damage on a Dusa, small gauss does 16.16 per round
-        let shot_damage_fired = args.shots_medium_fired * 28.28 + args.shots_small_fired * 16.16;
+        // Medium gauss does 35 base AX damage, small gauss does 20 base AX damage per round
+	// Compute total damage done
+        let shot_damage_fired = (args.shots_medium_fired * 35.0 + args.shots_small_fired * 20.0)*dmgMult;
         args.shot_damage_fired = shot_damage_fired
 
         // Avoid funnies with >100% accuracy fake submissions
@@ -96,24 +131,20 @@ module.exports = {
 
         // Calculate Score
         let result;
-        let goidType;
+        let goidType = args.interceptor;
         let targetRun = 100;
         switch(args.shiptype) {
             case "chieftain":
                 result = Score.medium_standard(args)
-                goidType = "Medusa";
                 break;
             case "challenger":
                 result = Score.medium_standard(args)
-                goidType = "Medusa";
                 break;
             case "kraitmk2":
                 result = Score.medium_standard(args)
-                goidType = "Medusa";
                 break;
             case "fdl":
                 result = Score.medium_standard(args)
-                goidType = "Medusa";
                 break;
         }
 
