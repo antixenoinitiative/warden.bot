@@ -1,206 +1,87 @@
 /* eslint-disable complexity */
 module.exports = {
     calculateThreshold: (args) => {
-        let damage_threshold;
-        switch (args.gauss_medium_number) {
-            case 0:
-                switch (args.gauss_small_number) {
-                    case 1:
-                        switch (args.ammo) {
-                            case "premium":
-                                damage_threshold = 80166.53;
-                                break;
-                        }
-                        break;
-                    case 2:
-                        switch (args.ammo) {
-                            case "basic":
-                                damage_threshold = 6771.04;
-                                break;
-                            case "standard":
-                                damage_threshold = 5798.21;
-                                break;
-                            case "premium":
-                                damage_threshold = 5357.04;
-                                break;
-                        }
-                        break;
-                    case 3:
-                        switch (args.ammo) {
-                            case "basic":
-                                damage_threshold = 4848.00;
-                                break;
-                            case "standard":
-                                damage_threshold = 4571.66;
-                                break;
-                            case "premium":
-                                damage_threshold = 4411.68;
-                                break;
-                        }
-                        break;
-                    case 4:
-                        switch (args.ammo) {
-                            case "basic":
-                                damage_threshold = 4298.56;
-                                break;
-                            case "standard":
-                                damage_threshold = 4181.40;
-                                break;
-                            case "premium":
-                                damage_threshold = 4096.56;
-                                break;
-                        }
-                        break;
-                    }
-                    break;
-            case 1:
-                switch (args.gauss_small_number) {
-                    case 0:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 8399.16;
-                                break;
-                            case "standard":
-                                damage_threshold = 6764.58;
-                                break;
-                            case "premium":
-                                damage_threshold = 5845.48;
-                                break;
-                        }
-                        break;
-                    case 1:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 5041.92;
-                                break;
-                            case "standard":
-                                damage_threshold = 4734.27;
-                                break;
-                            case "premium":
-                                damage_threshold = 4458.95;
-                                break;
-                        }
-                        break;
-                    case 2:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 4367.24;
-                                break;
-                            case "standard":
-                                damage_threshold = 4232.51;
-                                break;
-                            case "premium":
-                                damage_threshold = 4075.55;
-                                break;
-                        }
-                        break;     
-                    case 3:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 4112.72;
-                                break;
-                            case "standard":
-                                damage_threshold = 4023.44;
-                                break;
-                            case "premium":
-                                damage_threshold = 3912.74;
-                                break;
-                        }
-                        break;
-                }
-                break;
-            case 2:
-                switch (args.gauss_small_number) {
-                    case 0:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 4553.08;
-                                break;
-                            case "standard":
-                                damage_threshold = 4455.51;
-                                break;
-                            case "premium":
-                                damage_threshold = 4227.86;
-                                break;
-                        }
-                        break;  
-                    case 1:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 4153.12;
-                                break;
-                            case "standard":
-                                damage_threshold = 4037.37;
-                                break;
-                            case "premium":
-                                damage_threshold = 3933.75;
-                                break;
-                        }
-                        break;  
-                    case 2:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 4007.68;
-                                break;
-                            case "standard":
-                                damage_threshold = 3897.99;
-                                break;
-                            case "premium":
-                                damage_threshold = 3823.46;
-                                break;
-                        }
-                        break;
-                }
-                break;
-            case 3:
-                switch (args.gauss_small_number) {
-                    case 0:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 4044.04;
-                                break;
-                            case "standard":
-                                damage_threshold = 4097.77;
-                                break;
-                            case "premium":
-                                damage_threshold = 3933.75;
-                                break;
-                        }
-                        break;
-                    
-                    case 1:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 3882.44;
-                                break;
-                            case "standard":
-                                damage_threshold = 3823.66;
-                                break;
-                            case "premium":
-                                damage_threshold = 3765.68;
-                                break;
-                        }
-                    break;
-                    }
-                    break;
-            case 4:
-                switch (args.gauss_small_number) {
-                    case 0:
-                        switch (args.ammo) {
-                            case "basic":  
-                                damage_threshold = 3874.36;
-                                break;
-                            case "standard":
-                                damage_threshold = 3967.68;
-                                break;
-                            case "premium":
-                                damage_threshold = 3860.22;
-                                break;
-                        }
-                    break;
-                }
-            break;
-        }
-        return damage_threshold;
+        let dmgTbl;
+           switch(args.interceptor){
+               case "Medusa":
+                   switch(args.ammo){
+                       case "basic":
+                           // Dusa basic
+                           dmgTbl =
+                               [
+                               [     -1,      -1, 6771.04, 4848.00, 4298.56],
+                               [8427.44, 5058.08, 4395.52, 4112.72,      -1],
+                               [4553.08, 4165.24, 4023.84,      -1,      -1],
+                               [4044.04, 3882.44,      -1,      -1,      -1],
+                               [3902.64,      -1,      -1,      -1,      -1]
+                           ];
+                           break;
+
+                       case "standard":
+                           // Dusa standard
+                           dmgTbl =
+                               [
+                               [     -1,      -1, 5835.38, 4571.66, 4181.40],
+                               [6797.10, 4734.27, 4232.51, 4042.02,      -1],
+                               [4455.51, 4051.31, 3897.99,      -1,      -1],
+                               [4097.77, 3837.60,      -1,      -1,      -1],
+                               [3967.68,      -1,      -1,      -1,      -1]
+                           ];
+                           break;
+          
+                       case "premium":
+                           // Dusa premium
+                           dmgTbl =
+                               [
+                               [     -1, 80481.65, 5357.04, 4411.68, 4096.56],
+                               [5882.24, 4464.20, 4117.57, 3917.99,      -1],
+                               [4264.62, 3954.76, 3865.47,      -1,      -1],
+                               [4007.28, 3786.69,      -1,      -1,      -1],
+                               [3896.98,      -1,      -1,      -1,      -1]
+                           ];
+                           break;
+                   }
+                   break;
+
+               case "Cyclops":
+                   switch(args.ammo){
+                       case "basic":
+                           // Clops basic
+                           dmgTbl =
+                               [
+                               [     -1, 1191.80, 1070.60, 1050.40, 1030.20],
+                               [1237.25, 1010.00, 1015.05,  989.80,      -1],
+                               [1095.85,  999.90,  999.90,      -1,     -1],
+                               [1095.85,  994.85,      -1,      -1,      -1],
+                               [1095.85,      -1,      -1,      -1,      -1]
+                           ];
+                           break;
+
+                       case "standard":
+                           // Clops standard
+                           dmgTbl =
+                               [
+                               [     -1, 1184.73, 1091.81, 1045.35, 1045.35],
+                               [1056.97, 1022.12, 1010.51, 993.08,       -1],
+                               [1056.97, 1004.70,  998.89,     -1,       -1],
+                               [1056.97, 1004.70,      -1,     -1,       -1],
+                               [1016.31,      -1,      -1,     -1,       -1]
+                           ];
+                           break;
+
+                       case "premium":
+                           // Clops premium
+                           dmgTbl =
+                               [
+                               [     -1, 1102.92, 1024.14, 1024.14, 1024.14],
+                               [1148.88, 1004.45,  965.06,  971.62,      -1],
+                               [1102.92, 1004.45,  965.06,      -1,      -1],
+                               [1102.92,  971.62,      -1,      -1,      -1],
+                               [1102.92,      -1,      -1,      -1,      -1]
+                           ];
+                           break;
+                   }
+           }
+        return dmgTbl[args.gauss_medium_number][args.gauss_small_number];
     }
 }
