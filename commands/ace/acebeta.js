@@ -39,7 +39,7 @@ let options = new Discord.SlashCommandBuilder()
     .addChoices(
 	{ name: 'Basic', value: 'basic' },
 	{ name: 'Standard', value: 'standard' },
-	{ name: 'Premium', value: 'premium},
+	{ name: 'Premium', value: 'premium' },
      ))
 .addIntegerOption(option => option.setName('time_in_seconds')
     .setDescription('Time taken in Seconds')
