@@ -94,9 +94,15 @@ module.exports = {
         // Calculate Damage Threshold
         let damageThreshold = calculateThreshold(args);
         args.damage_threshold = damageThreshold
+	    
+	// Calculate Damage Threshold with basic ammo
+	let argsBasic = args;
+	argsBasic.ammo = 'basic';
+	let damageThresholdBasic = calculateThreshold(argsBasic);
 	
 	// Calculate damage multiplier
 	let dmgMult = 1.01
+	let dmgAmmoMult = 1.0
 	switch (args.interceptor){
 		case 'Cyclops':
 		case 'Basilisk':
@@ -113,9 +119,11 @@ module.exports = {
 			break;
 		case 'standard':
 			dmgMult = dmgMult * 1.15;
+			dmgAmmoMult = dmgAmmoMult * 1.15;
 			break;
 		case 'premium':
 			dmgMult = dmgMult * 1.3;
+			dmgAmmoMult = dmgAmmoMult * 1.3;
 			break;
 	}
 
@@ -139,6 +147,19 @@ module.exports = {
         let result;
         let goidType = args.interceptor;
         let targetRun = 100;
+	args.efficiency = damageThreshold/shot_damage_fired;
+	    
+	// Premium/standard penalties
+	// Find additional time necessary to fire off basic damage
+	let salvoDamage = 1.01 * (args.gauss_medium_number * 35 + args.gauss_small_number * 20);
+	// Extra penalty time for non-basic ammo = extra time required to fire shots + 10% (10% due to easier to keep on target for shorter time)
+	let extraTime = 1.1*(2.05/salvoDamage)*(damageThresholdBasic - damageThreshold/dmgAmmoMult);
+	// Hull loss multiplier "time to fire basic shots"/"time to fire premium shots"
+	let hullLossMultiplier = damageThresholdBasic*dmgAmmoMult/damageThreshold;
+	    
+	args.extraTime = extraTime;
+	args.hullLossMultiplier = hullLossMultiplier;
+	    
         switch(args.shiptype) {
             case "chieftain":
                 result = Score.medium_standard(args)
