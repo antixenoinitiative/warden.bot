@@ -83,13 +83,9 @@ module.exports = {
 	    
 	// Get ship related data
 	let shipData = getInfoByShip(args)
-	args.interceptor = shipData.interceptor;
-	args.dmgPar = shipData.dmgPar;
-        args.dmgExc = shipData.dmgExc;
-        args.timePar = shipData.timePar;
-        args.timeExc = shipData.timeExc;
-        args.hullPar = shipData.hullPar;
-        args.hullExc = shipData.hullExc;
+	for (let key of shipData) {
+            args[key.name] = key.value;
+        }
 
         // Calculate Damage Threshold
         let damageThreshold = calculateThreshold(args);
