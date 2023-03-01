@@ -155,21 +155,9 @@ module.exports = {
 	    
 	args.extraTime = extraTime;
 	args.hullLossMultiplier = hullLossMultiplier;
-	    
-        switch(args.shiptype) {
-            case "chieftain":
-                result = Score.medium_standard(args)
-                break;
-            case "challenger":
-                result = Score.medium_standard(args)
-                break;
-            case "kraitmk2":
-                result = Score.medium_standard(args)
-                break;
-            case "fdl":
-                result = Score.medium_standard(args)
-                break;
-        }
+
+        result = Score.score_this(args)
+
 
         // Create Chart
         let url = getChart(result)
