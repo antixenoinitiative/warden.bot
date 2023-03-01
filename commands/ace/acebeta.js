@@ -3,7 +3,7 @@ const { calculateThreshold } = require('./commons/damageThreshold');
 const { testInputs } = require('./commons/testInput');
 const { getChart } = require('./commons/getChart');
 const { submitResult } = require('./commons/submit');
-const { getInterceptorByShip } = require('./commons/interceptorByShip');
+const { getInfoByShip } = require('./commons/infoByShip');
 const Score = require('./commons/scoring');
 const Discord = require("discord.js");
 // const shipData = require("./calc/shipdata.json")
@@ -81,9 +81,15 @@ module.exports = {
             return
         }
 	    
-	// Get target interceptor, required for damage calculation
-	let targetInterceptor = getInterceptorByShip(args)
-	args.interceptor = targetInterceptor
+	// Get ship related data
+	let shipData = getInfoByShip(args)
+	args.interceptor = shipData.interceptor;
+	args.dmgPar = shipData.dmgPar;
+        args.dmgExc = shipData.dmgExc;
+        args.timePar = shipData.timePar;
+        args.timeExc = shipData.timeExc;
+        args.hullPar = shipData.hullPar;
+        args.hullExc = shipData.hullExc;
 
         // Calculate Damage Threshold
         let damageThreshold = calculateThreshold(args);
