@@ -1,12 +1,13 @@
 /* eslint-disable no-bitwise */
-const { calculateThreshold } = require('./commons/damageThreshold');
 const { testInputs } = require('./commons/testInput');
 const { getChart } = require('./commons/getChart');
 const { submitResult } = require('./commons/submit');
-const { getInfoByShip } = require('./commons/infoByShip');
 const Score = require('./commons/scoring');
 const Discord = require("discord.js");
-// const shipData = require("./calc/shipdata.json")
+const damageThresholds = require("./data/dmgThresholds.json");
+const shipDataTable = require("./data/shipData.json");
+
+
 
 let options = new Discord.SlashCommandBuilder()
 .setName('ace')
@@ -82,19 +83,31 @@ module.exports = {
         }
 	    
 	// Get ship related data
-	let shipData = getInfoByShip(args)
-	for (let key of shipData) {
-            args[key.name] = key.value;
-        }
+	/*let shipData = getInfoByShip(args)
+	args.interceptor = shipData.interceptor;
+	args.p0 = shipData.p0;
+	args.t0_1 = shipData.t0_1;
+	args.t0_2 = shipData.t0_2;
+	args.t0_3 = shipData.t0_3;
+	args.dt = shipData.dt;
+	args.a0_1 = shipData.a0_1;
+	args.a0_2 = shipData.a0_2;
+	args.a0_3 = shipData.a0_3;
+	args.da = shipData.da;
+	args.h0_1 = shipData.h0_1;
+	args.h0_2 = shipData.h0_2;
+	args.h0_3 = shipData.h0_3;
+	args.dh = shipData.dh;*/
+	let shipData = shipDataTable[args.shiptype];
+	args.interceptor = shipData.interceptor;
+	args.scoring = shipData.scoring;
 
-        // Calculate Damage Threshold
-        let damageThreshold = calculateThreshold(args);
-        args.damage_threshold = damageThreshold
-	    
+    // Calculate Damage Threshold
+	let damageThreshold = damageThresholds[args.interceptor][args.ammo][args.gauss_medium_number][args.gauss_small_number];
+    args.damage_threshold = damageThreshold;
+	
 	// Calculate Damage Threshold with basic ammo
-	let argsBasic = args;
-	argsBasic.ammo = 'basic';
-	let damageThresholdBasic = calculateThreshold(argsBasic);
+    let damageThresholdBasic = damageThresholds[args.interceptor]["basic"][args.gauss_medium_number][args.gauss_small_number];
 	
 	// Calculate damage multiplier
 	let dmgMult = 1.01
@@ -126,7 +139,7 @@ module.exports = {
         // Medium gauss does 35 base AX damage, small gauss does 20 base AX damage per round
 	// Compute total damage done
         let shot_damage_fired = (args.shots_medium_fired * 35.0 + args.shots_small_fired * 20.0)*dmgMult;
-        args.shot_damage_fired = shot_damage_fired
+        args.shot_damage_fired = shot_damage_fired;
 
         // Avoid funnies with >100% accuracy fake submissions
         // Allow funnies if Aran is involved
@@ -149,7 +162,7 @@ module.exports = {
 	// Find additional time necessary to fire off basic damage
 	let salvoDamage = 1.01 * (args.gauss_medium_number * 35 + args.gauss_small_number * 20);
 	// Extra penalty time for non-basic ammo = extra time required to fire shots + 10% (10% due to easier to keep on target for shorter time)
-	let extraTime = 1.1*(2.05/salvoDamage)*(damageThresholdBasic - damageThreshold/dmgAmmoMult);
+	let extraTime = 1.5*(2.05/salvoDamage)*(damageThresholdBasic - damageThreshold/dmgAmmoMult);
 	// Hull loss multiplier "time to fire basic shots"/"time to fire premium shots"
 	let hullLossMultiplier = damageThresholdBasic*dmgAmmoMult/damageThreshold;
 	    
@@ -163,12 +176,20 @@ module.exports = {
         let url = getChart(result)
         
         // Print Results
+		
+		let weaponsString = ``;
+		if (args.gauss_medium_number > 0)
+			weaponsString += `${args.gauss_medium_number.toFixed(0)} medium gauss`;
+		if (args.gauss_medium_number > 0 && args.gauss_small_number > 0)
+			weaponsString += ` and `;
+		if (args.gauss_small_number > 0)
+			weaponsString += `${args.gauss_small_number.toFixed(0)} small gauss`;
 
         let outputString = `**__Thank you for requesting a New Ace score calculation!__**
 
         This score has been calculated for ${interaction.member}'s solo fight of a ${args.shiptype} against a ${goidType}, taking a total of ${args.percenthulllost.toFixed(0)}% hull damage (including damage repaired with limpets, if any), in ${~~(args.time_in_seconds / 60)} minutes and ${args.time_in_seconds % 60} seconds.
         
-        With ${args.gauss_medium_number.toFixed(0)} medium gauss and ${args.gauss_small_number.toFixed(0)} small gauss, and using ${args.ammo} ammo, the minimum required damage done would have been ${damageThreshold.toFixed(0)}hp.
+        With ${weaponsString}, and using ${args.ammo} ammo, the minimum required damage done would have been ${damageThreshold.toFixed(0)}hp.
         
         ${interaction.member}'s use of ${shot_damage_fired.toFixed(0)}hp damage-of-shots-fired (${args.shots_medium_fired.toFixed(0)} medium rounds @ 28.28hp each and ${args.shots_small_fired.toFixed(0)} small rounds @ 16.16hp each) represents a **__${((damageThreshold / shot_damage_fired ).toFixed(4)*(100)).toFixed(2)}%__** ammo usage efficiency.\n`
 
@@ -187,7 +208,10 @@ module.exports = {
                     **Time Taken Penalty:** ${(result.timePenalty/3).toFixed(2)} Ace points
                     **Ammo Used Penalty:** ${(result.ammoPenalty/3).toFixed(2)} Ace points
                     **Damage Taken Penalty:** ${(result.damagePenalty/3).toFixed(2)} Ace points
-                    ---`
+                    ---
+					**Ammo time penalty:** ${extraTime} seconds
+					**Ammo hull multiplier:** x ${hullLossMultiplier}
+					---`
         }
 
         outputString += `\n**Your Fight Score:** **__${result.score.toFixed(2)}__** Ace points.`
