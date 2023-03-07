@@ -54,7 +54,6 @@ let options = new Discord.SlashCommandBuilder()
 	
 // Add ship choices based on data read from shipData.json
 for (let key of Object.keys(shipDataTable)){
-	//options.options[0].addChoices({name: shipDataTable[key].name, value: shipDataTable[key].tag})
 	options.options[0].addChoices({name: shipDataTable[key].name, value: key})
 }
 	
