@@ -15,13 +15,7 @@ let options = new Discord.SlashCommandBuilder()
 .addStringOption(option => option.setName('shiptype')
     .setDescription('Ship you used - Ace challenge requires an Alliance Chieftain')
     .setRequired(true)
-    .addChoices(
-        { name: 'Alliance Chieftain', value: 'chieftain' },
-        { name: 'Alliance Challenger', value: 'challenger' },
-        { name: 'Fer-de-Lance', value: 'fdl' },
-        { name: 'Krait Mk2', value: 'kraitmk2' },
-        { name: 'Hauler', value: 'hauler' },
-    ))
+)
 .addIntegerOption(option => option.setName('gauss_medium_number')
     .setDescription('Number of MEDIUM gauss cannons outfitted')
     .setRequired(true))
@@ -57,6 +51,13 @@ let options = new Discord.SlashCommandBuilder()
 .addStringOption(option => option.setName('submit_url')
     .setDescription('Do you want to submit your score for formal evaluation? If so, please also include a video link')
     .setRequired(false))
+	
+// Add ship choices based on data read from shipData.json
+for (let key of Object.keys(shipDataTable)){
+	//options.options[0].addChoices({name: shipDataTable[key].name, value: shipDataTable[key].tag})
+	options.options[0].addChoices({name: shipDataTable[key].name, value: key})
+}
+	
 module.exports = {
     data: options,
 	permissions: 0,
@@ -83,21 +84,6 @@ module.exports = {
         }
 	    
 	// Get ship related data
-	/*let shipData = getInfoByShip(args)
-	args.interceptor = shipData.interceptor;
-	args.p0 = shipData.p0;
-	args.t0_1 = shipData.t0_1;
-	args.t0_2 = shipData.t0_2;
-	args.t0_3 = shipData.t0_3;
-	args.dt = shipData.dt;
-	args.a0_1 = shipData.a0_1;
-	args.a0_2 = shipData.a0_2;
-	args.a0_3 = shipData.a0_3;
-	args.da = shipData.da;
-	args.h0_1 = shipData.h0_1;
-	args.h0_2 = shipData.h0_2;
-	args.h0_3 = shipData.h0_3;
-	args.dh = shipData.dh;*/
 	let shipData = shipDataTable[args.shiptype];
 	args.interceptor = shipData.interceptor;
 	args.scoring = shipData.scoring;
