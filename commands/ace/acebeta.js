@@ -194,8 +194,8 @@ module.exports = {
                     **Ammo Used Penalty:** ${(result.ammoPenalty/3).toFixed(2)} Ace points
                     **Damage Taken Penalty:** ${(result.damagePenalty/3).toFixed(2)} Ace points
                     ---
-					**Ammo time penalty:** ${extraTime} seconds
-					**Ammo hull multiplier:** x ${hullLossMultiplier}
+					**Ammo time penalty:** ${extraTime.toFixed(2)} seconds
+					**Ammo hull multiplier:** x ${hullLossMultiplier.toFixed(2)}
 					---`
         }
 
