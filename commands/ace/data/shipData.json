@@ -1,7 +1,6 @@
 {
 	"chieftain" : {
 		"name" : "Alliance Chieftain",
-		"tag" : "chieftain",
 		"interceptor" : "Medusa",
 		"scoring" : {
 			"time" : [100, 2.75, 18.0, 30],
@@ -11,7 +10,6 @@
 	},
 	"challenger" : {
 		"name" : "Alliance Challenger",
-		"tag" : "challenger",
 		"interceptor" : "Medusa",
 		"scoring" : {
 			"time" : [100, 2.75, 18.0, 30],
@@ -21,7 +19,6 @@
 	},
 	"fdl" : {
 		"name" : "Fer-de-Lance",
-		"tag" : "fdl",
 		"interceptor" : "Medusa",
 		"scoring" : {
 			"time" : [100, 2.75, 18.0, 30],
@@ -31,7 +28,6 @@
 	},
 	"kraitmk2" : {
 		"name" : "Krait mk 2",
-		"tag" : "kraitmk2",
 		"interceptor" : "Medusa",
 		"scoring" : {
 			"time" : [100, 2.75, 18.0, 30],
@@ -41,7 +37,6 @@
 	},
 	"hauler" : {
 		"name" : "Hauler",
-		"tag" : "hauler",
 		"interceptor" : "Cyclops",
 		"scoring" : {
 			"time" : [100, 6.0, 13.5, 19.0],
