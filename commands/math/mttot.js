@@ -28,7 +28,6 @@ interceptor entry format
 */
 
 // Regex for extracting weapon number and code
-//const regex = "^([0-9]+)([a-z]+)$";
 const regex = "([0-9]+)([a-z]+)";
 
 function codealiases(code){
@@ -94,12 +93,6 @@ for (let key of Object.keys(interceptors)){
 	options.options[0].addChoices({name: `${key}`, value: key})
 }
 
-/*for (let key of Object.keys(weapons)){
-	options.addIntegerOption(option => option.setName(`${key}`)
-    .setDescription(`${weapons[key].name}`)
-    .setRequired(false))
-}*/
-
 module.exports = {
     data: options,
 	permissions: 0,
@@ -138,25 +131,6 @@ module.exports = {
 					break;
 				case 'weapon_codes':
 					// Treat weapon_codes
-/*					// Split on ,
-					codes = key.value.toLowerCase().split(",");
-					// Treat each code
-					for(let c of codes){
-						const entry = [...c.matchAll(regex)];
-						if (entry.length != 1){
-							warningString = warningString + `\nWARNING: Code _\`${c}\`_ does not match weapon code format -- Ignored (type _\`/codes\`_ for help)`;
-						}
-						else{ // One weapon code per comma separated entry
-							let wcode = codealiases(entry[0][2]);
-							if (wcode in hardpoints){
-								hardpoints[wcode] = hardpoints[wcode] + parseInt(entry[0][1]);
-								warningString = warningString + `\nNOTE: Code _\`${wcode}\`_ used multiple times. Adding numbers.`;
-							}
-							else {
-								hardpoints[wcode] = parseInt(entry[0][1]);
-							}
-						}
-					}*/
 					// Find all substrings on format NN+CC+
 					const matches = [...key.value.matchAll(regex)];
 					for(let m of matches){
