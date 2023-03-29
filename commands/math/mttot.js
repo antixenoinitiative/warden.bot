@@ -28,7 +28,7 @@ interceptor entry format
 */
 
 // Regex for extracting weapon number and code
-const regex = "^([0-9]+)([a-z]+)$";
+const regex = "([0-9]+)([a-z]+)";
 
 function codealiases(code){
 	switch(code){
@@ -84,17 +84,14 @@ let options = new Discord.SlashCommandBuilder()
 .addIntegerOption(option => option.setName('accuracy')
 		.setDescription('Accuracy in \%')
 		.setRequired(false))
+.addBooleanOption(option => option.setName('verbose')
+		.setDescription('Verbose mode: Include output for debugging')
+		.setRequired(false))
 		
 // Add interceptor choices based on data read from interceptor.json
 for (let key of Object.keys(interceptors)){
 	options.options[0].addChoices({name: `${key}`, value: key})
 }
-
-/*for (let key of Object.keys(weapons)){
-	options.addIntegerOption(option => option.setName(`${key}`)
-    .setDescription(`${weapons[key].name}`)
-    .setRequired(false))
-}*/
 
 module.exports = {
     data: options,
@@ -113,6 +110,7 @@ module.exports = {
         let hardpoints = {};
 		let interceptor;
 		let weaponsString = ``;
+		let verbose = false;
 		for (let key of interaction.options.data) {
             args[key.name] = key.value;
 			switch(key.name){
@@ -128,25 +126,22 @@ module.exports = {
 				case 'accuracy':
 					accuracy = key.value;
 					break;
+				case 'verbose':
+					verbose = key.value;
+					break;
 				case 'weapon_codes':
 					// Treat weapon_codes
-					// Split on ,
-					codes = key.value.toLowerCase().split(",");
-					// Treat each code
-					for(let c of codes){
-						const entry = [...c.matchAll(regex)];
-						if (entry.length != 1){
-							warningString = warningString + `\nWARNING: Code _\`${c}\`_ does not match weapon code format -- Ignored (type _\`/codes\`_ for help)`;
+					// Find all substrings on format NN+CC+
+					const matches = [...key.value.matchAll(regex)];
+					for(let m of matches){
+						outputString = outputString + `\nWeapon code found: ${m[0]} -> ${m[1]} - ${m[2]}`
+						let wcode = codealiases(m[2]);
+						if (wcode in hardpoints){
+							hardpoints[wcode] = hardpoints[wcode] + parseInt(m[1]);
+							warningString = warningString + `\nNOTE: Code _\`${wcode}\`_ used multiple times. Adding numbers.`;
 						}
-						else{ // One weapon code per comma separated entry
-							let wcode = codealiases(entry[0][2]);
-							if (wcode in hardpoints){
-								hardpoints[wcode] = hardpoints[wcode] + parseInt(entry[0][1]);
-								warningString = warningString + `\nNOTE: Code _\`${wcode}\`_ used multiple times. Adding numbers.`;
-							}
-							else {
-								hardpoints[wcode] = parseInt(entry[0][1]);
-							}
+						else {
+							hardpoints[wcode] = parseInt(m[1]);
 						}
 					}
 					break;
@@ -192,9 +187,9 @@ module.exports = {
 					cycle = cycle + pt[0]*pt[1];
 					cycleShots = cycleShots + pt[0];
 				}
-				dpsb = dpsb + cycleShots*hardpointState[key].damage_bsc * hardpointState[key].sequenceLength / cycle;
-				dpss = dpss + cycleShots*hardpointState[key].damage_std * hardpointState[key].sequenceLength / cycle;
-				dpsp = dpsp + cycleShots*hardpointState[key].damage_prm * hardpointState[key].sequenceLength / cycle;
+				dpsb = dpsb + cycleShots*hardpointState[key].damage_bsc / cycle;
+				dpss = dpss + cycleShots*hardpointState[key].damage_std / cycle;
+				dpsp = dpsp + cycleShots*hardpointState[key].damage_prm / cycle;
 			}
 			else{
 				warningString = warningString + `\nWARNING: Hardpoint type _\`${key}\`_ unrecognized -- Ignored (type _\`/codes\`_ for help)`;
@@ -205,7 +200,7 @@ module.exports = {
 		let mttot_bsc, mttot_std, mttot_pre;
 		let exert_bsc = false, exert_std = false, exert_pre = false;
 		let dmg_bsc = 0.0, dmg_std = 0.0, dmg_pre = 0.0; // Damage done
-		let MAX_ITERATION = 10000;
+		let MAX_ITERATION = 1000000;
 		let iter = 0;
 		
 		// Check if dps is sufficient
@@ -221,6 +216,7 @@ module.exports = {
 			mttot_pre = Number.POSITIVE_INFINITY;
 			exert_pre = true;
 		}
+		outputString = outputString + `\nDPS values:\n Basics: ${dpsb}\n Standard: ${dpss}\n Premium: ${dpsp}\nRegen: ${interceptor.regen}`;
 		
 		// Exert simulation
 		hpkeys = Object.keys(hardpointState);
@@ -278,12 +274,18 @@ module.exports = {
 		if (range == 0){
 			rangeString = "point blank";
 		}
+		if (iter == MAX_ITERATION){
+			interaction.reply({content: `Maximal number of iterations (${MAX_ITERATION}) reached. DPS is theoretically sufficient but extremely low.\n${outputString}`});
+			return;
+		}
 		
 	    try {
+			if (!verbose)
+				outputString = "";
             const returnEmbed = new Discord.EmbedBuilder()
 			.setColor('#FF7100')
 			.setTitle("**MTTOT Simulator**")
-            .setDescription(`Minimum simulated time on target for **${interceptor.name}** variant, **${accuracy}%** accuracy, **${rangeString}** range, using:**${weaponsString}**${warningString}`)
+            .setDescription(`Minimum simulated time on target for **${interceptor.name}** variant, **${accuracy}%** accuracy, **${rangeString}** range, using:**${weaponsString}**${warningString}${outputString}`)
             .addFields({ name: "Basic", value: `${mttotFeedback(mttot_bsc)}`, inline: true })
             .addFields({ name: "Standard", value: `${mttotFeedback(mttot_std)}`, inline: true })
             .addFields({ name: "Premium", value: `${mttotFeedback(mttot_pre)}`, inline: true })
