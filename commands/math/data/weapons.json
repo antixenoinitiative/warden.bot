@@ -47,7 +47,7 @@
 		"maxrange" : 3000,
 		"source" : "EDSY"
 	},
-	"sfgsc" : {
+	"sfsc" : {
 		"name" : "Small Fixed Guardian Shard Cannon",
 		"humdamage" : 21.84,
 		"axdamage" : 21.84,
@@ -59,7 +59,7 @@
 		"maxrange" : 1701,
 		"source" : "EDSY"
 	},
-	"stgsc" : {
+	"stsc" : {
 		"name" : "Small Turreted Guardian Shard Cannon",
 		"humdamage" : 12.12,
 		"axdamage" : 12.12,
@@ -71,7 +71,7 @@
 		"maxrange" : 1701,
 		"source" : "EDSY"
 	},
-	"mfgsc" : {
+	"mfsc" : {
 		"name" : "Medium Fixed Guardian Shard Cannon",
 		"humdamage" : 40.62,
 		"axdamage" : 40.62,
@@ -83,7 +83,7 @@
 		"maxrange" : 1701,
 		"source" : "EDSY"
 	},
-	"mtgsc" : {
+	"mtsc" : {
 		"name" : "Medium Turreted Guardian Shard Cannon",
 		"humdamage" : 26.04,
 		"axdamage" : 26.04,
@@ -95,7 +95,7 @@
 		"maxrange" : 1701,
 		"source" : "EDSY"
 	},
-	"lfgsc" : {
+	"lfsc" : {
 		"name" : "Large Fixed Guardian Shard Cannon",
 		"humdamage" : 57,
 		"axdamage" : 57,
@@ -107,7 +107,7 @@
 		"maxrange" : 1701,
 		"source" : "EDSY"
 	},
-	"ltgsc" : {
+	"ltsc" : {
 		"name" : "Large Turreted Guardian Shard Cannon",
 		"humdamage" : 37.2,
 		"axdamage" : 37.2,
