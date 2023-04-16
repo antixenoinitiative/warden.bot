@@ -19,6 +19,6 @@ Please click the link below to view our Ranks website to find all the up-to-date
         const row = new Discord.ActionRowBuilder()
         .addComponents(new Discord.ButtonBuilder().setLabel('View Rank Requirements').setStyle(Discord.ButtonStyle.Link).setURL('https://antixenoinitiative.com/ranks'),)
 
-        interaction.channel.send({ embeds: [returnEmbed], components: [row] });
+        interaction.reply({ embeds: [returnEmbed], components: [row] });
     }
 }
