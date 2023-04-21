@@ -36,7 +36,7 @@ module.exports = {
                         {
                             let timeTaken = res.rows[0].time;
                             let shipclass = res.rows[0].class;
-                            if(shipclass = 'small')
+                            if(shipclass == 'small')
                             {
                                 if(timeTaken < 1440)
                                 {
@@ -45,7 +45,7 @@ module.exports = {
 Please contact <@${approvedUserId}> to see if they want the rank.` })
                                 }
                             }
-                            if(shipclass = 'medium')
+                            if(shipclass == 'medium')
                             {
                                 if(timeTaken < 720)
                                 {
@@ -54,7 +54,7 @@ Please contact <@${approvedUserId}> to see if they want the rank.` })
 Please contact <@${approvedUserId}> to see if they want the rank.` })
                                 }
                             }
-                            if(shipclass = 'large')
+                            if(shipclass == 'large')
                             {
                                 if(timeTaken < 360)
                                 {
