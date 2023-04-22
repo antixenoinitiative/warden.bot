@@ -41,7 +41,7 @@ module.exports = {
                                 if(timeTaken < 1440)
                                 {
                                     interaction.channel.send({ content: `Hey, ${interaction.member}!
-**Speedrun submission #${submissionId}** is eligible for **Myrmidon** :C_Myrmidon:
+**Speedrun submission #${submissionId}** is eligible for **Myrmidon**
 Please contact <@${approvedUserId}> to see if they want the rank.` })
                                 }
                             }
@@ -50,7 +50,7 @@ Please contact <@${approvedUserId}> to see if they want the rank.` })
                                 if(timeTaken < 720)
                                 {
                                     interaction.channel.send({ content: `Hey, ${interaction.member}!
-**Speedrun submission #${submissionId}** is eligible for **Myrmidon** :C_Myrmidon:
+**Speedrun submission #${submissionId}** is eligible for **Myrmidon**
 Please contact <@${approvedUserId}> to see if they want the rank.` })
                                 }
                             }
@@ -59,7 +59,7 @@ Please contact <@${approvedUserId}> to see if they want the rank.` })
                                 if(timeTaken < 360)
                                 {
                                     interaction.channel.send({ content: `Hey, ${interaction.member}!
-**Speedrun submission #${submissionId}** is eligible for **Myrmidon** :C_Myrmidon:
+**Speedrun submission #${submissionId}** is eligible for **Myrmidon**
 Please contact <@${approvedUserId}> to see if they want the rank.` })
                                 }
                             }
