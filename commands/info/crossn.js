@@ -17,7 +17,6 @@ module.exports = {
         .addChoices(
             { name:'Count', value:'count' },
             { name:'Nickname', value:'nickname' },
-            { name:'Club 9', value:'club9' },
         ))
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
@@ -43,20 +42,6 @@ module.exports = {
             if(inputMode !== "count" && inputMode !== "nickname")
             {
                 mode = "nickname"
-                if(inputMode == "club9")
-                    roles = [
-                                '477645690630307841', //100% Club
-                                '868809340788834324', //Astrea's clarity
-                                '913848672679247963', //Cerberus' Bane
-                                '963786177306054656', //Hephaestus Shunned
-                                '810410728023916554', //Myrmidon
-                                '508638571565940736', //Snake Eater
-                                '603345251192537098', //Soaring Sleipnir
-                                '973093582481281044', //The Swarm
-                                '642840616694317104', //Vanguard
-                            ]
-                else
-                    args.forEach(arg => roles.push(getRoleID(interaction,arg)))
             }
             else
             {
