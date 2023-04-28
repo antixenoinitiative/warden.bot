@@ -25,6 +25,11 @@ module.exports = {
 			{
 				let roleID = interaction.options.data.find(arg => arg.name === 'first-rank').value
 				memberwithrole1 = interaction.guild.roles.cache.get(roleID).members
+				if(memberwithrole1.size > 1500)
+				{
+					interaction.reply({ content: `Cannot proceed. Too many members in one or more selected roles.`, ephemeral: true })
+					return;
+				}
 				actualrole1 = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
@@ -36,6 +41,11 @@ module.exports = {
 			{
 				let roleID = interaction.options.data.find(arg => arg.name === 'second-rank').value
 				memberwithrole2 = interaction.guild.roles.cache.get(roleID).members
+				if(memberwithrole2.size > 1500)
+				{
+					interaction.reply({ content: `Cannot proceed. Too many members in one or more selected roles.`, ephemeral: true })
+					return;
+				}
 				actualrole2 = cleanString(interaction.guild.roles.cache.find(role => role.id == roleID).name)
 			}
 			catch(TypeError)
