@@ -95,7 +95,7 @@ module.exports = {
 							{ name: "Apollo's Wrath", value: roleCache.get("380254463170183180").members.size.toString(), inline: true },
 							{ name: "Cyclopean Duo", value: roleCache.get("642848276135280668").members.size.toString(), inline: true },
 							{ name: "Quadrivial Vestige", value: roleCache.get("406986080953434115").members.size.toString(), inline: true },
-							{ name: "Recruit", value: roleCache.get("380247760668065802").members.size.toString(), inline: true }
+							{ name: "Pilot", value: roleCache.get("380247760668065802").members.size.toString(), inline: true }
 						)
 					i.channel.send({ embeds: [returnEmbed.setTimestamp()] });
 				} catch (err) {
