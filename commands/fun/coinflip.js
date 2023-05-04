@@ -1,3 +1,4 @@
+const Discord = require("discord.js");
 module.exports = {
 	data: new Discord.SlashCommandBuilder()
 	.setName('coinflip')
