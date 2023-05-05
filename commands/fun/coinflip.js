@@ -6,7 +6,9 @@ module.exports = {
 	permissions: 0,
 	execute(interaction) {
     const coins = ["Heads", "Tails"];
+
     let result = Math.floor(Math.random() * coins.length);
-        interaction.reply({ content: result})
+
+	interaction.reply("Your Coin is: " + (coins[result]))
 	},
 };
