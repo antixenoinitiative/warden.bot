@@ -6,6 +6,6 @@ module.exports = {
 	.setDescription('Where the fuck are my hardpoints!?'),
     permissions: 0,
     execute(interaction) {
-        interaction.reply({ content: "⁉ http://wherethefuckaremyhardpoints.com/" });
+        interaction.reply({ content: "⁉ https://web.archive.org/web/20220511122720/http://a.teall.info/edsa/" });
     }
 };
