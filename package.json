@@ -14,7 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "@discordjs/rest": "^0.1.0-canary.0",
-    "@google-cloud/vision": "^2.3.6",
+    "@google-cloud/vision": "^3.1.4",
     "discord-api-types": "^0.22.0",
     "discord.js": "^14.3.0",
     "dotenv": "^10.0.0",
