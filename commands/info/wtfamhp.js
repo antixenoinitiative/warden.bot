@@ -6,6 +6,6 @@ module.exports = {
 	.setDescription('Where the fuck are my hardpoints!?'),
     permissions: 0,
     execute(interaction) {
-        interaction.reply({ content: " https://siriuscorp.cc/edsa/" });
+        interaction.reply({ content: "https://siriuscorp.cc/edsa/" });
     }
 };

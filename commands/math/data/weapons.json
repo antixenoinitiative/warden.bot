@@ -478,5 +478,29 @@
 		"falloff" : 1000,
 		"maxrange" : 3000,
 		"source" : "EDSY"
+	},
+	"mfmeaxmc" : {
+		"name" : "Medium Modified Enhanced AX Multicannon",
+		"humdamage" : 1.1,
+		"axdamage" : 2.97,
+		"ap" : 17,
+		"pattern" : [[249,0.14],[1,4.0]],
+		"stdmult" : 1.05,
+		"premult" : 1.10,
+		"falloff" : 2000,
+		"maxrange" : 4000,
+		"source" : "AXI investigation"
+	},
+	"lfmeaxmc" : {
+		"name" : "Large Modified Enhanced AX Multicannon",
+		"humdamage" : 2.42,
+		"axdamage" : 4.51,
+		"ap" : 33,
+		"pattern" : [[249,0.17],[1,4.0]],
+		"stdmult" : 1.05,
+		"premult" : 1.10,
+		"falloff" : 2000,
+		"maxrange" : 4000,
+		"source" : "AXI investigation"
 	}
 }
