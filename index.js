@@ -102,9 +102,11 @@ bot.once("ready", async() => {
 	botLog(new EmbedBuilder().setDescription(`💡 Warden is now online! logged in as ${bot.user.tag}`).setTitle(`Warden Online`),2);
 	console.log(`✅ Warden is now online! logged in as ${bot.user.tag}`)
 	// Scheduled Role Backup Task
-	cron.schedule('*/5 * * * *', function () {
-		backupClubRoles()
-	});
+	if(process.env.MODE == "PROD") {
+		cron.schedule('*/5 * * * *', function () {
+			backupClubRoles()
+		});
+	}
 })
 
 
@@ -227,26 +229,28 @@ async function backupClubRoles() {
 	console.log('Club 10 table updated')
 }
 
-//the following part handles the triggering of reminders
-let minutes = 0.1, the_interval = minutes * 60 * 1000; //this sets at what interval are the reminder due times getting checked
-setInterval(async function() {
-	let currentDate = new Date(Date.now());
+if(process.env.MODE == "PROD") {
+	//the following part handles the triggering of reminders
+	let minutes = 0.1, the_interval = minutes * 60 * 1000; //this sets at what interval are the reminder due times getting checked
+	setInterval(async function() {
+		let currentDate = new Date(Date.now());
 
-	let res = await query("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
+		let res = await query("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
 
-	if (res.rowCount == 0) return; //if there are no due reminders, exit the function
+		if (res.rowCount == 0) return; //if there are no due reminders, exit the function
 
-	for (let row = 0; row < res.rowCount; row++) { //send all
-		const channel = await bot.channels.cache.get(res.rows[row].channelid);
-		channel.send(`<@${res.rows[row].discid}>: ${res.rows[row].memo}`);
-	}	
+		for (let row = 0; row < res.rowCount; row++) { //send all
+			const channel = await bot.channels.cache.get(res.rows[row].channelid);
+			channel.send(`<@${res.rows[row].discid}>: ${res.rows[row].memo}`);
+		}	
 
-	try {
-		res = await query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
-	} catch (err) {
-		console.log(err);
-	}
-}, the_interval);
+		try {
+			res = await query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
+		} catch (err) {
+			console.log(err);
+		}
+	}, the_interval);
+}
 
 bot.login(process.env.TOKEN)
 
