@@ -27,7 +27,8 @@ module.exports = {
         await interaction.reply({content: `${interaction.member} rolled ${diceNumber} dice, each one with ${diceSides} sides, the result is **${result}**`});
     }
 }
-function getRandomInt(max) {
+function getRandomInt(max)
+{
     return Math.floor(Math.random() * max);
-  }
+}
 
