@@ -2,12 +2,12 @@
 <img src="https://user-images.githubusercontent.com/85346345/128631152-1b2fb9d3-b5cf-4451-a287-a6a7124e1818.png" width="250">
 </p>
 
-# GuardianAI.bot
+# Warden.bot
 [![Security Scan](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml/badge.svg)](https://github.com/antixenoinitiative/warden.bot/actions/workflows/njsscan-analysis.yml)
 
-GuardianAI is a discord bot for the Xeno Strike Force Discord Server. It is a fork of the original Warden bot, which was created for the Discord Server of the Anti Xeno Initiative.
+Warden is a discord bot for the Anti-Xeno Initiative Discord Server. Based on Discord.js warden is a combination of systems that culminate in a relatively advanced custom built discord bot for the needs of the AXI.
 
-[![XSF Discord](https://discord.com/widget?id=1173384782512652348&theme=dark)](https://discord.com/widget?id=1173384782512652348&theme=dark)
+[![AXI Discord](https://discord.com/api/guilds/380246809076826112/embed.png?style=banner3)](https://discord.gg/bqmDxdm)
 
 ## Development
 Setting up a local copy of the bot for development.
