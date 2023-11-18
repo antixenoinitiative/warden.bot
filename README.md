@@ -7,7 +7,7 @@
 
 GuardianAI is a discord bot for the Xeno Strike Force Discord Server. It is a fork of the original Warden bot, which was created for the Discord Server of the Anti Xeno Initiative.
 
-[![XSF Discord](<iframe src="https://discord.com/widget?id=1173384782512652348&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>)
+[![XSF Discord](https://discord.com/widget?id=1173384782512652348&theme=dark)]
 
 ## Development
 Setting up a local copy of the bot for development.
