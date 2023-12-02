@@ -1,35 +1,66 @@
 {
-    "prefix": "-",
-    "icon": "https://axicloud.blob.core.windows.net/public/images/AXI_Insignia_Hypen_512.png",
-    "securityGroups": {
-        "0": {
-            "desc": "",
-            "roles": []
+    "Warden": {
+        "prefix": "-",
+        "securityGroups": {
+            "0": {
+                "desc": "",
+                "roles": []
+            },
+            "1": {
+                "desc": "Mentor Only",
+                "roles": [
+                    "468153018899234816",
+                    "380249268818018304",
+                    "380248896385056769",
+                    "380248192534577152",
+                    "880618812792262692"
+                ]
+            },
+            "2": {
+                "desc": "Staff Only",
+                "roles": [
+                    "380249268818018304",
+                    "380248896385056769",
+                    "380248192534577152",
+                    "880618812792262692"
+                ]
+            }
         },
-        "1": {
-            "desc": "**(Mentor Only)**",
-            "roles": [  
-                "468153018899234816",
-                "380249268818018304",
-                "380248896385056769",
-                "380248192534577152",
-                "880618812792262692"
-            ]
-        },
-        "2": {
-            "desc": "**(Staff Only)**",
-            "roles": [  
-                "380249268818018304",
-                "380248896385056769",
-                "380248192534577152",
-                "880618812792262692"
-            ]
-        }
+        "otherRoles": [
+            { "name": "platformpc", "roles": [428260067901571073,380247760668065802]},
+            { "name": "platformxb", "roles": [533774176478035991,380247760668065802]},
+            { "name": "platformps", "roles": [428259777206812682,380247760668065802]},
+            { "name": "separators", "roles": [642840406580658218,642839749777948683]}
+        ],
+        "dateFormatPattern": "DD.MM.YY, HH:mm",
+        "maxMessageLength": 2000,
+        "zenURL": "https://zenquotes.io/api/random",
+        "tickURL": "https://elitebgs.app/api/ebgs/v5/ticks",
+        "factionURL": "https://elitebgs.app/api/ebgs/v5/factions",
+        "systemURL": "https://elitebgs.app/api/ebgs/v5/systems"
     },
-    "dateFormatPattern": "DD.MM.YY, HH:mm",
-    "maxMessageLength": 2000,
-    "zenURL": "https://zenquotes.io/api/random",
-    "tickURL": "https://elitebgs.app/api/ebgs/v5/ticks",
-    "factionURL": "https://elitebgs.app/api/ebgs/v5/factions",
-    "systemURL": "https://elitebgs.app/api/ebgs/v5/systems"
+    "GuardianAI": {},
+    "botTypes": [
+        {
+            "env": "Warden.env",
+            "active": true,
+            "botName": "Warden",
+            "icon": "https://axicloud.blob.core.windows.net/public/images/AXI_Insignia_Hypen_512.png",
+            "communityName": "Anti-Xeno Initiative",
+            "inaraAppName":"AXIWarden",
+            "useGlobalCommands": [],
+            "ignoreCommands": ["sheriff","watch","reminder"]
+        },
+        {
+            "env": "GuardianAI.env",
+            "active": false,
+            "botName": "GuardianAI",
+            "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
+            "communityName": "Xeno Strike Force",
+            "inaraAppName":"GuardianAI",
+            "useGlobalCommands": ["interceptorcards","ax-info","wiki","math","common","inara"],
+            "ignoreCommands": []
+        }
+        
+    ]
 }

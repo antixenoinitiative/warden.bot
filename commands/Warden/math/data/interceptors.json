@@ -1,0 +1,26 @@
+{
+	"Cyclops" : {
+		"name" : "Cyclops",
+		"exert_hull" : 162,
+		"regen" : 3.2,
+		"armor" : 100
+	},
+	"Basilisk" : {
+		"name" : "Basilisk",
+		"exert_hull" : 361,
+		"regen" : 7.2,
+		"armor" : 130
+	},
+	"Medusa" : {
+		"name" : "Medusa",
+		"exert_hull" : 502,
+		"regen" : 10,
+		"armor" : 175
+	},
+	"Hydra" : {
+		"name" : "Hydra",
+		"exert_hull" : 640,
+		"regen" : 12.8,
+		"armor" : 220
+	}
+}

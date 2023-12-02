@@ -1,0 +1,86 @@
+[
+    {
+        "argument": "exhertpercent",
+        "title": "Thargoid Exhert Percentage",
+        "description": "Thargoid Exhert Percentage Image",
+        "link": "https://cdn.discordapp.com/attachments/1173385943005274196/1180255269289201704/image.png?",
+        "type": "text"
+    },
+    {
+        "argument": "dps",
+        "title": "Effective SDPS for AX Weapons @ 1.5km",
+        "description": "Here is a full breakdown of the DPS of AX weapons at a standard range of 1.5km.",
+        "link": "https://cdn.discordapp.com/attachments/470703244864126979/711920117306622002/Effective_Sustained_AX_DPS__1.5km_2.png",
+        "type": "embed"
+    },
+    {
+        "argument": "ally",
+        "title": "Thargoid Ally Reference Image",
+        "description": "Thargoid Ally Reference Image",
+        "link": "https://cdn.discordapp.com/attachments/625989888432537611/843025142912385024/thargoid_ally_report.png",
+        "type": "text"
+    },
+    {
+        "argument": "clog",
+        "title": "Combat Log Reference Image",
+        "description": "Combat Log Reference Image",
+        "link": "https://cdn.discordapp.com/attachments/625989888432537611/843025142648274984/Combat_log_report2.png",
+        "type": "text"
+    },
+    {
+        "argument": "flak",
+        "title": "Using Multiple Flak Launchers",
+        "description": "Multiple flak launchers is a waste *IF* the flak are not spread out very far, flak have a limited explosion radius and if that radius overlaps it is not more effective, by spreading flak out as far as possible (like the wing-tips of a cutter) it becomes beneficial. **This is most effective for Medusa and Hydra where the swarm spreads out into a wide circle** *'If convergence is wack, then it's good for flak'* - Shwinky, 2k20",
+        "link": "https://cdn.discordapp.com/attachments/625989888432537611/674485116604776448/Flak.png",
+        "type": "embed"
+    },
+    {
+        "argument": "fss",
+        "title": "Always find lone Interceptors",
+        "description": "While using the FSS, you are able to distinguish between instances containing only Scouts and instances containing only Interceptors by closely looking at where you put your tuner on the signal source, as seen in the graph below. By placing the tuner on the far left edge you will get only **Scout** instances, by placing it on the far right edge you will get either **Interceptor or empty** instances and by placing it in the middle you'll get both",
+        "link":"https://wiki.antixenoinitiative.com/signalsourcesboth.png",
+        "type":"embed"
+    },
+    {
+        "argument": "small",
+        "title": "Small Ship Disclaimer",
+        "description": "Small Ship Disclaimer",
+        "link": "https://media.discordapp.net/attachments/426833664362414082/1066305186185879612/image.png",
+        "type": "text"
+    },
+    {
+        "argument": "modguardian",
+        "title": "Modified vs Stock Guardian Weapons",
+        "description": "Stock guardian shard cannons and plasma chargers are **considerably worse** than their modified counterparts.\nOn the other hand, stock gauss cannons are **better** than their modified counterparts.",
+        "link":"https://cdn.discordapp.com/attachments/865043404479791135/1067469573240127538/Modified_vs_Stock_Guardian_Weapons.png",
+        "type":"embed"
+    },
+    {
+        "argument": "axmcbad",
+        "title": "Shows how AXMCs are not useful",
+        "description": "AXMC vs Gauss",
+        "link": "https://cdn.discordapp.com/attachments/865043404479791135/1067471307576442920/AXMCs_vs_Gauss_Cannons.png",
+        "type": "text"
+    },
+    {
+        "argument": "axdpschart",
+        "title": "Shows the dps chart for all AX Weapons exc. Turrets",
+        "description": "Every. Single. One. (except turrets)",
+        "link": "https://cdn.discordapp.com/attachments/865043404479791135/1067475575742140567/Sustained_Damage_per_Second_of_AX_Weapons_exc._Turrets.png",
+        "type": "text"
+    },
+    {
+        "argument": "axdpschartall",
+        "title": "Shows the dps chart for all AX Weapons",
+        "description": "Every. Single. One",
+        "link": "https://cdn.discordapp.com/attachments/865043404479791135/1067474652689072198/Sustained_Damage_per_Second_of_AX_Weapons.png",
+        "type": "text"
+    },
+    {
+        "argument": "mttot",
+        "title": "MTToT for 2m2s Gauss Cannons",
+        "description": "MTToT for 2m2s Gauss Cannons",
+        "link": "https://cdn.discordapp.com/attachments/427410720477675530/1060283596969087096/MTToT_Chart.png",
+        "type": "text"
+    }
+]

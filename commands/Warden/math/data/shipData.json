@@ -1,0 +1,57 @@
+{
+	"chieftain" : {
+		"name" : "Alliance Chieftain",
+		"interceptor" : "Medusa",
+		"small_hp" : 3,
+		"total_hp" : 6,
+		"scoring" : {
+			"time" : [100, 2.75, 18.0, 30],
+			"hull" : [5, 0, 0.1, 1.25],
+			"ammo" : [2, 1, 1.223776223776, 2.8571428571]
+		}
+	},
+	"challenger" : {
+		"name" : "Alliance Challenger",
+		"interceptor" : "Medusa",
+		"small_hp" : 3,
+		"total_hp" : 7,
+		"scoring" : {
+			"time" : [100, 2.75, 18.0, 30],
+			"hull" : [5, 0, 0.1, 1.25],
+			"ammo" : [2, 1, 1.223776223776, 2.8571428571]
+		}
+	},
+	"fdl" : {
+		"name" : "Fer-de-Lance",
+		"interceptor" : "Medusa",
+		"small_hp" : 0,
+		"total_hp" : 5,
+		"scoring" : {
+			"time" : [100, 2.75, 18.0, 30],
+			"hull" : [5, 0, 0.1, 1.25],
+			"ammo" : [2, 1, 1.223776223776, 2.8571428571]
+		}
+	},
+	"kraitmk2" : {
+		"name" : "Krait mk 2",
+		"interceptor" : "Medusa",
+		"small_hp" : 0,
+		"total_hp" : 5,
+		"scoring" : {
+			"time" : [100, 2.75, 18.0, 30],
+			"hull" : [5, 0, 0.1, 1.25],
+			"ammo" : [2, 1, 1.223776223776, 2.8571428571]
+		}
+	},
+	"hauler" : {
+		"name" : "Hauler",
+		"interceptor" : "Cyclops",
+		"small_hp" : 1,
+		"total_hp" : 1,
+		"scoring" : {
+			"time" : [100, 6.0, 13.5, 19.0],
+			"hull" : [5, 0, 0.07, 1.12],
+			"ammo" : [2, 1, 1.5, 2.25]
+		}
+	}
+}

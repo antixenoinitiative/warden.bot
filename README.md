@@ -22,6 +22,7 @@ Setting up a local copy of the bot for development.
 8. Start the bot using `npm start` in command line or terminal.
 
 The `SETUP.ps1` file will create a `.env` file in your root directory, if you need to make any changes, edit the variables in this file.
+The `SETUP.ps1` file will also modify the `config.json`, which you will need to review. 
 
 ![image](https://user-images.githubusercontent.com/85346345/131250614-aaecd857-0069-4758-9171-9954c490e8f1.png)
 
@@ -74,7 +75,6 @@ Example with Slash Command Options:
 
 ```js
 
-
 module.exports = {
 	data: new Discord.SlashCommandBuilder()
 	.setName('myCommandName') // What the user types to call the command
@@ -92,24 +92,3 @@ module.exports = {
 };
 ```
 A good example of this type of command is `./commands/wiki/wiki.js` or `./commands/math/mttot.js`
-
-## **OLD Command File Format (Non-Slash Commands)**
-
-This format is discontinued and all commands are in the process of being updated away from this format.
-
-```js
-module.exports = {
-    name: "myCommand",
-    description: "myCommandDescription",
-    format: '"myArgument"',
-    args: true,
-    permissions: 0,
-    hidden: false,
-    execute (message, args) {
-		// Command Code
-		let response = args[0] // Grab the first thing said after the command
-		message.reply({ content: response }) // send it back to the user as a reply
-    }
-}
-```
-
