@@ -43,7 +43,7 @@
     "botTypes": [
         {
             "env": "Warden.env",
-            "active": true,
+            "active": false,
             "botName": "Warden",
             "icon": "https://axicloud.blob.core.windows.net/public/images/AXI_Insignia_Hypen_512.png",
             "communityName": "Anti-Xeno Initiative",
@@ -53,7 +53,7 @@
         },
         {
             "env": "GuardianAI.env",
-            "active": false,
+            "active": true,
             "botName": "GuardianAI",
             "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
             "communityName": "Xeno Strike Force",
