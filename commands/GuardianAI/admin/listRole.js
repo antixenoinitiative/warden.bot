@@ -9,7 +9,7 @@ module.exports = {
     .setDescription('The role to target')
     // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setRequired(true)),
-    // permissions: 5,
+    permissions: 0,
     execute(interaction) {
         try {
             let roleID = interaction.options.data.find(arg => arg.name === 'role').value
@@ -20,7 +20,6 @@ module.exports = {
                 list += `${user}\n`
             }
 
-    
             const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             .setTitle(`**Role List - ${role.name}**`)
