@@ -1,6 +1,15 @@
+const { botIdent, fileNameBotMatch } = require('../../../functions');
+let speedRunDB = null;
+try {
+	speedRunDB  = require(`../../../${botIdent().activeBot.botName}/db/index`);
+}
+catch (e) { 
+	speedRunDB = require(`../../../${fileNameBotMatch(e)}/db/index`)
+}
 const Discord = require("discord.js");
-const { botIdent } = require('../../../functions');
-const { query } = require(`../../../${botIdent().activeBot.botName}/db/index`);
+
+// const { query } = require(`../../../Warden/db/index`);
+// console.log(speedRunDB.query)
 
 module.exports = {
     data: new Discord.SlashCommandBuilder()
@@ -60,7 +69,7 @@ module.exports = {
 			return interaction.reply({ content: `Staff Channel not found` })
 		}
 		try {
-			res = await query("INSERT INTO speedrun(user_id, name, time, class, ship, variant, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+			res = await speedRunDB.query("INSERT INTO speedrun(user_id, name, time, class, ship, variant, link, approval, date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
 				user,
 				name,
 				args.time,
@@ -76,7 +85,7 @@ module.exports = {
 			return interaction.reply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
 		}
 		
-		res = await query(`SELECT id FROM speedrun WHERE date = $1`, [timestamp])
+		res = await speedRunDB.query(`SELECT id FROM speedrun WHERE date = $1`, [timestamp])
 
 		// Print out data
 		let submissionId = res.rows[0].id

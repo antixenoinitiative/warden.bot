@@ -12,7 +12,8 @@ module.exports = {
 	.addRoleOption(option => option.setName('second-rank')
 		.setDescription('Second Rank')
 		.setRequired(true)),
-	permissions: 0,
+	    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+	// permissions: 0,
 	execute(interaction) {
 		try {
 			let count = 0

@@ -1,5 +1,11 @@
-const { botIdent } = require('../../../functions');
-const wiki = require(`../../../${botIdent().activeBot.botName}/graphql/index`);
+const { botIdent, fileNameBotMatch } = require('../../../functions');
+let wiki = null
+try {
+	wiki = require(`../../../${botIdent().activeBot.botName}/graphql/index`);
+}
+catch (e) { 
+	wiki = require(`../../../${fileNameBotMatch(e)}/graphql/index`)
+}
 const Discord = require("discord.js");
 
 module.exports = {

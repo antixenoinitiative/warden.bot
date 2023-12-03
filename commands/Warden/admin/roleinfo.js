@@ -7,7 +7,8 @@ module.exports = {
   .addRoleOption(option => option.setName('role')
 		.setDescription('The role to target')
 		.setRequired(true)),
-	permissions: 0,
+	    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+	// permissions: 0,
 	execute(interaction) {
 		try {
       let roleID = interaction.options.data.find(arg => arg.name === 'role').value

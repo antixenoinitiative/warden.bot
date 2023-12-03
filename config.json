@@ -58,9 +58,8 @@
             "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
             "communityName": "Xeno Strike Force",
             "inaraAppName":"GuardianAI",
-            "useGlobalCommands": ["interceptorcards","ax-info","wiki","math","common","inara"],
+            "useGlobalCommands": ["Warden.interceptorcards","Warden.ax-info","Warden.wiki","Warden.math","Warden.common","Warden.inara"],
             "ignoreCommands": []
         }
-        
     ]
 }
