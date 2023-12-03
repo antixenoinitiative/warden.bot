@@ -22,7 +22,8 @@ const { systemURL, dateFormatPattern} = config[botIdent().activeBot.botName]
      .addStringOption(option => option.setName("system")
         .setDescription(`The system's name. You can use "/whereis <faction>", to get a list of systems.`)
         .setRequired(true)),
-     permissions: 0,
+         // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions: 0,
      execute (interaction) {
         var systemOption = interaction.options.getString("system");
         console.log("SystemOption: " + systemOption);

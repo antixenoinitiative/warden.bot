@@ -10,7 +10,8 @@ module.exports = {
     .addChoices(
         { name:'True', value:'true' }
     )),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         var message;
         if(interaction.options.data.find(arg => arg.name === 'detail') === undefined) {

@@ -30,7 +30,7 @@ module.exports = {
 		.setDescription('Total number to list')
 		.setRequired(false)),
 	    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-	// permissions: 0,
+	permissions: 0,
     execute (interaction) {
         let args = []
         for (let data of interaction.options.data) {

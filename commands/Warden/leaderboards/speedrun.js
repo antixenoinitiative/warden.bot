@@ -47,7 +47,8 @@ module.exports = {
 	.addStringOption(option => option.setName('comments')
 		.setDescription('Comment, banter, whatever')
 		.setRequired(false)),
-	permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
 	async execute(interaction) {
 		let args = {}
 		let res;

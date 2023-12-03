@@ -27,7 +27,8 @@ module.exports = {
         .addStringOption(option => option.setName('time')
         .setDescription('Due date; Type "help" to see how to use this field')
         .setRequired(true)),
-
+        // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        permissions: 0,
 	async execute(interaction) {
         const reminderMemo = interaction.options.data.find(arg => arg.name === 'memo').value;
 

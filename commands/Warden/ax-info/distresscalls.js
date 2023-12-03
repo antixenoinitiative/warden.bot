@@ -5,6 +5,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`distresscalls`)
     .setDescription(`Posts the Distress Call Infographic`),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions: 0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()

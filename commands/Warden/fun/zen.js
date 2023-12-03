@@ -17,7 +17,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`zen`)
     .setDescription(`Gets you a random quote from https://zenquotes.io`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         fetch(`${zenURL}`)
         .then(res => res.json())

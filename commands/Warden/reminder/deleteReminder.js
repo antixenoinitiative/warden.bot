@@ -9,6 +9,8 @@ module.exports = {
     .addIntegerOption(option => option.setName('remid')
         .setDescription('the id of the reminder')
         .setRequired(true)),
+            // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions: 0,
 	async execute(interaction) {
         let reqID = interaction.options.data.find(arg => arg.name === "remid").value; //requested id
         let discID = interaction.member.id;

@@ -4,6 +4,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`codes`)
     .setDescription(`How to write Weapon-Codes`),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions: 0,
     execute (interaction) {        
         const returnEmbed = new Discord.EmbedBuilder()

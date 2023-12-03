@@ -4,7 +4,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`scout`)
     .setDescription(`Scout info card`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         if(Math.random() * 100 < 1) {
             interaction.reply({ content: "https://cdn.discordapp.com/attachments/955583721883467787/1075232081237508166/scoutfoil.png" });

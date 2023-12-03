@@ -23,7 +23,7 @@ module.exports = {
 		.setDescription('List roles to check "role1" "role2"')
 		.setRequired(false)),
 	    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-	// permissions: 0,
+	permissions: 0,
     execute(interaction) {
         let args = []
         for (let data of interaction.options.data) {

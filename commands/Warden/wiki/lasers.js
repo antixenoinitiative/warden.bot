@@ -4,6 +4,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`lasers`)
     .setDescription(`Information about TV beams`),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions: 0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()

@@ -4,6 +4,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
 	.setName('nhss')
 	.setDescription('All you need to know about Non-Human Signal Sources'),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions: 0,
     execute(interaction) {
         const returnEmbed = new Discord.EmbedBuilder()

@@ -4,7 +4,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`t10`)
     .setDescription(`Posts the T10 Infographic`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Type-10 Defender')

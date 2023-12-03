@@ -4,6 +4,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
 	.setName('repository')
 	.setDescription('Link to the AXI Ship build repository'),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions: 0,
     execute(interaction) {
         const returnEmbed = new Discord.EmbedBuilder()

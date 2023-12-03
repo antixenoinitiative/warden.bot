@@ -7,7 +7,8 @@ module.exports = {
     .addStringOption(option => option.setName('question')
         .setDescription('The thing you wanna ask')
         .setRequired(true)),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
 
     async execute(interaction) {
         let rand = Math.random() * 100;

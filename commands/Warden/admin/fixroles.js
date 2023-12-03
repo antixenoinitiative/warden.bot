@@ -5,6 +5,7 @@ module.exports = {
     .setName(`fixroles`)
     .setDescription(`Makes sure all users have Recruit or Apollo and fix seperators. WARNING, CREATES A LOT OF SPAM.`)
     .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator),
+    // permissions: 0, //probably dont need due to Administrator flag being set, slash command isn't even available to the public.
     async execute (interaction) {
         interaction.deferReply()
         try {

@@ -8,6 +8,7 @@ module.exports = {
     .setDescription('The role to target')
     .setRequired(true)),
     // .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
+    permissions: 0,
     execute(interaction) {
         try {
             let roleID = interaction.options.data.find(arg => arg.name === 'role').value

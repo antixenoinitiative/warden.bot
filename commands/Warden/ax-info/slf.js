@@ -4,7 +4,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`slf`)
     .setDescription(`Posts the SLF Infographic`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Ship-Launched Fighters')

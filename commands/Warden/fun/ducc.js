@@ -4,7 +4,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`ducc`)
     .setDescription(`Summon the Ducc!`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         let c;
         if (interaction.member.id == "274853598280810496") {

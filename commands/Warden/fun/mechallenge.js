@@ -6,9 +6,9 @@ module.exports = {
     .setDescription(`Challenges @user to do the Mechan Challenge! :smiling_imp:`)
 	.addUserOption(option => option.setName('user')
 		.setDescription('Mention user to get')
-		.setRequired(true))
-	.setDefaultPermission(false),
-	permissions: 1,
+		.setRequired(true)),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
 	execute(interaction) {
 		let challenges = [
 			`Do a Multigoid kill assigned by EuanAB`,

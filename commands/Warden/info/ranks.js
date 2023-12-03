@@ -4,7 +4,8 @@ module.exports = {
 	data: new Discord.SlashCommandBuilder()
 	.setName('ranks')
 	.setDescription('Get rank statistics'),
-	permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
 	async execute(message) {
 
 		// Build the initial message

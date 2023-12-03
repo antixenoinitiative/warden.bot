@@ -3,8 +3,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`malda`)
     .setDescription(`Annoy MalzaCAr with pings`),
-    permissions: 0,
-
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     async execute(interaction) {
         switch (interaction.member.id) {
             case 585889289724755989:

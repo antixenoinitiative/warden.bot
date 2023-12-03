@@ -4,8 +4,9 @@ const Discord = require('discord.js');
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`ranksubmissions`)
-    .setDescription(`How to submit for ranks`)
-    .setDefaultPermission(false),
+    .setDescription(`How to submit for ranks`),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     async execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')

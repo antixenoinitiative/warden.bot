@@ -87,7 +87,7 @@ let options = new Discord.SlashCommandBuilder()
 .addBooleanOption(option => option.setName('verbose')
 		.setDescription('Verbose mode: Include output for debugging')
 		.setRequired(false))
-		
+// .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)	
 // Add interceptor choices based on data read from interceptor.json
 for (let key of Object.keys(interceptors)){
 	options.options[0].addChoices({name: `${key}`, value: key})
@@ -95,7 +95,8 @@ for (let key of Object.keys(interceptors)){
 
 module.exports = {
     data: options,
-	permissions: 0,
+
+    permissions:0,
     async execute(interaction) {
 		try{
 		let outputString = ``;

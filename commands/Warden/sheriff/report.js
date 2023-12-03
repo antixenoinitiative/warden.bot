@@ -25,7 +25,8 @@ module.exports = {
     .addStringOption(option => option.setName("faction")
         .setDescription(`I can generate the report for AXI, XRG or any other faction. Defaults to "Anti Xeno Initiative".`)
         .setRequired(false)),    
-    permissions: 0,
+        // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        permissions: 0,
     execute (interaction) {
         
         var templateOption = interaction.options.getBoolean("template");

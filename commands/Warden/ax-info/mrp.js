@@ -4,7 +4,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`mrp`)
     .setDescription(`Info about the usage of MRPs`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Using Module Reinforcement Packages')

@@ -4,7 +4,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`preengineered`)
     .setDescription(`Where to purchase pre-engineered modules.`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Pre-engineered Modules')

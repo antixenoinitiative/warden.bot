@@ -22,7 +22,8 @@ module.exports = {
         .addStringOption(option => option.setName("faction")
             .setDescription(`The faction's name. I understand the abbrieviations "AXI" and "XRG".`)
             .setRequired(true)),
-    permissions: 0,
+        // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        permissions: 0,
     execute (interaction) {
         var factionOption = interaction.options.getString("faction");
         console.log("FactionOption: " + factionOption);

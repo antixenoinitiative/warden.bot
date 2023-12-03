@@ -12,7 +12,8 @@ module.exports = {
   data: new Discord.SlashCommandBuilder()
     .setName(`dadjoke`)
     .setDescription(`Fetches a random dad joke`),
-  permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
   async execute(interaction) {
     const { joke } = await fetchJoke();
     interaction.reply({

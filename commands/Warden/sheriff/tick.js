@@ -17,7 +17,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`tick`)
     .setDescription(`Shows the timestamp, the last tick occured.`),
-    permissions: 0,
+        // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        permissions: 0,
     execute (interaction) {
         // param timeMin as unix timestamp e.g. 1618696860000
         // https://elitebgs.app/api/ebgs/v5/ticks?timeMin=1618696860000

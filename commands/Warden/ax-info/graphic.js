@@ -7,7 +7,10 @@ var data = new Discord.SlashCommandBuilder()
 .addStringOption(option => option.setName('selection')
     .setDescription('Select which graphic to display')
     .setRequired(true)
-);
+)
+// .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+
+
 graphicdata.forEach(element => {
     data.options[0].addChoices({ name: element.argument, value: element.argument })
 });

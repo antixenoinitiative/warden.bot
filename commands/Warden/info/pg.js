@@ -4,7 +4,8 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`pg`)
     .setDescription(`Posts info on how to join the ${botIdent().activeBot.communityName} Private Group`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle(`${botIdent().activeBot.communityName} Private Group`)

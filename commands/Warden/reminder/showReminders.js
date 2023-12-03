@@ -6,6 +6,8 @@ module.exports = {
 	data: new Discord.SlashCommandBuilder()
                 .setName(`showreminders`)
                 .setDescription(`Shows existing reminders`),
+                    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions: 0,
 	async execute(interaction) {
                 let discID = interaction.member.id;
 

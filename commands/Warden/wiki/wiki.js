@@ -15,7 +15,8 @@ module.exports = {
 	.addStringOption(option => option.setName('term')
 		.setDescription('Search terms')
 		.setRequired(true)),
-	permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions: 0,
 	execute(interaction) {
 		let searchTerm = interaction.options.data.find(arg => arg.name === 'term').value
 		try {

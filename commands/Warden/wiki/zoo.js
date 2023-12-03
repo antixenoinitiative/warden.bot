@@ -4,6 +4,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
 	.setName('zoo')
 	.setDescription('Learn about the zoo'),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions: 0,
     hidden: false,
     execute (interaction) {

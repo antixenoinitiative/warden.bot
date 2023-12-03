@@ -4,6 +4,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
 	.setName('builds')
 	.setDescription('Useful Information and links for AX Ship Builds'),
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions: 0,
     execute(interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
