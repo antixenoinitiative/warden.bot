@@ -206,6 +206,7 @@ bot.on('interactionCreate', async interaction => {
 		const command = bot.commands.get(interaction.commandName);
 		if (!command) {
 			console.log('WARNING: Unknown command detected.');
+			botLog(new EmbedBuilder().setDescription(`Command used by ${interaction.user.tag} - Command ` + "`" + `${interaction.commandName}` + "`" + ` with arguments: ` + "`" + `${args}` + "`"),0);
 			return;
 		}
 		let args;

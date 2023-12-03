@@ -1,13 +1,15 @@
 const Discord = require("discord.js");
 
+
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName('listrole')
     .setDescription('List all users in a role')
     .addRoleOption(option => option.setName('role')
     .setDescription('The role to target')
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setRequired(true)),
-    // .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
+    // permissions: 5,
     execute(interaction) {
         try {
             let roleID = interaction.options.data.find(arg => arg.name === 'role').value
@@ -18,6 +20,7 @@ module.exports = {
                 list += `${user}\n`
             }
 
+    
             const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             .setTitle(`**Role List - ${role.name}**`)

@@ -1,8 +1,8 @@
 Write-Host "-Running DEV Setup for this Discord bot--"
 Write-Host "-The DEV setup, once completed, will let you flip the 'active' bot to true/false 
 to determine what bot this script should use."
-Write-Host "-If you are not ready for these, youmay fill out the first question and for the remaining, you may enter a single character
-to keep going through the menu. Review the applicable .env file and config.json afterwards."
+Write-Host "-If you are not ready for these, you may fill out the first question and for the remaining, you may enter a single character
+to keep going through the menu if you wish to make changes later in hte config.json file. Review the applicable .env file and config.json afterwards."
 $botConfigs = @()
 
 function botInstantiate {
@@ -15,13 +15,13 @@ function botInstantiate {
         "LOGCHANNEL" = ""
         "EVENTCHANNELID" = ""
         "STAFFCHANNELID" = ""
-        "remarkDTEmbed" = "# Defence Targets Embed (optional)"
+        "remark1" = "# Defence Targets Embed (optional)"
         "CHANNELID" = ""
         "MESSAGEID" = ""
-        "remarkGoogleAuth" = "# Google Auth Token (optional)"
+        "remark2" = "# Google Auth Token (optional)"
         "GOOGLEKEYID" = ""
         "GOOGLEKEY" = ""
-        "remarkDatabaseAndAPI" = "# Database & API (optional)"
+        "remark3" = "# Database & API (optional)"
         "DATABASE_URL_WATCH" = ""
         "DATABASE_URL_WARDEN" = ""
         "INARAKEY" = ""
@@ -66,7 +66,7 @@ while ($continueBots -eq "Y") {
     $continueBots = botInstantiate
 }
 if ($global:botConfigs.Count -gt 0) {
-    Write-Host " Bot configurations are collected for all bots. "
+    Write-Host "-Bot configurations are collected for all bots. "
 
     $jsonFilePath = ".\config.json"
     # Read the content of the config file

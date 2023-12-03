@@ -4,8 +4,7 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`fixroles`)
     .setDescription(`Makes sure all users have Recruit or Apollo and fix seperators. WARNING, CREATES A LOT OF SPAM.`)
-    .setDefaultPermission(false),
-    permissions: 2,
+    .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator),
     async execute (interaction) {
         interaction.deferReply()
         try {

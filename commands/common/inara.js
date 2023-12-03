@@ -1,6 +1,4 @@
-const config = require('../../config.json');
-const thisClient = config.botTypes.find(bot => bot.active === true);
-
+const { botIdent } = require('../../functions');
 const Discord = require("discord.js");
 
 module.exports = {
@@ -15,12 +13,12 @@ module.exports = {
 		let name = interaction.options.data.find(arg => arg.name === 'name').value
 		try {
 			const https = require('https');
-			require("dotenv").config();
+			require("dotenv").config({ path: `${botIdent().activeBot.env}` });
 			const data = new TextEncoder().encode(
 				JSON.stringify(
 					{
 						"header": {
-							"appName": thisClient.inaraAppName,
+							"appName": botIdent().activeBot.inaraAppName,
 							"appVersion": "1.00",
 							"isDeveloped": true,
 							"APIkey": process.env.INARAKEY,

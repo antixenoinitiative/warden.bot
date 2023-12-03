@@ -9,7 +9,7 @@ module.exports = {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle(`${botIdent().activeBot.communityName} Private Group`)
         .setColor('#FF7100')
-        .setAuthor({name: botIdent().activeBot.botName,iconURL: botIdent().activeBot.icon})
+        .setAuthor({name: botIdent().activeBot.botName, iconURL: botIdent().activeBot.icon})
         .setThumbnail(botIdent().activeBot.icon)
         .setDescription(`**How to join the Private Group**
                             1. Open the Social Menu (Menu > Social)

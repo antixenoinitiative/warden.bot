@@ -24,7 +24,7 @@
 		"source" : "EDSY"
 	},
 	"sfmgc": {
-		"name" : "Small Modified Gauss",
+		"name" : "Small Modified Gauss Cannon",
 		"humdamage" : 4.96,
 		"axdamage" : 4.96,
 		"ap" : 140,
@@ -36,7 +36,7 @@
 		"source" : "EDSY"
 	},
 	"mfmgc": {
-		"name" : "Medium Modified Gauss",
+		"name" : "Medium Modified Gauss Cannon",
 		"humdamage" : 8.68,
 		"axdamage" : 8.68,
 		"ap" : 140,
@@ -120,7 +120,7 @@
 		"source" : "EDSY"
 	},
 	"mfmsc" : {
-		"name" : "Medium Modshard",
+		"name" : "Medium Fixed Modshard",
 		"humdamage" : 40.62,
 		"axdamage" : 40.62,
 		"ap" : 90.9,
@@ -132,7 +132,7 @@
 		"source" : "EDSY"
 	},
 	"sfmsc" : {
-		"name" : "Small Modshard",
+		"name" : "Small Fixed Modshard",
 		"humdamage" : 21.84,
 		"axdamage" : 21.84,
 		"ap" : 60.6,
@@ -144,7 +144,7 @@
 		"source" : "EDSY"
 	},
 	"mfaxmr" : {
-		"name" : "Fixed Medium AX Missile Rack",
+		"name" : "Medium Fixed AX Missile Rack",
 		"humdamage" : 27,
 		"axdamage" : 43,
 		"ap" : 60,
@@ -156,7 +156,7 @@
 		"source" : "EDSY"
 	},
 	"mtaxmr" : {
-		"name" : "Turreted Medium AX Missile Rack",
+		"name" : "Medium Turreted AX Missile Rack",
 		"humdamage" : 20,
 		"axdamage" : 37,
 		"ap" : 60,
@@ -168,7 +168,7 @@
 		"source" : "EDSY"
 	},
 	"lfaxmr" : {
-		"name" : "Fixed Large AX Missile Rack",
+		"name" : "Large Fixed AX Missile Rack",
 		"humdamage" : 27,
 		"axdamage" : 43,
 		"ap" : 60,
@@ -180,7 +180,7 @@
 		"source" : "EDSY"
 	},
 	"ltaxmr" : {
-		"name" : "Turreted Large AX Missile Rack",
+		"name" : "Large Turreted AX Missile Rack",
 		"humdamage" : 20,
 		"axdamage" : 37,
 		"ap" : 60,
@@ -192,7 +192,7 @@
 		"source" : "EDSY"
 	},
 	"mfeaxmr" : {
-		"name" : "Fixed Medium Enhanced AX Missile Rack",
+		"name" : "Medium Fixed Enhanced AX Missile Rack",
 		"humdamage" : 27,
 		"axdamage" : 50,
 		"ap" : 60,
@@ -204,7 +204,7 @@
 		"source" : "EDSY"
 	},
 	"mteaxmr" : {
-		"name" : "Turreted Medium Enhanced AX Missile Rack",
+		"name" : "Medium Turreted Enhanced AX Missile Rack",
 		"humdamage" : 20,
 		"axdamage" : 44,
 		"ap" : 60,
@@ -216,7 +216,7 @@
 		"source" : "EDSY"
 	},
 	"lfeaxmr" : {
-		"name" : "Fixed Large Enhanced AX Missile Rack",
+		"name" : "Large Fixed Enhanced AX Missile Rack",
 		"humdamage" : 27,
 		"axdamage" : 50,
 		"ap" : 60,
@@ -228,7 +228,7 @@
 		"source" : "EDSY"
 	},
 	"lteaxmr" : {
-		"name" : "Turreted Large Enhanced AX Missile Rack",
+		"name" : "Large Turreted Enhanced AX Missile Rack",
 		"humdamage" : 20,
 		"axdamage" : 44,
 		"ap" : 60,
@@ -240,7 +240,7 @@
 		"source" : "EDSY"
 	},
 	"mfmaxmr" : {
-		"name" : "Medium Modified AX Missile Rack",
+		"name" : "Medium Fixed Modified AX Missile Rack",
 		"humdamage" : 26.19,
 		"axdamage" : 41.71,
 		"ap" : 60,
@@ -252,7 +252,7 @@
 		"source" : "EDSY"
 	},
 	"lfmaxmr" : {
-		"name" : "Large Modified AX Missile Rack",
+		"name" : "Fixed Large Modified AX Missile Rack",
 		"humdamage" : 26.19,
 		"axdamage" : 41.71,
 		"ap" : 60,
@@ -479,7 +479,7 @@
 		"maxrange" : 3000,
 		"source" : "EDSY"
 	},
-	"mfmeaxmc" : {
+	"mgmeaxmc" : {
 		"name" : "Medium Modified Enhanced AX Multicannon",
 		"humdamage" : 1.1,
 		"axdamage" : 2.97,
@@ -491,7 +491,7 @@
 		"maxrange" : 4000,
 		"source" : "AXI investigation"
 	},
-	"lfmeaxmc" : {
+	"lgmeaxmc" : {
 		"name" : "Large Modified Enhanced AX Multicannon",
 		"humdamage" : 2.42,
 		"axdamage" : 4.51,
