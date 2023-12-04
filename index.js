@@ -45,16 +45,21 @@ const fs = require('fs');
 const path = require('path')
 const colors = require('colors')
 
+//Warden.bot variables for index.js
+let warden_vars = {};
+//Guardian.bot variables for index.js
+let guardianai_vars = {};
+
+
 // Retrieve hostname so the bot knows where its being launched from.
 //!! Disable the next 3 lines, if you are running from the SAME HOST. You'll have to come up with another solution on your own if so.
 //!! Best case is to run it from a separate folder/repo if you want to do the same host. 
 //!!      or make a map of the remaining code and run as a loop.
-const os = require('os')
+const os = require('os');
 //Will set its config.json file inmemory "active:true" on correct bot.
 if (botFunc.adjustActive(os.hostname())) {
 	mainOperation()
 } 	
-
 //Separated to provide control over execution during hostname retrieval.
 function mainOperation(){ 
 	// Start the bot with the correct .env
@@ -63,13 +68,16 @@ function mainOperation(){
 	// Local Modules determined by bot "active" state.
 	// Specific bots need specific things, load them here.
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
-		const { leaderboardInteraction } = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`);
-		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`);
+	    const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
+		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
+		warden_vars[leaderboardInteraction] = leaderboardInteraction
+		warden_vars[query] = query
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
-
+		const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+		guardianai_vars[db] = db
 	}
-
+	
 	console.log(`-------- STARTING ${botFunc.botIdent().activeBot.botName} --------`.cyan)
 	
 	// Discord client setup
@@ -101,6 +109,7 @@ function mainOperation(){
 		}
 	}
 	function loadCommandsFromFolder(folderPath,commands) {
+		// path.sep is the path modules operating system specific separator for filepaths. 
 		const inactiveBots = botFunc.botIdent().inactiveBots[0]
 		const files = fs.readdirSync(folderPath);
 		const folderSplit = folderPath.split(path.sep)
@@ -263,7 +272,7 @@ function mainOperation(){
 			if (botFunc.botIdent().activeBot.botName == 'Warden') {
 				if (interaction.customId.startsWith("submission")) {
 					interaction.deferUpdate();
-					leaderboardInteraction(interaction);
+					warden_vars.leaderboardInteraction(interaction);
 					return;
 				}
 			}
@@ -308,14 +317,14 @@ function mainOperation(){
 			await guild.members.fetch()
 			let members = guild.roles.cache.get('974673947784269824').members.map(m=>m.user)
 			try {
-				await query(`DELETE FROM club10`)
+				await warden_vars.query(`DELETE FROM club10`)
 			} catch (err) {
 				console.log(`Unable to delete rows from table`)
 				return;
 			}
 			for (let member of members) {
 				let name = await guild.members.cache.get(member.id).nickname
-				await query(`INSERT INTO club10(user_id, name, avatar) VALUES($1,$2,$3)`, [
+				await warden_vars.query(`INSERT INTO club10(user_id, name, avatar) VALUES($1,$2,$3)`, [
 					member.id,
 					name,
 					member.avatar
@@ -330,7 +339,7 @@ function mainOperation(){
 			setInterval(async function() {
 				let currentDate = new Date(Date.now());
 		
-				let res = await query("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
+				let res = await warden_vars.query("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
 		
 				if (res.rowCount == 0) return; //if there are no due reminders, exit the function
 		
@@ -340,7 +349,7 @@ function mainOperation(){
 				}	
 		
 				try {
-					res = await query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
+					res = await warden_vars.query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
 				} catch (err) {
 					console.log(err);
 				}
