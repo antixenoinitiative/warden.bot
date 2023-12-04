@@ -101,7 +101,6 @@ function mainOperation(){
 		}
 	}
 	function loadCommandsFromFolder(folderPath,commands) {
-		const displayConsole = 0;  //Shows the console logs in group. 1:ON 0:OFF
 		const inactiveBots = botFunc.botIdent().inactiveBots[0]
 		const files = fs.readdirSync(folderPath);
 		const folderSplit = folderPath.split(path.sep)
@@ -122,7 +121,6 @@ function mainOperation(){
 							const array = i.split(".")
 							return array.length > 0 ? { bot:array[0],folder:array[1] } : "None"
 						})
-						// console.log("Bot:",botFunc.fileNameBotMatch(thisFolderPath))
 						const folderPathSplit = thisFolderPath.split(path.sep).pop();
 						//findIndex results: -1 Not Found, Anything 0 and up is the index number FOLDER found at, not file. *.js files are handled elsewhere..
 						const index = globalCommandObject.findIndex(obj => obj.bot === botFunc.fileNameBotMatch(folderPathSplit) && obj.folder === file);
@@ -147,18 +145,15 @@ function mainOperation(){
 					const filePathSplit = filePath.split(path.sep).pop()
 					if (cmdGlobalPath && useGlobalCommands == 1) {
 						//Now that a path has been found, go into that subfolder and get the files.
-						if (displayConsole) { console.log("ActiveBot has - Global Command:".yellow,cmdGlobalPath) }
 						loadCommandsFromFolder(cmdGlobalPath.path,commands); // Recursively go into subdirectories
 					}
 					if (!ignoreCommands.includes(filePathSplit) && useGlobalCommands == 0) {
 						loadCommandsFromFolder(filePath,commands); // Recursively go into subdirectories
 					}
 				} else if (file.endsWith('.js')) {
-					if (displayConsole) { console.log(`${filePath}`.cyan) }
 					const command = require(filePath);
 					const folderName = path.basename(folderPath);
 					command.category = folderName;
-					// console.log(command)
 					if (command.data === undefined) {
 						bot.commands.set(command.name, command); // For non-slash commands
 					} else {
@@ -173,22 +168,17 @@ function mainOperation(){
 		function findInactiveBotInPath(dir) {
 			if (dir.length > 1) { 
 				let match = dir.filter(ele => botFunc.botIdent().inactiveBots[0].includes(ele))
-				// console.log(match,"\n",botFunc.botIdent().inactiveBots[0],"\n",dir)
 				return match.length > 0 ? match[0] : ""
 			}
 		}
 		//Initial Folders for all folders except inactiveBots.
 		//'folderSplit' gets all folders and subfolders within the ./commands/ folder.
-		if (displayConsole) { console.log(`${folderPath}`.bgCyan) }
 		if (!inactiveBots.includes(findInactiveBotInPath(folderSplit)) && !ignoreCommands.includes(findInactiveBotInPath(folderSplit))) {
 			useGlobalCommands = 0
-			if (displayConsole) { console.log("==Inactive Bots NOT in Path".yellow,`${!inactiveBots.includes(folderSplit)}`.green) }
-			if (displayConsole) { console.log("==Not ActiveBot Ignored Path".yellow,`${!ignoreCommands.includes(folderSplit)}`.green) }
 			continueLoad(folderPath,files) 
 		}
 		//Get Global Commands from Active Bot config.
 		if (inactiveBots.includes(findInactiveBotInPath(folderSplit))) {
-			if (displayConsole) { console.log("Includes Inactive Bot in folder Path. Check for global Commands!".green,folderSplit.pop()) }
 			useGlobalCommands = 1
 			continueLoad(folderPath,files) 
 		}
