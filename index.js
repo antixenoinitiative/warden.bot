@@ -96,8 +96,8 @@ function mainOperation(){
 		warden_vars[query] = query
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
-		const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
-		guardianai_vars[db] = db
+		// const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+		// guardianai_vars[db] = db
 	}
 	
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
