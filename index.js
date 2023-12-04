@@ -90,51 +90,61 @@ async function deployCommands() {
 	}
 }
 function loadCommandsFromFolder(folderPath,commands) {
-	// console.log(bot.user.username)
-
+	
+	const displayConsole = 1;  //Shows the console logs in group. 1:ON 0:OFF
 	const inactiveBots = botFunc.botIdent().inactiveBots[0]
 	const files = fs.readdirSync(folderPath);
-	const folderSplit = folderPath.split("\\").pop()
-	const globalCommands = botFunc.botIdent(bot.user.username).activeBot.useGlobalCommands
+	const folderSplit = folderPath.split("\\")
+	const globalCommands = botFunc.botIdent().activeBot.useGlobalCommands
 	let useGlobalCommands = 0;
-	const ignoreCommands = botFunc.botIdent(bot.user.username).activeBot.ignoreCommands
+	const ignoreCommands = botFunc.botIdent().activeBot.ignoreCommands
 	function continueLoad(thisFolderPath,files) {
 		for (const file of files) {
 			let cmdGlobalPath = null
 			//Make sure the Global command is in the scope from the array. "GuardianAI.path2"
 			// GuardianAI is the bot
 			// path2 is the folder within that ./commands/GuardianAI/path2/somecommand.js
-			//
+			//The following disects everythign into an Object called 'cmdGlobalPath'
 			try {
 				if (useGlobalCommands) {
-					let gc = globalCommands.map(i=>{
+					//If this folder contains global commands from the active bot, build the object.
+					let globalCommandObject = globalCommands.map(i=>{
 						const array = i.split(".")
-						return { bot:array[0],folder:array[1] }
+						return array.length > 0 ? { bot:array[0],folder:array[1] } : "None"
 					})
+					// console.log("Bot:",botFunc.fileNameBotMatch(thisFolderPath))
 					const folderPathSplit = thisFolderPath.split("\\").pop();
-					const index = gc.findIndex(obj => obj.bot === folderPathSplit && obj.folder === file);
+					//findIndex results: -1 Not Found, Anything 0 and up is the index number FOLDER found at, not file. *.js files are handled elsewhere..
+					const index = globalCommandObject.findIndex(obj => obj.bot === botFunc.fileNameBotMatch(folderPathSplit) && obj.folder === file);
+					// if (displayConsole) { console.log(index,folderPathSplit,file) } // Find Folders, Ignore Files.
+					//*.js files are handled elsewhere. This is strictly for paths and folders.
 					if (index >= 0) { 
-						let p = path.join(folderPath,file)
-						p = {path:path.normalize(p)}
-						cmdGlobalPath = {...gc[index],...p}
+						let joinedPath = path.join(folderPath,file)
+						joinedPath = { path: path.normalize(joinedPath) }
+						//Merge path into the correct globalCommandObject so that the the follow on code can tell what to do. 
+						cmdGlobalPath = {...globalCommandObject[index],...joinedPath}
 					}
 				}
 			}
 			catch (e) { console.log(e) }
-			
+			//Now that 'cmdGlobalPath' was established for global commands, move onto the recursive structure. 
+
+
+			//Check if its a directory or file.
 			const filePath = path.join(thisFolderPath, file);
 			const fileStat = fs.statSync(filePath);
 			if (fileStat.isDirectory()) {
 				const filePathSplit = filePath.split("\\").pop()
-				if (cmdGlobalPath && useGlobalCommands == 1) {  
+				if (cmdGlobalPath && useGlobalCommands == 1) {
+					//Now that a path has been found, go into that subfolder and get the files.
+					if (displayConsole) { console.log("ActiveBot has - Global Command:".yellow,cmdGlobalPath) }
 					loadCommandsFromFolder(cmdGlobalPath.path,commands); // Recursively go into subdirectories
-					
 				}
 				if (!ignoreCommands.includes(filePathSplit) && useGlobalCommands == 0) {
 					loadCommandsFromFolder(filePath,commands); // Recursively go into subdirectories
 				}
 			} else if (file.endsWith('.js')) {
-				console.log(`${filePath}`.cyan)
+				if (displayConsole) { console.log(`${filePath}`.cyan) }
 				const command = require(filePath);
 				const folderName = path.basename(folderPath);
 				command.category = folderName;
@@ -146,25 +156,33 @@ function loadCommandsFromFolder(folderPath,commands) {
 				}
 				if (command.data !== undefined) {
 					commands.push(command.data.toJSON());
-					// console.log(`${command.data.name}`.yellow)
 				}
 			}
 		}
 	}
+	function findInactiveBotInPath(dir) {
+		// console.log(botFunc.botIdent().inactiveBots[0],"\n",dir)
+		let match = dir.filter(ele => botFunc.botIdent().inactiveBots[0].includes(ele))
+		return match.length > 0 ? match[0] : ""
+	}
 	//Initial Folders for all folders except inactiveBots.
-	if (!inactiveBots.includes(folderSplit) && !ignoreCommands.includes(folderSplit)) {
+	//'folderSplit' gets all folders and subfolders within the ./commands/ folder.
+	if (displayConsole) { console.log(`${folderPath}`.bgCyan) }
+	if (!inactiveBots.includes(findInactiveBotInPath(folderSplit)) && !ignoreCommands.includes(findInactiveBotInPath(folderSplit))) {
 		useGlobalCommands = 0
-		continueLoad(folderPath,files) 
+		if (displayConsole) { console.log("==Inactive Bots NOT in Path".yellow,`${!inactiveBots.includes(folderSplit)}`.green) }
+		if (displayConsole) { console.log("==Not ActiveBot Ignored Path".yellow,`${!ignoreCommands.includes(folderSplit)}`.green) }
+		
 	}
 	//Get Global Commands from Active Bot config.
-	if (inactiveBots.includes(folderSplit)) {
+	if (inactiveBots.includes(findInactiveBotInPath(folderSplit))) {
+		if (displayConsole) { console.log("Includes Inactive Bot in folder Path. Check for global Commands!".green,folderSplit.pop()) }
 		useGlobalCommands = 1
 		continueLoad(folderPath,files) 
 	}
 }
 // Have the bot login
 bot.login(process.env.TOKEN)
-
 /**
  * Event handler for Bot Login, manages post-login setup
  * @author  (Mgram) Marcus Ingram, (Airom42) Airom
@@ -327,13 +345,10 @@ if (botFunc.botIdent().activeBot.botName == 'Warden') {
 		}, the_interval);
 	}
 }
-
-
 // General error handling
 process.on('uncaughtException', function (err) {
 	console.log(`⛔ Fatal error occured:`)
 	console.error(err);
 	bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced: ${err}` })
 });
-
 

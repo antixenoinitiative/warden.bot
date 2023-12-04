@@ -1,11 +1,7 @@
 const { botIdent, fileNameBotMatch } = require('../../../functions');
 let speedRunDB = null;
-try {
-	speedRunDB  = require(`../../../${botIdent().activeBot.botName}/db/index`);
-}
-catch (e) { 
-	speedRunDB = require(`../../../${fileNameBotMatch(e)}/db/index`)
-}
+try { speedRunDB  = require(`../../../${botIdent().activeBot.botName}/db/index`) }
+catch (e) { speedRunDB = require(`../../../${fileNameBotMatch(e)}/db/index`) }
 const Discord = require("discord.js");
 
 // const { query } = require(`../../../Warden/db/index`);

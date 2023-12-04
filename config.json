@@ -54,14 +54,25 @@
         },
         {
             "env": "GuardianAI.env",
-            "active": true,
+            "active": false,
             "botName": "GuardianAI",
             "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
             "communityName": "Xeno Strike Force",
             "inaraAppName":"GuardianAI",
             "useGlobalCommands": ["Warden.interceptorcards","Warden.ax-info","Warden.wiki","Warden.math","Warden.common","Warden.inara"],
             "ignoreCommands": [],
-            "hostname": "3577bedc-4d01-4364-ae86-ab776a6ba880"
+            "hostname": "DESKTOP-U7E31R2"
+        },
+        {
+            "env": "derp.env",
+            "active": false,
+            "botName": "Derp",
+            "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
+            "communityName": "Xeno Strike Force",
+            "inaraAppName":"GuardianAI",
+            "useGlobalCommands": [],
+            "ignoreCommands": [],
+            "hostname": "DESKTOP-U7E31R2"
         }
     ]
 }
