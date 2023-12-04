@@ -8,6 +8,8 @@ const bot = {
             const activeBot = config.botTypes.find(bot => bot.hostname === current);
             const indexNum = config.botTypes.indexOf(activeBot);
             config.botTypes[indexNum].active = true
+            //todo Overwrite the config.json file with new array.
+            return true
         }
         catch (e) {
             console.log("ERROR: Incorrect hostname!!!!".bgRed,)
@@ -28,7 +30,7 @@ const bot = {
         let foundBotName = null;
         let stackLines = null;
         if (isError(e)) { stackLines = e.stack.split("\n") }
-        else { stackLines = e.split("\\") }
+        else { stackLines = e.split(path.sep) }
         for (const line of stackLines) {
             const botNameMatch = bot.botIdent().inactiveBots[0].find(element => line.includes(element));
             // console.log(line, "botNameMatch".red, botNameMatch);
