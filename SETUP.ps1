@@ -54,6 +54,7 @@ function botInstantiate {
         "env" = "$($botInfo.BOTNAME).env"
         "useGlobalCommands" = @()
         "ignoreCommands" = @()
+        "hostname" = ""
     }
     
     $continueBots = Read-host -Prompt 'Would you like to setup another Bot? (Y/N)'

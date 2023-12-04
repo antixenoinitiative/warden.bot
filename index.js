@@ -1,9 +1,9 @@
 //! Modularity for codebase.
 // The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
 // Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
-//    -The config.json file "botTypes[0].active" is for showing which bot is the "active" bot. 
-//    -- Only allowed 1 'true' value per code base. 
-//    -- The bot will not do anything until you select true in the "active" value.
+//    -The config.json file "botTypes[0].active" is determined by the 'hostname'.
+//    -Each time the bot runs, it will display its hostname in the terminal. Place that in config.json
+
 
 //! functions.js 
 //  Houses all the ancilliary functions that the bot may need. Keeps from hardcoding functions in multiple places that could otherwise.
@@ -32,18 +32,26 @@
 //		- Allows you to ingore command folders 
 
 // Imported Modules
-const { Client, IntentsBitField, EmbedBuilder, Collection } = require("discord.js");
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
+const { Client, IntentsBitField, EmbedBuilder, Collection } = require("discord.js")
+const { REST } = require('@discordjs/rest')
+const { Routes } = require('discord-api-types/v9')
 const botFunc = require('./functions.js')
 const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path')
 const colors = require('colors')
+
+// Retrieve hostname so the bot knows where its being launched from.
+//!! Disable the next 3 lines, if you are running from the SAME HOST. You'll have to come up with another solution on your own if so.
+//!! Best case is to run it from a separate repo if you want to do the same host. 
+//!!      or make a map of the remaining code and run as a loop.
+const os = require('os')
+botFunc.adjustActive(os.hostname()); //Will set its config.json file inmemory "active:true" on correct bot.
+console.log("PUT HOSTNAME IN config.json: ".bgYellow,os.hostname()) //Feel free to comment this out once you have your hostname.
+
+
+// Start the bot with the correct .env
 require("dotenv").config({ path: `${botFunc.botIdent().activeBot.env}` });
-
-console.log(`-------- STARTING ${botFunc.botIdent().activeBot.botName} --------`.cyan)
-
 // Bot Determination
 // Local Modules determined by bot "active" state.
 // Specific bots need specific things, load them here.
@@ -51,6 +59,9 @@ if (botFunc.botIdent().activeBot.botName == 'Warden') {
 	const { leaderboardInteraction } = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`);
 	const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`);
 }
+
+console.log(`-------- STARTING ${botFunc.botIdent().activeBot.botName} --------`.cyan)
+
 
 // Discord client setup
 const serverIntents = new IntentsBitField(3276799);
@@ -81,12 +92,14 @@ async function deployCommands() {
 	}
 }
 function loadCommandsFromFolder(folderPath,commands) {
+	// console.log(bot.user.username)
+
 	const inactiveBots = botFunc.botIdent().inactiveBots[0]
 	const files = fs.readdirSync(folderPath);
 	const folderSplit = folderPath.split("\\").pop()
-	const globalCommands = botFunc.botIdent().activeBot.useGlobalCommands
+	const globalCommands = botFunc.botIdent(bot.user.username).activeBot.useGlobalCommands
 	let useGlobalCommands = 0;
-	const ignoreCommands = botFunc.botIdent().activeBot.ignoreCommands
+	const ignoreCommands = botFunc.botIdent(bot.user.username).activeBot.ignoreCommands
 	function continueLoad(thisFolderPath,files) {
 		for (const file of files) {
 			let cmdGlobalPath = null
@@ -151,7 +164,8 @@ function loadCommandsFromFolder(folderPath,commands) {
 		continueLoad(folderPath,files) 
 	}
 }
-
+// Have the bot login
+bot.login(process.env.TOKEN)
 
 /**
  * Event handler for Bot Login, manages post-login setup
@@ -170,7 +184,6 @@ bot.once("ready", async() => {
 		}
 	}
 })
-
 /**
  * Log a discord bot event in the Log Channel
  * @author  (Mgram) Marcus Ingram
@@ -316,8 +329,6 @@ if (botFunc.botIdent().activeBot.botName == 'Warden') {
 	}
 }
 
-// Have the bot login
-bot.login(process.env.TOKEN)
 
 // General error handling
 process.on('uncaughtException', function (err) {

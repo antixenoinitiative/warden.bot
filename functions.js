@@ -1,11 +1,21 @@
-const config = require('./config.json')
+let config = require('./config.json')
+const fs = require("fs")
+const path = require("path")
 
 const bot = {
+    adjustActive: function(hn) {
+        console.log('---loading'.bgBlue)
+        const activeBot = config.botTypes.find(bot => bot.hostname === hn);
+        const indexNum = config.botTypes.indexOf(activeBot);
+        config.botTypes[indexNum].active = true
+        console.log(config)
+    },
     botIdent: function() {
         const activeBot = config.botTypes.find(bot => bot.active === true);
         let inactiveBots = []
         inactiveBots.push(config.botTypes.filter(bot => bot.active === false).map(bot => bot.botName))
         return {activeBot,inactiveBots}
+        
     },
     fileNameBotMatch: function(e) {
         let foundBotName = null;

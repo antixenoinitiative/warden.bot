@@ -1,13 +1,14 @@
 const Discord = require("discord.js");
 
+
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName('listrole')
     .setDescription('List all users in a role')
     .addRoleOption(option => option.setName('role')
     .setDescription('The role to target')
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setRequired(true)),
-    // .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
     permissions: 0,
     execute(interaction) {
         try {

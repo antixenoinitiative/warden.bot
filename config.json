@@ -49,17 +49,19 @@
             "communityName": "Anti-Xeno Initiative",
             "inaraAppName":"AXIWarden",
             "useGlobalCommands": [],
-            "ignoreCommands": ["sheriff","reminder"]
+            "ignoreCommands": ["sheriff","reminder"],
+            "hostname": ""
         },
         {
             "env": "GuardianAI.env",
-            "active": true,
+            "active": false,
             "botName": "GuardianAI",
             "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
             "communityName": "Xeno Strike Force",
             "inaraAppName":"GuardianAI",
             "useGlobalCommands": ["Warden.interceptorcards","Warden.ax-info","Warden.wiki","Warden.math","Warden.common","Warden.inara"],
-            "ignoreCommands": []
+            "ignoreCommands": [],
+            "hostname": "DESKTOP-U7E31R2"
         }
     ]
 }
