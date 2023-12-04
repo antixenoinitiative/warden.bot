@@ -4,18 +4,21 @@ const path = require("path")
 
 const bot = {
     adjustActive: function(hn) {
-        console.log('---loading'.bgBlue)
-        const activeBot = config.botTypes.find(bot => bot.hostname === hn);
-        const indexNum = config.botTypes.indexOf(activeBot);
-        config.botTypes[indexNum].active = true
-        console.log(config)
+        try {
+            console.log('---loading'.bgBlue)
+            const activeBot = config.botTypes.find(bot => bot.hostname === hn);
+            const indexNum = config.botTypes.indexOf(activeBot);
+            config.botTypes[indexNum].active = true
+        }
+        catch (e) {
+            console.log("ERROR: You must include a hostname!!!!".red)
+        }
     },
     botIdent: function() {
         const activeBot = config.botTypes.find(bot => bot.active === true);
         let inactiveBots = []
         inactiveBots.push(config.botTypes.filter(bot => bot.active === false).map(bot => bot.botName))
         return {activeBot,inactiveBots}
-        
     },
     fileNameBotMatch: function(e) {
         let foundBotName = null;
