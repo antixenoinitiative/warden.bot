@@ -46,7 +46,7 @@ const colors = require('colors')
 //!! Best case is to run it from a separate repo if you want to do the same host. 
 //!!      or make a map of the remaining code and run as a loop.
 const os = require('os')
-botFunc.adjustActive(os.hostname()); //Will set its config.json file inmemory "active:true" on correct bot.
+// botFunc.adjustActive(os.hostname()); //Will set its config.json file inmemory "active:true" on correct bot.
 console.log("PUT HOSTNAME IN config.json: ".bgYellow,os.hostname()) //Feel free to comment this out once you have your hostname.
 
 
