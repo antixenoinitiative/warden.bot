@@ -46,9 +46,7 @@ const colors = require('colors')
 //!! Best case is to run it from a separate repo if you want to do the same host. 
 //!!      or make a map of the remaining code and run as a loop.
 const os = require('os')
-// botFunc.adjustActive(os.hostname()); //Will set its config.json file inmemory "active:true" on correct bot.
-console.log("PUT HOSTNAME IN config.json: ".bgYellow,os.hostname()) //Feel free to comment this out once you have your hostname.
-
+botFunc.adjustActive(os.hostname()); //Will set its config.json file inmemory "active:true" on correct bot.
 
 // Start the bot with the correct .env
 require("dotenv").config({ path: `${botFunc.botIdent().activeBot.env}` });
@@ -136,7 +134,7 @@ function loadCommandsFromFolder(folderPath,commands) {
 					loadCommandsFromFolder(filePath,commands); // Recursively go into subdirectories
 				}
 			} else if (file.endsWith('.js')) {
-				// console.log(`${filePath}`.cyan)
+				console.log(`${filePath}`.cyan)
 				const command = require(filePath);
 				const folderName = path.basename(folderPath);
 				command.category = folderName;
@@ -175,7 +173,7 @@ bot.once("ready", async() => {
 	await deployCommands();
 	botLog(new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
 	console.log(`✅ ${bot.user.username} online!`)
-	console.log("PUT HOSTNAME IN config.json: ".bgYellow,os.hostname())
+
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
 		// Scheduled Role Backup Task
 		if(process.env.MODE == "PROD") {

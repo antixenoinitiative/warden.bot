@@ -3,15 +3,16 @@ const fs = require("fs")
 const path = require("path")
 
 const bot = {
-    adjustActive: function(hn) {
+    adjustActive: function(hn,current) {
         try {
-            console.log('---loading'.bgBlue)
             const activeBot = config.botTypes.find(bot => bot.hostname === hn);
             const indexNum = config.botTypes.indexOf(activeBot);
             config.botTypes[indexNum].active = true
         }
         catch (e) {
-            console.log("ERROR: You must include a hostname!!!!".red)
+            console.log("ERROR: Incorrect hostname!!!!".red,hn)
+            console.log(`Insert the following into "hostname" in config.json for the correct bot.`)
+            console.log(`Hostname ---->>>>> ${current}`)
         }
     },
     botIdent: function() {
