@@ -58,8 +58,9 @@ let guardianai_vars = {};
 const os = require('os');
 //Will set its config.json file inmemory "active:true" on correct bot.
 if (botFunc.adjustActive(os.hostname())) {
+	console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Hostname Retrieved:".magenta,`${os.hostname()}`.bgYellow)
 	mainOperation()
-} 	
+}
 //Separated to provide control over execution during hostname retrieval.
 function mainOperation(){ 
 	// Start the bot with the correct .env
@@ -78,7 +79,7 @@ function mainOperation(){
 		guardianai_vars[db] = db
 	}
 	
-	console.log(`-------- STARTING ${botFunc.botIdent().activeBot.botName} --------`.cyan)
+	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
 	
 	// Discord client setup
 	const serverIntents = new IntentsBitField(3276799);
@@ -103,7 +104,7 @@ function mainOperation(){
 				{ body: commands },
 			);
 	
-			console.log('✅ Application Commands Registered');
+			console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Commands Registered:".magenta,'✅');
 		} catch (error) {
 			console.error(error);
 		}
@@ -201,7 +202,7 @@ function mainOperation(){
 	bot.once("ready", async() => {
 		await deployCommands();
 		botLog(new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
-		console.log(`✅ ${bot.user.username} online!`)
+		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
 	
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
 			// Scheduled Role Backup Task
