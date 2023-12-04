@@ -69,6 +69,7 @@ function mainOperation(){
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 
 	}
+
 	console.log(`-------- STARTING ${botFunc.botIdent().activeBot.botName} --------`.cyan)
 	
 	// Discord client setup
