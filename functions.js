@@ -1,9 +1,19 @@
 let config = require('./config.json')
 const fs = require("fs")
 const path = require("path")
-// "hostname": "3577bedc-4d01-4364-ae86-ab776a6ba880" //GuardianAI
+/**
+ * @author (testfax) Medi0cr3 @testfax
+ * @function adjustActive,botIdent,fileNameBotMatch
+ */
 const bot = {
-    adjustActive: function(current) {
+    adjustActive: function(current,mode) {
+        if (mode) { 
+            const activeBot = config.botTypes.find(bot => bot.botName === mode);
+            const indexNum = config.botTypes.indexOf(activeBot);
+            config.botTypes[indexNum].active = true
+            console.log("[STARTUP]".yellow,`${bot.botIdent().activeBot.botName}`.green,"Development Mode:".bgRed,'✅')
+            return true
+        }
         try {
             const activeBot = config.botTypes.find(bot => bot.hostname === current);
             const indexNum = config.botTypes.indexOf(activeBot);
