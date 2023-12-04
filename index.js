@@ -1,4 +1,7 @@
 //! Modularity for codebase.
+let dev = null;
+// let dev = "GuardianAI"
+// let dev = "Warden"
 /**
  * @description The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
  * @description Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
@@ -70,10 +73,11 @@ const os = require('os');
  * Loads the specific bot based on the hostname and annotates the mode (Dev/Prod) to the bot.
  * @param {string} hostname - The current hostname provided by os.hostname().
  * @param {string} [BotName] - The name of the bot for development purposes. Omit for PROD mode.
+ * @param @dev Declared on Line 2.
  * @returns {truthy/falsy}
  * @author testfax (Medi0cre) @testfax
  */
-if (botFunc.adjustActive(os.hostname(),"")) {
+if (botFunc.adjustActive(os.hostname(),dev)) {
 	console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Hostname Retrieved:".magenta,`${os.hostname()}`.bgYellow)
 	mainOperation()
 }
@@ -81,6 +85,7 @@ if (botFunc.adjustActive(os.hostname(),"")) {
 function mainOperation(){ 
 	// Start the bot with the correct .env
 	require("dotenv").config({ path: `${botFunc.botIdent().activeBot.env}` });
+
 	// Bot Determination
 	// Local Modules determined by bot "active" state.
 	// Specific bots need specific things, load them here.
@@ -209,9 +214,7 @@ function mainOperation(){
 			console.error(error);
 		}
 	}
-	
-	// Have the bot login
-	bot.login(process.env.TOKEN)
+
 	/**
 	 * Event handler for Bot Login, manages post-login setup
 	 * @author  (Mgram) Marcus Ingram @MgramTheDuck 
@@ -375,6 +378,12 @@ function mainOperation(){
 			}, the_interval);
 		}
 	}
+	function checkENV(item) {
+		if (item) { return item}
+		else { console.log("[ENV]".red,"ERROR".bgRed,"ENV file Malformed or Missing".yellow); return false }
+	}
+	// Have the bot login
+	if (checkENV(process.env.TOKEN)) { bot.login(process.env.TOKEN)}
 	// General error handling
 	process.on('uncaughtException', function (err) {
 		console.log(`⛔ Fatal error occured:`)
