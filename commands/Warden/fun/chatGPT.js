@@ -40,7 +40,7 @@ module.exports = {
                 interaction.editReply({ content: `Sorry, something went wrong!`, ephemeral: true });
             }
         } else {
-            interaction.editReply({ content: `Sorry, bot is missing an API key`})
+            interaction.reply({ content: `Sorry, bot is missing an API key`})
         }
         
     }

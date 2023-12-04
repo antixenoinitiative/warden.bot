@@ -1,7 +1,5 @@
 Write-Host "-Running DEV Setup for this Discord bot--"
-Write-Host "-The DEV setup, once completed, will let you flip the 'active' bot to true/false 
-to determine what bot this script should use."
-Write-Host "-If you are not ready for these, you may fill out the first question and for the remaining, you may enter a single character
+Write-Host "-If you are not ready for the following prompts, you may fill out the first question and for the remaining, you may enter a single character
 to keep going through the menu if you wish to make changes later in hte config.json file. Review the applicable .env file and config.json afterwards."
 $botConfigs = @()
 
@@ -102,7 +100,6 @@ if ($global:botConfigs.Count -gt 0) {
         Write-Host " REVIEW config.json after this "
         Write-Host " REVIEW config.json after this "
         Write-Host ""
-        Write-Host " Find and Set which Bot you want active by flipping the 'active' key to 'true' "
         Write-Host " Find and Set the 'ICON' to the image URL of the logo you want to see in the embeds. "
         Write-Host ""
         Write-Host " REVIEW config.json after this "

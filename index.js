@@ -347,7 +347,7 @@ function mainOperation(){
 				for (let row = 0; row < res.rowCount; row++) { //send all
 					const channel = await bot.channels.cache.get(res.rows[row].channelid);
 					channel.send(`<@${res.rows[row].discid}>: ${res.rows[row].memo}`);
-				}	
+				}
 		
 				try {
 					res = await warden_vars.query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
@@ -362,5 +362,5 @@ function mainOperation(){
 		console.log(`⛔ Fatal error occured:`)
 		console.error(err);
 		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced: ${err}` })
-	});
+	})
 }
