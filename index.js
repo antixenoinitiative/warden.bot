@@ -175,6 +175,7 @@ bot.once("ready", async() => {
 	await deployCommands();
 	botLog(new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
 	console.log(`✅ ${bot.user.username} online!`)
+	console.log("PUT HOSTNAME IN config.json: ".bgYellow,os.hostname())
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
 		// Scheduled Role Backup Task
 		if(process.env.MODE == "PROD") {
