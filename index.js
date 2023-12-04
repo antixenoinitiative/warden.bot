@@ -1,39 +1,47 @@
 //! Modularity for codebase.
-// The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
-// Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
-//    -The config.json file "botTypes[0].active" is determined by the 'hostname'.
-//    -Bot will fail to run if hostname does not match.
-// Dont place the main contents of the bot in a folder with the same name of the bot.
-//  - Use something like './warden.bot/'
-//  - Naming the bot root directory as the same name of the bot will cause it to fail hardcore.
-
-
+/**
+ * @description The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
+ * @description Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
+ * @example       -The config.json file "botTypes[0].active" is determined by the 'hostname'.
+ * @description   -Bot will fail to run if hostname does not match.
+ * @description Dont place the main contents of the bot in a folder with the same name of the bot.
+ * @example      - Use something like './warden.bot/'
+ * @description  - Naming the bot root directory as the same name of the bot will cause it to fail hardcore.
+ */
 //! functions.js 
-//  Houses all the ancilliary functions that the bot may need. Keeps from hardcoding functions in multiple places that could otherwise.
-//    	be used in multiple places.
+/**
+ * @description  Houses all the ancilliary functions that the bot may need. 
+ * @description  Keeps from hardcoding functions in multiple places that could otherwise be used in multiple places.
+ */
 
-// config.json explaination
-// Bot Name'd objects is the location that you put specific bot information to call from anywhere in your code.
-//!    EXAMPLE: 
-//!    { 
-//!       "Warden": {},
-//!       "GuardianAI": {},
-//!    } 
-//
-//
+//!config.json explaination
+/**
+ * @description Bot Name'd objects is the location that you put specific bot information to call from anywhere in your code.
+ * @example 
+ * {
+ * 	"Warden": {},
+ *  "GuardianAI": {},
+ *  "botTypes" [] 
+ * }
+ */
+
 //! botTypes: []
-//todo    'useGlobalCommands' 
-//        - Within the './commands' folder you can cross load commands from an inactive bot to an active bot.
-//!    EXAMPLE: "useGlobalCommands": ["GuardianAI.path2","GuardianAI.path1"],
-//      - Allows the use of commands from any "active:false" bot.
-//      - GuardianAI is the botName which is 
-//      - path2 is the folder that you want to include
-//	    - ENSURE that you do not duplicate commands in the bots local folder and a globally attached folder.
-//
-//todo   'ignoreCommands' 
-//       - Within the './commands' folders tells the 'active' bot to ignore these folders.
-//!	   EXAMPLE: "ignoreCommands": ["sheriff","watch","reminder"]
-//		- Allows you to ingore command folders in the bots: './commands/someBot/sherrif/'
+/**
+ * @field      useGlobalCommands
+ * @description - Allows the use of commands from any "active:false" bot.
+ * @description - Within the './commands' folder you can cross load commands from an inactive bot to an active bot.
+ * @description - GuardianAI is the botName
+ * @description - path2 is the folder and command sets that you want to include
+ * @description - ENSURE that you do not duplicate commands in the bots local folder and a globally attached folder
+ * @example
+ * "useGlobalCommands": ["GuardianAI.path2","GuardianAI.path1"]
+ * @field       ignoreCommands:[]
+ * @description - Within the './commands' folders tells the 'active' bot to ignore these folders in its subdirectories.
+ * @description - Allows you to ingore command folders in the bots: './commands/someBot/sherrif/'
+ * @example 
+ * "ignoreCommands": ["sheriff","watch","reminder"]
+ * 
+ */
 
 // Imported Modules
 const { Client, IntentsBitField, EmbedBuilder, Collection } = require("discord.js")
@@ -52,7 +60,7 @@ let guardianai_vars = {};
 
 
 // Retrieve hostname so the bot knows where its being launched from.
-//!! Disable the next 3 lines, if you are running from the SAME HOST. You'll have to come up with another solution on your own if so.
+//!! If you are running *NOT* running all bots from the SAME HOST. You'll have to come up with another solution on your own if you want to.
 //!! Best case is to run it from a separate folder/repo if you want to do the same host. 
 //!!      or make a map of the remaining code and run as a loop.
 const os = require('os');
