@@ -2,7 +2,10 @@
 // The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
 // Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
 //    -The config.json file "botTypes[0].active" is determined by the 'hostname'.
-//    -Each time the bot runs, it will display its hostname in the terminal. Place that in config.json
+//    -Bot will fail to run if hostname does not match.
+// Dont place the main contents of the bot in a folder with the same name of the bot.
+//  - Use something like './warden.bot/'
+//  - Naming the bot root directory as the same name of the bot will cause it to fail hardcore.
 
 
 //! functions.js 
@@ -25,11 +28,12 @@
 //      - Allows the use of commands from any "active:false" bot.
 //      - GuardianAI is the botName which is 
 //      - path2 is the folder that you want to include
+//	    - ENSURE that you do not duplicate commands in the bots local folder and a globally attached folder.
 //
 //todo   'ignoreCommands' 
-//       - Within the './commands' folders tells the 'active' bot to ignore these command folders.
+//       - Within the './commands' folders tells the 'active' bot to ignore these folders.
 //!	   EXAMPLE: "ignoreCommands": ["sheriff","watch","reminder"]
-//		- Allows you to ingore command folders 
+//		- Allows you to ingore command folders in the bots: './commands/someBot/sherrif/'
 
 // Imported Modules
 const { Client, IntentsBitField, EmbedBuilder, Collection } = require("discord.js")
@@ -43,11 +47,16 @@ const colors = require('colors')
 
 // Retrieve hostname so the bot knows where its being launched from.
 //!! Disable the next 3 lines, if you are running from the SAME HOST. You'll have to come up with another solution on your own if so.
-//!! Best case is to run it from a separate repo if you want to do the same host. 
+//!! Best case is to run it from a separate folder/repo if you want to do the same host. 
 //!!      or make a map of the remaining code and run as a loop.
 const os = require('os')
 //Will set its config.json file inmemory "active:true" on correct bot.
 if (botFunc.adjustActive(os.hostname())) {
+	mainOperation()
+} 	
+
+//Separated to provide control over execution during hostname retrieval.
+function mainOperation(){ 
 	// Start the bot with the correct .env
 	require("dotenv").config({ path: `${botFunc.botIdent().activeBot.env}` });
 	// Bot Determination
@@ -57,9 +66,10 @@ if (botFunc.adjustActive(os.hostname())) {
 		const { leaderboardInteraction } = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`);
 		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`);
 	}
-	
+	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
+
+	}
 	console.log(`-------- STARTING ${botFunc.botIdent().activeBot.botName} --------`.cyan)
-	
 	
 	// Discord client setup
 	const serverIntents = new IntentsBitField(3276799);
@@ -90,7 +100,6 @@ if (botFunc.adjustActive(os.hostname())) {
 		}
 	}
 	function loadCommandsFromFolder(folderPath,commands) {
-		
 		const displayConsole = 0;  //Shows the console logs in group. 1:ON 0:OFF
 		const inactiveBots = botFunc.botIdent().inactiveBots[0]
 		const files = fs.readdirSync(folderPath);
@@ -353,5 +362,4 @@ if (botFunc.adjustActive(os.hostname())) {
 		console.error(err);
 		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced: ${err}` })
 	});
-
-} 	
+}
