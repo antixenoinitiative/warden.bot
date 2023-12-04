@@ -54,7 +54,7 @@
         },
         {
             "env": "GuardianAI.env",
-            "active": false,
+            "active": true,
             "botName": "GuardianAI",
             "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
             "communityName": "Xeno Strike Force",
