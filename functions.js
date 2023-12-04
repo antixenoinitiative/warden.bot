@@ -33,14 +33,11 @@ const bot = {
         else { stackLines = e.split(path.sep) }
         for (const line of stackLines) {
             const botNameMatch = bot.botIdent().inactiveBots[0].find(element => line.includes(element));
-            // console.log(line, "botNameMatch".red, botNameMatch);
             if (botNameMatch && botNameMatch.length > 0) {
               foundBotName = botNameMatch;
-            //   console.log(`foundBotName: ${foundBotName}`.yellow);
               return foundBotName
             }
           }
-        // console.log(`foundBotName: ${foundBotName}`.yellow)
         return foundBotName
     },
     examplezzzzz: function() {},
