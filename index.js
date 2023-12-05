@@ -1,6 +1,6 @@
 //! Modularity for codebase.
-let dev = null;
-// let dev = "GuardianAI"
+// let dev = null;
+let dev = "GuardianAI"
 // let dev = "Warden"
 /**
  * @description The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.

@@ -1,5 +1,4 @@
-const { botIdent } = require('../../../functions');
-const { cleanString } = require(`../../../${botIdent().activeBot.botName}/discord/cleanString`);
+const { cleanString } = require('../../functions');
 const Discord = require("discord.js");
 
 module.exports = {

@@ -1,8 +1,6 @@
 const Discord = require("discord.js");
 
-const { botIdent } = require('../../../functions');
-const { cleanString } = require(`../../../${botIdent().activeBot.botName}/discord/cleanString`);
-const { getRoleID } = require(`../../../${botIdent().activeBot.botName}/discord/getRoleID`);
+const { cleanString,getRoleID } = require('../../functions');
 
 function checker(memberrolearray, requestedroles) {
     return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
@@ -22,8 +20,8 @@ module.exports = {
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
 		.setRequired(false)),
-	// .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-	// permissions: 0,
+	    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+	permissions: 0,
     execute(interaction) {
         let args = []
         for (let data of interaction.options.data) {

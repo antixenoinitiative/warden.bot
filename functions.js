@@ -1,6 +1,7 @@
 let config = require('./config.json')
 const fs = require("fs")
 const path = require("path")
+//This functions.js file serves as a global functions context for all bots that may resuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
  * @function adjustActive,botIdent,fileNameBotMatch
@@ -49,6 +50,67 @@ const bot = {
             }
           }
         return foundBotName
+    },
+    getSortedRoleIDs: (message) => {
+        /**
+       * Function takes a input string and returns the closest matching Server Role ID
+       * @param   {object} message        Pass through the message object
+       * @returns {object}                Returns an Object of role id's and their positions IN REVERSE ORDER
+       */
+        try {
+          let roleNameObj = {};
+          let size = 0;
+          message.guild.roles.cache.forEach(() => {size+=1});
+          size-=1 // removing the count for @everyone from size
+          message.guild.roles.cache.forEach((role) => {
+            if (role.name != "@everyone" && role.name != "@here") {
+              roleNameObj[size - parseInt(role.rawPosition)] = [role.id,`<@&${role.id}>`];
+            }
+          });
+          return roleNameObj
+        } catch (err) {
+          console.log(err);
+        }
+    },
+    getRoleID: (message, name) => {
+        /**
+         * Function takes a input string and returns the closest matching Server Role ID
+         * @param   {object} message    Pass through the message object
+         * @param   {string} name       The Role name you need to check
+         * @returns {string}            Returns the Role ID
+         */
+        try {
+            let roleList = []
+            message.guild.roles.cache.forEach(role => {
+                if (role.name !='@everyone' && role.name != '@here') {
+                    roleList.push(bot.cleanString(role.name));
+                }
+            });
+            switch(name.toLowerCase())
+            {
+                case "pc": return '428260067901571073';
+                case "xb": return '533774176478035991';
+                case "ps": return '428259777206812682';
+                case "bgs": case "loyalist": return '712110659814293586';
+                case "axi": case "axin": return '848726942786387968';
+                default: break;
+            }
+            let best = compare.findBestMatch(name, roleList);
+            return message.guild.roles.cache.find(role => bot.cleanString(role.name) == roleList[best["bestMatchIndex"]]).id.toString()
+        } catch (err) {
+            console.log(err);
+        }
+    },
+    cleanString: (input) => {
+        var output = "";
+        for(var i=0;i<input.length;i++)
+        {
+            if(input.charCodeAt(i)<=127)
+            {
+                output+=input.charAt(i);
+            }
+        }
+        return output.trim();
     },
     examplezzzzz: function() {},
     examplesssss: "SomeExampleVariable",

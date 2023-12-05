@@ -1,6 +1,5 @@
 const Discord = require("discord.js");
-const { botIdent } = require('../../../functions');
-const { cleanString } = require(`../../../${botIdent().activeBot.botName}/discord/cleanString`);
+const { cleanString } = require('../../functions');
 const fs = require('fs')
 
 module.exports = {
@@ -103,6 +102,7 @@ module.exports = {
                 else
                 {
                     fs.writeFileSync('tmp/memberlist.txt', memberList);
+                    //todo Need to verify this tmp directory can be written to on all servers. Emplace check
                     interaction.reply({
                         content:"Members List longer than "+highlength+"!\nSending the " + type +" in a txt file:",
                         files:[
