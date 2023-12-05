@@ -26,8 +26,7 @@ module.exports = {
         if (args.mats == 'encoded') {
             returnEmbed = new Discord.EmbedBuilder()
                 .setColor('#FF7100')
-                .setTitle(`Encoded - Jamesons Crash Site`)
-                .setDescription(`Encoded`)
+                .setTitle(`Encoded - Jameson's Crash Site`)
                 .addFields(
                 {name: "Location", value: `HIP 12099`, inline: true},
                 {name: "Body", value: `Body 1B`, inline: true},

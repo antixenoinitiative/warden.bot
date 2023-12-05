@@ -1,15 +1,16 @@
 const Discord = require("discord.js");
-const { botIdent } = require('../../../functions');
+const { botIdent } = require('../../functions');
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`pg`)
     .setDescription(`Posts info on how to join the ${botIdent().activeBot.communityName} Private Group`),
-    permissions: 0,
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    permissions:0,
     execute (interaction) {
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle(`${botIdent().activeBot.communityName} Private Group`)
         .setColor('#FF7100')
-        .setAuthor({name: botIdent().activeBot.botName, iconURL: botIdent().activeBot.icon})
+        .setAuthor({name: botIdent().activeBot.botName,iconURL: botIdent().activeBot.icon})
         .setThumbnail(botIdent().activeBot.icon)
         .setDescription(`**How to join the Private Group**
                             1. Open the Social Menu (Menu > Social)
