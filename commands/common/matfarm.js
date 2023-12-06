@@ -40,7 +40,7 @@ module.exports = {
             .setColor('#FF7100')
             .setTitle(`Raw Material Locations`)
             .setDescription(`Raw`)
-            .setImage('https://cdn.discordapp.com/attachments/1175469325356896446/1181359720280358932/Raws.png?ex=6580c5f9&is=656e50f9&hm=6f7430c952d93c4d441886193867b078dd7665e06ef37471fdd5a7b48582c508&')
+            .setImage('https://cdn.discordapp.com/attachments/1174547681453015140/1181763630136565772/MatsRaw.png?ex=65823e25&is=656fc925&hm=a54f1a495b47ab155388c08c0d21cd479df2f612ed27e640358973fb7d74bb88&')
             
             interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
         }
@@ -49,7 +49,7 @@ module.exports = {
             .setColor('#FF7100')
             .setTitle(`Manufactured Material Locations`)
             .setDescription(`Manufactured`)
-            .setImage('https://cdn.discordapp.com/attachments/1175469325356896446/1181359692035919983/Manufactured.png?ex=6580c5f3&is=656e50f3&hm=8182682caaba2fe77ff2cfb8841cdf2b0ef61695ed3f6c149eb9a7b57ffd1997&')
+            .setImage('https://cdn.discordapp.com/attachments/1174547681453015140/1181758654941245501/MatsManufactured.png?ex=65823983&is=656fc483&hm=eaeffd379a39ff6a6f3a18039bbde151dee7254b4cb818a60a31bd4d28685632&')
             
             interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
         }
