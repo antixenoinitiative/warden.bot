@@ -1,11 +1,12 @@
 Write-Host "-Running DEV Setup for this Discord bot--"
 Write-Host "-If you are not ready for the following prompts, you may fill out the first question and for the remaining, you may enter a single character
-to keep going through the menu if you wish to make changes later in hte config.json file. Review the applicable .env file and config.json afterwards."
+to keep going through the menu if you wish to make changes later in the config.json file. Review the applicable .env file and config.json afterwards."
 $botConfigs = @()
 
 function botInstantiate {
     $botInfo = [ordered]@{
         "BOTNAME" = ""
+        "HOSTNAME"= ""
         "COMMUNITYNAME" = ""
         "TOKEN" = ""
         "CLIENTID" = ""
@@ -27,6 +28,7 @@ function botInstantiate {
     }
     # Collect bot information
     $botInfo.BOTNAME = Read-Host -Prompt 'Enter the Name of the Bot'
+    $botInfo.HOSTNAME = Read-Host -Prompt 'Enter the Hostname of the Bot'
     $botInfo.COMMUNITYNAME = Read-Host -Prompt 'Enter your Community Name'
     $botInfo.TOKEN = Read-Host -Prompt 'Enter your Discord Bot Token'
     $botInfo.CLIENTID = Read-Host -Prompt 'Enter your Discord Bot Client ID'
@@ -52,7 +54,6 @@ function botInstantiate {
         "env" = "$($botInfo.BOTNAME).env"
         "useGlobalCommands" = @()
         "ignoreCommands" = @()
-        "hostname" = ""
     }
     
     $continueBots = Read-host -Prompt 'Would you like to setup another Bot? (Y/N)'

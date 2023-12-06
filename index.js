@@ -8,7 +8,7 @@ let dev = null;
  * @example       -The config.json file "botTypes[0].active" is determined by the 'hostname'.
  * @description   -Bot will fail to run if hostname does not match.
  * @description Dont place the main contents of the bot in a folder with the same name of the bot.
- * @example      - Use something like './warden.bot/'
+ * @example      - Use something like './warden.bot/' not ./warden/
  * @description  - Naming the bot root directory as the same name of the bot will cause it to fail hardcore.
  */
 //! functions.js 
@@ -69,10 +69,11 @@ let guardianai_vars = {};
 const os = require('os');
 
 /**
- * Sets the config.json file in memory with "active:true" for the correct bot based on the hostname.
- * Loads the specific bot based on the hostname and annotates the mode (Dev/Prod) to the bot.
+ * @description Sets the config.json file in memory with "active:true" for the correct bot based on the hostname.
+ * @description Loads the specific bot based on the hostname and annotates the mode (Dev/Prod) to the bot.
+ * @description HOSTNAME is configured in the appropriate *.env file.
  * @param {string} hostname - The current hostname provided by os.hostname().
- * @param {string} [BotName] - The name of the bot for development purposes. Omit for PROD mode.
+ * @param {string} BotName - The name of the bot for development purposes. Omit for PROD mode.
  * @param @dev Declared on Line 2.
  * @returns {truthy/falsy}
  * @author testfax (Medi0cre) @testfax

@@ -1,31 +1,65 @@
 let config = require('./config.json')
 const fs = require("fs")
 const path = require("path")
+const glob = require('glob')
 //This functions.js file serves as a global functions context for all bots that may resuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
  * @function adjustActive,botIdent,fileNameBotMatch
  */
+
+// console.log(array.indexOf())
+
 const bot = {
     adjustActive: function(current,mode) {
-        if (mode) { 
-            const activeBot = config.botTypes.find(bot => bot.botName === mode);
-            const indexNum = config.botTypes.indexOf(activeBot);
-            config.botTypes[indexNum].active = true
-            console.log("[STARTUP]".yellow,`${bot.botIdent().activeBot.botName}`.green,"Development Mode:".bgRed,'✅')
-            return true
-        }
         try {
-            const activeBot = config.botTypes.find(bot => bot.hostname === current);
-            const indexNum = config.botTypes.indexOf(activeBot);
-            config.botTypes[indexNum].active = true
-            //todo Overwrite the config.json file with new array.
-            return true
+            function getFile(current) {
+                let result = null;
+                const readEnvFiles = glob.sync("./" + '*.env')
+                readEnvFiles.forEach(file=>{
+                    const env = fs.readFileSync(file,'utf-8')
+                    const array = env.split("\n")
+                    const modifiedArray = array.filter(item => !item.startsWith('#'))
+                    const hostnameIndex = modifiedArray.findIndex(i=>i.includes("HOSTNAME"))
+                    const botnameIndex = modifiedArray.findIndex(i=>i.includes("BOTNAME"))
+                    let obj = {}
+                    if (hostnameIndex >= 0) {
+                        let mod1 = modifiedArray[hostnameIndex]
+                        obj["hostName"] = mod1.split("=")[1].trim()
+                        if (obj.hostName === current) { result = obj }
+                    } else { console.log("[STARTUP]".red,`${file}`.yellow,"HOSTNAME".bgRed,"not found.".red) }
+                    if (botnameIndex >= 0) {
+                        let mod2 = modifiedArray[botnameIndex]
+                        obj["botName"] = mod2.split("=")[1].trim()
+                        if (obj.hostName === current) { result = obj }
+                    } else { console.log("[STARTUP]".red,`${file}`.yellow,"BOTNAME".bgRed,"not found.".red) }
+                })
+                return result?.hostName === current ? result : false
+            }
+            if (mode) {
+                const activeBot = config.botTypes.find(bot => bot.botName === mode);
+                const indexNum = config.botTypes.indexOf(activeBot);
+                config.botTypes[indexNum].active = true
+                console.log("[STARTUP]".yellow,`${bot.botIdent().activeBot.botName}`.green,"Development Mode:".bgRed,'✅')
+                return true
+            }
+            const whatBot = getFile(current)
+            if (whatBot.botName) {
+                const activeBot = config.botTypes.find(bot => bot.botName === whatBot.botName);
+                const indexNum = config.botTypes.indexOf(activeBot);
+                // if (indexNum >= 0) { config.botTypes[indexNum].active = true }
+                //todo Overwrite the config.json file with new array.
+                return indexNum >= 0 ? config.botTypes[indexNum].active = true : false
+            }
+            if (!whatBot.hostName) {
+                console.log("ERROR: Incorrect hostname!!!!".bgRed,)
+                console.log(`Insert the following into "hostname" in the applicable *.env for the correct bot.`.bgRed)
+                console.log("Hostname ---->>>>>".red,`${current}`.bgYellow)    
+                return false
+            }
         }
         catch (e) {
-            console.log("ERROR: Incorrect hostname!!!!".bgRed,)
-            console.log(`Insert the following into "hostname" in config.json for the correct bot.`.bgRed)
-            console.log("Hostname ---->>>>>".red,`${current}`.bgYellow)
+            console.log("adjustActive function",e)
         }
     },
     botIdent: function() {
