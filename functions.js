@@ -47,7 +47,6 @@ const bot = {
             if (whatBot.botName) {
                 const activeBot = config.botTypes.find(bot => bot.botName === whatBot.botName);
                 const indexNum = config.botTypes.indexOf(activeBot);
-                // if (indexNum >= 0) { config.botTypes[indexNum].active = true }
                 //todo Overwrite the config.json file with new array.
                 return indexNum >= 0 ? config.botTypes[indexNum].active = true : false
             }
