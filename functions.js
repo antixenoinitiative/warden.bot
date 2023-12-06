@@ -7,9 +7,6 @@ const glob = require('glob')
  * @author (testfax) Medi0cr3 @testfax
  * @function adjustActive,botIdent,fileNameBotMatch
  */
-
-// console.log(array.indexOf())
-
 const bot = {
     adjustActive: function(current,mode) {
         try {
