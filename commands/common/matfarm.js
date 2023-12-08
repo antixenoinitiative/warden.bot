@@ -49,7 +49,13 @@ module.exports = {
             .setColor('#FF7100')
             .setTitle(`Manufactured Material Locations`)
             .setDescription(`Manufactured`)
-            .setImage('https://cdn.discordapp.com/attachments/1174547681453015140/1181758654941245501/MatsManufactured.png?ex=65823983&is=656fc483&hm=eaeffd379a39ff6a6f3a18039bbde151dee7254b4cb818a60a31bd4d28685632&')
+            .addFields(
+                { name:"Search", value: "Use Inara -> Search Nearest -> Star Systems and the table below to find a system with a controlling faction of the proper Allegiance and State" },
+                { name: "Faction Control", value: "Higher controlling faction influence (INF) % gives a higher chance for an HGE to belong to that faction" },
+                { name: "Population", value: "HGEs spawn more often in high-population systems: >1 Billion" },
+                // { name: "Reliable Systems:", value: ""}  
+            )
+            .setImage('https://cdn.discordapp.com/attachments/1174547681453015140/1182168421081808926/MatsManufactured.png?ex=6583b723&is=65714223&hm=d2cfc4b5936685c04751fefd81054e807bf97a739e57560c9dec01c62378f870&')
             
             interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
         }
