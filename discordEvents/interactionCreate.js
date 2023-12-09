@@ -1,13 +1,14 @@
 const { botLog, botIdent } = require('../functions')
 	/**
-	 * Event handler for Slash Commands, takes interaction to test before executing command code.
+	 * Event handlers
 	 * @author  (Mgram) Marcus Ingram @MgramTheDuck
+     * @author  (testfax) Medi0cr3 @testfax
 	 */
 
 const exp = {
-    interactionCreate: async (interaction,client) => {
+    interactionCreate: async (interaction,bot) => {
         if (interaction.isCommand()) {
-            const command = client.commands.get(interaction.commandName);
+            const command = bot.commands.get(interaction.commandName);
 
             if (!command) return;
 
@@ -40,10 +41,3 @@ const exp = {
     }
 }
 module.exports = exp
-// module.exports = {
-// 	name: 'interactionCreate',
-// 	async execute(interaction, client) {
-// 		// console.log(`${interaction.user.tag} in #${interaction.channel.name} triggered an interaction.`);
-        
-// 	},
-// };

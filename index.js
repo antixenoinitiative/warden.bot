@@ -112,12 +112,10 @@ function mainOperation(){
 	 * @author  (testfax) Medi0cr3 @testfax
 	 */
 	let commandsColl = bot.commands = new Collection()
-
 	bot.once("ready", async() => {
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
 		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
 		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
-	
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
 			// Scheduled Role Backup Task
 			if(process.env.MODE == "PROD") {
@@ -127,38 +125,7 @@ function mainOperation(){
 			}
 		}
 	})
-	
-	
-
-
-	// Message Deleted by user
-	bot.on('messageDelete', async message => {
-		try {
-			botFunc.botLog(bot,new EmbedBuilder().setDescription(`Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```').setTitle(`Message Deleted 🗑️`),1)
-		} catch (err) {
-			botFunc.botLog(bot,new EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
-		}
-	})
-	// Message Updated by user
-	bot.on('messageUpdate', (oldMessage, newMessage) => {
-		if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID) {
-			botFunc.botLog(bot,new EmbedBuilder().setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`).setTitle(`Message Updated 📝`),1)
-		}
-	});
-	// User leaving server
-	bot.on('guildMemberRemove', member => {
-		let roles = ``
-		member.roles.cache.each(role => roles += `${role}\n`)
-		botFunc.botLog(bot,new EmbedBuilder()
-		.setDescription(`User ${member.user.tag}(${member.displayName}) has left or was kicked from the server.`)
-		.setTitle(`User Left/Kicked from Server`)
-		.addFields(
-			{ name: `ID`, value: `${member.id}`},
-			{ name: `Date Joined`, value: `<t:${(member.joinedTimestamp/1000) >> 0}:F>`},
-			{ name: `Roles`, value: `${roles}`},
-		),2)
-	})
-	// Other functions
+	// Other functions for startup only.
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
 		/**
 		 * Role backup system, takes the targetted role and table and backs up to SQL database.
@@ -209,11 +176,11 @@ function mainOperation(){
 			}, the_interval);
 		}
 	}
+	// Have the bot login
 	function checkENV(item) {
 		if (item) { return item}
 		else { console.log("[ENV]".red,"ERROR".bgRed,"ENV file Malformed or Missing".yellow); return false }
 	}
-	// Have the bot login
 	if (checkENV(process.env.TOKEN)) { bot.login(process.env.TOKEN) }
 	// General error handling
 	process.on('uncaughtException', function (err) {
