@@ -5,9 +5,10 @@ const glob = require('glob')
 //This functions.js file serves as a global functions context for all bots that may resuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
- * @function adjustActive,botIdent,fileNameBotMatch
+ * @function adjustActive,botIdent,fileNameBotMatch,deployCommands
  */
-const bot = {
+
+const thisBotFunctions = {
     adjustActive: function(current,mode) {
         try {
             function getFile(current) {
@@ -37,7 +38,7 @@ const bot = {
                 const activeBot = config.botTypes.find(bot => bot.botName === mode);
                 const indexNum = config.botTypes.indexOf(activeBot);
                 config.botTypes[indexNum].active = true
-                console.log("[STARTUP]".yellow,`${bot.botIdent().activeBot.botName}`.green,"Development Mode:".bgRed,'✅')
+                console.log("[STARTUP]".yellow,`${thisBotFunctions.botIdent().activeBot.botName}`.green,"Development Mode:".bgRed,'✅')
                 return true
             }
             const whatBot = getFile(current)
@@ -73,7 +74,7 @@ const bot = {
         if (isError(e)) { stackLines = e.stack.split("\n") }
         else { stackLines = e.split(path.sep) }
         for (const line of stackLines) {
-            const botNameMatch = bot.botIdent().inactiveBots[0].find(element => line.includes(element));
+            const botNameMatch = thisBotFunctions.botIdent().inactiveBots[0].find(element => line.includes(element));
             if (botNameMatch && botNameMatch.length > 0) {
               foundBotName = botNameMatch;
               return foundBotName
@@ -81,6 +82,136 @@ const bot = {
           }
         return foundBotName
     },
+    deployCommands: async (commandsColl,REST,Routes,client) => {
+		try {
+            //Load Commands
+			let commands = [];
+			const commandFolders = fs.readdirSync('./commands');
+			for (const folder of commandFolders) {
+				const folderPath = path.join(__dirname,'commands',folder)
+				if (fs.existsSync(folderPath)) { loadCommandsFromFolder(folderPath,commands); }
+			}
+			function loadCommandsFromFolder(folderPath,commands) {
+				// path.sep is the path modules operating system specific separator for filepaths. 
+				const inactiveBots = thisBotFunctions.botIdent().inactiveBots[0]
+				const files = fs.readdirSync(folderPath);
+				const folderSplit = folderPath.split(path.sep)
+				const globalCommands = thisBotFunctions.botIdent().activeBot.useGlobalCommands
+				let useGlobalCommands = 0;
+				const ignoreCommands = thisBotFunctions.botIdent().activeBot.ignoreCommands
+				function continueLoad(thisFolderPath,files) {
+					for (const file of files) {
+						let cmdGlobalPath = null
+						//Make sure the Global command is in the scope from the array. "GuardianAI.path2"
+						// GuardianAI is the bot
+						// path2 is the folder within that ./commands/GuardianAI/path2/somecommand.js
+						//The following disects everythign into an Object called 'cmdGlobalPath'
+						try {
+							if (useGlobalCommands) {
+								//If this folder contains global commands from the active bot, build the object.
+								let globalCommandObject = globalCommands.map(i=>{
+									const array = i.split(".")
+									return array.length > 0 ? { bot:array[0],folder:array[1] } : "None"
+								})
+								const folderPathSplit = thisFolderPath.split(path.sep).pop();
+								//findIndex results: -1 Not Found, Anything 0 and up is the index number FOLDER found at, not file. *.js files are handled elsewhere..
+								const index = globalCommandObject.findIndex(obj => obj.bot === thisBotFunctions.fileNameBotMatch(folderPathSplit) && obj.folder === file);
+								// if (displayConsole) { console.log(index,folderPathSplit,file) } // Find Folders, Ignore Files.
+								//*.js files are handled elsewhere. This is strictly for paths and folders.
+								if (index >= 0) { 
+									let joinedPath = path.join(folderPath,file)
+									joinedPath = { path: path.normalize(joinedPath) }
+									//Merge path into the correct globalCommandObject so that the the follow on code can tell what to do. 
+									cmdGlobalPath = {...globalCommandObject[index],...joinedPath}
+								}
+							}
+						}
+						catch (e) { console.log(e) }
+						//Now that 'cmdGlobalPath' was established for global commands, move onto the recursive structure. 
+			
+			
+						//Check if its a directory or file.
+						const filePath = path.join(thisFolderPath, file);
+						const fileStat = fs.statSync(filePath);
+						if (fileStat.isDirectory()) {
+							const filePathSplit = filePath.split(path.sep).pop()
+							if (cmdGlobalPath && useGlobalCommands == 1) {
+								//Now that a path has been found, go into that subfolder and get the files.
+								loadCommandsFromFolder(cmdGlobalPath.path,commands); // Recursively go into subdirectories
+							}
+							if (!ignoreCommands.includes(filePathSplit) && useGlobalCommands == 0) {
+								loadCommandsFromFolder(filePath,commands); // Recursively go into subdirectories
+							}
+						} else if (file.endsWith('.js')) {
+							const command = require(filePath);
+							const folderName = path.basename(folderPath);
+							command.category = folderName;
+							if (command.data === undefined) {
+								commandsColl.set(command.name, command); // For non-slash commands
+							} else {
+								commandsColl.set(command.data.name, command); // For slash commands
+							}
+							if (command.data !== undefined) {
+								commands.push(command.data.toJSON());
+							}
+						}
+					}
+				}
+				function findInactiveBotInPath(dir) {
+					if (dir.length > 1) { 
+						let match = dir.filter(ele => thisBotFunctions.botIdent().inactiveBots[0].includes(ele))
+						return match.length > 0 ? match[0] : ""
+					}
+				}
+				//Initial Folders for all folders except inactiveBots.
+				//'folderSplit' gets all folders and subfolders within the ./commands/ folder.
+				if (!inactiveBots.includes(findInactiveBotInPath(folderSplit)) && !ignoreCommands.includes(findInactiveBotInPath(folderSplit))) {
+					useGlobalCommands = 0
+					continueLoad(folderPath,files) 
+				}
+				//Get Global Commands from Active Bot config.
+				if (inactiveBots.includes(findInactiveBotInPath(folderSplit))) {
+					useGlobalCommands = 1
+					continueLoad(folderPath,files) 
+				}
+			}
+            //Load Discord JS Events
+            loadEventHandlers(client,'./discordEvents/')
+            function loadEventHandlers(client, directory) {
+                try {
+                    const files = fs.readdirSync(directory);
+                    for (const file of files) {
+                        const filePath = path.join(__dirname,directory, file);
+                        if (fs.lstatSync(filePath).isDirectory()) {
+                            loadEventHandlers(client, filePath); // Recursively traverse folders
+                        } else if (file.endsWith('.js')) {
+                            const event = require(filePath);
+                            if (event && typeof event === 'object') {
+                                for (const key in event) {
+                                    if (typeof event[key] === 'function') {
+                                        client.on(key, (...args) => event[key](...args, client));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (e) {
+                    console.log("[STARTUP]".red,`${thisBotFunctions.botIdent().activeBot.botName}`.green,"Event Handler Registration Failure:".magenta,'⛔');
+                    console.error(e);
+                }
+            }
+			const rest = new REST({version:9}).setToken(process.env.TOKEN);
+			await rest.put(
+				Routes.applicationGuildCommands(process.env.CLIENTID, process.env.GUILDID),
+				{ body: commands },
+			);
+	
+			console.log("[STARTUP]".yellow,`${thisBotFunctions.botIdent().activeBot.botName}`.green,"Commands Registered:".magenta,'✅');
+		} catch (error) {
+			console.error(error);
+		}
+	},
     getSortedRoleIDs: (message) => {
         /**
        * Function takes a input string and returns the closest matching Server Role ID
@@ -113,7 +244,7 @@ const bot = {
             let roleList = []
             message.guild.roles.cache.forEach(role => {
                 if (role.name !='@everyone' && role.name != '@here') {
-                    roleList.push(bot.cleanString(role.name));
+                    roleList.push(thisBotFunctions.cleanString(role.name));
                 }
             });
             switch(name.toLowerCase())
@@ -126,7 +257,7 @@ const bot = {
                 default: break;
             }
             let best = compare.findBestMatch(name, roleList);
-            return message.guild.roles.cache.find(role => bot.cleanString(role.name) == roleList[best["bestMatchIndex"]]).id.toString()
+            return message.guild.roles.cache.find(role => thisBotFunctions.cleanString(role.name) == roleList[best["bestMatchIndex"]]).id.toString()
         } catch (err) {
             console.log(err);
         }
@@ -142,8 +273,36 @@ const bot = {
         }
         return output.trim();
     },
+    /**
+     * Log a discord bot event in the Log Channel
+     * @author  (Mgram) Marcus Ingram @MgramTheDuck
+     * @function botLog
+    */
+    botLog: async (bot,embed,severity) => {
+        require("dotenv").config({ path: `./${thisBotFunctions.botIdent().activeBot.env}` });
+		let logColor
+		switch (severity) {
+			case 0:
+				logColor = '#42f569'
+				break;
+			case 1:
+				logColor = '#f5bf42'
+				break;
+			case 2:
+				logColor = '#f55142'
+				break;
+		}
+		embed.setColor(logColor)
+		.setTimestamp()
+		.setFooter({ text: `${thisBotFunctions.botIdent().activeBot.botName}  Logs`, iconURL: thisBotFunctions.botIdent().activeBot.icon });
+		try {
+			await bot.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed], })
+		} catch {
+			console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
+		}
+	},
     examplezzzzz: function() {},
     examplesssss: "SomeExampleVariable",
 }
 
-module.exports = bot
+module.exports = thisBotFunctions

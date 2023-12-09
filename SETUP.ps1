@@ -28,7 +28,7 @@ function botInstantiate {
     }
     # Collect bot information
     $botInfo.BOTNAME = Read-Host -Prompt 'Enter the Name of the Bot'
-    $botInfo.HOSTNAME = Read-Host -Prompt 'Enter the Hostname of the Bot'
+    $botInfo.HOSTNAME = Read-Host -Prompt 'Enter the Hostname of the Bot (Ignore if you dont know, it will scream at you later)'
     $botInfo.COMMUNITYNAME = Read-Host -Prompt 'Enter your Community Name'
     $botInfo.TOKEN = Read-Host -Prompt 'Enter your Discord Bot Token'
     $botInfo.CLIENTID = Read-Host -Prompt 'Enter your Discord Bot Client ID'
