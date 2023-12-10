@@ -92,8 +92,8 @@ function mainOperation(){
 	// Specific bots need specific things, load them here.
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
 	    const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
-		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
 		warden_vars[leaderboardInteraction] = leaderboardInteraction
+		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
 		warden_vars[query] = query
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {

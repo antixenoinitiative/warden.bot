@@ -175,13 +175,13 @@ const thisBotFunctions = {
 					continueLoad(folderPath,files) 
 				}
 			}
-            //Load Discord JS Events
-            loadEventHandlers(client,'./discordEvents/')
+            //Load Discord JS Event Listeners.
+            loadEventHandlers(client, path.join(__dirname, 'discordEvents'))
             function loadEventHandlers(client, directory) {
                 try {
                     const files = fs.readdirSync(directory);
                     for (const file of files) {
-                        const filePath = path.join(__dirname,directory, file);
+                        const filePath = path.join(directory, file); // Remove __dirname from here
                         if (fs.lstatSync(filePath).isDirectory()) {
                             loadEventHandlers(client, filePath); // Recursively traverse folders
                         } else if (file.endsWith('.js')) {
@@ -195,9 +195,8 @@ const thisBotFunctions = {
                             }
                         }
                     }
-                }
-                catch (e) {
-                    console.log("[STARTUP]".red,`${thisBotFunctions.botIdent().activeBot.botName}`.green,"Event Handler Registration Failure:".magenta,'⛔');
+                } catch (e) {
+                    console.log("[STARTUP]".red, `${thisBotFunctions.botIdent().activeBot.botName}`.green, "Event Handler Registration Failure:".magenta, '⛔');
                     console.error(e);
                 }
             }
