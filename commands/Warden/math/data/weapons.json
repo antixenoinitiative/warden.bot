@@ -1,6 +1,6 @@
 {
 	"sfgc": {
-		"name" : "Small Gauss",
+		"name" : "Small Gauss Cannon",
 		"humdamage" : 20,
 		"axdamage" : 20,
 		"ap" : 140,
@@ -12,7 +12,7 @@
 		"source" : "EDSY"
 	},
 	"mfgc": {
-		"name" : "Medium Gauss",
+		"name" : "Medium Gauss Cannon",
 		"humdamage" : 35,
 		"axdamage" : 35,
 		"ap" : 140,
@@ -48,7 +48,7 @@
 		"source" : "EDSY"
 	},
 	"sfsc" : {
-		"name" : "Small Fixed Guardian Shard Cannon",
+		"name" : "Small Fixed Shard Cannon",
 		"humdamage" : 21.84,
 		"axdamage" : 21.84,
 		"ap" : 30,
@@ -60,7 +60,7 @@
 		"source" : "EDSY"
 	},
 	"stsc" : {
-		"name" : "Small Turreted Guardian Shard Cannon",
+		"name" : "Small Turreted Shard Cannon",
 		"humdamage" : 12.12,
 		"axdamage" : 12.12,
 		"ap" : 30,
@@ -72,7 +72,7 @@
 		"source" : "EDSY"
 	},
 	"mfsc" : {
-		"name" : "Medium Fixed Guardian Shard Cannon",
+		"name" : "Medium Fixed Shard Cannon",
 		"humdamage" : 40.62,
 		"axdamage" : 40.62,
 		"ap" : 45,
@@ -84,7 +84,7 @@
 		"source" : "EDSY"
 	},
 	"mtsc" : {
-		"name" : "Medium Turreted Guardian Shard Cannon",
+		"name" : "Medium Turreted Shard Cannon",
 		"humdamage" : 26.04,
 		"axdamage" : 26.04,
 		"ap" : 45,
@@ -96,7 +96,7 @@
 		"source" : "EDSY"
 	},
 	"lfsc" : {
-		"name" : "Large Fixed Guardian Shard Cannon",
+		"name" : "Large Fixed Shard Cannon",
 		"humdamage" : 57,
 		"axdamage" : 57,
 		"ap" : 60,
@@ -108,7 +108,7 @@
 		"source" : "EDSY"
 	},
 	"ltsc" : {
-		"name" : "Large Turreted Guardian Shard Cannon",
+		"name" : "Large Turreted Shard Cannon",
 		"humdamage" : 37.2,
 		"axdamage" : 37.2,
 		"ap" : 60,
@@ -120,7 +120,7 @@
 		"source" : "EDSY"
 	},
 	"mfmsc" : {
-		"name" : "Medium Fixed Modshard",
+		"name" : "Medium Fixed Modified Shard Cannon",
 		"humdamage" : 40.62,
 		"axdamage" : 40.62,
 		"ap" : 90.9,
@@ -132,7 +132,7 @@
 		"source" : "EDSY"
 	},
 	"sfmsc" : {
-		"name" : "Small Fixed Modshard",
+		"name" : "Small Fixed Modified Shard Cannon",
 		"humdamage" : 21.84,
 		"axdamage" : 21.84,
 		"ap" : 60.6,
@@ -384,7 +384,7 @@
 		"source" : "EDSY"
 	},
 	"sfpc" : {
-		"name" : "Small Fixed Guardian Plasma Charger",
+		"name" : "Small Fixed Plasma Charger",
 		"humdamage" : 25.5,
 		"axdamage" : 25.5,
 		"ap" : 65,
@@ -396,7 +396,7 @@
 		"source" : "EDSY"
 	},
 	"stpc" : {
-		"name" : "Small Turreted Guardian Plasma Charger",
+		"name" : "Small Turreted Plasma Charger",
 		"humdamage" : 17.0,
 		"axdamage" : 17.0,
 		"ap" : 65,
@@ -408,7 +408,7 @@
 		"source" : "EDSY"
 	},
 	"mfpc" : {
-		"name" : "Medium Fixed Guardian Plasma Charger",
+		"name" : "Medium Fixed Plasma Charger",
 		"humdamage" : 42.5,
 		"axdamage" : 42.5,
 		"ap" : 80,
@@ -420,7 +420,7 @@
 		"source" : "EDSY"
 	},
 	"mtpc" : {
-		"name" : "Medium Turreted Guardian Plasma Charger",
+		"name" : "Medium Turreted Plasma Charger",
 		"humdamage" : 34.0,
 		"axdamage" : 34.0,
 		"ap" : 80,
@@ -432,7 +432,7 @@
 		"source" : "EDSY"
 	},
 	"lfpc" : {
-		"name" : "Large Fixed Guardian Plasma Charger",
+		"name" : "Large Fixed Plasma Charger",
 		"humdamage" : 59.5,
 		"axdamage" : 59.5,
 		"ap" : 95,
@@ -444,7 +444,7 @@
 		"source" : "EDSY"
 	},
 	"ltpc" : {
-		"name" : "Large Turreted Guardian Plasma Charger",
+		"name" : "Large Turreted Plasma Charger",
 		"humdamage" : 51.0,
 		"axdamage" : 51.0,
 		"ap" : 95,
@@ -456,7 +456,7 @@
 		"source" : "EDSY"
 	},
 	"sfmpc" : {
-		"name" : "Small Modified Guardian Plasma Charger",
+		"name" : "Small Fixed Modified Plasma Charger",
 		"humdamage" : 42.33,
 		"axdamage" : 42.33,
 		"ap" : 89.38,
@@ -468,7 +468,7 @@
 		"source" : "EDSY"
 	},
 	"mfmpc" : {
-		"name" : "Medium Modified Guardian Plasma Charger",
+		"name" : "Medium Fixed Modified Plasma Charger",
 		"humdamage" : 70.55,
 		"axdamage" : 70.55,
 		"ap" : 110,
@@ -480,7 +480,7 @@
 		"source" : "EDSY"
 	},
 	"mgmeaxmc" : {
-		"name" : "Medium Modified Enhanced AX Multicannon",
+		"name" : "Medium Gimballed Modified Enhanced AX Multicannon",
 		"humdamage" : 1.1,
 		"axdamage" : 2.97,
 		"ap" : 17,
@@ -492,7 +492,7 @@
 		"source" : "AXI investigation"
 	},
 	"lgmeaxmc" : {
-		"name" : "Large Modified Enhanced AX Multicannon",
+		"name" : "Large Gimballed Modified Enhanced AX Multicannon",
 		"humdamage" : 2.42,
 		"axdamage" : 4.51,
 		"ap" : 33,
