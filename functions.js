@@ -278,7 +278,7 @@ const thisBotFunctions = {
      * @function botLog
     */
     botLog: async (bot,embed,severity) => {
-        require("dotenv").config({ path: `./${thisBotFunctions.botIdent().activeBot.env}` });
+        require("dotenv").config({ path: `./${thisBotFunctions.botIdent().activeBot.env}/` });
 		let logColor
 		switch (severity) {
 			case 0:
@@ -295,9 +295,9 @@ const thisBotFunctions = {
 		.setTimestamp()
 		.setFooter({ text: `${thisBotFunctions.botIdent().activeBot.botName}  Logs`, iconURL: thisBotFunctions.botIdent().activeBot.icon });
 		try {
-			await bot.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed], })
+            await bot.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed], })
 		} catch {
-			console.warn("ERROR: No Log Channel Environment Variable Found, Logging will not work.")
+			console.error("ERROR: No Log Channel Environment Variable Found, Logging will not work. OR your bot permissions are not high enough.")
 		}
 	},
     examplezzzzz: function() {},
