@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const { botIdent } = require('../../functions');
+const { botIdent } = require('../../../functions');
 module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`uniform`)
