@@ -5,7 +5,7 @@ const glob = require('glob')
 //This functions.js file serves as a global functions context for all bots that may resuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
- * @function adjustActive,botIdent,fileNameBotMatch,deployCommands
+ * @function adjustActive,botIdent,fileNameBotMatch,deployCommands,eventTimeCreate
  */
 
 const thisBotFunctions = {
@@ -211,6 +211,64 @@ const thisBotFunctions = {
 			console.error(error);
 		}
 	},
+    eventTimeCreate: (dateString) => {
+        function convertToUnixTimestamp(dateString) {
+            dateString = dateString.toLowerCase()
+            try {
+                const dateTimeParts = dateString.split('+');
+                const dateParts = dateTimeParts[0].split('/');
+                const months = {
+                  'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+                  'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+                };
+                const day = parseInt(dateParts[0], 10);
+                const month = months[dateParts[1]];
+                const year = parseInt(dateParts[2].substring(0, 2), 10) + 2000;
+                const timeOfDay = parseInt(dateTimeParts[1], 10);
+                const date = new Date(year, month, day);
+                const hours = Math.floor(timeOfDay / 100);
+                const minutes = timeOfDay % 100;
+                date.setHours(hours, minutes);
+                const unixTimestampMilliseconds = date.getTime();
+                const unixTimestampSeconds = Math.floor(unixTimestampMilliseconds);
+                return unixTimestampSeconds;
+            }
+            catch(e) { 
+                return "Malformed Time - Ex: 01/JAN/24+1800"
+            }
+          }
+        const unixTimestamp = convertToUnixTimestamp(dateString);
+        
+        return unixTimestamp
+    },
+    /**
+     * Log a discord bot event in the Log Channel
+     * @author  (Mgram) Marcus Ingram @MgramTheDuck
+     * @function botLog
+    */
+    botLog: async (bot,embed,severity) => {
+        require("dotenv").config({ path: `./${thisBotFunctions.botIdent().activeBot.env}/` });
+		let logColor
+		switch (severity) {
+			case 0:
+				logColor = '#42f569'
+				break;
+			case 1:
+				logColor = '#f5bf42'
+				break;
+			case 2:
+				logColor = '#f55142'
+				break;
+		}
+		embed.setColor(logColor)
+		.setTimestamp()
+		.setFooter({ text: `${thisBotFunctions.botIdent().activeBot.botName}  Logs`, iconURL: thisBotFunctions.botIdent().activeBot.icon });
+		try {
+            await bot.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed], })
+		} catch {
+			console.error("ERROR: No Log Channel Environment Variable Found, Logging will not work. OR your bot permissions are not high enough.")
+		}
+	},
     getSortedRoleIDs: (message) => {
         /**
        * Function takes a input string and returns the closest matching Server Role ID
@@ -272,34 +330,6 @@ const thisBotFunctions = {
         }
         return output.trim();
     },
-    /**
-     * Log a discord bot event in the Log Channel
-     * @author  (Mgram) Marcus Ingram @MgramTheDuck
-     * @function botLog
-    */
-    botLog: async (bot,embed,severity) => {
-        require("dotenv").config({ path: `./${thisBotFunctions.botIdent().activeBot.env}/` });
-		let logColor
-		switch (severity) {
-			case 0:
-				logColor = '#42f569'
-				break;
-			case 1:
-				logColor = '#f5bf42'
-				break;
-			case 2:
-				logColor = '#f55142'
-				break;
-		}
-		embed.setColor(logColor)
-		.setTimestamp()
-		.setFooter({ text: `${thisBotFunctions.botIdent().activeBot.botName}  Logs`, iconURL: thisBotFunctions.botIdent().activeBot.icon });
-		try {
-            await bot.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed], })
-		} catch {
-			console.error("ERROR: No Log Channel Environment Variable Found, Logging will not work. OR your bot permissions are not high enough.")
-		}
-	},
     examplezzzzz: function() {},
     examplesssss: "SomeExampleVariable",
 }

@@ -593,8 +593,7 @@ module.exports = {
 					.addFields({ name: "Basic", value: `${mttotFeedback(mttot_bsc)}`, inline: true })
 					.addFields({ name: "Standard", value: `${mttotFeedback(mttot_std)}`, inline: true })
 					.addFields({ name: "Premium", value: `${mttotFeedback(mttot_pre)}`, inline: true })
-					.setAuthor({name: interaction.user.username, iconURL: interaction.user.displayAvatarURL({dynamic:true})})
-					// .addFields({ name: "Requested by", value: interaction.user.avatar + " " + interaction.user.username, inline: false })
+					.setAuthor({name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({dynamic:true})})
 					await interaction.followUp({ embeds: [returnEmbed.setTimestamp()] }).catch(console.error);;
 				} catch (err) {
 					await interaction.followUp({ content: "Something went wrong, please check that you entered the correct format" }).catch(console.error);;

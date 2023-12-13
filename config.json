@@ -39,7 +39,9 @@
         "factionURL": "https://elitebgs.app/api/ebgs/v5/factions",
         "systemURL": "https://elitebgs.app/api/ebgs/v5/systems"
     },
-    "GuardianAI": {},
+    "GuardianAI": {
+        "opordApproval_channel": 1178034779896160256
+    },
     "botTypes": [
         {
             "env": "Warden.env",

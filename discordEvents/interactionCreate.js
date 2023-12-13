@@ -2,12 +2,35 @@ const { botLog, botIdent } = require('../functions')
 const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
-/**
- * Event handlers
- * @author  (Mgram) Marcus Ingram @MgramTheDuck
- */
+
 const exp = {
     interactionCreate: async (interaction,bot) => {
+        if (interaction.isModalSubmit()) {
+            const command = interaction.client.commands.get(interaction.commandName);
+            if (!command) return;
+
+            try {
+                await command.execute(interaction);
+            } catch (error) {
+                console.error(error);
+                await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+            }
+        }
+        if (interaction.isAutocomplete()) {
+            const command = interaction.client.commands.get(interaction.commandName)
+
+            if (!command) return console.log('Command not found')
+            if (!command.autocomplete) {
+                return console.error(`No autocomplete handler was found for the ${interaction.commandName} command.`,
+                );
+                
+            }
+            try {
+                await command.autocomplete(interaction);
+            } catch (error) {
+                console.error(error);
+            }
+        }
         if (interaction.isCommand()) {
             const command = bot.commands.get(interaction.commandName);
             if (!command) return;
