@@ -111,7 +111,7 @@ function mainOperation(){
 	 * @author  (testfax) Medi0cr3 @testfax
 	 */
 	let commandsColl = bot.commands = new Collection()
-	bot.once("ready", async() => {
+	bot.on("ready", async() => {
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
 		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
 		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
