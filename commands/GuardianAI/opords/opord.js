@@ -130,7 +130,7 @@ module.exports = {
                 
                 const modal = new Discord.ModalBuilder()
                 .setCustomId('myModal')
-                .setTitle('My Modal')
+                .setTitle('Adjust Time')
                 .addComponents(
                     new Discord.ActionRowBuilder().addComponents(fields.time),
                 )
@@ -151,6 +151,40 @@ module.exports = {
                     
                 }
         }
+        async function opordDenyModal(i,interaction,returnEmbed) {
+
+            const fields = {
+                reason: new Discord.TextInputBuilder()
+                    .setCustomId(`denied`)
+                    .setLabel(`Input the reason for Denial`)
+                    .setStyle(Discord.TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder(`Conflicting times`)
+            }
+            
+            const modal = new Discord.ModalBuilder()
+            .setCustomId('deniedModal')
+            .setTitle('Reason for Denial')
+            .addComponents(
+                new Discord.ActionRowBuilder().addComponents(fields.reason),
+            )
+            await i.showModal(modal);
+            const submitted = await i.awaitModalSubmit({
+                time: 1800000,
+
+                // filter: i => i.user.id === interaction.user.id,
+            }).catch(error => {
+
+                console.error(error)
+                return null
+            })
+    
+            if (submitted) {
+                const [ reason ] = submitted.fields.fields.map(i=>i.value)
+                return [submitted,reason]
+                
+            }
+    }
 
         //Bad Timeslot
         if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Date.now() > timeSlot) { 
@@ -253,7 +287,18 @@ module.exports = {
                         createEvent(interaction,embedLink)
                     }
                     else {
-                        await i.update({ content: 'Operation Order Disapproved', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
+                        
+                        const modalResults = await opordDenyModal(i,interaction,returnEmbed)
+                        await modalResults[0].reply({
+                            content: `Notification of Denial Sent`,
+                            embeds: [],
+                            components: [],
+                            ephemeral: true
+                        })
+                        if (modalResults) {
+                            // await i.update({ content: 'Operation Order Disapproved', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
+                            await interaction.user.send({ content: `Your operation order was Denied.`, embeds: [returnEmbed.setColor('#FD0E35').setDescription(`**Denied** \n *${modalResults[1]}*`)] })
+                        }
                     }
                 });
             }
