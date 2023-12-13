@@ -272,8 +272,11 @@ module.exports = {
                 if (!guild)  return console.log('Guild not found');
                 if (voiceChans.length == 0) { fillVoiceChan(interaction) }
                 const channelName = strikePackage.find(i=>i.name === 'voice_channel').value
-                const selectedChannelId = voiceChans.map(i=>i).find(i=>i.name === channelName).id
-
+                let selectedChannelId = null;
+                //If a channel is malformed, just get the first one in the guild cache. 
+                //Could benefit from a default channel for ops based of config.json entry.
+                try { selectedChannelId = voiceChans.map(i=>i).find(i=>i.name === channelName).id }
+                catch(e) { selectedChannelId = voiceChans.map(i=>i)[0].id }
                 const event_manager = new Discord.GuildScheduledEventManager(guild);
                 await event_manager.create({
                     name: strikePackage.find(i=>i.name === 'operation_name').value,
