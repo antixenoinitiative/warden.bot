@@ -40,7 +40,10 @@
         "systemURL": "https://elitebgs.app/api/ebgs/v5/systems"
     },
     "GuardianAI": {
-        "opordApproval_channel": 1178034779896160256
+        "operation_order": {
+            "opord_channel_approved": "1183814720025808916",
+            "opord_channel_await": "1178705376087113728"
+        }
     },
     "botTypes": [
         {

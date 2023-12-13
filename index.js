@@ -183,6 +183,6 @@ function mainOperation(){
 	process.on('uncaughtException', function (err) {
 		console.log(`⛔ Fatal error occured:`)
 		console.error(err);
-		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced: ${err}` })
+		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced:\n ${err.stack}` })
 	})
 }

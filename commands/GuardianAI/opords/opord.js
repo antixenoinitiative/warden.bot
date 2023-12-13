@@ -1,9 +1,9 @@
 const Discord = require("discord.js");
 const { botIdent, eventTimeCreate } = require('../../../functions')
 const objectives = require('./opord_values.json')
+const config = require('../../../config.json')
 
 let voiceChans = []
-
 function fillVoiceChan(interaction) {
     const guild = interaction.client.guilds.cache.get(process.env.GUILDID);
     const voiceChansSet = new Set();
@@ -108,12 +108,14 @@ module.exports = {
             components: [],
             ephemeral: true
         });
-        let requestingPlayer = { username: interaction.user.username, memberName: interaction.member.nickname }
+        
+        let requestingPlayer = { name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({dynamic:true})}
         let strikePackage = interaction.options._hoistedOptions
         let timeSlot = eventTimeCreate(strikePackage.find(i=>i.name === 'date_time').value)
         let response = null;
         let returnEmbed = null;
-        const channel = interaction.guild.channels.cache.get(process.env.LOGCHANNEL); //logchannel or other.
+        const channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
+        const channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //logchannel or other.
 
         async function gimmeModal(i,interaction,returnEmbed) {
 
@@ -217,6 +219,7 @@ module.exports = {
                 .setThumbnail(botIdent().activeBot.icon)
                 .setColor('#FAFA37') //87FF2A
                 .setDescription(`A request for a Operation has been submitted. This will require approval. Review the contents and then select Approve or Deny`)
+                // .setDescription(`A request for a Operation has been submitted. This will require approval. Review the contents and then select Approve or Deny`)
             interaction.options._hoistedOptions.forEach((i,index) =>{
                 let properName = null;
                 properName = objectives.stringNames.find(x=>x.name === i.name)
@@ -227,28 +230,45 @@ module.exports = {
                     returnEmbed.addFields({ name: properName.string_name, value: i.value, inline: properName.inline })
                 }
             })
-            const buttonRow = new Discord.ActionRowBuilder()
-                .addComponents(new Discord.ButtonBuilder().setLabel('Approve').setCustomId('Approve').setStyle(Discord.ButtonStyle.Success))
-                .addComponents(new Discord.ButtonBuilder().setLabel('Deny').setCustomId('Deny').setStyle(Discord.ButtonStyle.Danger))
-            response = await channel.send({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] }).catch(console.error);
-            const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 345_600_000  });
-            collector.on('collect', async i => {
-                const selection = i.customId;
-                collector.stop()
-                if (selection == 'Approve') {
-                    createEvent(interaction)
-                    await i.update({ content: 'Operation Order Approved', components: [], embeds: [returnEmbed.setColor('#87FF2A')], ephemeral: true }).catch(console.error);
-                }
-                else {
-                    await i.update({ content: 'Operation Order Disapproved', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
-                }
-            });
+            try {
+                const buttonRow = new Discord.ActionRowBuilder()
+                    .addComponents(new Discord.ButtonBuilder().setLabel('Approve').setCustomId('Approve').setStyle(Discord.ButtonStyle.Success))
+                    .addComponents(new Discord.ButtonBuilder().setLabel('Deny').setCustomId('Deny').setStyle(Discord.ButtonStyle.Danger))
+                response = await channel_await.send({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] })
+                const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 345_600_000  });
+                collector.on('collect', async i => {
+                    const selection = i.customId;
+                    
+                    collector.stop()
+                    if (selection == 'Approve') {
+                        await i.update({ content: 'Operation Order Approved', components: [], embeds: [returnEmbed.setColor('#87FF2A')], ephemeral: true }).catch(console.error);
+                        const approved_embed = await channel_approved.send({ 
+                            embeds: [returnEmbed
+                                .setAuthor({name:i.member.nickname,iconURL: i.user.displayAvatarURL({dynamic:true})})
+                                .setColor('#87FF2A')
+                                .setDescription(`Team, prepare your kit and click 'interested' in the Events window if you plan on making it.`)
+                            ] 
+                        })
+                        const embedLink = `https://discord.com/channels/${approved_embed.guildId}/${approved_embed.channelId}/${channel_approved.lastMessageId}`;
+                        createEvent(interaction,embedLink)
+                    }
+                    else {
+                        await i.update({ content: 'Operation Order Disapproved', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
+                    }
+                });
+            }
+            catch (e) {
+                console.log(e)
+                interaction.guild.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ OPORD Fail. Permissions or Wrong Channel. Fatal error experienced:\n ${e.stack}` })
+            }
         }
         
         
-        async function createEvent(interaction){
+        async function createEvent(interaction,embedLink){
             try {
                 const guild = interaction.client.guilds.cache.get(process.env.guildID)
+
+                
                 if (!guild)  return console.log('Guild not found');
                 if (voiceChans.length == 0) { fillVoiceChan(interaction) }
                 const channelName = strikePackage.find(i=>i.name === 'voice_channel').value
@@ -261,8 +281,7 @@ module.exports = {
                     privacyLevel: 2,
                     entityType: 2,
                     channel: selectedChannelId,
-                    // description: strikePackage.find(i=>i.name === 'mission_statement').value,
-                    // reason: strikePackage.find(i=>i.name === 'mission_statement').value,
+                    description: embedLink
                 });
             }
             catch (e) {
