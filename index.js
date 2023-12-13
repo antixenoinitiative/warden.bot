@@ -1,7 +1,11 @@
+/**
+ * Changing the 'Type' variable to anything, but Null will result in "Dev" mode and the name of the bot being declared.
+ */
+let type = null;
+// let type = "GuardianAI"
+// let type = "Warden"
+
 //! Modularity for codebase.
-let dev = null;
-// let dev = "GuardianAI"
-// let dev = "Warden"
 /**
  * @description The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
  * @description Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
@@ -74,11 +78,11 @@ const os = require('os');
  * @description HOSTNAME is configured in the appropriate *.env file.
  * @param {string} hostname - The current hostname provided by os.hostname().
  * @param {string} BotName - The name of the bot for development purposes. Omit for PROD mode.
- * @param @dev Declared on Line 2.
+ * @param @type Declared on Line 2.
  * @returns {truthy/falsy}
  * @author testfax (Medi0cre) @testfax
  */
-if (botFunc.adjustActive(os.hostname(),dev)) {
+if (botFunc.adjustActive(os.hostname(),type)) {
 	console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Hostname Retrieved:".magenta,`${os.hostname()}`.bgYellow)
 	mainOperation()
 }
