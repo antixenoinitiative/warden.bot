@@ -157,7 +157,7 @@ module.exports = {
                 reason: new Discord.TextInputBuilder()
                     .setCustomId(`denied`)
                     .setLabel(`Input the reason for Denial`)
-                    .setStyle(Discord.TextInputStyle.Short)
+                    .setStyle(Discord.TextInputStyle.Paragraph)
                     .setRequired(true)
                     .setPlaceholder(`Conflicting times`)
             }
