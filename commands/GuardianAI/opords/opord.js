@@ -24,7 +24,7 @@ module.exports = {
         .addSubcommand(subcommand => 
             subcommand
             .setName('create')
-            .setDescription('Get To It')
+            .setDescription('Create an OPORD')
             .addStringOption(option =>
                 option.setName('operation_name')
                     .setDescription('Give this OPORD a Name.')
@@ -47,8 +47,13 @@ module.exports = {
                     .setAutocomplete(true)
             )
             .addStringOption(option =>
-                option.setName('meetup_point')
+                option.setName('meetup_location')
                     .setDescription('Enter meetup location.')
+                    .setRequired(true)
+            )
+            .addStringOption(option =>
+                option.setName('carrier_parking')
+                    .setDescription('Enter a carrier parking spot if applicable.')
                     .setRequired(true)
             )
             .addStringOption(option =>
@@ -91,7 +96,7 @@ module.exports = {
         .addSubcommand(subcommand => 
             subcommand
             .setName('information')
-            .setDescription('Get To It')
+            .setDescription('Display information regarding the OPORD form.')
         )
         ,
 	async autocomplete(interaction) {
@@ -122,10 +127,24 @@ module.exports = {
                     .setColor('#FAFA37') //87FF2A green
                     .setDescription(`Operation Orders are structured Operations that Xeno Strike Force performs.`)
                     .addFields(
-                        {name: "Time", value: "Time Slotting events allows for predictable times in advance."},
+                        {name: "What is an OPORD?", value: "An Operation Order is a structured format for declaring official operations of Xeno Strike Force."},
                         {name: "Operational Experience", value: "Grants you access to attain higher ranks."},
                         {name: "Preview of Information", value: "Specifically gives the intent for the operation and things you may need."},
-                        {name: "Create Operation Orders", value: "Anybody can create an Operation Order, however they must be approved by an approval authority first."},
+                        {name: "Who can Create Operation Orders", value: "Anybody can create an Operation Order, however they must be approved by an approval authority first."},
+                        {name: "What is an Objective", value: "An objective is one of the priorities in an order which denote specific conditions to be met. Objective A will always be required. Any others can be filled in with 'NA' or 'None'"},
+                        {name: "The format...", value: "Operation Orders are significant that they follow a format that is expected everytime one is presented."},
+                        {name: "Mission Statement", value: "A mission statement talks about the overall mission synopsis."},
+                        {name: "Date Time", value: "At this time, a specific time format, in your local time, shall be entered. There will be 2 opportunities to type it in correctly. 'DD/MMM/YY+1300' '24/feb/24/+1300'"},
+                        {name: "Wing Size", value: "An autocompleted list will give a few structured examples. Certain sizes are limited to certain Ranks that can lead them."},
+                        {name: "Meetup Location", value: "Direct a location to group up at."},
+                        {name: "Carrier Parking", value: "Direct a location for all carriers to stage."},
+                        {name: "Weapons Required", value: "Can be weapon limitations or weapon requirements"},
+                        {name: "Modules Required", value: "Can be module limitations or module requirements"},
+                        {name: "Prefered Build(s)", value: "Specific short url EDYS links for ship builds"},
+                        {name: "Objective A", value: "Mission completion requirement, #1"},
+                        {name: "Objective B", value: "Mission completion requirement, #2"},
+                        {name: "Objective C", value: "Mission completion requirement, #3"},
+                        {name: "Voice Channel", value: "Declare a voice channel for this to occur in."},
                     )
             await interaction.reply({
                 components: [],
@@ -146,8 +165,20 @@ module.exports = {
             let timeSlot = eventTimeCreate(strikePackage.find(i=>i.name === 'date_time').value)
             let response = null;
             let returnEmbed = null;
-            const channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
-            const channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //logchannel or other.
+            let channel_await = null;
+            let channel_approved = null;
+            try {
+                channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
+                channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //logchannel or other.
+                if (!channel_await|| !channel_approved) {
+                    console.log("[FAIL]".bgYellow,"Log or approval Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")
+                    channel_await = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env
+                    channel_approved = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
+                }
+            }
+            catch (e) {
+                console.log("[FAIL]".bgRed,"Log or approval Channel IDs dont match. Check config.")
+            }
     
             async function gimmeModal(i,interaction,returnEmbed) {
     
@@ -184,7 +215,7 @@ module.exports = {
                     }
             }
             async function opordDenyModal(i,interaction,returnEmbed) {
-    
+               
                 const fields = {
                     reason: new Discord.TextInputBuilder()
                         .setCustomId(`denied`)
@@ -283,6 +314,7 @@ module.exports = {
                     .setThumbnail(botIdent().activeBot.icon)
                     .setColor('#FAFA37') //87FF2A
                     .setDescription(`A request for a Operation has been submitted. This will require approval. Review the contents and then select Approve or Deny`)
+                    
                     // .setDescription(`A request for a Operation has been submitted. This will require approval. Review the contents and then select Approve or Deny`)
                 interaction.options._hoistedOptions.forEach((i,index) =>{
                     let properName = null;
@@ -298,6 +330,7 @@ module.exports = {
                     const buttonRow = new Discord.ActionRowBuilder()
                         .addComponents(new Discord.ButtonBuilder().setLabel('Approve').setCustomId('Approve').setStyle(Discord.ButtonStyle.Success))
                         .addComponents(new Discord.ButtonBuilder().setLabel('Deny').setCustomId('Deny').setStyle(Discord.ButtonStyle.Danger))
+                    
                     response = await channel_await.send({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] })
                     const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 345_600_000  });
                     collector.on('collect', async i => {
@@ -308,6 +341,7 @@ module.exports = {
                             await i.update({ content: 'Operation Order Approved', components: [], embeds: [returnEmbed.setColor('#87FF2A')], ephemeral: true }).catch(console.error);
                             const approved_embed = await channel_approved.send({ 
                                 embeds: [returnEmbed
+                                    .setTitle('Operation Order Approved')
                                     .setAuthor({name:i.member.nickname,iconURL: i.user.displayAvatarURL({dynamic:true})})
                                     .setColor('#87FF2A')
                                     .setDescription(`Team, prepare your kit and click 'interested' in the Events window if you plan on making it.`)
@@ -317,7 +351,6 @@ module.exports = {
                             createEvent(interaction,embedLink)
                         }
                         else {
-                            
                             const modalResults = await opordDenyModal(i,interaction,returnEmbed)
                             await modalResults[0].reply({
                                 content: `Notification of Denial Sent`,
@@ -326,10 +359,31 @@ module.exports = {
                                 ephemeral: true
                             })
                             if (modalResults) {
+                                
                                 // await i.update({ content: 'Operation Order Disapproved', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
                                 await interaction.user.send({ content: `Your operation order was Denied.`, embeds: [returnEmbed.setColor('#FD0E35').setDescription(`**Denied** \n *${modalResults[1]}*`)] })
+                                response.edit({ embeds: [returnEmbed
+                                    .setTitle('Operation Order Denied')
+                                    .setAuthor({name:i.member.nickname,iconURL: i.user.displayAvatarURL({dynamic:true})})
+                                    .setColor('#FD0E35')
+                                    .setDescription(`**Denial Reason** \n ${modalResults[1]}`)
+                                ],
+                                components: [] }
+                                )
+                                // await channel_await.send({ 
+                                //     embeds: [returnEmbed
+                                //         .setTitle('Operation Order Denied')
+                                //         .setAuthor({name:i.member.nickname,iconURL: i.user.displayAvatarURL({dynamic:true})})
+                                //         .setColor('#FD0E35')
+                                //         .setDescription(`*${modalResults[1]}*`)
+                                //     ] 
+                                // })
+                                // const embedLink = `https://discord.com/channels/${disapproved_embed.guildId}/${disapproved_embed.channelId}/${channel_approved.lastMessageId}`;
                             }
+
+
                         }
+                        
                     });
                 }
                 catch (e) {
@@ -359,6 +413,7 @@ module.exports = {
                         channel: selectedChannelId,
                         description: embedLink
                     });
+                    //todo Create database entry for the operation order.
                 }
                 catch (e) {
                     console.log(e)
