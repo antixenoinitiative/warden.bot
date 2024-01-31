@@ -103,6 +103,12 @@ function mainOperation(){
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 		// const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 		// guardianai_vars[db] = db
+		/**
+		 * @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
+		 */
+		if (process.env.SOCKET_TOKEN) {
+			require('./socket/taskManager.js') 
+		}
 	}
 	
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")

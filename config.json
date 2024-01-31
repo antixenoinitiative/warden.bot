@@ -59,7 +59,10 @@
             "communityName": "Anti-Xeno Initiative",
             "inaraAppName":"AXIWarden",
             "useGlobalCommands": [],
-            "ignoreCommands": ["sheriff","reminder"]
+            "ignoreCommands": ["sheriff","reminder"],
+            "socketConfig": {
+                "id":"AXI-guardianAI"
+            }
         },
         {
             "env": "GuardianAI.env",
@@ -69,7 +72,10 @@
             "communityName": "Xeno Strike Force",
             "inaraAppName":"GuardianAI",
             "useGlobalCommands": ["Warden.interceptorcards","Warden.ax-info","Warden.wiki","Warden.math","Warden.common","Warden.inara"],
-            "ignoreCommands": []
+            "ignoreCommands": [],
+            "socketConfig": {
+                "id":"AXI-guardianAI"
+            }
         }
     ]
 }
