@@ -13,7 +13,9 @@ socket.on('fromSocketServer', async (data) => {
             console.log(data)
             try {
                 const identifiedUser = guild.members.fetch(data.user.id)
-                console.log(identifiedUser.roles.cache.map(role=>role.name))
+                let roles = identifiedUser.roles.cache.map(role => role.name)
+                roles = roles.filter(role=>role != '@everyone')
+                socket.timeout(botIdent().activeBot.socketConfig.id).emit('roles_return',roles)
             }
             catch (e) {
                 console.log('guild not ready')
