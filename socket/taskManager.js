@@ -4,18 +4,30 @@ const { botIdent } = require('../functions')
 const { socket } = require('./socketMain')
 const uuid = require('uuid');
 
+
+const med = 194001098539925504
+
+
+
 //todo Primarily for REDIS request returns
 socket.on('fromSocketServer', async (data) => { 
     console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data}`.green) 
     if (data.type == 'roles_request') {
         try {
             console.log(data)
+            try {
+                console.log(guild)
+            }
+            catch (e) {
+                console.log('guild not ready')
+            }
         }
         catch (e) {
-            logs("[TM]".yellow,"'fromSocketServer'",)
+            console.logs("[TM]".yellow,"'fromSocketServer'",)
         }
     } 
 }) 
+
 
 const taskList = {
     socket_joinRoom: async function(requestedRoom) {

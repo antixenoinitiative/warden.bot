@@ -99,6 +99,7 @@ function mainOperation(){
 		warden_vars[leaderboardInteraction] = leaderboardInteraction
 		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
 		warden_vars[query] = query
+		
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 		// const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
@@ -106,9 +107,7 @@ function mainOperation(){
 		/**
 		 * @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
 		 */
-		if (process.env.SOCKET_TOKEN) {
-			require('./socket/taskManager.js') 
-		}
+		
 	}
 	
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
@@ -125,9 +124,10 @@ function mainOperation(){
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
 		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
 		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
+		global.guild = bot.guilds.cache.first()
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
+			if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 			
-			//
 		}
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
 			// Scheduled Role Backup Task
@@ -181,7 +181,10 @@ function mainOperation(){
 					}
 				}, the_interval);
 			}
+			if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 		}
+		
+		
 	})
 	// Have the bot login
 	function checkENV(item) {
@@ -190,6 +193,7 @@ function mainOperation(){
 	}
 	if (checkENV(process.env.TOKEN)) { bot.login(process.env.TOKEN) }
 	// General error handling
+	
 	process.on('uncaughtException', function (err) {
 		console.log(`⛔ Fatal error occured:`)
 		console.error(err);
