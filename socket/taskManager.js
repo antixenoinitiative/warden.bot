@@ -5,10 +5,6 @@ const { socket } = require('./socketMain')
 const uuid = require('uuid');
 
 
-const med = 194001098539925504
-
-
-
 //todo Primarily for REDIS request returns
 socket.on('fromSocketServer', async (data) => { 
     console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data}`.green) 
@@ -16,7 +12,7 @@ socket.on('fromSocketServer', async (data) => {
         try {
             console.log(data)
             try {
-                console.log(guild)
+                console.log(guild.members.fetch(data.user.id))
             }
             catch (e) {
                 console.log('guild not ready')
