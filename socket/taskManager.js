@@ -12,7 +12,8 @@ socket.on('fromSocketServer', async (data) => {
         try {
             console.log(data)
             try {
-                console.log(guild.members.fetch(data.user.id))
+                const identifiedUser = guild.members.fetch(data.user.id)
+                console.log(identifiedUser.roles.cache.map(role=>role.name))
             }
             catch (e) {
                 console.log('guild not ready')
