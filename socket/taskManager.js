@@ -28,12 +28,12 @@ socket.on('fromSocketServer', async (data) => {
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
         const roles = data.user.roles.join(' \n')
         const embed = new Discord.EmbedBuilder()
-            .setTitle('Role Request')
+            .setTitle('Role List Request')
             .setAuthor({name: identifiedUser_requestor.nickname, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
             .setThumbnail(botIdent().activeBot.icon)
             .setColor('#87FF2A') //87FF2A green
-            .setDescription(data.from_server)
             .addFields(
+                {name: "Server", value: data.from_server },
                 {name: "Who", value: identifiedUser_subject.nickname },
                 {name: "Roles Found", value: roles }
             )
