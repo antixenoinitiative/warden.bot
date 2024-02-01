@@ -181,6 +181,7 @@ function mainOperation(){
 					}
 				}, the_interval);
 			}
+			// If socket token is configured, bot will try to run the task manager.
 			if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 		}
 		
