@@ -26,15 +26,26 @@ socket.on('fromSocketServer', async (data) => {
                 from_server: guild.name,
                 from_serverID: guild.id,
                 requestor_socket: data.requestor_socket,
-                user: { id: identifiedUser.id, roles: roles, }
+                user: { state: 'true', id: identifiedUser.id, roles: roles, }
             }
             socket.emit('roles_return',rolesPackage)
         }
         else {
-            console.log('unknown user')
+            let rolesPackage = {
+                type: "roles_return_data",
+                person_asking: data.person_asking,
+                from_server: guild.name,
+                from_serverID: guild.id,
+                requestor_socket: data.requestor_socket,
+                user: { state: 'false', id: data.user.id, roles: 'unknown user', }
+            }
+            socket.emit('roles_return',rolesPackage)
         }
     }
     if (data.type == 'roles_return_data') { 
+        let color = null
+        if (color = ta.user.state == true) { color = "#87FF2A" } //green
+        else { color = "#FD0E35" } //red
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
         const roles = data.user.roles.join(' \n')
@@ -42,7 +53,7 @@ socket.on('fromSocketServer', async (data) => {
             .setTitle('Role List Request')
             .setAuthor({name: identifiedUser_requestor.nickname, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
             .setThumbnail(botIdent().activeBot.icon)
-            .setColor('#87FF2A') //87FF2A green
+            .setColor(color)
             .addFields(
                 {name: "Server", value: data.from_server },
                 {name: "Who", value: identifiedUser_subject.nickname },
