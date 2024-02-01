@@ -9,22 +9,22 @@ const uuid = require('uuid');
 socket.on('fromSocketServer', async (data) => { 
     console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data}`.green) 
     if (data.type == 'roles_request') {
-        try {
-            console.log(data)
-            try {
-                const identifiedUser = guild.members.fetch(data.user.id)
-                let roles = identifiedUser.roles.cache.map(role => role.name)
-                roles = roles.filter(role=>role != '@everyone')
-                socket.timeout(botIdent().activeBot.socketConfig.id).emit('roles_return',roles)
-            }
-            catch (e) {
-                console.log('guild not ready')
-            }
+        const identifiedUser = await guild.members.fetch(data.user.id)
+        let roles = await identifiedUser.roles.cache.map(role => role.name)
+        roles = roles.filter(role=>role != '@everyone')
+        let rolesPackage = {
+            'type': "return_data",
+            "from": guild.name,
+            "from_id": guild.id,
+            "requestor_socket": data.requestor_socket,
+            "roles": roles 
         }
-        catch (e) {
-            console.logs("[TM]".yellow,"'fromSocketServer'",)
-        }
-    } 
+        console.log(rolesPackage)
+        socket.emit('roles_return',rolesPackage)
+    }
+    if (data.type == 'return_data') {
+        console.log('final result of data from other server',data)
+    }
 }) 
 
 
