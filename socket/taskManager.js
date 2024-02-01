@@ -10,20 +10,31 @@ const uuid = require('uuid');
 socket.on('fromSocketServer', async (data) => { 
     console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
     if (data.type == 'roles_request') {
-        const identifiedUser = await guild.members.fetch(data.user.id)
-        let roles = await identifiedUser.roles.cache.map(role => role.name)
-        roles = roles.filter(role=>role != '@everyone')
-        let rolesPackage = {
-            type: "roles_return_data",
-            person_asking: data.person_asking,
-            from_server: guild.name,
-            from_serverID: guild.id,
-            requestor_socket: data.requestor_socket,
-            user: { id: identifiedUser.id, roles: roles, }
+        let identifiedUser = null
+        try {
+            identifiedUser = await guild.members.fetch(data.user.id)
         }
-        socket.emit('roles_return',rolesPackage)
+        catch (e) {
+            console.log(e)
+        }
+        if (identifiedUser) {
+            let roles = await identifiedUser.roles.cache.map(role => role.name)
+            roles = roles.filter(role=>role != '@everyone')
+            let rolesPackage = {
+                type: "roles_return_data",
+                person_asking: data.person_asking,
+                from_server: guild.name,
+                from_serverID: guild.id,
+                requestor_socket: data.requestor_socket,
+                user: { id: identifiedUser.id, roles: roles, }
+            }
+            socket.emit('roles_return',rolesPackage)
+        }
+        else {
+            console.log('unknown user')
+        }
     }
-    if (data.type == 'roles_return_data') {
+    if (data.type == 'roles_return_data') { 
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
         const roles = data.user.roles.join(' \n')

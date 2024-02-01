@@ -21,7 +21,12 @@ module.exports = {
         let roles = member.roles.cache.map(role=>role.name)
         roles = roles.filter(x=>x != '@everyone')
         console.log(roles)
-        let rolePackage = { type: "roles_request", user: interaction.user, roles: roles, person_asking: person_asking }
+        let rolePackage = { 
+            type: "roles_request",
+            user: subject, 
+            roles: roles,
+            person_asking: person_asking 
+        }
         requestInfo(rolePackage)
         return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
     } 
