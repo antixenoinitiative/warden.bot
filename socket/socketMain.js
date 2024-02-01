@@ -43,7 +43,6 @@ try {
             })
         }  
         socketReconnect(botIdent().activeBot.socketConfig.id)
-
     })
     socket.on("disconnect", (reason) => {
         console.log("[SOCKET CLIENT]".blue,"Disconnect Reason: ".bgRed,reason)

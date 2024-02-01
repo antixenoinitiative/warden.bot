@@ -14,20 +14,24 @@ module.exports = {
     
     permissions: 0,
     async execute(interaction) {
-        const { options } = interaction
-        let person_asking = interaction.user.id
-        const subject = options.getUser('user')
-        const member = guild.members.cache.get(subject.id)
-        let roles = member.roles.cache.map(role=>role.name)
-        roles = roles.filter(x=>x != '@everyone')
-        console.log(roles)
-        let rolePackage = { 
-            type: "roles_request",
-            user: subject, 
-            roles: roles,
-            person_asking: person_asking 
+        try {
+            const { options } = interaction
+            let person_asking = interaction.user.id
+            const subject = options.getUser('user')
+            const member = guild.members.cache.get(subject.id)
+            let roles = member.roles.cache.map(role=>role.name)
+            roles = roles.filter(x=>x != '@everyone')
+            let rolePackage = { 
+                type: "roles_request",
+                user: subject, 
+                roles: roles,
+                person_asking: person_asking 
+            }
+            requestInfo(rolePackage)
+            return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
         }
-        requestInfo(rolePackage)
-        return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
+        catch(e) {
+            console.log(e)
+        }
     } 
 };

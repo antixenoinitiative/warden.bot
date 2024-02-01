@@ -44,7 +44,7 @@ socket.on('fromSocketServer', async (data) => {
     }
     if (data.type == 'roles_return_data') { 
         let color = null
-        if (color = ta.user.state == true) { color = "#87FF2A" } //green
+        if (color = data.user.state == true) { color = "#87FF2A" } //green
         else { color = "#FD0E35" } //red
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
