@@ -18,7 +18,6 @@ socket.on('fromSocketServer', async (data) => {
             console.log(e)
         }
         if (identifiedUser) {
-            console.log(identifiedUser)
             let roles = await identifiedUser.roles.cache.map(role => role.name)
             roles = roles.filter(role=>role != '@everyone')
             let rolesPackage = {
@@ -27,7 +26,7 @@ socket.on('fromSocketServer', async (data) => {
                 from_server: guild.name,
                 from_serverID: guild.id,
                 requestor_socket: data.requestor_socket,
-                user: { state: 'true', id: identifiedUser.id, roles: roles, }
+                user: { state: true, id: identifiedUser.id, roles: roles }
             }
             socket.emit('roles_return',rolesPackage)
         }
@@ -38,18 +37,23 @@ socket.on('fromSocketServer', async (data) => {
                 from_server: guild.name,
                 from_serverID: guild.id,
                 requestor_socket: data.requestor_socket,
-                user: { state: 'false', id: data.user.id, roles: 'unknown user', }
+                user: { state: false, id: data.user.id, roles: ['unknown user'], }
             }
             socket.emit('roles_return',rolesPackage)
         }
     }
-    if (data.type == 'roles_return_data') { 
+    if (data.type == 'roles_return_data') {
         let color = null
         if (color = data.user.state == true) { color = "#87FF2A" } //green
         else { color = "#FD0E35" } //red
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
-        const roles = Array.isArray(data.user.roles) ? data.user.roles.join(' \n') : data.user.roles.toString()
+        console.log(identifiedUser_subject)
+        const roles = Array.isArray(data.user.roles) ? data.user.roles.join(' \n') : data.user.roles
+        let discoveredUsername = null
+        identifiedUser_subject.nickname
+        if (identifiedUser_subject.nickname) { discoveredUsername = identifiedUser_subject.nickname }
+        else { discoveredUsername = identifiedUser_subject.user.globalName + "<> User has not changed their nickname '/nick'" }
         const embed = new Discord.EmbedBuilder()
             .setTitle('Role List Request')
             .setAuthor({name: identifiedUser_requestor.nickname, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
@@ -57,7 +61,7 @@ socket.on('fromSocketServer', async (data) => {
             .setColor(color)
             .addFields(
                 {name: "Server", value: data.from_server },
-                {name: "Who", value: identifiedUser_subject.nickname },
+                {name: "Who", value: discoveredUsername },
                 {name: "Roles Found", value: roles }
             )
         await guild.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed] })
