@@ -48,7 +48,6 @@ socket.on('fromSocketServer', async (data) => {
         else { color = "#FD0E35" } //red
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
-        console.log(identifiedUser_subject)
         const roles = Array.isArray(data.user.roles) ? data.user.roles.join(' \n') : data.user.roles
         let discoveredUsername = null
         identifiedUser_subject.nickname
