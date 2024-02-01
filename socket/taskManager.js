@@ -9,7 +9,7 @@ const uuid = require('uuid');
 //todo Primarily for REDIS request returns
 socket.on('fromSocketServer', async (data) => { 
     console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
-    if (data.type == 'roles_request') {
+    if (data.type == 'roles_request') { //Server asks all servers in room
         let identifiedUser = null
         try {
             identifiedUser = await guild.members.fetch(data.user.id)
@@ -42,7 +42,7 @@ socket.on('fromSocketServer', async (data) => {
             socket.emit('roles_return',rolesPackage)
         }
     }
-    if (data.type == 'roles_return_data') {
+    if (data.type == 'roles_return_data') { //Server responds to the requesting bot with the role information from any reply server..
         let color = null
         if (color = data.user.state == true) { color = "#87FF2A" } //green
         else { color = "#FD0E35" } //red
