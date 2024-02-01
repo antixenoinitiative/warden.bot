@@ -18,6 +18,7 @@ socket.on('fromSocketServer', async (data) => {
             console.log(e)
         }
         if (identifiedUser) {
+            console.log(identifiedUser)
             let roles = await identifiedUser.roles.cache.map(role => role.name)
             roles = roles.filter(role=>role != '@everyone')
             let rolesPackage = {
@@ -48,7 +49,7 @@ socket.on('fromSocketServer', async (data) => {
         else { color = "#FD0E35" } //red
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
-        const roles = data.user.roles.join(' \n')
+        const roles = Array.isArray(data.user.roles) ? data.user.roles.join(' \n') : data.user.roles.toString()
         const embed = new Discord.EmbedBuilder()
             .setTitle('Role List Request')
             .setAuthor({name: identifiedUser_requestor.nickname, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
