@@ -1,5 +1,6 @@
 const { io, Manager } = require('socket.io-client')
 const { botIdent } = require('../functions')
+const Discord = require("discord.js");
 
 const { socket } = require('./socketMain')
 const uuid = require('uuid');
@@ -18,14 +19,29 @@ socket.on('fromSocketServer', async (data) => {
             from_server: guild.name,
             from_serverID: guild.id,
             requestor_socket: data.requestor_socket,
-            roles: roles,
-            user: { id: identifiedUser.id }
+            user: { id: identifiedUser.id, roles: roles, }
         }
         socket.emit('roles_return',rolesPackage)
     }
     if (data.type == 'return_data') {
-        console.log('final result of data from other server',data.user.id)
-        
+        console.log('final result of data from other server',data)
+        const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
+        const identifiedUser_subject = await guild.members.fetch(data.user.id)
+        console.log(data.user.roles)
+        const roles = JSON.stringify(data.user.roles)
+        console.log(roles)
+        const embed = new Discord.EmbedBuilder()
+            .setTitle('Role Request')
+            .setAuthor({name: identifiedUser_requestor.nickname, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
+            .setThumbnail(botIdent().activeBot.icon)
+            .setColor('#87FF2A') //87FF2A green
+            .setDescription(data.from_server)
+            .addFields(
+                {name: "Who", value: identifiedUser_subject.nickname },
+                {name: "Roles Found", value: roles },
+
+            )
+        await guild.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed] })
     }
 }) 
 
