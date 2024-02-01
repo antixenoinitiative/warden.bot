@@ -14,7 +14,7 @@ socket.on('fromSocketServer', async (data) => {
         let roles = await identifiedUser.roles.cache.map(role => role.name)
         roles = roles.filter(role=>role != '@everyone')
         let rolesPackage = {
-            type: "return_data",
+            type: "roles_return_data",
             person_asking: data.person_asking,
             from_server: guild.name,
             from_serverID: guild.id,
@@ -23,13 +23,10 @@ socket.on('fromSocketServer', async (data) => {
         }
         socket.emit('roles_return',rolesPackage)
     }
-    if (data.type == 'return_data') {
-        console.log('final result of data from other server',data)
+    if (data.type == 'roles_return_data') {
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
-        console.log(data.user.roles)
-        const roles = JSON.stringify(data.user.roles)
-        console.log(roles)
+        const roles = data.user.roles.join(' \n')
         const embed = new Discord.EmbedBuilder()
             .setTitle('Role Request')
             .setAuthor({name: identifiedUser_requestor.nickname, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
@@ -38,8 +35,7 @@ socket.on('fromSocketServer', async (data) => {
             .setDescription(data.from_server)
             .addFields(
                 {name: "Who", value: identifiedUser_subject.nickname },
-                {name: "Roles Found", value: roles },
-
+                {name: "Roles Found", value: roles }
             )
         await guild.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed] })
     }
