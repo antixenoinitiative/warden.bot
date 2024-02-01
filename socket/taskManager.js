@@ -19,7 +19,6 @@ socket.on('fromSocketServer', async (data) => {
             "requestor_socket": data.requestor_socket,
             "roles": roles 
         }
-        console.log(rolesPackage)
         socket.emit('roles_return',rolesPackage)
     }
     if (data.type == 'return_data') {
