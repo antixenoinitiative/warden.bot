@@ -7,22 +7,24 @@ const uuid = require('uuid');
 
 //todo Primarily for REDIS request returns
 socket.on('fromSocketServer', async (data) => { 
-    console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data}`.green) 
+    console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green) 
     if (data.type == 'roles_request') {
         const identifiedUser = await guild.members.fetch(data.user.id)
         let roles = await identifiedUser.roles.cache.map(role => role.name)
         roles = roles.filter(role=>role != '@everyone')
         let rolesPackage = {
             'type': "return_data",
-            "from": guild.name,
-            "from_id": guild.id,
+            "from_server": guild.name,
+            "from_serverID": guild.id,
             "requestor_socket": data.requestor_socket,
-            "roles": roles 
+            "roles": roles,
+            "user": identifiedUser.id
         }
         socket.emit('roles_return',rolesPackage)
     }
     if (data.type == 'return_data') {
         console.log('final result of data from other server',data)
+        
     }
 }) 
 
