@@ -13,17 +13,19 @@ socket.on('fromSocketServer', async (data) => {
         let roles = await identifiedUser.roles.cache.map(role => role.name)
         roles = roles.filter(role=>role != '@everyone')
         let rolesPackage = {
-            'type': "return_data",
-            "from_server": guild.name,
-            "from_serverID": guild.id,
-            "requestor_socket": data.requestor_socket,
-            "roles": roles,
-            "user": identifiedUser.id
+            type: "return_data",
+            from_server: guild.name,
+            from_serverID: guild.id,
+            requestor_socket: data.requestor_socket,
+            roles: roles,
+            user: { 
+                id: identifiedUser.id
+            }
         }
         socket.emit('roles_return',rolesPackage)
     }
     if (data.type == 'return_data') {
-        console.log('final result of data from other server',data)
+        console.log('final result of data from other server',data.user.id)
         
     }
 }) 
