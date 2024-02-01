@@ -18,9 +18,7 @@ socket.on('fromSocketServer', async (data) => {
             from_serverID: guild.id,
             requestor_socket: data.requestor_socket,
             roles: roles,
-            user: { 
-                id: identifiedUser.id
-            }
+            user: { id: identifiedUser.id }
         }
         socket.emit('roles_return',rolesPackage)
     }
