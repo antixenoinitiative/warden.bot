@@ -29,9 +29,10 @@ module.exports = {
     
     permissions: 0,
     async execute(interaction) {
+        let person_asking = interaction.user.id
         let roles = interaction.member.roles.cache.map(role=>role.name)
         roles = roles.filter(x=>x != '@everyone')
-        let rolePackage = { type: "roles_request", user: interaction.user, roles: roles }
+        let rolePackage = { type: "roles_request", user: interaction.user, roles: roles, person_asking: person_asking }
         requestInfo(rolePackage, async(roles) => {
             console.log(roles)
         })

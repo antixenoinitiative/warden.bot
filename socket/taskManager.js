@@ -7,13 +7,14 @@ const uuid = require('uuid');
 
 //todo Primarily for REDIS request returns
 socket.on('fromSocketServer', async (data) => { 
-    console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green) 
+    console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
     if (data.type == 'roles_request') {
         const identifiedUser = await guild.members.fetch(data.user.id)
         let roles = await identifiedUser.roles.cache.map(role => role.name)
         roles = roles.filter(role=>role != '@everyone')
         let rolesPackage = {
             type: "return_data",
+            person_asking: data.person_asking,
             from_server: guild.name,
             from_serverID: guild.id,
             requestor_socket: data.requestor_socket,
@@ -66,9 +67,6 @@ const taskList = {
             
             let discuss = socket.emit('eventTransmit',data, (response) => {
                 if (response.event === "redisRequest") { 
-                    callback({response})
-                }
-                if (response.event === 'roles_request') {
                     callback({response})
                 }
                 console.log(`[SOCKET SERVER - TASK MANAGER - '${data.event}']`.yellow)
