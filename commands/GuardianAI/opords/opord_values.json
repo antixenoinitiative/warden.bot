@@ -4,7 +4,7 @@
         { "inline": false,"name": "mission_statement", "string_name": "Mission Statement", "description": "Give the reason for the Operation Order."},
         { "inline": true,"name": "date_time", "string_name": "Date Time", "description": "Enter your local date and time."},
         { "inline": true,"name": "wing_size", "string_name": "Wing Structure", "description": "Select a wing size or enter a custom one."},
-        { "inline": false,"name": "meetup_point", "string_name": "Meetup Location", "description": "Enter meetup location."},
+        { "inline": false,"name": "meetup_location", "string_name": "Meetup Location", "description": "Enter meetup location."},
         { "inline": false,"name": "carrier_parking", "string_name": "Carrier Parking", "description": "Enter carrier parking if applicable"},
         { "inline": true,"name": "weapons_required", "string_name": "Weapons Required", "description": "Entered required weapons, if any."},
         { "inline": true,"name": "modules_required", "string_name": "Modules Required", "description": "Enter required modules, if any."},
