@@ -12,7 +12,6 @@ try {
         upgrade: true,
         rememberUpgrade: true,
     })
-    //todo Need to add Auth: {} validation when hitting this endpoint. Probably need to include a discord login due to injection of game files.
     const socket = manager.socket("/")
     manager.open((err) => {
         if (err) {
