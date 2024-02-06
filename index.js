@@ -126,7 +126,7 @@ function mainOperation(){
 		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
 		global.guild = bot.guilds.cache.first()
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
-			if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
+			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 			
 		}
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
@@ -182,7 +182,7 @@ function mainOperation(){
 				}, the_interval);
 			}
 			// If socket token is configured, bot will try to run the task manager.
-			if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
+			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 		}
 		
 		
