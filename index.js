@@ -83,7 +83,7 @@ const os = require('os');
  * @author testfax (Medi0cre) @testfax
  */
 if (botFunc.adjustActive(os.hostname(),type)) {
-	console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Hostname Retrieved:".magenta,`${os.hostname()}`.bgYellow)
+	console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Hostname Retrieved:".magenta,`${os.hostname()}`.yellow)
 	mainOperation()
 }
 //Separated to provide control over execution during hostname retrieval.

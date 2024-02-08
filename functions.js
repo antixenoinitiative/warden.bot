@@ -84,6 +84,7 @@ const thisBotFunctions = {
     },
     deployCommands: async (commandsColl,REST,Routes,client) => {
 		try {
+            console.log(client)
             //Load Commands
 			let commands = [];
 			const commandFolders = fs.readdirSync('./commands');
@@ -178,6 +179,7 @@ const thisBotFunctions = {
             //Load Discord JS Event Listeners.
             loadEventHandlers(client, path.join(__dirname, 'discordEvents'))
             function loadEventHandlers(client, directory) {
+                
                 try {
                     const files = fs.readdirSync(directory);
                     for (const file of files) {
