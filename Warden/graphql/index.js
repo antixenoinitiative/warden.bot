@@ -1,5 +1,4 @@
-// const fetch = require('node-fetch');
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 
 // Perform graphQL Query to wiki.antixenoinitiative.com
 async function query(querystring) {
@@ -32,39 +31,40 @@ async function mutation(mutatestring) {
     return;
 }
 
-export async function search(searchstring) {
-    try {
-        let results = await query(`{ pages { search (query: "${searchstring}") { results { id, title, description, path, locale } } } }`);
+module.exports = {
+    search: async (searchstring) => {
+        try {
+        let results = await query(`{ pages { search (query: "${searchstring}") { results { id, title, description, path, locale } } } }`)
         let answer = JSON.parse(results).data.pages.search.results;
         let EnOnly = [];
         for (let i = 0; i < answer.length; i++) {
             if (answer[i].locale == "en") {
                 var result = {
-                    "id": answer[i].id,
-                    "title": answer[i].title,
-                    "description": answer[i].description,
-                    "path": answer[i].path,
-                    "locale": answer[i].locale
-                };
+                  "id": answer[i].id,
+                  "title": answer[i].title,
+                  "description": answer[i].description,
+                  "path": answer[i].path,
+                  "locale": answer[i].locale
+                }
                 EnOnly.push(result);
             }
         }
         return EnOnly;
-    } catch (err) {
-        console.log(err);
-    }
-}
-export async function getPageContent(pageID) {
-    try {
-        let results = await query(`{ pages { single (id: ${pageID}) { content } } }`);
-        return results;
-    } catch (err) {
-        console.log(err);
-    }
-}
-export async function updatePageContent(pageID, content) {
-    try {
-        let results = await mutation(`
+        } catch (err) {
+            console.log(err);
+        }
+    },
+    getPageContent: async (pageID) => {
+        try {
+            let results = await query(`{ pages { single (id: ${pageID}) { content } } }`)
+            return results;
+        } catch (err) {
+            console.log(err);
+        }
+    },
+    updatePageContent: async (pageID, content) => {
+        try {
+            let results = await mutation(`
             { pages {
                 update (id: ${pageID}, content: "${content}", isPublished: true) {
                   responseResult {
@@ -84,8 +84,9 @@ export async function updatePageContent(pageID, content) {
                 }
               } 
             }`);
-        return results;
-    } catch (err) {
-        console.log(err);
+            return results;
+        } catch (err) {
+            console.log(err);
+        }
     }
 }
