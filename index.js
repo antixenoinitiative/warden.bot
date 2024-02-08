@@ -50,6 +50,11 @@ let type = null;
  * 
  */
 
+/**
+ * @package.json Known issues
+ * Upgrade node-fetch past version two will incure ES Module errors. node-fetch v3 is ES Module only.
+ */
+
 // Imported Modules
 const { Client, IntentsBitField, EmbedBuilder, Collection } = require("discord.js")
 const { REST } = require('@discordjs/rest')
