@@ -84,7 +84,7 @@ const thisBotFunctions = {
     },
     deployCommands: async (commandsColl,REST,Routes,client) => {
 		try {
-            console.log(client)
+            
             //Load Commands
 			let commands = [];
 			const commandFolders = fs.readdirSync('./commands');
@@ -185,6 +185,7 @@ const thisBotFunctions = {
                     for (const file of files) {
                         const filePath = path.join(directory, file); // Remove __dirname from here
                         if (fs.lstatSync(filePath).isDirectory()) {
+                            console.log(filePath)
                             loadEventHandlers(client, filePath); // Recursively traverse folders
                         } else if (file.endsWith('.js')) {
                             const event = require(filePath);
