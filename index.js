@@ -115,12 +115,10 @@ function mainOperation(){
 		 */
 		
 	}
-	
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
 	// Discord client setup
 	const serverIntents = new IntentsBitField(3276799);
 	const bot = new Client({ intents: serverIntents })
-	
 	/**
 	 * Loads command objects from the commands folder
 	 * @author  (testfax) Medi0cr3 @testfax
@@ -130,8 +128,7 @@ function mainOperation(){
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
 		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
 		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
-		global.guild = bot.guilds.cache.first()
-		
+		global.guild = bot.guilds.cache.first()	
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 		}
@@ -189,9 +186,7 @@ function mainOperation(){
 			}
 			// If socket token is configured, bot will try to run the task manager.
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
-		}
-		
-		
+		}	
 	})
 	// Have the bot login
 	function checkENV(item) {
@@ -200,7 +195,6 @@ function mainOperation(){
 	}
 	if (checkENV(process.env.TOKEN)) { bot.login(process.env.TOKEN) }
 	// General error handling
-	
 	process.on('uncaughtException', function (err) {
 		console.log(`⛔ Fatal error occured:`)
 		console.error(err);
