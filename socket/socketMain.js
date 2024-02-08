@@ -1,17 +1,28 @@
 // const { botIdent } = require('../functions')
 // const { Manager } = require('socket.io-client')
-
+// const jwt = require('jsonwebtoken')
 // let options = { timeZone: 'America/New_York',year: 'numeric',month: 'numeric',day: 'numeric',hour: 'numeric',minute: 'numeric',second: 'numeric',},myTime = new Intl.DateTimeFormat([], options);
 
 // try {
 //     console.log("[SOCKET CLIENT]".blue,"STATUS:"," OPERATIONAL ".green)
-    
+//     const payload = {
+//         user: botIdent().activeBot.botName,
+//         userID: process.env.HOSTNAME
+//     }
+//     const secretKey = process.env.SOCKET_TOKEN
+//     const token = jwt.sign(payload, secretKey)
 //     const manager = new Manager('https://elitepilotslounge.com/antixenoinitiative-socketserver/', {
-//         query: { 'botClient': botIdent().activeBot.botName, 'type': 'client', 'auth': process.env.SOCKET_TOKEN },
+//         secure: true,
+//         query: { 'botClient': botIdent().activeBot.botName, 'type': 'client', token: token },
 //         path: '/antixenoinitiative-socketserver/',
 //         upgrade: true,
 //         rememberUpgrade: true,
+//         withCredentials: true,
+//         auth: {
+//             token: token
+//         }
 //     })
+    
 //     const socket = manager.socket("/")
 //     manager.open((err) => {
 //         if (err) {

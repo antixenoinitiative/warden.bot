@@ -18,6 +18,7 @@
     "discord.js": "^14.3.0",
     "dotenv": "^10.0.0",
     "glob": "^10.3.10",
+    "jsonwebtoken": "^9.0.2",
     "moment": "^2.29.2",
     "mysql2": "^3.6.5",
     "node-cron": "^3.0.0",

@@ -134,7 +134,6 @@ function mainOperation(){
 		
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
-			
 		}
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
 			// Scheduled Role Backup Task
