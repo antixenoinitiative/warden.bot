@@ -90,6 +90,7 @@ const thisBotFunctions = {
 			const commandFolders = fs.readdirSync('./commands');
 			for (const folder of commandFolders) {
 				const folderPath = path.join(__dirname,'commands',folder)
+                console.log(folderPath)
 				if (fs.existsSync(folderPath)) { loadCommandsFromFolder(folderPath,commands); }
 			}
 			function loadCommandsFromFolder(folderPath,commands) {
