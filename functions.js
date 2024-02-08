@@ -143,7 +143,7 @@ const thisBotFunctions = {
 							if (!ignoreCommands.includes(filePathSplit) && useGlobalCommands == 0) {
 								loadCommandsFromFolder(filePath,commands); // Recursively go into subdirectories
 							}
-						} else if (file.endsWith('.js')) {
+						} else if (file.endsWith('.js') || file.endsWith('.cjs')) {
 							const command = require(filePath);
 							const folderName = path.basename(folderPath);
 							command.category = folderName;
@@ -186,7 +186,7 @@ const thisBotFunctions = {
                         const filePath = path.join(directory, file); // Remove __dirname from here
                         if (fs.lstatSync(filePath).isDirectory()) {
                             loadEventHandlers(client, filePath); // Recursively traverse folders
-                        } else if (file.endsWith('.js')) {
+                        } else if (file.endsWith('.js') || file.endsWith('.cjs')) {
                             const event = require(filePath);
                             if (event && typeof event === 'object') {
                                 for (const key in event) {

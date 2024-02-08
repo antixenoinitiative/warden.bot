@@ -1,5 +1,4 @@
-try {
-    const fetch = require('node-fetch');
+const fetch = require('node-fetch');
 
 // Perform graphQL Query to wiki.antixenoinitiative.com
 async function query(querystring) {
@@ -90,8 +89,4 @@ module.exports = {
             console.log(err);
         }
     }
-}
-}
-catch (e) {
-    console.log("FAIL STILL",e)
 }

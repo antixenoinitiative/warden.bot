@@ -1,7 +1,12 @@
 const { botIdent, fileNameBotMatch } = require('../../../functions');
+
 let wiki = null
-try { console.log(`TRYING: ${botIdent().activeBot.botName}`); wiki = require(`../../../${botIdent().activeBot.botName}/graphql/index`); }
-catch (e) { console.log(`TRYING2: ${fileNameBotMatch(e)}`); wiki = require(`../../../${fileNameBotMatch(e)}/graphql/index`) }
+try { 
+	wiki = require(`../../../${botIdent().activeBot.botName}/graphql/index`); 
+}
+catch (e) { 
+	wiki = require(`../../../${fileNameBotMatch(e)}/graphql/index`) 
+}
 const Discord = require("discord.js");
 
 module.exports = {
