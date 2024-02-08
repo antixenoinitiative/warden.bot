@@ -95,6 +95,7 @@ function mainOperation(){
 	// Local Modules determined by bot "active" state.
 	// Specific bots need specific things, load them here.
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
+		console.log(botFunc.botIdent().activeBot.botName)
 	    const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
 		warden_vars[leaderboardInteraction] = leaderboardInteraction
 		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
@@ -125,6 +126,7 @@ function mainOperation(){
 		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
 		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
 		global.guild = bot.guilds.cache.first()
+		
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 			

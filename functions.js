@@ -90,7 +90,6 @@ const thisBotFunctions = {
 			const commandFolders = fs.readdirSync('./commands');
 			for (const folder of commandFolders) {
 				const folderPath = path.join(__dirname,'commands',folder)
-                console.log(folderPath)
 				if (fs.existsSync(folderPath)) { loadCommandsFromFolder(folderPath,commands); }
 			}
 			function loadCommandsFromFolder(folderPath,commands) {
@@ -186,7 +185,6 @@ const thisBotFunctions = {
                     for (const file of files) {
                         const filePath = path.join(directory, file); // Remove __dirname from here
                         if (fs.lstatSync(filePath).isDirectory()) {
-                            console.log(filePath)
                             loadEventHandlers(client, filePath); // Recursively traverse folders
                         } else if (file.endsWith('.js')) {
                             const event = require(filePath);
