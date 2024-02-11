@@ -163,26 +163,26 @@ function mainOperation(){
 					}
 					console.log('Club 10 table updated')
 				}
-				//the following part handles the triggering of reminders
-				let minutes = 0.1, the_interval = minutes * 60 * 1000; //this sets at what interval are the reminder due times getting checked
-				setInterval(async function() {
-					let currentDate = new Date(Date.now());
+				// //the following part handles the triggering of reminders
+				// let minutes = 0.1, the_interval = minutes * 60 * 1000; //this sets at what interval are the reminder due times getting checked
+				// setInterval(async function() {
+				// 	let currentDate = new Date(Date.now());
 			
-					let res = await warden_vars.query("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
+				// 	let res = await warden_vars.query("SELECT * FROM reminders WHERE duetime < $1", [currentDate]);
 			
-					if (res.rowCount == 0) return; //if there are no due reminders, exit the function
+				// 	if (res.rowCount == 0) return; //if there are no due reminders, exit the function
 			
-					for (let row = 0; row < res.rowCount; row++) { //send all
-						const channel = await bot.channels.cache.get(res.rows[row].channelid);
-						channel.send(`<@${res.rows[row].discid}>: ${res.rows[row].memo}`);
-					}
+				// 	for (let row = 0; row < res.rowCount; row++) { //send all
+				// 		const channel = await bot.channels.cache.get(res.rows[row].channelid);
+				// 		channel.send(`<@${res.rows[row].discid}>: ${res.rows[row].memo}`);
+				// 	}
 			
-					try {
-						res = await warden_vars.query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
-					} catch (err) {
-						console.log(err);
-					}
-				}, the_interval);
+				// 	try {
+				// 		res = await warden_vars.query("DELETE FROM reminders WHERE duetime < $1", [currentDate]);
+				// 	} catch (err) {
+				// 		console.log(err);
+				// 	}
+				// }, the_interval);
 			}
 			// If socket token is configured, bot will try to run the task manager.
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
