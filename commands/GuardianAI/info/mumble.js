@@ -10,7 +10,7 @@ module.exports = {
         .setTitle('Xeno Strike Force Mumble Server')
         .setAuthor({name: botIdent().activeBot.botName,iconURL: botIdent().activeBot.icon})
         .setThumbnail(botIdent().activeBot.icon)
-        .setDescription(`Individualy Link Wing Communications`)
+        .setDescription(`Individually Link Wing Communications`)
         .addFields(
             { name: "Nickname", value: "Special characters other than - and _ are not allowed. Therefore the name should be your in game name ONLY! I.E. 'Mechan'" },
             { name: "Server URL", value: '45.56.69.77' },
