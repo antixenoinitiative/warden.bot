@@ -27,7 +27,6 @@ const exp = {
             if (!command.autocomplete) {
                 return console.error(`No autocomplete handler was found for the ${interaction.commandName} command.`,
                 );
-                
             }
             try {
                 await command.autocomplete(interaction);
