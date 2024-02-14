@@ -5,17 +5,21 @@ const path = require('path')
 
 const exp = {
     interactionCreate: async (interaction,bot) => {
-        if (interaction.isModalSubmit()) {
-            const command = interaction.client.commands.get(interaction.commandName);
-            if (!command) return;
+        //!isModalSubmit() is not 100% required, you can gather any modal replies from within the codebase your working from.
+        //!Enabling this will cause issues with the Opord modals as they are initiated from a button response and do not contain
+        //!   the interaction.commandName pathing. It is dealt with from the client code itself.
+        // if (interaction.isModalSubmit()) {
+        //     const command = interaction.client.commands.get(interaction.commandName);
+           
+        //     if (!command) return;
 
-            try {
-                await command.execute(interaction);
-            } catch (error) {
-                console.error(error);
-                await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-            }
-        }
+        //     try {
+        //         await command.execute(interaction);
+        //     } catch (error) {
+        //         console.error(error);
+        //         await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+        //     }
+        // }
         if (interaction.isAutocomplete()) {
             const command = interaction.client.commands.get(interaction.commandName)
 

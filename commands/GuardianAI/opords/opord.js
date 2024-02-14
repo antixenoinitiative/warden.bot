@@ -98,6 +98,21 @@ module.exports = {
             .setName('information')
             .setDescription('Display information regarding the OPORD form.')
         )
+        // .addSubcommand(subcommand => 
+        //     subcommand
+        //     .setName('participants')
+        //     .setDescription('Use the @ and name them.')
+        //     .addStringOption(option =>
+        //         option.setName('oporder_number')
+        //             .setDescription('chose the number')
+        //             .setRequired(true)
+        //     )
+        //     .addStringOption(option =>
+        //         option.setName('players')
+        //             .setDescription('add multiple players @ symbol')
+        //             .setRequired(true)
+        //     )
+        // )
         ,
 	async autocomplete(interaction) {
         fillVoiceChan(interaction)
@@ -119,6 +134,23 @@ module.exports = {
 	},
     permissions: 0,
     async execute(interaction) {
+        if (interaction.options.getSubcommand() === 'participants') {
+            //todo Get the oporder Number
+            //todo Retrieve participants list
+            //todo Add participants to the list
+            //todo Update the list in the Opord number
+            //todo Modify the embed of the Opord Number
+            let operationParticipants = interaction.options._hoistedOptions
+            lastMessage.edit({ 
+                embeds: [
+                    {
+                        fields: [
+                            { name: "Participants", value: 'dude\ndude\ndude\ndude' }
+                        ]
+                    }
+                ]
+            });
+        }
         if (interaction.options.getSubcommand() === 'information') {
             embed = new Discord.EmbedBuilder()
                     .setTitle('Operation Order Information')
@@ -159,7 +191,7 @@ module.exports = {
                 components: [],
                 ephemeral: true
             });
-            
+
             let requestingPlayer = { name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({dynamic:true})}
             let strikePackage = interaction.options._hoistedOptions
             let timeSlot = eventTimeCreate(strikePackage.find(i=>i.name === 'date_time').value)
@@ -179,9 +211,7 @@ module.exports = {
             catch (e) {
                 console.log("[FAIL]".bgRed,"Log or approval Channel IDs dont match. Check config.")
             }
-    
-            async function gimmeModal(i,interaction,returnEmbed) {
-    
+            async function gimmeModal(i) {
                     const fields = {
                         time: new Discord.TextInputBuilder()
                             .setCustomId(`time`)
@@ -249,7 +279,7 @@ module.exports = {
                 }
             }
             //Bad Timeslot
-            if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Date.now() > timeSlot) { 
+            async function failedTimeFormat() {
                 returnEmbed = new Discord.EmbedBuilder()
                     .setTitle('Operation Order Request')
                     .setAuthor({name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({dynamic:true})})
@@ -262,28 +292,27 @@ module.exports = {
                         { name: "Correction:", value: "Would you like to correct this time?" }
                     )
                 const buttonRow = new Discord.ActionRowBuilder()
-                    .addComponents(new Discord.ButtonBuilder().setLabel('Yes').setCustomId('Yes').setStyle(Discord.ButtonStyle.Success))
+                    .addComponents(new Discord.ButtonBuilder().setLabel('Fix Error').setCustomId('fix').setStyle(Discord.ButtonStyle.Success))
                     .addComponents(new Discord.ButtonBuilder().setLabel('Cancel Submission').setCustomId('No').setStyle(Discord.ButtonStyle.Danger))
                 response = await interaction.followUp({ content: `Error Discovered`, embeds: [returnEmbed.setTimestamp()], components: [buttonRow], ephemeral: true }).catch(console.error);
                 const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 3_600_000 });
                 collector.on('collect', async i => {
                     const selection = i.customId;
                     collector.stop()
-                    if (selection == 'Yes') {
-    
-                        //maybe use a while loop around line 140 instead of this crap below????
-    
-                        const modalResults = await gimmeModal(i,interaction,returnEmbed)
+                    if (selection == 'fix') {
+                        const modalResults = await gimmeModal(i)
                         timeSlot = eventTimeCreate(modalResults[1]) //returns 13 digit timestamp
                         if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Date.now() > timeSlot) { 
                             await modalResults[0].reply({
-                                content: `Not within Standard. Submission Cancelled. Try again.`,
+                                content: `Not within Standard. Try again.`,
                                 embeds: [],
                                 components: [],
                                 ephemeral: true
                             })
+                            failedTimeFormat()
                         }
                         else {
+                            await interaction.deleteReply({ content: 'Operation Order Request Error fixed.. Awaiting Leadership approval.', embeds: [], components: [], ephemeral: true }).catch(console.error)
                             await modalResults[0].reply({
                                 content: `Time Updated. Awaiting Approval.`,
                                 embeds: [],
@@ -297,13 +326,16 @@ module.exports = {
     
                     }
                     else {
-                        await i.update({ content: 'Operation Order Submission Cancelled', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
+                        await i.followUp({ content: 'Operation Order Submission Cancelled', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
                         //cancel the submission
                         //cancel the submission
                         //cancel the submission
                         //cancel the submission
                     }
                 });
+            }
+            if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Date.now() > timeSlot) {
+                failedTimeFormat()
             }
             else { publishRequest() }
             async function publishRequest(newTime){
@@ -339,6 +371,12 @@ module.exports = {
                         collector.stop()
                         if (selection == 'Approve') {
                             await i.update({ content: 'Operation Order Approved', components: [], embeds: [returnEmbed.setColor('#87FF2A')], ephemeral: true }).catch(console.error);
+                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
+                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
+                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
+                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
+                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
+                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
                             const approved_embed = await channel_approved.send({ 
                                 embeds: [returnEmbed
                                     .setTitle('Operation Order Approved')
@@ -394,26 +432,38 @@ module.exports = {
             async function createEvent(interaction,embedLink){
                 try {
                     const guild = interaction.client.guilds.cache.get(process.env.guildID)
-    
-                    
+                    let entityType = null
                     if (!guild)  return console.log('Guild not found');
                     if (voiceChans.length == 0) { fillVoiceChan(interaction) }
                     const channelName = strikePackage.find(i=>i.name === 'voice_channel').value
                     let selectedChannelId = null;
                     //If a channel is malformed, just get the first one in the guild cache. 
                     //Could benefit from a default channel for ops based of config.json entry.
-                    try { selectedChannelId = voiceChans.map(i=>i).find(i=>i.name === channelName).id }
-                    catch(e) { selectedChannelId = voiceChans.map(i=>i)[0].id }
+                    try { selectedChannelId = voiceChans.map(i=>i).find(i=>i.name === channelName).id; entityType = 2; }
+                    catch(e) { selectedChannelId = null; entityType = 3; }
                     const event_manager = new Discord.GuildScheduledEventManager(guild);
                     await event_manager.create({
                         name: strikePackage.find(i=>i.name === 'operation_name').value,
                         scheduledStartTime: timeSlot,
+                        scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
                         privacyLevel: 2,
-                        entityType: 2,
+                        entityType: entityType,
                         channel: selectedChannelId,
-                        description: embedLink
+                        description: embedLink,
+                        entityMetadata: {
+                            location: channelName
+                        }
                     });
                     //todo Create database entry for the operation order.
+                    //todo 
+                    channel_approved.messages.fetch({limit: 1}).then(messages => {
+                        let lastMessage = messages.first();
+                        console.log(lastMessage.id)
+                        //todo database stuff.
+                        //todo Add lastMessage.id to the database entry
+                    })
+                    .catch(console.error)
+                    
                 }
                 catch (e) {
                     console.log(e)

@@ -18,10 +18,10 @@ module.exports = {
         .setDescription(`Individually Link Wing Communications`)
         .addFields(
             { name: "Nickname", value: `Enter in your XSF Community Name, Example: \n ${thisUser}` },
-            { name: "Password", value: 'xenostrikeforce' },
+            { name: "Password", value: 'WingUpAndStrike' },
             { name: "Address", value: 'mumble.xenostrikeforce.com' },
             { name: "Certificates", value: 'You will be prompted to download a certificate from the server, this identifies you specifically and will not have to enter in the password again.' },
-            { name: "Download", value: "https://www.Mumble.com"}
+            { name: "Download", value: "https://www.Mumble.info"}
         )
         
         const buttonRow = new Discord.ActionRowBuilder()

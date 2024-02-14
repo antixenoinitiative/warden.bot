@@ -179,7 +179,6 @@ const thisBotFunctions = {
             //Load Discord JS Event Listeners.
             loadEventHandlers(client, path.join(__dirname, 'discordEvents'))
             function loadEventHandlers(client, directory) {
-                
                 try {
                     const files = fs.readdirSync(directory);
                     for (const file of files) {
@@ -218,6 +217,9 @@ const thisBotFunctions = {
             dateString = dateString.toLowerCase()
             try {
                 const dateTimeParts = dateString.split('+');
+                if (dateTimeParts[1].length != 4) {
+                    throw new Error("Time slice must be 4 characters in length after the '+'");
+                }
                 const dateParts = dateTimeParts[0].split('/');
                 const months = {
                   'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
