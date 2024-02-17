@@ -108,11 +108,10 @@ function mainOperation(){
 		
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
-		// const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
-		// guardianai_vars[db] = db
-		/**
-		 * @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
-		 */
+		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Loading Database Items:".magenta,'✅');
+		const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+		guardianai_vars[db] = db
+
 		
 	}
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
@@ -127,10 +126,12 @@ function mainOperation(){
 	bot.on("ready", async() => {
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
 		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
-		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
 		global.guild = bot.guilds.cache.first()	
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
+			/**
+			* @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
+			*/
 		}
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
 			// Scheduled Role Backup Task
@@ -186,7 +187,11 @@ function mainOperation(){
 			}
 			// If socket token is configured, bot will try to run the task manager.
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
-		}	
+			/**
+		 	* @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
+		 	*/
+		}
+		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
 	})
 	// Have the bot login
 	function checkENV(item) {

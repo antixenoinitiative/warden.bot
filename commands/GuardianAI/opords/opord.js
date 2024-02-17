@@ -2,6 +2,22 @@ const Discord = require("discord.js");
 const { botIdent, eventTimeCreate } = require('../../../functions')
 const objectives = require('./opord_values.json')
 const config = require('../../../config.json')
+const database = require('../../../GuardianAI/db/database')
+
+// getOpOrdNumber()
+function getOpOrdNumber() {
+    try {
+        const values = null
+        const sql = 'SELECT opord_number FROM `opord`';
+        database.query(sql, values, (err, res) => {
+            if (err) { console.error(err); } 
+            else {
+                console.log("vals:",res[0])
+            }
+        });
+    } catch (e) { console.error(e); }
+}
+// insertOpOrdNumber()
 
 let voiceChans = []
 function fillVoiceChan(interaction) {
@@ -455,7 +471,18 @@ module.exports = {
                         }
                     });
                     //todo Create database entry for the operation order.
+                    function getCurrentOpOrdNumber() {
+                        const checkTableQuery = `SELECT opord_number FROM opord`;
+                        query(checkTableQuery, 'opord', (err, res) => {
+                            if (err) { console.error(err); } 
+                            else {
+
+                            }
+                        });
+                    }
+                    //todo Add all the fields
                     //todo 
+
                     channel_approved.messages.fetch({limit: 1}).then(messages => {
                         let lastMessage = messages.first();
                         console.log(lastMessage.id)
@@ -472,3 +499,52 @@ module.exports = {
         }
     } 
 };
+
+function opordChecks() {
+    try {
+        const checkTableQuery = `SELECT 1 FROM information_schema.tables WHERE table_schema = ? AND table_name = ? LIMIT 1`;
+        query(checkTableQuery, 'opord', (err, res) => {
+            if (err) {
+                console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table Fail:".magenta, '❌');
+                console.error(err);
+            } else {
+                if (res && res.length > 0) {
+                    // console.log("Table Exists");
+                } else {
+                    console.log("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table:".magenta, '✅');
+                    const createTableQuery = `
+                        CREATE TABLE opord (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            opord_number INT,
+                            creator VARCHAR(255),
+                            mission_statement TEXT,
+                            date_time VARCHAR(255),
+                            wing_size VARCHAR(255),
+                            meetup_location VARCHAR(255),
+                            carrier_parking VARCHAR(255),
+                            weapons_required VARCHAR(255),
+                            modules_required VARCHAR(255),
+                            prefered_build VARCHAR(255),
+                            objective_a VARCHAR(255),
+                            objective_b VARCHAR(255),
+                            objective_c VARCHAR(255),
+                            voice_channel VARCHAR(255)
+                        )
+                    `;
+                    query(createTableQuery, 'opord', (err, res) => {
+                        if (err) {
+                            console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table Fail:".magenta, '❌');
+                            console.error(err);
+                        } else {
+                            console.log("OPORD Table Created Successfully");
+                            // Handle successful table creation
+                        }
+                    });
+                }
+            }
+        });
+    } catch (e) {
+        console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table Fail:".magenta, '❌');
+        console.error(e);
+    }
+}

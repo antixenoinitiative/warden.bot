@@ -9,7 +9,7 @@ module.exports = {
         let thisUser = interaction.member.nickname
         thisUser = thisUser.split('CMDR')
         thisUser = thisUser[1].split('(')
-        thisUser = 'CMDR ' + thisUser[0].trim()
+        thisUser = '[XSTF] CMDR ' + thisUser[0].trim()
 
         const returnEmbed = new Discord.EmbedBuilder()
         .setTitle('Xeno Strike Force Mumble Server')
