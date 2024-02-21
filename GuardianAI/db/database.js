@@ -27,22 +27,16 @@ function createPool() {
         }
     });
 }
-async function query(query, values, callback) {
-    try {
-        await pool.execute(query, values, (err, results, fields) => {
-            if (err) {
-                console.error('Error executing query:', err.stack);
-                callback(err, null);
-            } else {
-                console.log("QUERY RES:\n".bgYellow, results);
-                callback(null, results);
-            }
-        });
-    } catch (e) {
-        console.error('Error executing query:', e.stack);
-        callback(e, null);
-    }
+async function query(query, values) {
+    return new Promise((resolve,reject) => {
+        // pool.execute(query, values, (err,res) => {
+        pool.query(query, values, (err,res) => {
+            if (err) { reject(err) }
+            resolve(res)
+        })
+    })
 }
+
 //! ##############################
 //! ##############################
 //! ##############################
@@ -53,8 +47,6 @@ opordChecks()
 //! ##############################
 //! ##############################
 //! ##############################
-
-
 function deleteOpordTable() {
     const values = ['opord']
     const sql = `DROP TABLE IF EXISTS ${values}`;
@@ -70,23 +62,6 @@ function deleteOpordTable() {
         console.error('Error:', e.stack);
     }
 }
-
-// creator VARCHAR(255),
-// mission_statement TEXT,
-// date_time VARCHAR(255),
-// wing_size VARCHAR(255),
-// meetup_location VARCHAR(255),
-// carrier_parking VARCHAR(255),
-// weapons_required VARCHAR(255),
-// modules_required VARCHAR(255),
-// prefered_build VARCHAR(255),
-// objective_a VARCHAR(255),
-// objective_b VARCHAR(255),
-// objective_c VARCHAR(255),
-// voice_channel VARCHAR(255)
-
-
-
 // Check if the table exists
 function opordChecks() {
     try {
@@ -105,7 +80,25 @@ function opordChecks() {
                     const sql2 = `
                         CREATE TABLE opord (
                             id INT AUTO_INCREMENT PRIMARY KEY,
-                            opord_number INT DEFAULT 0
+                            opord_number INT DEFAULT 0,
+                            message_id VARCHAR(255),
+                            creator VARCHAR(255),
+                            participant_lock INT DEFAULT 0,
+                            participant_uniform TEXT,
+                            participant_players TEXT,
+                            operation_name VARCHAR(255),
+                            mission_statement TEXT,
+                            date_time VARCHAR(255),
+                            wing_size VARCHAR(255),
+                            meetup_location TEXT,
+                            carrier_parking TEXT,
+                            weapons_required TEXT,
+                            modules_required TEXT,
+                            prefered_build TEXT,
+                            objective_a TEXT,
+                            objective_b TEXT,
+                            objective_c TEXT,
+                            voice_channel VARCHAR(255)
                         );
                     `;
                     query(sql2, values2, (err, res) => {

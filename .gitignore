@@ -6,3 +6,6 @@ originalkey.json
 .VSCodeCounter
 memories.txt
 pm2-config.json
+package copy.json
+*.sql
+GuardianAI/prisma

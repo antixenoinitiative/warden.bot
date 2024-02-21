@@ -22,6 +22,9 @@
         "Tactical Wing (4 Attack Wing Members)",
         "Search and Rescue Wing (4 S&R Wing Members)",
         "Reconaissance Wing (4 Recon Wing Members)"
+    ],
+    "participant": [
+        "None"
     ]
 
 }

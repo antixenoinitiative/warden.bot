@@ -245,6 +245,19 @@ const thisBotFunctions = {
         
         return unixTimestamp
     },
+    hasSpecifiedRole: (member,specifiedRanks) => {
+        let approvalRanks = specifiedRanks
+        if (!specifiedRanks) {
+            approvalRanks = config[thisBotFunctions.botIdent().activeBot.botName].operation_order.approval_ranks
+        }
+        if (member && member.roles) {
+            const roleIdsToCheck = approvalRanks.map(rank => rank.id);
+            const roleNamesToCheck = approvalRanks.map(rank => rank.rank_name);
+    
+            return member.roles.cache.some(role => roleIdsToCheck.includes(role.id) || roleNamesToCheck.includes(role.name));
+        }
+        return false;
+    },
     /**
      * Log a discord bot event in the Log Channel
      * @author  (Mgram) Marcus Ingram @MgramTheDuck
