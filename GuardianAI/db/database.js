@@ -63,66 +63,47 @@ function deleteOpordTable() {
     }
 }
 // Check if the table exists
-function opordChecks() {
+async function opordChecks() {
     try {
-        const sql = `SELECT 1 FROM information_schema.tables WHERE table_name = ? LIMIT 1`;
-        const values = ['opord']
-        query(sql, values, (err, res) => {
-            if (err) {
-                console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table Fail:".magenta, '❌');
-                console.error(err);
-            } else {
-                if (res && res.length > 0) {
-                    // console.log("Table Exists");
-                    return
-                } else {
-                    const values2 = ['0']
-                    const sql2 = `
-                        CREATE TABLE opord (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            opord_number INT DEFAULT 0,
-                            message_id VARCHAR(255),
-                            creator VARCHAR(255),
-                            participant_lock INT DEFAULT 0,
-                            participant_uniform TEXT,
-                            participant_players TEXT,
-                            operation_name VARCHAR(255),
-                            mission_statement TEXT,
-                            date_time VARCHAR(255),
-                            wing_size VARCHAR(255),
-                            meetup_location TEXT,
-                            carrier_parking TEXT,
-                            weapons_required TEXT,
-                            modules_required TEXT,
-                            prefered_build TEXT,
-                            objective_a TEXT,
-                            objective_b TEXT,
-                            objective_c TEXT,
-                            voice_channel VARCHAR(255)
-                        );
-                    `;
-                    query(sql2, values2, (err, res) => {
-                        if (err) {
-                            console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table Fail:".magenta, '❌');
-                            console.error(err);
-                        } else {
-                            const values3 = ['0']
-                            const sql3 = `
-                                INSERT INTO opord (opord_number) VALUES (?);
-                            `;
-                            query(sql3, values3, (err, res) => {
-                                if (err) {
-                                    console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table Fail:".magenta, '❌');
-                                    console.error(err);
-                                } else {
-                                    console.log("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table:".magenta, '✅');
-                                }
-                            });
-                        }
-                    });
-                }
+        const opord_table_sql = `SELECT 1 FROM information_schema.tables WHERE table_name = ? LIMIT 1`;
+        const opord_table_values = ['opord']
+        const opord_table_result = await query(opord_table_sql, opord_table_values)
+        if (opord_table_result.length == 0) {
+            const opord_table_create_values = ['0']
+            const opord_table_create_sql = `
+                CREATE TABLE opord (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    opord_number INT DEFAULT 0,
+                    message_id VARCHAR(255),
+                    creator JSON,
+                    participant_lock INT DEFAULT 0,
+                    participant_uniform TEXT,
+                    participant_players TEXT,
+                    operation_name VARCHAR(255),
+                    mission_statement TEXT,
+                    date_time VARCHAR(255),
+                    wing_size VARCHAR(255),
+                    meetup_location TEXT,
+                    carrier_parking TEXT,
+                    weapons_required TEXT,
+                    modules_required TEXT,
+                    prefered_build TEXT,
+                    objective_a TEXT,
+                    objective_b TEXT,
+                    objective_c TEXT,
+                    voice_channel VARCHAR(255)
+                );
+            `;
+            await query(opord_table_create_sql,opord_table_create_values)
+            const opord_table_insert_row0_values = ['0']
+            const opord_table_insert_row0_sql = `
+                INSERT INTO opord (opord_number) VALUES (?);
+            `;
+            const opord_table_insert_row0_response = await query(opord_table_insert_row0_sql, opord_table_insert_row0_values)
+            if (opord_table_insert_row0_response) {
+                console.log("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table:".magenta, '✅');
             }
-        });
+        }
     } catch (e) {
         console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating OPORD Table Fail:".magenta, '❌');
         console.error(e);
