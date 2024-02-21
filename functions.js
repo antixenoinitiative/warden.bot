@@ -248,7 +248,7 @@ const thisBotFunctions = {
     hasSpecifiedRole: (member,specifiedRanks) => {
         let approvalRanks = specifiedRanks
         if (!specifiedRanks) {
-            approvalRanks = config[thisBotFunctions.botIdent().activeBot.botName].operation_order.approval_ranks
+            approvalRanks = config[thisBotFunctions.botIdent().activeBot.botName].operation_order.opord_approval_ranks
         }
         if (member && member.roles) {
             const roleIdsToCheck = approvalRanks.map(rank => rank.id);

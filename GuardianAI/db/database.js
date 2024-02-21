@@ -73,6 +73,7 @@ async function opordChecks() {
             const opord_table_create_sql = `
                 CREATE TABLE opord (
                     id INT AUTO_INCREMENT PRIMARY KEY,
+                    unix varchar(255),
                     opord_number INT DEFAULT 0,
                     message_id VARCHAR(255),
                     creator JSON,

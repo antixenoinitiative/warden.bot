@@ -3,13 +3,10 @@ const { botIdent, eventTimeCreate, hasSpecifiedRole } = require('../../../functi
 const objectives = require('./opord_values.json')
 const config = require('../../../config.json')
 const database = require('../../../GuardianAI/db/database')
-// const { PrismaClient } = require('@prisma/client')
-// const db = new PrismaClient()
-  // const test = db.opord.findUnique({
-            //     where: {
-            //         opord_number: opord_number
-            //     }
-            // })
+
+//! For participant command.
+
+
 
 let voiceChans = []
 function fillVoiceChan(interaction) {
@@ -25,6 +22,7 @@ function fillVoiceChan(interaction) {
     }
     voiceChans = Array.from(voiceChansSet);
 }
+
 module.exports = {
     data: new Discord.SlashCommandBuilder()
         .setName('opord')
@@ -45,7 +43,7 @@ module.exports = {
                 )
                 .addStringOption(option =>
                     option.setName('date_time')
-                        .setDescription('Enter your local date and time.')
+                        .setDescription('Enter your local date and time. Ex. 24/Feb/24+1300')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
@@ -66,12 +64,12 @@ module.exports = {
                 )
                 .addStringOption(option =>
                     option.setName('weapons_required')
-                        .setDescription('Entered required weapons, if any.')
+                        .setDescription('Entered required weapons or weapons limitations, if any.')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
                     option.setName('modules_required')
-                        .setDescription('Enter required modules, if any.')
+                        .setDescription('Enter required modules or modules limitations, if any.')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
@@ -165,7 +163,8 @@ module.exports = {
                         const memberObjects = await Promise.all(array_cleaned.map(async mention => {
                             const userId = mention[0].match(/\d+/)[0];
                             try {
-                                const user = await interaction.guild.members.fetch(userId);
+                                let user = await interaction.guild.members.fetch(userId);
+                                user.user['roles'] = user.roles.cache.map(r=>r.name)
                                 return user;
                             } catch (error) {
                                 console.error(`Error fetching user with ID ${userId}:`, error);
@@ -173,12 +172,21 @@ module.exports = {
                                 return null;
                             }
                         }));
+                        
                         const guildMemberJSON = memberObjects.map(member => ({
                             nickname: member.nickname,
-                            userId: member.user.id
+                            userId: member.user.id,
+                            rank: cleanupRoles(member.user.roles)
                         }));
+                        function cleanupRoles(roles) {
+                            let matchingRanks = roles.filter(rank => config.GuardianAI.officer_ranks.some(officerRank => officerRank.rank_name === rank));
+                            if (!matchingRanks.length) {
+                                matchingRanks = ['none']
+                            }
+                            return matchingRanks[0]
+                        }
                         const string = JSON.stringify(guildMemberJSON)
-                        const string_cleaned = string.slice(1,-1)
+                        const string_cleaned = string.slice(1, -1)
                         resolve(string_cleaned);
 
                     } catch (error) {
@@ -187,17 +195,12 @@ module.exports = {
                     }
                 });
             }
-            //! Limited to Major, Colonel, and General Staff by rank ID or rank Name.
-            //! The function that is called will either default to its config of Maj,Col, or Gen if it a specific is not provided
-            //! The below format must be provided.
-            const approvalRanks = [
-                { "rank_name": "General Staff", "id": "1173407686797303928"},
-                { "rank_name": "Colonel", "id": "1176734917263102063"},
-                { "rank_name": "Major", "id": "1176734800103608461"}
-            ];
+
+            const approvalRanks = config.GuardianAI.operation_order.opord_participant_approval
+            const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member;
-            if (!hasSpecifiedRole(member,approvalRanks)) {
-                await interaction.editReply({ content: 'You do not have the roles to add to the participation tracker. Contact Major, Colonel, or General Staff.', ephemeral: true});
+            if (!hasSpecifiedRole(member, approvalRanks)) {
+                await interaction.editReply({ content: `You do not have the roles to add to the participation tracker. Contact ${approvalRanks_string}`, ephemeral: true });
                 return
             }
             // Get opord channels
@@ -212,10 +215,9 @@ module.exports = {
             }
 
             if (interaction.channelId != channel_await.id) {
-                await interaction.editReply({ content:`Command must be typed in Channel ${channel_await.name}.`, ephemeral: true });
+                await interaction.editReply({ content: `Command must be typed in Channel ${channel_await.name}.`, ephemeral: true });
                 return
             }
-
 
             // Gather data from the slash command
             const op_participants = interaction.options._hoistedOptions
@@ -224,26 +226,26 @@ module.exports = {
             const mysql_opord_values = [opord_number]
             const mysql_opord_sql = 'SELECT opord_number,message_id,creator,participant_lock FROM `opord` WHERE opord_number = (?)';
             const mysql_opord_response = await database.query(mysql_opord_sql, mysql_opord_values)
-            
+
             if (mysql_opord_response.length > 0 && mysql_opord_response[0].participant_lock) {
                 await interaction.editReply('Participant Lock is enabled for this, contact admin ');
                 return
             }
             if (mysql_opord_response.length > 0) {
                 const participant_uniform = op_participants.find(i => i.name === 'participant_uniform').value;
-                let participant_uniform_userObjects = await getUserIDsFromMention(participant_uniform,interaction)
+                let participant_uniform_userObjects = await getUserIDsFromMention(participant_uniform, interaction)
                 const participant_players = op_participants.find(i => i.name === 'participant_players').value
-                let participant_players_userObjects = await getUserIDsFromMention(participant_players,interaction)
-                
+                let participant_players_userObjects = await getUserIDsFromMention(participant_players, interaction)
+
                 if (participant_uniform_userObjects != -1 || participant_players_userObjects != -1) {
-                    const mysql_get_participantvalues = [opord_number,opord_number]
+                    const mysql_get_participantvalues = [opord_number, opord_number]
                     const mysql_get_participant_sql = `
                         SELECT participant_uniform FROM opord WHERE opord_number = (?); 
                         SELECT participant_players FROM opord WHERE opord_number = (?);
                     `;
                     const mysql_get_participant_response = await database.query(mysql_get_participant_sql, mysql_get_participantvalues)
-                    
-                    function validateUnique(type,inputData) {
+
+                    function validateUnique(type, inputData) {
                         function convertObj(object) {
                             const objectArray = object.split('},{').map(entry => {
                                 if (!entry.startsWith('{')) { entry = '{' + entry; }
@@ -270,8 +272,8 @@ module.exports = {
                     }
                     try {
                         if (participant_uniform_userObjects) {
-                            const unique = validateUnique("participant_uniform",participant_uniform_userObjects)
-                            const mysql_participant_uniform_values = [unique,opord_number]
+                            const unique = validateUnique("participant_uniform", participant_uniform_userObjects)
+                            const mysql_participant_uniform_values = [unique, opord_number]
                             const mysql_participant_uniform_sql = `
                                 UPDATE opord
                                 SET participant_uniform = (?)
@@ -287,8 +289,8 @@ module.exports = {
                     }
                     try {
                         if (participant_players_userObjects) {
-                            const unique = validateUnique("participant_players",participant_players_userObjects)
-                            const mysql_participant_players_values = [unique,opord_number]
+                            const unique = validateUnique("participant_players", participant_players_userObjects)
+                            const mysql_participant_players_values = [unique, opord_number]
                             const mysql_participant_players_sql = `
                                 UPDATE opord
                                 SET participant_players = (?)
@@ -317,25 +319,25 @@ module.exports = {
                             color: receivedEmbed.color
                         }
                         const newEmbed = new Discord.EmbedBuilder()
-                        .setTitle(oldEmbedSchema.title)
-                        .setDescription(oldEmbedSchema.description)
-                        .setColor(oldEmbedSchema.color)
-                        .setAuthor(oldEmbedSchema.author)
-                        .setThumbnail(botIdent().activeBot.icon)
+                            .setTitle(oldEmbedSchema.title)
+                            .setDescription(oldEmbedSchema.description)
+                            .setColor(oldEmbedSchema.color)
+                            .setAuthor(oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
 
-                        oldEmbedSchema.fields.forEach((field,index) => {
-                            if (index == 15) { 
-                                newEmbed.addFields({name: "Earned Experience Credit:", value: `${participant_uniform}`, inline: field.inline}) 
+                        oldEmbedSchema.fields.forEach((field, index) => {
+                            if (index == 15) {
+                                newEmbed.addFields({ name: "Earned Experience Credit:", value: `${participant_uniform}`, inline: field.inline })
                             }
                             if (index == 16) {
-                                newEmbed.addFields({name: "Participated:", value: `${participant_players}`, inline: field.inline}) 
+                                newEmbed.addFields({ name: "Participated:", value: `${participant_players}`, inline: field.inline })
                             }
                             if (index > 14) { return }
                             if (index == 0) {
-                                newEmbed.addFields({name: "Operation Order #", value: `${opord_number}`, inline: field.inline})
+                                newEmbed.addFields({ name: "Operation Order #", value: `${opord_number}`, inline: field.inline })
                             }
                             if (index > 0) {
-                                newEmbed.addFields({name: field.name, value: field.value, inline: field.inline})
+                                newEmbed.addFields({ name: field.name, value: field.value, inline: field.inline })
                             }
                         })
                         if (oldEmbedSchema.fields.length === 14) {
@@ -346,7 +348,7 @@ module.exports = {
                             )
                         }
                         const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
-                        await lastMessage.edit({ embeds: [editedEmbed]})
+                        await lastMessage.edit({ embeds: [editedEmbed] })
                     }
                     catch (e) {
                         console.log(e)
@@ -359,6 +361,9 @@ module.exports = {
             }
         }
         if (interaction.options.getSubcommand() === 'information') {
+            let opord_approval_authority = config.GuardianAI.operation_order.opord_approval_ranks
+            opord_approval_authority = opord_approval_authority.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
+            
             embed = new Discord.EmbedBuilder()
                 .setTitle('Operation Order Information')
                 .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
@@ -366,19 +371,20 @@ module.exports = {
                 .setColor('#FAFA37') //87FF2A green
                 .setDescription(`Operation Orders are structured Operations that Xeno Strike Force performs.`)
                 .addFields(
+                    { name: "Entered Values", value: 'All fields require a value, if the question should not have an answer, use "none", "na", or "n/a".' },
                     { name: "What is an OPORD?", value: "An Operation Order is a structured format for declaring official operations of Xeno Strike Force." },
-                    { name: "Operational Experience", value: "Grants you access to attain higher ranks." },
+                    { name: "Operational Experience", value: "Grants you experience credit to attain higher ranks." },
                     { name: "Preview of Information", value: "Specifically gives the intent for the operation and things you may need." },
-                    { name: "Who can Create Operation Orders", value: "Anybody can create an Operation Order, however they must be approved by an approval authority first." },
+                    { name: "Who can Create Operation Orders", value: `Anybody can create an Operation Order, however it must be approved by a ${opord_approval_authority}` },
                     { name: "What is an Objective", value: "An objective is one of the priorities in an order which denote specific conditions to be met. Objective A will always be required. Any others can be filled in with 'NA' or 'None'" },
                     { name: "The format...", value: "Operation Orders are significant that they follow a format that is expected everytime one is presented." },
                     { name: "Mission Statement", value: "A mission statement talks about the overall mission synopsis." },
-                    { name: "Date Time", value: "At this time, a specific time format, in your local time, shall be entered. There will be 2 opportunities to type it in correctly. 'DD/MMM/YY+1300' '24/feb/24/+1300'" },
+                    { name: "Date Time", value: "At this time, a specific time format, in your local time, shall be entered. 'DD/MMM/YY+1300' '24/feb/24/+1300'" },
                     { name: "Wing Size", value: "An autocompleted list will give a few structured examples. Certain sizes are limited to certain Ranks that can lead them." },
                     { name: "Meetup Location", value: "Direct a location to group up at." },
                     { name: "Carrier Parking", value: "Direct a location for all carriers to stage." },
-                    { name: "Weapons Required", value: "Can be weapon limitations or weapon requirements" },
-                    { name: "Modules Required", value: "Can be module limitations or module requirements" },
+                    { name: "Weapons Required/Limitation", value: "Can be weapon limitations or weapon requirements" },
+                    { name: "Modules Required/Limitation", value: "Can be module limitations or module requirements" },
                     { name: "Prefered Build(s)", value: "Specific short url EDYS links for ship builds" },
                     { name: "Objective A", value: "Mission completion requirement, #1" },
                     { name: "Objective B", value: "Mission completion requirement, #2" },
@@ -416,7 +422,7 @@ module.exports = {
                 }
             }
             catch (e) {
-                console.log("[FAIL]".bgRed, "Log or approval Channel IDs dont match. Check config.")
+                console.log("[FAIL]".bgRed, "channel_await or channel_approved  Channel IDs dont match. Check config.json")
             }
             async function gimmeModal(i) {
                 const fields = {
@@ -543,7 +549,7 @@ module.exports = {
                     .setThumbnail(botIdent().activeBot.icon)
                     .setColor('#FAFA37') //87FF2A
                     .setDescription(`A request for a Operation has been submitted. This will require approval. Review the contents and then select Approve or Deny`)
-                    .addFields({ name: "Operation Order #", value: "Pending...."})
+                    .addFields({ name: "Operation Order #", value: "Pending....", inline: true })
 
                 interaction.options._hoistedOptions.forEach((i, index) => {
                     let properName = null;
@@ -561,19 +567,18 @@ module.exports = {
                         .addComponents(new Discord.ButtonBuilder().setLabel('Deny').setCustomId('Deny').setStyle(Discord.ButtonStyle.Danger))
 
                     response = await channel_await.send({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] })
+                    
                     const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 345_600_000 });
                     collector.on('collect', async i => {
                         const selection = i.customId;
 
                         collector.stop()
                         if (selection == 'Approve') {
+                            const previous_opord_number_values = null
+                            const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
+                            const previous_opord_number_response = await database.query(previous_opord_number_sql, previous_opord_number_values)
+                            returnEmbed.data.fields[0].value = previous_opord_number_response[0].opord_number + 1
                             await i.update({ content: 'Operation Order Approved', components: [], embeds: [returnEmbed.setColor('#87FF2A')], ephemeral: true }).catch(console.error);
-                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
-                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
-                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
-                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
-                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
-                            //todo GET last DB Entry for Operation Number and + 1 it and add it to the embed for display purposes.
                             const approved_embed = await channel_approved.send({
                                 embeds: [returnEmbed
                                     .setTitle('Operation Order Approved')
@@ -593,7 +598,8 @@ module.exports = {
                                 components: [],
                                 ephemeral: true
                             })
-                            if (modalResults) {await interaction.user.send({ content: `Your operation order was Denied.`, embeds: [returnEmbed.setColor('#FD0E35').setDescription(`**Denied** \n *${modalResults[1]}*`)] })
+                            if (modalResults) {
+                                await interaction.user.send({ content: `Your operation order was Denied.`, embeds: [returnEmbed.setColor('#FD0E35').setDescription(`**Denied** \n *${modalResults[1]}*`)] })
                                 response.edit({
                                     embeds: [returnEmbed
                                         .setTitle('Operation Order Denied')
@@ -613,73 +619,60 @@ module.exports = {
                 }
             }
             async function createEvent(interaction, embedLink) {
-                try {
-                    const guild = interaction.client.guilds.cache.get(process.env.guildID)
-                    let entityType = null
-                    if (!guild) return console.log('Guild not found: createEvent() opord.js');
-                    if (voiceChans.length == 0) { fillVoiceChan(interaction) }
-                    const channelName = strikePackage.find(i => i.name === 'voice_channel').value
-                    let selectedChannelId = null;
-                    //If a channel is malformed, just get the first one in the guild cache. 
-                    //Could benefit from a default channel for ops based of config.json entry.
-                    try { selectedChannelId = voiceChans.map(i => i).find(i => i.name === channelName).id; entityType = 2; }
-                    catch (e) { selectedChannelId = null; entityType = 3; }
-                    // const event_manager = new Discord.GuildScheduledEventManager(guild);
-                    // await event_manager.create({
-                    //     name: strikePackage.find(i => i.name === 'operation_name').value,
-                    //     scheduledStartTime: timeSlot,
-                    //     scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
-                    //     privacyLevel: 2,
-                    //     entityType: entityType,
-                    //     channel: selectedChannelId,
-                    //     description: embedLink,
-                    //     entityMetadata: {
-                    //         location: channelName
-                    //     }
-                    // });
-                    channel_approved.messages.fetch({ limit: 1 }).then(async messages => {
-                        let lastMessage = messages.first();
-                        try {
-                            const previous_opord_number_values = null
-                            const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
-                            const previous_opord_number_response = await database.query(previous_opord_number_sql, previous_opord_number_values)
-                            try {
-                                const new_values = [
-                                    previous_opord_number_response[0].opord_number + 1,
-                                    lastMessage.id,
-                                    JSON.stringify(requestingPlayer),
-                                    strikePackage.find(i => i.name === 'operation_name').value,
-                                    strikePackage.find(i => i.name === 'mission_statement').value,
-                                    strikePackage.find(i => i.name === 'date_time').value,
-                                    strikePackage.find(i => i.name === 'wing_size').value,
-                                    strikePackage.find(i => i.name === 'meetup_location').value,
-                                    strikePackage.find(i => i.name === 'carrier_parking').value,
-                                    strikePackage.find(i => i.name === 'weapons_required').value,
-                                    strikePackage.find(i => i.name === 'modules_required').value,
-                                    strikePackage.find(i => i.name === 'prefered_build').value,
-                                    strikePackage.find(i => i.name === 'objective_a').value,
-                                    strikePackage.find(i => i.name === 'objective_b').value,
-                                    strikePackage.find(i => i.name === 'objective_c').value,
-                                    strikePackage.find(i => i.name === 'voice_channel').value
-                                ]
-                                const new_sql =
-                                    `
-                                    INSERT INTO opord (opord_number,message_id,creator,operation_name,mission_statement,date_time,wing_size,meetup_location,carrier_parking,weapons_required,modules_required,prefered_build,objective_a,objective_b,objective_c,voice_channel) 
-                                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
-                                    `
-        
-                                await database.query(new_sql, new_values)
-                            } catch (e) { console.error(e); }
-
-                        } catch (e) { console.error(e); }
-
-                    })
-                        .catch(console.error)
-
-                }
-                catch (e) {
-                    console.log(e)
-                }
+                const guild = interaction.client.guilds.cache.get(process.env.guildID)
+                let entityType = null
+                if (!guild) return console.log('Guild not found: createEvent() opord.js');
+                if (voiceChans.length == 0) { fillVoiceChan(interaction) }
+                const channelName = strikePackage.find(i => i.name === 'voice_channel').value
+                let selectedChannelId = null;
+                //If a channel is malformed, just get the first one in the guild cache. 
+                //Could benefit from a default channel for ops based of config.json entry.
+                try { selectedChannelId = voiceChans.map(i => i).find(i => i.name === channelName).id; entityType = 2; }
+                catch (e) { selectedChannelId = null; entityType = 3; }
+                const event_manager = new Discord.GuildScheduledEventManager(guild);
+                await event_manager.create({
+                    name: strikePackage.find(i => i.name === 'operation_name').value,
+                    scheduledStartTime: timeSlot,
+                    scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
+                    privacyLevel: 2,
+                    entityType: entityType,
+                    channel: selectedChannelId,
+                    description: embedLink,
+                    entityMetadata: {
+                        location: channelName
+                    }
+                });
+                channel_approved.messages.fetch({ limit: 1 }).then(async messages => {
+                    let lastMessage = messages.first();
+                    const previous_opord_number_values = null
+                    const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
+                    const previous_opord_number_response = await database.query(previous_opord_number_sql, previous_opord_number_values)
+                    const new_values = [
+                        timeSlot,
+                        previous_opord_number_response[0].opord_number + 1,
+                        lastMessage.id,
+                        JSON.stringify(requestingPlayer),
+                        strikePackage.find(i => i.name === 'operation_name').value,
+                        strikePackage.find(i => i.name === 'mission_statement').value,
+                        strikePackage.find(i => i.name === 'date_time').value,
+                        strikePackage.find(i => i.name === 'wing_size').value,
+                        strikePackage.find(i => i.name === 'meetup_location').value,
+                        strikePackage.find(i => i.name === 'carrier_parking').value,
+                        strikePackage.find(i => i.name === 'weapons_required').value,
+                        strikePackage.find(i => i.name === 'modules_required').value,
+                        strikePackage.find(i => i.name === 'prefered_build').value,
+                        strikePackage.find(i => i.name === 'objective_a').value,
+                        strikePackage.find(i => i.name === 'objective_b').value,
+                        strikePackage.find(i => i.name === 'objective_c').value,
+                        strikePackage.find(i => i.name === 'voice_channel').value
+                    ]
+                    const new_sql =
+                        `
+                            INSERT INTO opord (unix,opord_number,message_id,creator,operation_name,mission_statement,date_time,wing_size,meetup_location,carrier_parking,weapons_required,modules_required,prefered_build,objective_a,objective_b,objective_c,voice_channel) 
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                        `
+                    await database.query(new_sql, new_values)
+                }).catch(console.error)
             }
         }
     }

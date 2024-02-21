@@ -40,10 +40,24 @@
         "systemURL": "https://elitebgs.app/api/ebgs/v5/systems"
     },
     "GuardianAI": {
+        "officer_ranks": [
+                { "rank_name": "General Staff", "id": ""},
+                { "rank_name": "Colonel", "id": ""},
+                { "rank_name": "Major", "id": ""},
+                { "rank_name": "Captain", "id": ""},
+                { "rank_name": "Lieutenant", "id": ""},
+                { "rank_name": "Aviator", "id": ""},
+                { "rank_name": "Learner", "id": ""}
+        ],
         "operation_order": {
             "opord_channel_approved": "1173410112405258452", 
             "opord_channel_await": "1184592283337752697", 
-            "approval_ranks": [
+            "opord_approval_ranks": [
+                { "rank_name": "General Staff", "id": "1173407686797303928"},
+                { "rank_name": "Colonel", "id": "1176734917263102063"},
+                { "rank_name": "Major", "id": "1176734800103608461"}
+            ],
+            "opord_participant_approval": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"},
                 { "rank_name": "Major", "id": "1176734800103608461"}
