@@ -594,7 +594,7 @@ module.exports = {
                                 ]
                             })
                             const embedLink = `https://discord.com/channels/${approved_embed.guildId}/${approved_embed.channelId}/${channel_approved.lastMessageId}`;
-                            createEvent(interaction, embedLink)
+                            // createEvent(interaction, embedLink)
                         }
                         else {
                             const modalResults = await opordDenyModal(i, interaction, returnEmbed)
