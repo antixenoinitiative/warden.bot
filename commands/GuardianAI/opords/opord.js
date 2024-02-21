@@ -427,7 +427,6 @@ module.exports = {
                         .setRequired(true)
                         .setPlaceholder(`05/MAY/24+1200`)
                 }
-
                 const modal = new Discord.ModalBuilder()
                     .setCustomId('myModal')
                     .setTitle('Adjust Time')
@@ -437,8 +436,6 @@ module.exports = {
                 await i.showModal(modal);
                 const submitted = await i.awaitModalSubmit({
                     time: 60000,
-
-                    // filter: i => i.user.id === interaction.user.id,
                 }).catch(error => {
 
                     console.error(error)
@@ -471,8 +468,6 @@ module.exports = {
                 await i.showModal(modal);
                 const submitted = await i.awaitModalSubmit({
                     time: 1800000,
-
-                    // filter: i => i.user.id === interaction.user.id,
                 }).catch(error => {
 
                     console.error(error)
@@ -530,14 +525,9 @@ module.exports = {
                             publishRequest(newTime)
                             //modal was good call publishRequest with new time value
                         }
-
                     }
                     else {
                         await i.followUp({ content: 'Operation Order Submission Cancelled', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
-                        //cancel the submission
-                        //cancel the submission
-                        //cancel the submission
-                        //cancel the submission
                     }
                 });
             }
@@ -555,7 +545,6 @@ module.exports = {
                     .setDescription(`A request for a Operation has been submitted. This will require approval. Review the contents and then select Approve or Deny`)
                     .addFields({ name: "Operation Order #", value: "Pending...."})
 
-                // .setDescription(`A request for a Operation has been submitted. This will require approval. Review the contents and then select Approve or Deny`)
                 interaction.options._hoistedOptions.forEach((i, index) => {
                     let properName = null;
                     properName = objectives.stringNames.find(x => x.name === i.name)
@@ -594,7 +583,7 @@ module.exports = {
                                 ]
                             })
                             const embedLink = `https://discord.com/channels/${approved_embed.guildId}/${approved_embed.channelId}/${channel_approved.lastMessageId}`;
-                            // createEvent(interaction, embedLink)
+                            createEvent(interaction, embedLink)
                         }
                         else {
                             const modalResults = await opordDenyModal(i, interaction, returnEmbed)
@@ -604,10 +593,7 @@ module.exports = {
                                 components: [],
                                 ephemeral: true
                             })
-                            if (modalResults) {
-
-                                // await i.update({ content: 'Operation Order Disapproved', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
-                                await interaction.user.send({ content: `Your operation order was Denied.`, embeds: [returnEmbed.setColor('#FD0E35').setDescription(`**Denied** \n *${modalResults[1]}*`)] })
+                            if (modalResults) {await interaction.user.send({ content: `Your operation order was Denied.`, embeds: [returnEmbed.setColor('#FD0E35').setDescription(`**Denied** \n *${modalResults[1]}*`)] })
                                 response.edit({
                                     embeds: [returnEmbed
                                         .setTitle('Operation Order Denied')
@@ -616,22 +602,9 @@ module.exports = {
                                         .setDescription(`**Denial Reason** \n ${modalResults[1]}`)
                                     ],
                                     components: []
-                                }
-                                )
-                                // await channel_await.send({ 
-                                //     embeds: [returnEmbed
-                                //         .setTitle('Operation Order Denied')
-                                //         .setAuthor({name:i.member.nickname,iconURL: i.user.displayAvatarURL({dynamic:true})})
-                                //         .setColor('#FD0E35')
-                                //         .setDescription(`*${modalResults[1]}*`)
-                                //     ] 
-                                // })
-                                // const embedLink = `https://discord.com/channels/${disapproved_embed.guildId}/${disapproved_embed.channelId}/${channel_approved.lastMessageId}`;
+                                })
                             }
-
-
                         }
-
                     });
                 }
                 catch (e) {
@@ -643,7 +616,7 @@ module.exports = {
                 try {
                     const guild = interaction.client.guilds.cache.get(process.env.guildID)
                     let entityType = null
-                    if (!guild) return console.log('Guild not found');
+                    if (!guild) return console.log('Guild not found: createEvent() opord.js');
                     if (voiceChans.length == 0) { fillVoiceChan(interaction) }
                     const channelName = strikePackage.find(i => i.name === 'voice_channel').value
                     let selectedChannelId = null;
@@ -651,19 +624,19 @@ module.exports = {
                     //Could benefit from a default channel for ops based of config.json entry.
                     try { selectedChannelId = voiceChans.map(i => i).find(i => i.name === channelName).id; entityType = 2; }
                     catch (e) { selectedChannelId = null; entityType = 3; }
-                    const event_manager = new Discord.GuildScheduledEventManager(guild);
-                    await event_manager.create({
-                        name: strikePackage.find(i => i.name === 'operation_name').value,
-                        scheduledStartTime: timeSlot,
-                        scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
-                        privacyLevel: 2,
-                        entityType: entityType,
-                        channel: selectedChannelId,
-                        description: embedLink,
-                        entityMetadata: {
-                            location: channelName
-                        }
-                    });
+                    // const event_manager = new Discord.GuildScheduledEventManager(guild);
+                    // await event_manager.create({
+                    //     name: strikePackage.find(i => i.name === 'operation_name').value,
+                    //     scheduledStartTime: timeSlot,
+                    //     scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
+                    //     privacyLevel: 2,
+                    //     entityType: entityType,
+                    //     channel: selectedChannelId,
+                    //     description: embedLink,
+                    //     entityMetadata: {
+                    //         location: channelName
+                    //     }
+                    // });
                     channel_approved.messages.fetch({ limit: 1 }).then(async messages => {
                         let lastMessage = messages.first();
                         try {
