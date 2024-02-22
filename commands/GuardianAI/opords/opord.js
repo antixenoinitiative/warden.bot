@@ -620,7 +620,6 @@ module.exports = {
                 }
             }
             async function createEvent(interaction, embedLink) {
-                // const guild = interaction.client.guilds.cache.get(process.env.GUILDID)
                 const guild = interaction.guild
                 let entityType = null
                 if (!guild) return console.log('Guild not found: createEvent() opord.js');
@@ -640,7 +639,7 @@ module.exports = {
                         privacyLevel: 2,
                         entityType: entityType,
                         channel: selectedChannelId,
-                        description: embedLink,
+                        description: `Read the Op Order here ->, ${embedLink}`,
                         entityMetadata: {
                             location: channelName
                         }
