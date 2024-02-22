@@ -210,10 +210,10 @@ module.exports = {
                 channel_approved = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
             }
 
-            if (interaction.channelId != channel_await.id) {
-                await interaction.editReply({ content: `Command must be typed in Channel ${channel_await.name}.`, ephemeral: true });
-                return
-            }
+            // if (interaction.channelId != channel_await.id) {
+            //     await interaction.editReply({ content: `Command must be typed in Channel ${channel_await.name}.`, ephemeral: true });
+            //     return
+            // }
 
             // Gather data from the slash command
             const op_participants = interaction.options._hoistedOptions
