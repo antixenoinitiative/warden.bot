@@ -620,7 +620,8 @@ module.exports = {
                 }
             }
             async function createEvent(interaction, embedLink) {
-                const guild = interaction.client.guilds.cache.get(process.env.guildID)
+                // const guild = interaction.client.guilds.cache.get(process.env.GUILDID)
+                const guild = interaction.guild
                 console.log(guild)
                 let entityType = null
                 if (!guild) return console.log('Guild not found: createEvent() opord.js');
