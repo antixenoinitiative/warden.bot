@@ -42,13 +42,13 @@ async function query(query, values) {
 //! ##############################
 //! #######STARTUP CHECKS#########
 opordChecks()
-// deleteOpordTable()
+// deleteOpordTable('opord')
 //! ##############################
 //! ##############################
 //! ##############################
 //! ##############################
-function deleteOpordTable() {
-    const values = ['opord']
+function deleteOpordTable(table) {
+    const values = [table]
     const sql = `DROP TABLE IF EXISTS ${values}`;
     try {
         query(sql, values, (err, res) => {

@@ -537,6 +537,7 @@ module.exports = {
                 failedTimeFormat()
             }
             else { publishRequest() }
+            const testMode = 1;
             async function publishRequest(newTime) {
                 //Good Timeslot
                 returnEmbed = new Discord.EmbedBuilder()
@@ -569,6 +570,10 @@ module.exports = {
                         const selection = i.customId;
 
                         collector.stop()
+                        if (testMode == '1') {
+                            createEvent(interaction);
+                            return;
+                        }
                         if (selection == 'Approve') {
                             const previous_opord_number_values = null
                             const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
@@ -616,6 +621,7 @@ module.exports = {
             }
             async function createEvent(interaction, embedLink) {
                 const guild = interaction.client.guilds.cache.get(process.env.guildID)
+                console.log(guild)
                 let entityType = null
                 if (!guild) return console.log('Guild not found: createEvent() opord.js');
                 if (voiceChans.length == 0) { fillVoiceChan(interaction) }
@@ -625,50 +631,52 @@ module.exports = {
                 //Could benefit from a default channel for ops based of config.json entry.
                 try { selectedChannelId = voiceChans.map(i => i).find(i => i.name === channelName).id; entityType = 2; }
                 catch (e) { selectedChannelId = null; entityType = 3; }
-                const event_manager = new Discord.GuildScheduledEventManager(guild);
-                await event_manager.create({
-                    name: strikePackage.find(i => i.name === 'operation_name').value,
-                    scheduledStartTime: timeSlot,
-                    scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
-                    privacyLevel: 2,
-                    entityType: entityType,
-                    channel: selectedChannelId,
-                    description: embedLink,
-                    entityMetadata: {
-                        location: channelName
-                    }
-                });
-                channel_approved.messages.fetch({ limit: 1 }).then(async messages => {
-                    let lastMessage = messages.first();
-                    const previous_opord_number_values = null
-                    const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
-                    const previous_opord_number_response = await database.query(previous_opord_number_sql, previous_opord_number_values)
-                    const new_values = [
-                        timeSlot,
-                        previous_opord_number_response[0].opord_number + 1,
-                        lastMessage.id,
-                        JSON.stringify(requestingPlayer),
-                        strikePackage.find(i => i.name === 'operation_name').value,
-                        strikePackage.find(i => i.name === 'mission_statement').value,
-                        strikePackage.find(i => i.name === 'date_time').value,
-                        strikePackage.find(i => i.name === 'wing_size').value,
-                        strikePackage.find(i => i.name === 'meetup_location').value,
-                        strikePackage.find(i => i.name === 'carrier_parking').value,
-                        strikePackage.find(i => i.name === 'weapons_required').value,
-                        strikePackage.find(i => i.name === 'modules_required').value,
-                        strikePackage.find(i => i.name === 'prefered_build').value,
-                        strikePackage.find(i => i.name === 'objective_a').value,
-                        strikePackage.find(i => i.name === 'objective_b').value,
-                        strikePackage.find(i => i.name === 'objective_c').value,
-                        strikePackage.find(i => i.name === 'voice_channel').value
-                    ]
-                    const new_sql =
-                        `
-                            INSERT INTO opord (unix,opord_number,message_id,creator,operation_name,mission_statement,date_time,wing_size,meetup_location,carrier_parking,weapons_required,modules_required,prefered_build,objective_a,objective_b,objective_c,voice_channel) 
-                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
-                        `
-                    await database.query(new_sql, new_values)
-                }).catch(console.error)
+                if (testMode != 1) { 
+                    const event_manager = new Discord.GuildScheduledEventManager(guild);
+                    await event_manager.create({
+                        name: strikePackage.find(i => i.name === 'operation_name').value,
+                        scheduledStartTime: timeSlot,
+                        scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
+                        privacyLevel: 2,
+                        entityType: entityType,
+                        channel: selectedChannelId,
+                        description: embedLink,
+                        entityMetadata: {
+                            location: channelName
+                        }
+                    });
+                    channel_approved.messages.fetch({ limit: 1 }).then(async messages => {
+                        let lastMessage = messages.first();
+                        const previous_opord_number_values = null
+                        const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
+                        const previous_opord_number_response = await database.query(previous_opord_number_sql, previous_opord_number_values)
+                        const new_values = [
+                            timeSlot,
+                            previous_opord_number_response[0].opord_number + 1,
+                            lastMessage.id,
+                            JSON.stringify(requestingPlayer),
+                            strikePackage.find(i => i.name === 'operation_name').value,
+                            strikePackage.find(i => i.name === 'mission_statement').value,
+                            strikePackage.find(i => i.name === 'date_time').value,
+                            strikePackage.find(i => i.name === 'wing_size').value,
+                            strikePackage.find(i => i.name === 'meetup_location').value,
+                            strikePackage.find(i => i.name === 'carrier_parking').value,
+                            strikePackage.find(i => i.name === 'weapons_required').value,
+                            strikePackage.find(i => i.name === 'modules_required').value,
+                            strikePackage.find(i => i.name === 'prefered_build').value,
+                            strikePackage.find(i => i.name === 'objective_a').value,
+                            strikePackage.find(i => i.name === 'objective_b').value,
+                            strikePackage.find(i => i.name === 'objective_c').value,
+                            strikePackage.find(i => i.name === 'voice_channel').value
+                        ]
+                        const new_sql =
+                            `
+                                INSERT INTO opord (unix,opord_number,message_id,creator,operation_name,mission_statement,date_time,wing_size,meetup_location,carrier_parking,weapons_required,modules_required,prefered_build,objective_a,objective_b,objective_c,voice_channel) 
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                            `
+                        await database.query(new_sql, new_values)
+                    }).catch(console.error)
+                }
             }
         }
     }
