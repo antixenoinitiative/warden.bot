@@ -6,7 +6,7 @@ const database = require('../../../GuardianAI/db/database')
 
 let voiceChans = []
 function fillVoiceChan(interaction) {
-    const guild = interaction.client.guilds.cache.get(process.env.GUILDID);
+    const guild = interaction.guild;
     const voiceChansSet = new Set();
 
     if (guild) {
@@ -303,7 +303,7 @@ module.exports = {
                     await interaction.editReply({ content: `Operation Order Number: ${opord_number} \nUniformed Participant(s): ${participant_uniform} \nOut of Uniform Participant(s): ${participant_players}` })
                     // Add participants to the last embed
                     try {
-                        const guild = interaction.client.guilds.cache.get(process.env.GUILDID);
+                        const guild = interaction.guild;
                         const creator = guild.members.cache.get(mysql_opord_response[0].creator.id)
                         const lastMessage = await channel_approved.messages.fetch(mysql_opord_response[0].message_id)
                         const receivedEmbed = lastMessage.embeds[0];
@@ -537,7 +537,7 @@ module.exports = {
                 failedTimeFormat()
             }
             else { publishRequest() }
-            const testMode = 1;
+            const testMode = 0;
             async function publishRequest(newTime) {
                 //Good Timeslot
                 returnEmbed = new Discord.EmbedBuilder()
@@ -622,7 +622,6 @@ module.exports = {
             async function createEvent(interaction, embedLink) {
                 // const guild = interaction.client.guilds.cache.get(process.env.GUILDID)
                 const guild = interaction.guild
-                console.log(guild)
                 let entityType = null
                 if (!guild) return console.log('Guild not found: createEvent() opord.js');
                 if (voiceChans.length == 0) { fillVoiceChan(interaction) }
