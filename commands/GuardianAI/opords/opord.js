@@ -639,7 +639,7 @@ module.exports = {
                         privacyLevel: 2,
                         entityType: entityType,
                         channel: selectedChannelId,
-                        description: `Read the Op Order here ->, ${embedLink}`,
+                        description: `${strikePackage.find(i => i.name === 'mission_statement').value}\n-\nRead the Op Order here ->, ${embedLink}`,
                         entityMetadata: {
                             location: channelName
                         }
