@@ -39,7 +39,7 @@ module.exports = {
                 )
                 .addStringOption(option =>
                     option.setName('date_time')
-                        .setDescription('Enter your local date and time. Ex. 24/Feb/24+1300')
+                        .setDescription('Enter Coordinated Universal Time date and time. Ex. 24/Feb/24+1300')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
@@ -375,7 +375,7 @@ module.exports = {
                     { name: "What is an Objective", value: "An objective is one of the priorities in an order which denote specific conditions to be met. Objective A will always be required. Any others can be filled in with 'NA' or 'None'" },
                     { name: "The format...", value: "Operation Orders are significant that they follow a format that is expected everytime one is presented." },
                     { name: "Mission Statement", value: "A mission statement talks about the overall mission synopsis." },
-                    { name: "Date Time", value: "At this time, a specific time format, in your local time, shall be entered. 'DD/MMM/YY+1300' '24/feb/24/+1300'" },
+                    { name: "Date Time", value: "At this time, a specific time format, in Coordinated Universal Time (UTC), shall be entered. 'DD/MMM/YY+1300' '24/feb/24/+1300'" },
                     { name: "Wing Size", value: "An autocompleted list will give a few structured examples. Certain sizes are limited to certain Ranks that can lead them." },
                     { name: "Meetup Location", value: "Direct a location to group up at." },
                     { name: "Carrier Parking", value: "Direct a location for all carriers to stage." },
@@ -424,7 +424,7 @@ module.exports = {
                 const fields = {
                     time: new Discord.TextInputBuilder()
                         .setCustomId(`time`)
-                        .setLabel(`Input the correct time: IE. 01/JAN/24+1325`)
+                        .setLabel(`Input the correct Coordinated Universal Time: IE. 01/JAN/24+1325`)
                         .setStyle(Discord.TextInputStyle.Short)
                         .setRequired(true)
                         .setPlaceholder(`05/MAY/24+1200`)
