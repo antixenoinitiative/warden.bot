@@ -4,10 +4,6 @@ const objectives = require('./opord_values.json')
 const config = require('../../../config.json')
 const database = require('../../../GuardianAI/db/database')
 
-//! For participant command.
-
-
-
 let voiceChans = []
 function fillVoiceChan(interaction) {
     const guild = interaction.client.guilds.cache.get(process.env.GUILDID);
@@ -181,7 +177,7 @@ module.exports = {
                         function cleanupRoles(roles) {
                             let matchingRanks = roles.filter(rank => config.GuardianAI.officer_ranks.some(officerRank => officerRank.rank_name === rank));
                             if (!matchingRanks.length) {
-                                matchingRanks = ['none']
+                                matchingRanks = ['Learner']
                             }
                             return matchingRanks[0]
                         }
