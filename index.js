@@ -201,7 +201,8 @@ function mainOperation(){
 	if (checkENV(process.env.TOKEN)) { bot.login(process.env.TOKEN) }
 	// General error handling
 	process.on('uncaughtException', function (err) {
-		console.log(`⛔ Fatal error occured:`)
+		const dateTime = botFunc.generateDateTime();
+		console.log(`${dateTime} ⛔ Fatal error occured:`)
 		console.error(err);
 		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced:\n ${err.stack}` })
 	})

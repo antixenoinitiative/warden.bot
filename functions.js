@@ -212,6 +212,17 @@ const thisBotFunctions = {
 			console.error(error);
 		}
 	},
+    generateDateTime: function() {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const date = new Date();
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const month = months[date.getUTCMonth()];
+        const year = date.getUTCFullYear();
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    },
     eventTimeCreate: (dateString) => {
         function convertToUnixTimestamp(dateString) {
             dateString = dateString.toLowerCase()
