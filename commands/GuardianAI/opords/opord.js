@@ -463,8 +463,6 @@ module.exports = {
             //Bad Timeslot
             async function failedTimeFormat(date,time) {
                 if (!date && !time) { date = strikePackage.find(i => i.name === 'date').value; time = strikePackage.find(i => i.name === 'time').value }
-                console.log("Date:",date)
-                console.log("Time:",time)
                 returnEmbed = new Discord.EmbedBuilder()
                     .setTitle('Operation Order Request')
                     .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
@@ -489,6 +487,7 @@ module.exports = {
                         timeSlot = eventTimeCreate(modalResults[1],modalResults[2]) //returns 13 digit timestamp
                         timeSlot_humanReadible = `${modalResults[1]} ${modalResults[2]}`
                         if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Date.now() > timeSlot) {
+                            await i.deleteReply({ content: "Failed",embeds: [], components: [], ephemeral: true})
                             await modalResults[0].reply({
                                 content: `Not within Standard. Try again.`,
                                 embeds: [],
@@ -496,9 +495,10 @@ module.exports = {
                                 ephemeral: true
                             })
                             failedTimeFormat(modalResults[1],modalResults[2])
+
                         }
                         else {
-                            await interaction.deleteReply({ content: 'Operation Order Request Error fixed.. Awaiting Leadership approval.', embeds: [], components: [], ephemeral: true }).catch(console.error)
+                            await i.deleteReply({ content: 'Operation Order Request Error fixed.. Awaiting Leadership approval.', embeds: [], components: [], ephemeral: true }).catch(console.error)
                             await modalResults[0].reply({
                                 content: `Date and Time Updated. Awaiting Approval.`,
                                 embeds: [],
