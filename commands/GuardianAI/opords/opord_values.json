@@ -2,17 +2,13 @@
     "stringNames": [
         { "required":true,"inline": true,"name": "operation_name", "string_name": "Operation Name", "description": "Give this OPORD a Name."},
         { "required":true,"inline": false,"name": "mission_statement", "string_name": "Mission Statement", "description": "Give the reason for the Operation Order."},
-        { "required":true,"inline": false,"name": "date_time", "string_name": "Date Time", "description": "Enter your local date and time."},
-        { "required":true,"inline": false,"name": "wing_size", "string_name": "Wing Structure", "description": "Select a wing size or enter a custom one."},
+        { "required":true,"inline": false,"name": "date", "string_name": "Date", "description": "Enter your local date and time."},
+        { "required":true,"inline": false,"name": "time", "string_name": "Time", "description": "Select a wing size or enter a custom one."},
         { "required":true,"inline": false,"name": "meetup_location", "string_name": "Meetup Location", "description": "Enter meetup location."},
         { "required":true,"inline": false,"name": "carrier_parking", "string_name": "Carrier Parking", "description": "Enter carrier parking if applicable"},
-        { "required":true,"inline": true,"name": "weapons_required", "string_name": "Weapons Required", "description": "Entered required weapons, if any."},
-        { "required":true,"inline": true,"name": "modules_required", "string_name": "Modules Required", "description": "Enter required modules, if any."},
-        { "required":true,"inline": false,"name": "prefered_build", "string_name": "Prefered Build", "description": "Enter a short URL of EDSY recommended build."},
-        { "required":true,"inline": false,"name": "objective_a", "string_name": "Objective A", "description": "Enter the mission completion requirements for Objective A."},
-        { "required":true,"inline": false,"name": "objective_b", "string_name": "Objective B", "description": "Enter the mission completion requirements for Objective B."},
-        { "required":true,"inline": false,"name": "objective_c", "string_name": "Objective C", "description": "Enter the mission completion requirements for Objective C."},
-        { "required":true,"inline": false,"name": "voice_channel", "string_name": "Voice Channel", "description": "Select the voice channel to host this event."}
+        { "required":true,"inline": false,"name": "prefered_build", "string_name": "Prefered Ship Build", "description": "Enter a short URL of EDSY recommended build."},
+        { "required":true,"inline": false,"name": "voice_channel", "string_name": "Voice Channel", "description": "Select the voice channel to host this event."},
+        { "required":true,"inline": false,"name": "additional_instructions", "string_name": "Additional Instructions", "description": "Enter additional instructions"}
     ],
     "wing_sizes": [
         "Strike Group (2 Assault Groups)",

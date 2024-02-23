@@ -14,9 +14,11 @@ const dbConfig = {
     charset: 'utf8mb4'
 };
 let pool;
+let connection; 
 createPool();
-function createPool() {
+async function createPool() {
     pool = mysql.createPool(dbConfig);
+   
     pool.on('error', (err) => {
         console.error('Database pool error:', err);
         if (err.code === 'PROTOCOL_CONNECTION_LOST') {
@@ -36,7 +38,6 @@ async function query(query, values) {
         })
     })
 }
-
 //! ##############################
 //! ##############################
 //! ##############################
@@ -75,23 +76,18 @@ async function opordChecks() {
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     unix varchar(255),
                     opord_number INT DEFAULT 0,
-                    message_id VARCHAR(255),
+                    approved_message_id VARCHAR(255),
+                    await_message_id VARCHAR(255),
+                    event_id VARCHAR(255),
                     creator JSON,
                     participant_lock INT DEFAULT 0,
                     participant_uniform TEXT,
                     participant_players TEXT,
                     operation_name VARCHAR(255),
                     mission_statement TEXT,
-                    date_time VARCHAR(255),
-                    wing_size VARCHAR(255),
                     meetup_location TEXT,
                     carrier_parking TEXT,
-                    weapons_required TEXT,
-                    modules_required TEXT,
                     prefered_build TEXT,
-                    objective_a TEXT,
-                    objective_b TEXT,
-                    objective_c TEXT,
                     voice_channel VARCHAR(255),
                     additional_instructions TEXT
                 );

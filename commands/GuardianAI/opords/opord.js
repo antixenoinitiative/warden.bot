@@ -4,6 +4,8 @@ const objectives = require('./opord_values.json')
 const config = require('../../../config.json')
 const database = require('../../../GuardianAI/db/database')
 
+// console.log(eventTimeCreate("05/Dec",'0000'))
+
 let voiceChans = []
 function fillVoiceChan(interaction) {
     const guild = interaction.guild;
@@ -16,6 +18,7 @@ function fillVoiceChan(interaction) {
             voiceChansSet.add({ name: channel.name, id: channel.id });
         });
     }
+    voiceChansSet.add({ name: 'Mumble', id: 0 });
     voiceChans = Array.from(voiceChansSet);
 }
 
@@ -38,15 +41,14 @@ module.exports = {
                         .setRequired(true)
                 )
                 .addStringOption(option =>
-                    option.setName('date_time')
-                        .setDescription('Enter Coordinated Universal Time date and time. Ex. 24/Feb/24+1300')
+                    option.setName('date')
+                        .setDescription('Enter the date: DD/MMM Example: 09/Jan')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
-                    option.setName('wing_size')
-                        .setDescription('Select a wing size or enter a custom one.')
+                    option.setName('time')
+                        .setDescription('Enter the 24hr Clock Time: Example 1300 or 0030')
                         .setRequired(true)
-                        .setAutocomplete(true)
                 )
                 .addStringOption(option =>
                     option.setName('meetup_location')
@@ -59,33 +61,8 @@ module.exports = {
                         .setRequired(true)
                 )
                 .addStringOption(option =>
-                    option.setName('weapons_required')
-                        .setDescription('Entered required weapons or weapons limitations, if any.')
-                        .setRequired(true)
-                )
-                .addStringOption(option =>
-                    option.setName('modules_required')
-                        .setDescription('Enter required modules or modules limitations, if any.')
-                        .setRequired(true)
-                )
-                .addStringOption(option =>
                     option.setName('prefered_build')
                         .setDescription('Enter a short URL of EDSY recommended build.')
-                        .setRequired(true)
-                )
-                .addStringOption(option =>
-                    option.setName('objective_a')
-                        .setDescription('Enter the mission completion requirements for Objective A.')
-                        .setRequired(true)
-                )
-                .addStringOption(option =>
-                    option.setName('objective_b')
-                        .setDescription('Enter the mission completion requirements for Objective B.')
-                        .setRequired(true)
-                )
-                .addStringOption(option =>
-                    option.setName('objective_c')
-                        .setDescription('Enter the mission completion requirements for Objective C.')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
@@ -97,6 +74,7 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('additional_instructions')
                         .setDescription('Enter additional instructions')
+                        .setRequired(true)
                 )
         )
         .addSubcommand(subcommand =>
@@ -127,16 +105,11 @@ module.exports = {
     ,
     async autocomplete(interaction) {
         fillVoiceChan(interaction)
-
         const focusedOption = interaction.options.getFocused(true);
         let choices;
-        if (focusedOption.name === 'wing_size') {
-            choices = objectives.wing_sizes
-        }
         if (focusedOption.name === 'voice_channel') {
             choices = voiceChans.map(i => i.name)
         }
-
         const filtered = choices.filter(choice => choice.startsWith(focusedOption.value));
         await interaction.respond(
             filtered.map(choice => ({ name: choice, value: choice })),
@@ -146,10 +119,10 @@ module.exports = {
     async execute(interaction) {
         if (interaction.options.getSubcommand() === 'participants') {
             //Start
-            await interaction.deferReply({});
+            await interaction.deferReply({ ephemeral: true });
             async function getUserIDsFromMention(entry, interaction) {
                 if (!entry.includes("@")) {
-                    await interaction.editReply({ content: `You did not use Mentionables: Example. "@player"` });
+                    await interaction.editReply({ content: `You did not use Mentionables: Example. "@player"`, ephemeral: true });
                     return -1
                 }
                 if ((entry == 'none' || entry == 'na' || entry == 'n/a')) {
@@ -224,11 +197,11 @@ module.exports = {
             const opord_number = op_participants.find(i => i.name === 'opord_number').value
             // Check database for correctly selected opord_number
             const mysql_opord_values = [opord_number]
-            const mysql_opord_sql = 'SELECT opord_number,message_id,creator,participant_lock FROM `opord` WHERE opord_number = (?)';
+            const mysql_opord_sql = 'SELECT opord_number,approved_message_id,creator,participant_lock FROM `opord` WHERE opord_number = (?)';
             const mysql_opord_response = await database.query(mysql_opord_sql, mysql_opord_values)
 
             if (mysql_opord_response.length > 0 && mysql_opord_response[0].participant_lock) {
-                await interaction.editReply('Participant Lock is enabled for this, contact admin ');
+                await interaction.editReply( { content: 'Participant Lock is enabled for this, contact admin ' , ephemeral: true });
                 return
             }
             if (mysql_opord_response.length > 0) {
@@ -304,12 +277,12 @@ module.exports = {
                         console.error(e)
                         return
                     }
-                    await interaction.editReply({ content: `Operation Order Number: ${opord_number} \nUniformed Participant(s): ${participant_uniform} \nOut of Uniform Participant(s): ${participant_players}` })
+                    await interaction.editReply({ content: `Operation Order Number: ${opord_number} \nUniformed Participant(s): ${participant_uniform} \nOut of Uniform Participant(s): ${participant_players}`, ephemeral: true })
                     // Add participants to the last embed
                     try {
                         const guild = interaction.guild;
                         const creator = guild.members.cache.get(mysql_opord_response[0].creator.id)
-                        const lastMessage = await channel_approved.messages.fetch(mysql_opord_response[0].message_id)
+                        const lastMessage = await channel_approved.messages.fetch(mysql_opord_response[0].approved_message_id)
                         const receivedEmbed = lastMessage.embeds[0];
                         const oldEmbedSchema = {
                             title: receivedEmbed.title,
@@ -326,13 +299,14 @@ module.exports = {
                             .setThumbnail(botIdent().activeBot.icon)
 
                         oldEmbedSchema.fields.forEach((field, index) => {
-                            if (index == 16) {
+                            console.log(index,field.name)
+                            if (index == 12) {
                                 newEmbed.addFields({ name: "Earned Experience Credit:", value: `${participant_uniform}`, inline: field.inline })
                             }
-                            if (index == 17) {
+                            if (index == 13) {
                                 newEmbed.addFields({ name: "Participated:", value: `${participant_players}`, inline: field.inline })
                             }
-                            if (index > 15) { return }
+                            if (index > 11) { return }
                             if (index == 0) {
                                 newEmbed.addFields({ name: "Operation Order #", value: `${opord_number}`, inline: field.inline })
                             }
@@ -340,7 +314,7 @@ module.exports = {
                                 newEmbed.addFields({ name: field.name, value: field.value, inline: field.inline })
                             }
                         })
-                        if (oldEmbedSchema.fields.length === 15) {
+                        if (oldEmbedSchema.fields.length === 11) {
                             newEmbed.addFields(
                                 { name: "Experience Credit:", value: "If you feel an error in experience credit, please contact General Staff", inline: false },
                                 { name: "Earned Experience Credit:", value: participant_uniform, inline: false },
@@ -356,7 +330,7 @@ module.exports = {
                 }
             }
             else {
-                await interaction.editReply({ content: `Opord "${opord_number}" could not be found...` })
+                await interaction.editReply({ content: `Opord **${opord_number}** could not be found...`, ephemeral: true })
                 return
             }
         }
@@ -379,16 +353,11 @@ module.exports = {
                     { name: "What is an Objective", value: "An objective is one of the priorities in an order which denote specific conditions to be met. Objective A will always be required. Any others can be filled in with 'NA' or 'None'" },
                     { name: "The format...", value: "Operation Orders are significant that they follow a format that is expected everytime one is presented." },
                     { name: "Mission Statement", value: "A mission statement talks about the overall mission synopsis." },
-                    { name: "Date Time", value: "At this time, a specific time format, in Coordinated Universal Time (UTC), shall be entered. 'DD/MMM/YY+1300' '24/feb/24+1300'" },
-                    { name: "Wing Size", value: "An autocompleted list will give a few structured examples. Certain sizes are limited to certain Ranks that can lead them." },
+                    { name: "Date", value: "Shall be entered. 'DD/MMM' " },
+                    { name: "Time", value: "Specific time format, in Coordinated Universal Time (UTC). Ex: 1300" },
                     { name: "Meetup Location", value: "Direct a location to group up at." },
                     { name: "Carrier Parking", value: "Direct a location for all carriers to stage." },
-                    { name: "Weapons Required/Limitation", value: "Can be weapon limitations or weapon requirements" },
-                    { name: "Modules Required/Limitation", value: "Can be module limitations or module requirements" },
-                    { name: "Prefered Build(s)", value: "Specific short url EDYS links for ship builds" },
-                    { name: "Objective A", value: "Mission completion requirement, #1" },
-                    { name: "Objective B", value: "Mission completion requirement, #2" },
-                    { name: "Objective C", value: "Mission completion requirement, #3" },
+                    { name: "Preferred Build(s)", value: "Specific EDSY short links for ship builds." },
                     { name: "Voice Channel", value: "Declare a voice channel for this to occur in." },
                 )
             await interaction.reply({
@@ -407,7 +376,8 @@ module.exports = {
 
             let requestingPlayer = { id: interaction.user.id, name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }
             let strikePackage = interaction.options._hoistedOptions
-            let timeSlot = eventTimeCreate(strikePackage.find(i => i.name === 'date_time').value)
+            let timeSlot_humanReadible = `${strikePackage.find(i => i.name === 'date').value} ${strikePackage.find(i => i.name === 'time').value}`
+            let timeSlot = eventTimeCreate(strikePackage.find(i => i.name === 'date').value,strikePackage.find(i => i.name === 'time').value)
             let response = null;
             let returnEmbed = null;
             let channel_await = null;
@@ -424,19 +394,26 @@ module.exports = {
             catch (e) {
                 console.log("[FAIL]".bgRed, "channel_await or channel_approved  Channel IDs dont match. Check config.json")
             }
-            async function gimmeModal(i) {
+            async function timeFailModal(i) {
                 const fields = {
-                    time: new Discord.TextInputBuilder()
-                        .setCustomId(`time`)
-                        .setLabel(`Input the correct Coordinated Universal Time: IE. 01/JAN/24+1325`)
+                    date: new Discord.TextInputBuilder()
+                        .setCustomId(`date`)
+                        .setLabel(`Input a correct Date:`)
                         .setStyle(Discord.TextInputStyle.Short)
                         .setRequired(true)
-                        .setPlaceholder(`05/MAY/24+1200`)
+                        .setPlaceholder(`05/MAY`),
+                    time: new Discord.TextInputBuilder()
+                        .setCustomId(`time`)
+                        .setLabel(`Input a correct UTC Time:`)
+                        .setStyle(Discord.TextInputStyle.Short)
+                        .setRequired(true)
+                        .setPlaceholder(`1200`)
                 }
                 const modal = new Discord.ModalBuilder()
                     .setCustomId('myModal')
                     .setTitle('Adjust Time')
                     .addComponents(
+                        new Discord.ActionRowBuilder().addComponents(fields.date),
                         new Discord.ActionRowBuilder().addComponents(fields.time),
                     )
                 await i.showModal(modal);
@@ -449,8 +426,8 @@ module.exports = {
                 })
 
                 if (submitted) {
-                    const [time] = submitted.fields.fields.map(i => i.value)
-                    return [submitted, time]
+                    const [date,time] = submitted.fields.fields.map(i => i.value)
+                    return [submitted, date, time]
 
                 }
             }
@@ -475,11 +452,9 @@ module.exports = {
                 const submitted = await i.awaitModalSubmit({
                     time: 1800000,
                 }).catch(error => {
-
                     console.error(error)
                     return null
                 })
-
                 if (submitted) {
                     const [reason] = submitted.fields.fields.map(i => i.value)
                     return [submitted, reason]
@@ -487,29 +462,33 @@ module.exports = {
                 }
             }
             //Bad Timeslot
-            async function failedTimeFormat() {
+            async function failedTimeFormat(date,time) {
+                if (!date && !time) { date = strikePackage.find(i => i.name === 'date').value; time = strikePackage.find(i => i.name === 'time').value }
+                console.log("Date:",date)
+                console.log("Time:",time)
                 returnEmbed = new Discord.EmbedBuilder()
                     .setTitle('Operation Order Request')
                     .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                     .setThumbnail(botIdent().activeBot.icon)
                     .setColor('#FD0E35')
-                    .setDescription(`**Malformed Time Format!*`)
+                    .setDescription(`**Malformed Date or Time Format!*`)
                     .addFields(
-                        { name: "Malformed Value:", value: strikePackage.find(i => i.name === 'date_time').value },
-                        { name: "Correct Syntax:", value: "01/JAN/24+1800" },
-                        { name: "Correction:", value: "Would you like to correct this time?" }
+                        { name: "Malformed Value:", value: `${date} ${time}` },
+                        { name: "Correct Syntax:", value: "Date: 01/JAN\nTime: 1800\n-Input the correct date format and UTC Time" },
+                        { name: "Correction:", value: "Would you like to correct this?" }
                     )
                 const buttonRow = new Discord.ActionRowBuilder()
                     .addComponents(new Discord.ButtonBuilder().setLabel('Fix Error').setCustomId('fix').setStyle(Discord.ButtonStyle.Success))
                     .addComponents(new Discord.ButtonBuilder().setLabel('Cancel Submission').setCustomId('No').setStyle(Discord.ButtonStyle.Danger))
                 response = await interaction.followUp({ content: `Error Discovered`, embeds: [returnEmbed.setTimestamp()], components: [buttonRow], ephemeral: true }).catch(console.error);
-                const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 3_600_000 });
+                const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 604_800_000 });
                 collector.on('collect', async i => {
                     const selection = i.customId;
                     collector.stop()
                     if (selection == 'fix') {
-                        const modalResults = await gimmeModal(i)
-                        timeSlot = eventTimeCreate(modalResults[1]) //returns 13 digit timestamp
+                        const modalResults = await timeFailModal(i)
+                        timeSlot = eventTimeCreate(modalResults[1],modalResults[2]) //returns 13 digit timestamp
+                        timeSlot_humanReadible = `${modalResults[1]} ${modalResults[2]}`
                         if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Date.now() > timeSlot) {
                             await modalResults[0].reply({
                                 content: `Not within Standard. Try again.`,
@@ -517,32 +496,33 @@ module.exports = {
                                 components: [],
                                 ephemeral: true
                             })
-                            failedTimeFormat()
+                            failedTimeFormat(modalResults[1],modalResults[2])
                         }
                         else {
                             await interaction.deleteReply({ content: 'Operation Order Request Error fixed.. Awaiting Leadership approval.', embeds: [], components: [], ephemeral: true }).catch(console.error)
                             await modalResults[0].reply({
-                                content: `Time Updated. Awaiting Approval.`,
+                                content: `Date and Time Updated. Awaiting Approval.`,
                                 embeds: [],
                                 components: [],
                                 ephemeral: true
                             })
-                            const newTime = modalResults[1]
-                            publishRequest(newTime)
+                            publishRequest()
                             //modal was good call publishRequest with new time value
                         }
                     }
                     else {
-                        await i.followUp({ content: 'Operation Order Submission Cancelled', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
+                        await interaction.followUp({ content: `Error Discovered`, embeds: [returnEmbed.setTimestamp()], components: [], ephemeral: true }).catch(console.error);
+                        await i.reply({ content: 'Operation Order Submission Cancelled', components: [], ephemeral: true }).catch(console.error);
+                        // await i.reply({ content: 'Operation Order Submission Cancelled', components: [], embeds: [returnEmbed.setColor('#FD0E35')], ephemeral: true }).catch(console.error);
                     }
                 });
             }
-            if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Date.now() > timeSlot) {
-                failedTimeFormat()
+            if (typeof timeSlot != "number" || timeSlot.toString().length < 13 || Math.floor(Date.now() / 1000) > timeSlot) {
+                failedTimeFormat(strikePackage.find(i => i.name === 'date').value,strikePackage.find(i => i.name === 'time').value)
             }
             else { publishRequest() }
             const testMode = 0;
-            async function publishRequest(newTime) {
+            async function publishRequest() {
                 //Good Timeslot
                 returnEmbed = new Discord.EmbedBuilder()
                     .setTitle('Operation Order Request')
@@ -555,13 +535,33 @@ module.exports = {
                 interaction.options._hoistedOptions.forEach((i, index) => {
                     let properName = null;
                     properName = objectives.stringNames.find(x => x.name === i.name)
-                    if (newTime && properName.name == 'date_time') {
-                        returnEmbed.addFields({ name: properName.string_name, value: `${newTime} UTC. \n-Check Events for your local time.`, inline: properName.inline })
+                    if (timeSlot && properName.name == 'date') {
+                        returnEmbed.addFields({ name: properName.string_name, value: 'Check Events for your local time.\n```' + timeSlot_humanReadible + ' UTC```',  inline: properName.inline })
+                        return
                     }
+                    if (properName.name == 'time') { return }
                     else {
-                        returnEmbed.addFields({ name: properName.string_name, value: i.value, inline: properName.inline })
+                        if (properName.name == 'voice_channel') {
+                            const voiceChannelValue = strikePackage.find(i => i.name === 'voice_channel').value;
+                            
+                            if (voiceChannelValue == 'Mumble') { 
+                                returnEmbed.addFields({ name: 'Voice Channel', value: 'Mumble Communications:\n Type in any channel for instructions:\n```/mumble```', inline: false });
+                            }
+                            if (typeof voiceChannelValue == 'string') { 
+                                returnEmbed.addFields({ name: 'Voice Channel', value: voiceChannelValue, inline: false });
+                            }
+                            else { 
+                                let voice = voiceChans.find(x => x.name === voiceChannelValue);
+                                returnEmbed.addFields({ name: 'Voice Channel', value: `Join XSF Voice Channel <#${voice.id}>`, inline: false });
+                            }
+                        }
+                        else {
+                            returnEmbed.addFields({ name: properName.string_name, value: i.value, inline: properName.inline });
+                        }
                     }
                 })
+                returnEmbed.addFields({ name: 'Uniform', value: 'Being in Uniform is being part of the team, view here:\nhttps://xenostrikeforce.com/?page_id=239', inline: false })
+                returnEmbed.addFields({ name: 'XSF Private Group', value: 'Official Operations are in the XSF PG. Type in any channel for instructions:\n```/pg```', inline: false })
                 try {
                     const buttonRow = new Discord.ActionRowBuilder()
                         .addComponents(new Discord.ButtonBuilder().setLabel('Approve').setCustomId('Approve').setStyle(Discord.ButtonStyle.Success))
@@ -569,7 +569,7 @@ module.exports = {
 
                     response = await channel_await.send({ embeds: [returnEmbed.setTimestamp()], components: [buttonRow] })
                     
-                    const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 345_600_000 });
+                    const collector = response.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 604_800_000 });
                     collector.on('collect', async i => {
                         const selection = i.customId;
 
@@ -592,13 +592,23 @@ module.exports = {
                                     .setDescription(`Team, prepare your kit and click 'interested' in the Events window if you plan on making it.`)
                                 ]
                             })
+
                             const embedLink = `https://discord.com/channels/${approved_embed.guildId}/${approved_embed.channelId}/${channel_approved.lastMessageId}`;
-                            createEvent(interaction, embedLink)
+                            createEvent(interaction, embedLink,response.id)
                         }
-                        else {
+                        if (selection == 'Deny') {
+                            response.edit({
+                                embeds: [returnEmbed
+                                    .setTitle('Operation Order Denied')
+                                    .setAuthor({ name: i.member.nickname, iconURL: i.user.displayAvatarURL({ dynamic: true }) })
+                                    .setColor('#FD0E35')
+                                    .setDescription(`**Denial Reason** \n - Unspecified`)
+                                ],
+                                components: []
+                            })
                             const modalResults = await opordDenyModal(i, interaction, returnEmbed)
                             await modalResults[0].reply({
-                                content: `Notification of Denial Sent`,
+                                content: `Notification of Denial Sent to ${i.member.nickname}`,
                                 embeds: [],
                                 components: [],
                                 ephemeral: true
@@ -623,7 +633,7 @@ module.exports = {
                     interaction.guild.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ OPORD Fail. Permissions or Wrong Channel. Fatal error experienced:\n ${e.stack}` })
                 }
             }
-            async function createEvent(interaction, embedLink) {
+            async function createEvent(interaction, embedLink,await_message_id) {
                 const guild = interaction.guild
                 let entityType = null
                 if (!guild) return console.log('Guild not found: createEvent() opord.js');
@@ -632,51 +642,69 @@ module.exports = {
                 let selectedChannelId = null;
                 //If a channel is malformed, just get the first one in the guild cache. 
                 //Could benefit from a default channel for ops based of config.json entry.
-                try { selectedChannelId = voiceChans.map(i => i).find(i => i.name === channelName).id; entityType = 2; }
-                catch (e) { selectedChannelId = null; entityType = 3; }
+                try { 
+                    selectedChannelId = voiceChans.map(i => i).find(i => i.name === channelName).id; 
+                    entityType = 2; 
+                    if (selectedChannelId == 0) { throw new Error()}
+                }
+                catch (e) { 
+                    selectedChannelId = null; 
+                    entityType = 3; 
+                }
                 if (testMode != 1) { 
-                    const event_manager = new Discord.GuildScheduledEventManager(guild);
-                    await event_manager.create({
-                        name: strikePackage.find(i => i.name === 'operation_name').value,
-                        scheduledStartTime: timeSlot,
-                        // scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
-                        privacyLevel: 2,
-                        entityType: entityType,
-                        channel: selectedChannelId,
-                        description: `${strikePackage.find(i => i.name === 'mission_statement').value}\n-\nRead the Op Order here ->, ${embedLink}`,
-                        entityMetadata: {
-                            location: channelName
-                        }
-                    });
+                    
                     channel_approved.messages.fetch({ limit: 1 }).then(async messages => {
                         let lastMessage = messages.first();
                         const previous_opord_number_values = null
                         const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
                         const previous_opord_number_response = await database.query(previous_opord_number_sql, previous_opord_number_values)
-                        const new_values = [
+                        const event_manager = new Discord.GuildScheduledEventManager(guild);
+                        const newEvent = await event_manager.create({
+                            name: strikePackage.find(i => i.name === 'operation_name').value,
+                            scheduledStartTime: timeSlot,
+                            scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 6),
+                            privacyLevel: 2,
+                            entityType: entityType,
+                            channel: selectedChannelId,
+                            description: `Mission Statement:\n${strikePackage.find(i => i.name === 'mission_statement').value}\n-\nRead the Op Order here ->, ${embedLink}`,
+                            // description: `**OP Order #: ${previous_opord_number_response[0].opord_number + 1}**:\nMission Statement:\n${strikePackage.find(i => i.name === 'mission_statement').value}\n-\nRead the Op Order here ->, ${embedLink}`,
+                            entityMetadata: {
+                                location: channelName
+                            }
+                        });
+                        let new_values = [
                             timeSlot,
                             previous_opord_number_response[0].opord_number + 1,
                             lastMessage.id,
+                            await_message_id,
+                            newEvent.id,
                             JSON.stringify(requestingPlayer),
                             strikePackage.find(i => i.name === 'operation_name').value,
                             strikePackage.find(i => i.name === 'mission_statement').value,
-                            strikePackage.find(i => i.name === 'date_time').value,
-                            strikePackage.find(i => i.name === 'wing_size').value,
                             strikePackage.find(i => i.name === 'meetup_location').value,
                             strikePackage.find(i => i.name === 'carrier_parking').value,
-                            strikePackage.find(i => i.name === 'weapons_required').value,
-                            strikePackage.find(i => i.name === 'modules_required').value,
                             strikePackage.find(i => i.name === 'prefered_build').value,
-                            strikePackage.find(i => i.name === 'objective_a').value,
-                            strikePackage.find(i => i.name === 'objective_b').value,
-                            strikePackage.find(i => i.name === 'objective_c').value,
                             strikePackage.find(i => i.name === 'voice_channel').value,
-                            strikePackage.find(i => i.name === 'additional_instructions').value
+                            strikePackage.find(i => i.name === 'additional_instructions').value,
                         ]
                         const new_sql =
                             `
-                                INSERT INTO opord (unix,opord_number,message_id,creator,operation_name,mission_statement,date_time,wing_size,meetup_location,carrier_parking,weapons_required,modules_required,prefered_build,objective_a,objective_b,objective_c,voice_channel) 
-                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                                INSERT INTO opord (
+                                    unix,
+                                    opord_number,
+                                    approved_message_id,
+                                    await_message_id,
+                                    event_id,
+                                    creator,
+                                    operation_name,
+                                    mission_statement,
+                                    meetup_location,
+                                    carrier_parking,
+                                    prefered_build,
+                                    voice_channel,
+                                    additional_instructions
+                                ) 
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
                             `
                         await database.query(new_sql, new_values)
                     }).catch(console.error)

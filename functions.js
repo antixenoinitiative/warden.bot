@@ -223,38 +223,40 @@ const thisBotFunctions = {
     
         return `${day}/${month}/${year} ${hours}:${minutes}`;
     },
-    eventTimeCreate: (dateString) => {
-        function convertToUnixTimestamp(dateString) {
-            dateString = dateString.toLowerCase()
-            try {
-                const dateTimeParts = dateString.split('+');
-                if (dateTimeParts[1].length != 4) {
-                    throw new Error("Time slice must be 4 characters in length after the '+'");
+    eventTimeCreate: (date,time) => {
+        try {
+            const months = {
+                'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+            };
+            const validDateFormat = /^\d{2}\/[a-zA-Z]{3}$/;
+            if (!validDateFormat.test(date)) {
+                throw new Error("Malformed Date - Ex: 05/Jan");
+            }
+            if (time.length !== 4 || !/^\d{4}$/.test(time)) {
+                throw new Error("Malformed Time - Time must be 4 digits");
+            }
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const dateParts = date.split('/');
+            const day = parseInt(dateParts[0], 10);
+            const month = dateParts[1];
+            let year = currentYear;
+            const monthNumeric = months[month];
+            const combinedDateTime = new Date(year, monthNumeric, day, parseInt(time.substring(0, 2)), parseInt(time.substring(2, 4)));
+            if (combinedDateTime < currentDate) {
+                // If the input date is in the past, adjust the year and ensure it doesn't exceed today's date
+                year++;
+                combinedDateTime.setFullYear(year);
+                if (combinedDateTime > currentDate) {
+                    combinedDateTime.setDate(currentDate.getDate());
                 }
-                const dateParts = dateTimeParts[0].split('/');
-                const months = {
-                  'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
-                  'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
-                };
-                const day = parseInt(dateParts[0], 10);
-                const month = months[dateParts[1]];
-                const year = parseInt(dateParts[2].substring(0, 2), 10) + 2000;
-                const timeOfDay = parseInt(dateTimeParts[1], 10);
-                const date = new Date(year, month, day);
-                const hours = Math.floor(timeOfDay / 100);
-                const minutes = timeOfDay % 100;
-                date.setHours(hours, minutes);
-                const unixTimestampMilliseconds = date.getTime();
-                const unixTimestampSeconds = Math.floor(unixTimestampMilliseconds);
-                return unixTimestampSeconds;
             }
-            catch(e) { 
-                return "Malformed Time - Ex: 01/JAN/24+1800"
-            }
-          }
-        const unixTimestamp = convertToUnixTimestamp(dateString);
-        
-        return unixTimestamp
+            const unixTimestampMilliseconds = combinedDateTime.getTime();
+            return unixTimestampMilliseconds;
+        } catch (e) {
+            return "malformed";
+        }
     },
     hasSpecifiedRole: (member,specifiedRanks) => {
         let approvalRanks = specifiedRanks
