@@ -552,7 +552,7 @@ module.exports = {
                     let properName = null;
                     properName = objectives.stringNames.find(x => x.name === i.name)
                     if (newTime && properName.name == 'date_time') {
-                        returnEmbed.addFields({ name: properName.string_name, value: newTime, inline: properName.inline })
+                        returnEmbed.addFields({ name: properName.string_name, value: `${newTime} UTC. \n-Check Events for your local time.`, inline: properName.inline })
                     }
                     else {
                         returnEmbed.addFields({ name: properName.string_name, value: i.value, inline: properName.inline })
