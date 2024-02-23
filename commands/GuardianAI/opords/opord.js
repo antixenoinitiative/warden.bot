@@ -635,7 +635,7 @@ module.exports = {
                     await event_manager.create({
                         name: strikePackage.find(i => i.name === 'operation_name').value,
                         scheduledStartTime: timeSlot,
-                        scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
+                        // scheduledEndTime: new Date(timeSlot).setHours(new Date(timeSlot).getHours() + 2),
                         privacyLevel: 2,
                         entityType: entityType,
                         channel: selectedChannelId,
