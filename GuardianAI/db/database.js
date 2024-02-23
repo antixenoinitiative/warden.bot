@@ -92,7 +92,8 @@ async function opordChecks() {
                     objective_a TEXT,
                     objective_b TEXT,
                     objective_c TEXT,
-                    voice_channel VARCHAR(255)
+                    voice_channel VARCHAR(255),
+                    additional_instructions TEXT
                 );
             `;
             await query(opord_table_create_sql,opord_table_create_values)

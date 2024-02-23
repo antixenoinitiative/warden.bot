@@ -94,6 +94,10 @@ module.exports = {
                         .setRequired(true)
                         .setAutocomplete(true)
                 )
+                .addStringOption(option =>
+                    option.setName('additional_instructions')
+                        .setDescription('Enter additional instructions')
+                )
         )
         .addSubcommand(subcommand =>
             subcommand
@@ -322,13 +326,13 @@ module.exports = {
                             .setThumbnail(botIdent().activeBot.icon)
 
                         oldEmbedSchema.fields.forEach((field, index) => {
-                            if (index == 15) {
+                            if (index == 16) {
                                 newEmbed.addFields({ name: "Earned Experience Credit:", value: `${participant_uniform}`, inline: field.inline })
                             }
-                            if (index == 16) {
+                            if (index == 17) {
                                 newEmbed.addFields({ name: "Participated:", value: `${participant_players}`, inline: field.inline })
                             }
-                            if (index > 14) { return }
+                            if (index > 15) { return }
                             if (index == 0) {
                                 newEmbed.addFields({ name: "Operation Order #", value: `${opord_number}`, inline: field.inline })
                             }
@@ -336,7 +340,7 @@ module.exports = {
                                 newEmbed.addFields({ name: field.name, value: field.value, inline: field.inline })
                             }
                         })
-                        if (oldEmbedSchema.fields.length === 14) {
+                        if (oldEmbedSchema.fields.length === 15) {
                             newEmbed.addFields(
                                 { name: "Experience Credit:", value: "If you feel an error in experience credit, please contact General Staff", inline: false },
                                 { name: "Earned Experience Credit:", value: participant_uniform, inline: false },
@@ -666,12 +670,13 @@ module.exports = {
                             strikePackage.find(i => i.name === 'objective_a').value,
                             strikePackage.find(i => i.name === 'objective_b').value,
                             strikePackage.find(i => i.name === 'objective_c').value,
-                            strikePackage.find(i => i.name === 'voice_channel').value
+                            strikePackage.find(i => i.name === 'voice_channel').value,
+                            strikePackage.find(i => i.name === 'additional_instructions').value
                         ]
                         const new_sql =
                             `
                                 INSERT INTO opord (unix,opord_number,message_id,creator,operation_name,mission_statement,date_time,wing_size,meetup_location,carrier_parking,weapons_required,modules_required,prefered_build,objective_a,objective_b,objective_c,voice_channel) 
-                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
                             `
                         await database.query(new_sql, new_values)
                     }).catch(console.error)
