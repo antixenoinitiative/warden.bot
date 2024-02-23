@@ -299,7 +299,6 @@ module.exports = {
                             .setThumbnail(botIdent().activeBot.icon)
 
                         oldEmbedSchema.fields.forEach((field, index) => {
-                            console.log(index,field.name)
                             if (index == 12) {
                                 newEmbed.addFields({ name: "Earned Experience Credit:", value: `${participant_uniform}`, inline: field.inline })
                             }
