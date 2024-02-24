@@ -125,7 +125,7 @@ function mainOperation(){
 	let commandsColl = bot.commands = new Collection()
 	bot.on("ready", async() => {
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
-		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),2);
+		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),0);
 		global.guild = bot.guilds.cache.first()	
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }

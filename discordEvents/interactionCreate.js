@@ -46,7 +46,9 @@ const exp = {
             }
         }
         if (interaction.isButton()) {
-            botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
+            // if (botIdent().activeBot.botName != 'GuardianAI') {
+            //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
+            // }
             if (botIdent().activeBot.botName == 'Warden') {
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate();

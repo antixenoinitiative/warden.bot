@@ -4,10 +4,12 @@ const database = require('../GuardianAI/db/database')
 const config = require('../config.json')
 const exp = {
     messageDelete: async (message, bot) => {
-        try {
-            botLog(bot,new Discord.EmbedBuilder().setDescription(`Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```').setTitle(`Message Deleted 🗑️`),1)
-        } catch (err) {
-            botLog(bot,new Discord.EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
+        if (!message.author.bot) {  
+            try {
+                botLog(bot,new Discord.EmbedBuilder().setDescription(`Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```').setTitle(`Message Deleted 🗑️`),1)
+            } catch (err) {
+                botLog(bot,new Discord.EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
+            }
         }
     },
     messageUpdate: async (oldMessage, newMessage, bot) => {

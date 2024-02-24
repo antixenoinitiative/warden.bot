@@ -349,8 +349,6 @@ module.exports = {
                     { name: "Operational Experience", value: "Grants you experience credit to attain higher ranks." },
                     { name: "Preview of Information", value: "Specifically gives the intent for the operation and things you may need." },
                     { name: "Who can Create Operation Orders", value: `Anybody can create an Operation Order, however it must be approved by a ${opord_approval_authority}` },
-                    { name: "What is an Objective", value: "An objective is one of the priorities in an order which denote specific conditions to be met. Objective A will always be required. Any others can be filled in with 'NA' or 'None'" },
-                    { name: "The format...", value: "Operation Orders are significant that they follow a format that is expected everytime one is presented." },
                     { name: "Mission Statement", value: "A mission statement talks about the overall mission synopsis." },
                     { name: "Date", value: "Shall be entered. 'DD/MMM' " },
                     { name: "Time", value: "Specific time format, in Coordinated Universal Time (UTC). Ex: 1300" },
