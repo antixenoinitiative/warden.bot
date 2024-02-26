@@ -533,7 +533,7 @@ module.exports = {
                     let properName = null;
                     properName = objectives.stringNames.find(x => x.name === i.name)
                     if (timeSlot && properName.name == 'date') {
-                        returnEmbed.addFields({ name: properName.string_name, value: 'Check Events for your local time.\n```' + timeSlot_humanReadible + ' UTC```',  inline: properName.inline })
+                        returnEmbed.addFields({ name: properName.string_name, value: '```Check Discord Events for your local time.```',  inline: properName.inline })
                         return
                     }
                     if (properName.name == 'time') { return }
