@@ -10,10 +10,8 @@ let voiceChans = []
 function fillVoiceChan(interaction) {
     const guild = interaction.guild;
     const voiceChansSet = new Set();
-
     if (guild) {
         const voiceChannels = guild.channels.cache.filter(chan => chan.type === 2);
-
         voiceChannels.forEach(channel => {
             voiceChansSet.add({ name: channel.name, id: channel.id });
         });
