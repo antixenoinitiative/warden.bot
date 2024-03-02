@@ -19,7 +19,7 @@ module.exports = {
         .addFields(
             { name: "Download", value: "https://www.Mumble.info"},
             { name: "Connecting", value: "Follow the website instructions to connect, link below."},
-            { name: "Username", value: `Enter in your XSF Community Name, Example: \n ${thisUser}` },
+            { name: "Username", value: `${thisUser}\n\nOnce a member in XSF, your Mumble username will prefix with [XSTF]. Individual squadrons can be added at the end of your name (AXIN). This allows us seemless identification of player groups when we have guests in our operations.` },
             { name: "Password", value: 'WingUpAndStrike' },
             { name: "Address", value: 'mumble.xenostrikeforce.com' },
             { name: "Certificates", value: 'You will be prompted to download a certificate from the server, this identifies you specifically and will not have to enter in the password again.' },
