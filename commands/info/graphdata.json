@@ -75,5 +75,12 @@
         "description": "MTToT for 2m2s Gauss Cannons",
         "link": "https://cdn.discordapp.com/attachments/427410720477675530/1060283596969087096/MTToT_Chart.png",
         "type": "text"
+    },
+    {
+        "argument": "spectrum",
+        "title": "The elite player spectrum.",
+        "description": "The spectrum which every elite player lands in.",
+        "link": "https://cdn.discordapp.com/attachments/763535317360705606/1213576135867375676/bfTM2L0.png",
+        "type": "text"
     }
 ]
