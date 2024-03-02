@@ -661,7 +661,7 @@ module.exports = {
                             privacyLevel: 2,
                             entityType: entityType,
                             channel: selectedChannelId,
-                            description: `Mission Statement:\n${strikePackage.find(i => i.name === 'mission_statement').value}\n-\nRead the Op Order here ->, ${embedLink}`,
+                            description: `${strikePackage.find(i => i.name === 'mission_statement').value}\n-\nRead the Op Order here ->, ${embedLink}`,
                             // description: `**OP Order #: ${previous_opord_number_response[0].opord_number + 1}**:\nMission Statement:\n${strikePackage.find(i => i.name === 'mission_statement').value}\n-\nRead the Op Order here ->, ${embedLink}`,
                             entityMetadata: {
                                 location: channelName
