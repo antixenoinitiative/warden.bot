@@ -24,7 +24,7 @@ const testdbConfig = {
 };
 let pool;
 let connection; 
-createPool('testdb');
+createPool();
 async function createPool(testdb) {
     if (testdb) { pool = mysql.createPool(testdbConfig); }
     else { pool = mysql.createPool(dbConfig); }
