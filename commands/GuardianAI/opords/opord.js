@@ -40,7 +40,7 @@ module.exports = {
                 )
                 .addStringOption(option =>
                     option.setName('date')
-                        .setDescription('Enter the date: DD/MMM Example: 09/Jan')
+                        .setDescription('Date to be conducted on: DD/MMM Example: 09/Jan')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
@@ -531,7 +531,7 @@ module.exports = {
                     let properName = null;
                     properName = objectives.stringNames.find(x => x.name === i.name)
                     if (timeSlot && properName.name == 'date') {
-                        returnEmbed.addFields({ name: properName.string_name, value: '```Check Discord Events for your local time.```',  inline: properName.inline })
+                        returnEmbed.addFields({ name: properName.string_name, value: strikePackage.find(i => i.name === 'date').value + " " + strikePackage.find(i => i.name === 'time').value,  inline: properName.inline })
                         return
                     }
                     if (properName.name == 'time') { return }
@@ -578,6 +578,7 @@ module.exports = {
                             const previous_opord_number_sql = 'SELECT opord_number FROM `opord` ORDER BY opord_number DESC LIMIT 1';
                             const previous_opord_number_response = await database.query(previous_opord_number_sql, previous_opord_number_values)
                             returnEmbed.data.fields[0].value = previous_opord_number_response[0].opord_number + 1
+                            returnEmbed.data.fields[3].value = '```Check Discord Events for your local time.```'
                             await i.update({ content: 'Operation Order Approved', components: [], embeds: [returnEmbed.setColor('#87FF2A')], ephemeral: true }).catch(console.error);
                             const approved_embed = await channel_approved.send({
                                 embeds: [returnEmbed
@@ -603,7 +604,7 @@ module.exports = {
                             })
                             const modalResults = await opordDenyModal(i, interaction, returnEmbed)
                             await modalResults[0].reply({
-                                content: `Notification of Denial Sent to ${i.member.nickname}`,
+                                content: `Notification of Denial Sent to ${interaction.member.nickname}`,
                                 embeds: [],
                                 components: [],
                                 ephemeral: true

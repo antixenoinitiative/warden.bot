@@ -13,11 +13,21 @@ const dbConfig = {
     enableKeepAlive: true,
     charset: 'utf8mb4'
 };
+const testdbConfig = {
+    host: process.env.DATABASE_URL,
+    user: process.env.DATABASE_TESTUSER,
+    password: process.env.DATABASE_TESTPASSWORD,
+    database: process.env.DATABASE_TESTDBASE,
+    multipleStatements: true,
+    enableKeepAlive: true,
+    charset: 'utf8mb4'
+};
 let pool;
 let connection; 
-createPool();
-async function createPool() {
-    pool = mysql.createPool(dbConfig);
+createPool('testdb');
+async function createPool(testdb) {
+    if (testdb) { pool = mysql.createPool(testdbConfig); }
+    else { pool = mysql.createPool(dbConfig); }
    
     pool.on('error', (err) => {
         console.error('Database pool error:', err);
