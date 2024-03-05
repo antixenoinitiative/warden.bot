@@ -77,7 +77,7 @@ module.exports = {
                     // .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                     .setThumbnail(botIdent().activeBot.icon)
                     .setColor('#00ECFF') //87FF2A
-                    .setDescription(`**Jump Completed..**\n${description}`)
+                    .setDescription(`**Mission**\n${description}`)
                     .addFields({ name: "Carrier", value: carrier_name, inline: true })
                     .addFields({ name: "Ls from Star", value: `${lightSeconds} Ls`, inline: true })
                     .addFields({ name: "System", value: jumpLocation, inline: false })
@@ -95,6 +95,7 @@ module.exports = {
                 return
             }
         }
+        embed.addFields({ name: "Available Services", value: "Refuel, Repair, Rearm, Shipyard, Outfitting, Universal Cartographics, and other standard carrier services."})
         let embed_room = null;
         try {
             embed_room = interaction.guild.channels.cache.find(c => c.name === config[botIdent().activeBot.botName].general_stuff.carrier_jump_room)
