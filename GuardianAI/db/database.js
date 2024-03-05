@@ -24,7 +24,7 @@ const testdbConfig = {
 };
 let pool;
 let connection; 
-createPool();
+createPool('tsetdb');
 async function createPool(testdb) {
     if (testdb) { pool = mysql.createPool(testdbConfig); }
     else { pool = mysql.createPool(dbConfig); }
@@ -91,8 +91,8 @@ async function opordChecks() {
                     event_id VARCHAR(255),
                     creator JSON,
                     participant_lock INT DEFAULT 0,
-                    participant_uniform TEXT,
-                    participant_players TEXT,
+                    participant_uniform TEXT DEFAULT 0,
+                    participant_players TEXT DEFAULT 0,
                     operation_name VARCHAR(255),
                     mission_statement TEXT,
                     meetup_location TEXT,

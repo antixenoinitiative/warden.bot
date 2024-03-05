@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const { botIdent, eventTimeCreate, hasSpecifiedRole } = require('../../../functions')
+const { botIdent, eventTimeCreate, hasSpecifiedRole,botLog } = require('../../../functions')
 const objectives = require('./opord_values.json')
 const config = require('../../../config.json')
 const database = require('../../../GuardianAI/db/database')
@@ -171,9 +171,15 @@ module.exports = {
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member;
             if (!hasSpecifiedRole(member, approvalRanks)) {
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
+                .setTitle(`/opord ${interaction.options.getSubcommand()}`)
+                ,2
+                )
                 await interaction.editReply({ content: `You do not have the roles to add to the participation tracker. Contact ${approvalRanks_string}`, ephemeral: true });
                 return
             }
+            
             // Get opord channels
             let channel_await = null;
             let channel_approved = null;
@@ -211,7 +217,7 @@ module.exports = {
                 if (participant_uniform_userObjects != -1 || participant_players_userObjects != -1) {
                     const mysql_get_participantvalues = [opord_number, opord_number]
                     const mysql_get_participant_sql = `
-                        SELECT participant_uniform FROM opord WHERE opord_number = (?); 
+                        SELECT participant_uniform FROM opord WHERE opord_number = (?);
                         SELECT participant_players FROM opord WHERE opord_number = (?);
                     `;
                     const mysql_get_participant_response = await database.query(mysql_get_participant_sql, mysql_get_participantvalues)
@@ -233,9 +239,11 @@ module.exports = {
                         let inputResult = []
                         if (!object == null) { dbResult = convertObj(object) }
                         if (inputData != -1) { inputResult = convertObj(inputData) }
+                        else { inputResult = inputData }
                         const mergedArray = dbResult.concat(inputResult);
                         const uniqueObjectArray = Array.from(new Set(mergedArray.map(entry => entry.userId)))
                             .map(userId => mergedArray.find(entry => entry.userId === userId));
+                        
                         const result = { "participants": uniqueObjectArray };
                         let str = JSON.stringify(result.participants)
                         str = str.replace(/\[|\]/g, '')
@@ -320,6 +328,11 @@ module.exports = {
                         }
                         const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
                         await lastMessage.edit({ embeds: [editedEmbed] })
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                        .setDescription(`${interaction.member.nickname} Used this command on Op Order#: **${opord_number}**`)
+                        .setTitle(`/opord ${interaction.options.getSubcommand()}`)
+                        ,0
+                        )
                     }
                     catch (e) {
                         console.log(e)
@@ -538,8 +551,8 @@ module.exports = {
                     else {
                         if (properName.name == 'voice_channel') {
                             const voiceChannelValue = strikePackage.find(i => i.name === 'voice_channel').value;
-                            
-                            if (voiceChannelValue == 'Mumble') { 
+                            const voiceChanSmallString = voiceChannelValue.toLowerCase()
+                            if (voiceChanSmallString.includes('mumble')) { 
                                 returnEmbed.addFields({ name: 'Voice Channel', value: 'Mumble Communications:\n Type in any channel for instructions:\n```/mumble```', inline: false });
                             }
                             if (typeof voiceChannelValue == 'string') { 
@@ -583,7 +596,7 @@ module.exports = {
                             const approved_embed = await channel_approved.send({
                                 embeds: [returnEmbed
                                     .setTitle('Operation Order Approved')
-                                    .setAuthor({ name: i.member.nickname, iconURL: i.user.displayAvatarURL({ dynamic: true }) })
+                                    .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                                     .setColor('#87FF2A')
                                     .setDescription(`Team, prepare your kit and click 'interested' in the Events window if you plan on making it.`)
                                 ]
@@ -596,9 +609,9 @@ module.exports = {
                             response.edit({
                                 embeds: [returnEmbed
                                     .setTitle('Operation Order Denied')
-                                    .setAuthor({ name: i.member.nickname, iconURL: i.user.displayAvatarURL({ dynamic: true }) })
+                                    .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                                     .setColor('#FD0E35')
-                                    .setDescription(`**Denial Reason** \n - Unspecified`)
+                                    .setDescription(`**Denial Reason** \n - Unspecified \nDenied By: ${i.member.nickname}`)
                                 ],
                                 components: []
                             })
@@ -614,9 +627,9 @@ module.exports = {
                                 response.edit({
                                     embeds: [returnEmbed
                                         .setTitle('Operation Order Denied')
-                                        .setAuthor({ name: i.member.nickname, iconURL: i.user.displayAvatarURL({ dynamic: true }) })
+                                        .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                                         .setColor('#FD0E35')
-                                        .setDescription(`**Denial Reason** \n ${modalResults[1]}`)
+                                        .setDescription(`**Denial Reason** \n Denied By: ${i.member.nickname}`)
                                     ],
                                     components: []
                                 })
@@ -683,6 +696,11 @@ module.exports = {
                             strikePackage.find(i => i.name === 'voice_channel').value,
                             strikePackage.find(i => i.name === 'additional_instructions').value,
                         ]
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                        .setDescription(`${interaction.member.nickname} Used this command. Created Op Order #:**${previous_opord_number_response[0].opord_number + 1}**`)
+                        .setTitle(`/opord ${interaction.options.getSubcommand()}`)
+                        ,0
+                        )
                         const new_sql =
                             `
                                 INSERT INTO opord (

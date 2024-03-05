@@ -13,6 +13,7 @@ function botInstantiate {
         "TESTSERVER_OPORD_APPROVED" = ""
         "TESTSERVER_OPORD_AWAIT" = ""
         "TESTSERVER_APPROVAL_RANK" = ""
+        "TESTSERVER_CARRIERJUMP_ROOM" = ""
         "CLIENTID" = ""
         "GUILDID" = ""
         "LOGCHANNEL" = ""
