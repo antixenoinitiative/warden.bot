@@ -326,6 +326,7 @@ module.exports = {
                                 { name: "Participated:", value: participant_players, inline: false }
                             )
                         }
+                        console.log(oldEmbedSchema.fields.length)
                         const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
                         await lastMessage.edit({ embeds: [editedEmbed] })
                         botLog(interaction.guild,new Discord.EmbedBuilder()

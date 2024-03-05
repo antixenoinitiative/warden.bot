@@ -52,7 +52,7 @@ async function query(query, values) {
 //! ##############################
 //! ##############################
 //! #######STARTUP CHECKS#########
-opordChecks('testdb')
+opordChecks()
 // deleteOpordTable('opord')
 //! ##############################
 //! ##############################
