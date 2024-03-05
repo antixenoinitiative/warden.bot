@@ -23,8 +23,15 @@ const testdbConfig = {
     charset: 'utf8mb4'
 };
 let pool;
-let connection; 
-createPool();
+let connection;
+if (process.env.MODE == 'PROD') {
+    console.log("[STARTUP]".yellow,`${botIdent().activeBot.botName}`.green,"Loading Database Functions:".magenta,'✅');
+    createPool();
+}
+else {
+    console.log("[STARTUP]".yellow,`${botIdent().activeBot.botName}`.green,"Loading Test Server Database Functions:".cyan,'✅');
+    createPool('dbtest');
+}
 async function createPool(testdb) {
     if (testdb) { pool = mysql.createPool(testdbConfig); }
     else { pool = mysql.createPool(dbConfig); }

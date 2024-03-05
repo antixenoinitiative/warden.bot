@@ -166,7 +166,6 @@ module.exports = {
                     }
                 });
             }
-
             const approvalRanks = config.GuardianAI.operation_order.opord_participant_approval
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member;
@@ -303,7 +302,7 @@ module.exports = {
                             .setColor(oldEmbedSchema.color)
                             .setAuthor(oldEmbedSchema.author)
                             .setThumbnail(botIdent().activeBot.icon)
-
+                            
                         oldEmbedSchema.fields.forEach((field, index) => {
                             if (index == 12) {
                                 newEmbed.addFields({ name: "Earned Experience Credit:", value: `${participant_uniform}`, inline: field.inline })
@@ -326,7 +325,7 @@ module.exports = {
                                 { name: "Participated:", value: participant_players, inline: false }
                             )
                         }
-                        console.log(oldEmbedSchema.fields.length)
+                        
                         const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
                         await lastMessage.edit({ embeds: [editedEmbed] })
                         botLog(interaction.guild,new Discord.EmbedBuilder()
@@ -545,7 +544,7 @@ module.exports = {
                     let properName = null;
                     properName = objectives.stringNames.find(x => x.name === i.name)
                     if (timeSlot && properName.name == 'date') {
-                        returnEmbed.addFields({ name: properName.string_name, value: strikePackage.find(i => i.name === 'date').value + " " + strikePackage.find(i => i.name === 'time').value,  inline: properName.inline })
+                        returnEmbed.addFields({ name: properName.string_name, value: strikePackage.find(i => i.name === 'date').value + " @ " + strikePackage.find(i => i.name === 'time').value,  inline: properName.inline })
                         return
                     }
                     if (properName.name == 'time') { return }
@@ -554,11 +553,11 @@ module.exports = {
                             const voiceChannelValue = strikePackage.find(i => i.name === 'voice_channel').value;
                             const voiceChanSmallString = voiceChannelValue.toLowerCase()
                             if (voiceChanSmallString.includes('mumble')) { 
-                                returnEmbed.addFields({ name: 'Voice Channel', value: 'Mumble Communications:\n Type in any channel for instructions:\n```/mumble```', inline: false });
+                                returnEmbed.addFields({ name: 'Voice Channel', value: '- '+voiceChannelValue + '\n\nType in any channel for instructions:\n```/mumble```', inline: false });
                             }
-                            if (typeof voiceChannelValue == 'string') { 
-                                returnEmbed.addFields({ name: 'Voice Channel', value: voiceChannelValue, inline: false });
-                            }
+                            // if (typeof voiceChannelValue == 'string') { 
+                            //     returnEmbed.addFields({ name: 'Voice Channel', value: voiceChannelValue, inline: false });
+                            // }
                             else { 
                                 let voice = voiceChans.find(x => x.name === voiceChannelValue);
                                 returnEmbed.addFields({ name: 'Voice Channel', value: `Join XSF Voice Channel <#${voice.id}>`, inline: false });

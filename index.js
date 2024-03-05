@@ -100,7 +100,6 @@ function mainOperation(){
 	// Local Modules determined by bot "active" state.
 	// Specific bots need specific things, load them here.
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
-		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Loading Database Functions:".magenta,'✅');
 	    const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
 		warden_vars[leaderboardInteraction] = leaderboardInteraction
 		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
@@ -108,7 +107,6 @@ function mainOperation(){
 		
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
-		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Loading Database Functions:".magenta,'✅');
 		const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 		guardianai_vars[db] = db
 

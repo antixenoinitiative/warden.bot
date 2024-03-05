@@ -5,6 +5,7 @@ $botConfigs = @()
 
 function botInstantiate {
     $botInfo = [ordered]@{
+        "MODE" = "testserver"
         "BOTNAME" = ""
         "HOSTNAME"= ""
         "COMMUNITYNAME" = ""
