@@ -548,24 +548,27 @@ module.exports = {
                         return
                     }
                     if (properName.name == 'time') { return }
-                    else {
-                        if (properName.name == 'voice_channel') {
-                            const voiceChannelValue = strikePackage.find(i => i.name === 'voice_channel').value;
-                            const voiceChanSmallString = voiceChannelValue.toLowerCase()
-                            if (voiceChanSmallString.includes('mumble')) { 
-                                returnEmbed.addFields({ name: 'Voice Channel', value: '- '+voiceChannelValue + '\n\nType in any channel for instructions:\n```/mumble```', inline: false });
-                            }
-                            // if (typeof voiceChannelValue == 'string') { 
-                            //     returnEmbed.addFields({ name: 'Voice Channel', value: voiceChannelValue, inline: false });
-                            // }
-                            else { 
-                                let voice = voiceChans.find(x => x.name === voiceChannelValue);
+                    if (properName.name == 'voice_channel') {
+                        const voiceChannelValue = strikePackage.find(i => i.name === 'voice_channel').value;
+                        const voiceChanSmallString = voiceChannelValue.toLowerCase()
+                        if (voiceChanSmallString.includes('mumble')) { 
+                            returnEmbed.addFields({ name: 'Voice Channel', value: '- '+voiceChannelValue + '\n\nType in any channel for instructions:\n```/mumble```', inline: false });
+                        }
+                        // if (typeof voiceChannelValue == 'string') { 
+                        //     returnEmbed.addFields({ name: 'Voice Channel', value: voiceChannelValue, inline: false });
+                        // }
+                        else { 
+                            let voice = voiceChans.find(x => x.name === voiceChannelValue);
+                            if (voice) {
                                 returnEmbed.addFields({ name: 'Voice Channel', value: `Join XSF Voice Channel <#${voice.id}>`, inline: false });
                             }
+                            else {
+                                returnEmbed.addFields({ name: 'Voice Channel', value: `Voice Channel TBD`, inline: false });
+                            }
                         }
-                        else {
-                            returnEmbed.addFields({ name: properName.string_name, value: i.value, inline: properName.inline });
-                        }
+                    }
+                    else {
+                        returnEmbed.addFields({ name: properName.string_name, value: i.value, inline: properName.inline });
                     }
                 })
                 returnEmbed.addFields({ name: 'Uniform', value: 'Being in Uniform is being part of the team, view here:\nhttps://xenostrikeforce.com/?page_id=239', inline: false })
@@ -654,7 +657,7 @@ module.exports = {
                 try { 
                     selectedChannelId = voiceChans.map(i => i).find(i => i.name === channelName).id; 
                     entityType = 2; 
-                    if (selectedChannelId == 0) { throw new Error()}
+                    if (selectedChannelId == 0) {  entityType = 3}
                 }
                 catch (e) { 
                     selectedChannelId = null; 

@@ -200,7 +200,7 @@ function mainOperation(){
 	// General error handling
 	process.on('uncaughtException', function (err) {
 		const dateTime = botFunc.generateDateTime();
-		console.log(`${dateTime} ⛔ Fatal error occured:`)
+		console.log('[ERROR]'.red,`${dateTime} ⛔ Fatal error occured:`)
 		console.error(err);
 		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced:\n ${err.stack}` })
 	})

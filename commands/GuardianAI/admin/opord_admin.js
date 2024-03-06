@@ -33,6 +33,16 @@ module.exports = {
                         .setRequired(true)
                 )
         )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('event_start_stop')
+                .setDescription('Stop Start an Event')
+                .addNumberOption(option =>
+                    option.setName('opord_number')
+                        .setDescription('Choose the number')
+                        .setRequired(true)
+                )
+        )
     ,
     async autocomplete(interaction) {
         // fillVoiceChan(interaction)
@@ -48,11 +58,24 @@ module.exports = {
     },
     permissions: 0,
     async execute(interaction) {
+        function opordChannels() {
+            let channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
+            let channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //opord channel where approved op orders appear
+            if (!channel_await || !channel_approved) {
+                console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")
+                channel_await = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env
+                channel_approved = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
+            }
+            return [ channel_await,channel_approved ]
+        }
+        function approvalRanksF(approvalRanks) {
+            return approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
+        }
         if (interaction.options.getSubcommand() === 'embed_reload') {
             await interaction.deferReply({ ephemeral: true });
             const op_participants = interaction.options._hoistedOptions
-            const approvalRanks = config.GuardianAI.operation_order.opord_admin
-            const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
+            const approvalRanks = config[botIdent().activeBot.botName].operation_order.opord_admin
+            const approvalRanks_string = approvalRanksF(approvalRanks)
             const member = interaction.member;
             if (!hasSpecifiedRole(member, approvalRanks)) {
                 botLog(interaction.guild,new Discord.EmbedBuilder()
@@ -64,15 +87,7 @@ module.exports = {
                 return
             }
             // Get opord channels
-            let channel_await = null;
-            let channel_approved = null;
-            channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
-            channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //opord channel where approved op orders appear
-            if (!channel_await || !channel_approved) {
-                console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")
-                channel_await = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env
-                channel_approved = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
-            }
+            const [channel_await,channel_approved] = opordChannels()
             
             const opord_number = op_participants.find(i => i.name === 'opord_number').value
             // Check database for correctly selected opord_number
@@ -163,6 +178,64 @@ module.exports = {
             .setTitle(`/opord_admin ${interaction.options.getSubcommand()}`)
             ,0
             )
+        }
+        if (interaction.options.getSubcommand() === 'event_start_stop') {
+            await interaction.deferReply({ ephemeral: true });
+            const inputValues = interaction.options._hoistedOptions
+            const opord_number = inputValues.find(i => i.name === 'opord_number').value
+            let approvalRanks = config[botIdent().activeBot.botName].general_stuff.event_start_stop
+            const approvalRanks_string = approvalRanksF(approvalRanks)
+            const [channel_await,channel_approved] = opordChannels()
+            const member = interaction.member;
+            //On Role Fail
+            if (!hasSpecifiedRole(member, approvalRanks)) {
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
+                    .setTitle(`/opord_admin ${interaction.options.getSubcommand()} : Op Order #**${opord_number}**`)
+                    ,2
+                )
+                await interaction.editReply({ content: `You do not have the roles to perform this operation.`, ephemeral: true });
+                return
+            }
+            const event_id_values = [opord_number]
+            const event_id_sql = 'SELECT event_id FROM `opord` WHERE opord_number = (?)';
+            const event_id_response = await database.query(event_id_sql, event_id_values)
+            if (event_id_response.length > 0 && event_id_response[0].participant_lock) {
+                await interaction.editReply( { content: 'Participant Lock is enabled for this OPORDER, contact admin ' , ephemeral: true });
+                return
+            } 
+            if (event_id_response.length > 0) {
+                let eventStatus = null;
+                const event = await interaction.guild.scheduledEvents.fetch(event_id_response[0].event_id)
+                switch(event.status) {
+                    case 1:
+                        await interaction.guild.scheduledEvents.edit(event_id_response[0].event_id,{status:2})
+                        eventStatus = 'Started'
+                        await interaction.editReply({ content: `Event ${eventStatus}\nOp Order #${opord_number}`, ephemeral: true })
+                        break;
+                    case 2:
+                        await interaction.guild.scheduledEvents.edit(event_id_response[0].event_id,{status:3})
+                        eventStatus = 'Stopped'
+                        await interaction.editReply({ content: `Event ${eventStatus}\nOp Order #${opord_number}`, ephemeral: true })
+                        break;
+                    case 3:
+                        eventStatus = 'Completed'
+                        await interaction.editReply({ content: `Aleady ${eventStatus}\nOp Order #${opord_number} - No action taken.`, ephemeral: true })
+                        break;
+                    case 4:
+                        eventStatus = 'Cancelled'
+                        await interaction.editReply({ content: `Event was ${eventStatus}\nOp Order #${opord_number} - No action taken.`, ephemeral: true })
+                        break;
+                }
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription(`${interaction.member.nickname} Used this command on Op Order #**${opord_number}** -> Status: ${eventStatus}`)
+                    .setTitle(`/opord_admin ${interaction.options.getSubcommand()}`)
+                    ,0
+                )
+            }
+            else {
+                await interaction.editReply({ content: `Could not find Operation Order #:**${opord_number}**. Try Again.`, ephemeral: true });
+            }
         }
     }
 };
