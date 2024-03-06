@@ -203,7 +203,7 @@ module.exports = {
             if (event_id_response.length > 0 && event_id_response[0].participant_lock) {
                 await interaction.editReply( { content: 'Participant Lock is enabled for this OPORDER, contact admin ' , ephemeral: true });
                 return
-            } 
+            }
             if (event_id_response.length > 0) {
                 let eventStatus = null;
                 const event = await interaction.guild.scheduledEvents.fetch(event_id_response[0].event_id)
