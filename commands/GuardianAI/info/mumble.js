@@ -7,6 +7,7 @@ module.exports = {
     permissions: 0,
     execute (interaction) {
         let thisUser = interaction.member.nickname
+        console.log("SPLIT REFERENCE:",thisUser)
         thisUser = thisUser.split('CMDR')
         thisUser = thisUser[1].split('(')
         thisUser = '[XSTF] CMDR ' + thisUser[0].trim()

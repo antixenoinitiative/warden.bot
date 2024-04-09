@@ -15,6 +15,7 @@ module.exports = {
             let roleID = interaction.options.data.find(arg => arg.name === 'role').value
             let role = interaction.guild.roles.cache.get(roleID)
             let users = role.members.map(m=>m.user.id)
+            console.log(users)
             let list = ""
             for (user of users) {
                 list += `<@${user}>\n`
