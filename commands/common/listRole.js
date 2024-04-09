@@ -14,19 +14,31 @@ module.exports = {
         try {
             let roleID = interaction.options.data.find(arg => arg.name === 'role').value
             let role = interaction.guild.roles.cache.get(roleID)
-            let users = role.members.map(m=>m.user.id)
-            console.log
-            let list = []
-            users.forEach(i=>{
-                list.push(`<@${i}>\n`)
-            })
-           
+            let users = role.members.map(m => m.user.id);
+            let lists = [[]]; // Initialize an array to hold lists of users
+            let currentListIndex = 0;
+            let currentLength = 0;
+
+            for (let user of users) {
+                let userMentionLength = `<@${user}>\n`.length;
+                if ((currentLength + userMentionLength) <= 950) {
+                    lists[currentListIndex].push(`<@${user}>\n`);
+                    currentLength += userMentionLength;
+                } else {
+                    currentListIndex++;
+                    lists[currentListIndex] = [`<@${user}>\n`];
+                    currentLength = userMentionLength;
+                }
+            }
 
             const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             .setTitle(`**Role List - ${role.name}**`)
             .setDescription(`User List for ${role}`)
-            .addFields({name: "Users", value: `${list}`, inline: true})
+            // .addFields({name: "Users", value: `${list}`, inline: true})
+            for (let i = 0; i < lists.length; i++) {
+                returnEmbed.addFields({ name: `Users Part ${i + 1}`, value: lists[i].join(""), inline: true });
+            }
             interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
         }
         catch(err) {
