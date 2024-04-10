@@ -2,15 +2,17 @@ const Discord = require("discord.js");
 
 const { cleanString } = require('../../functions');
 
-function checker(memberrolearray, requestedroles) {
-    let result = []
-    requestedroles.every(i => {
-        i.forEach(a => {
-            const res = memberrolearray.includes(a)
-            if (res) { result.push(res) }
+function checker(memberroles, roles) {
+    let found = []
+    roles.forEach(role => {
+        // console.log("checker: role:",role)
+        memberroles.forEach(i => {
+            // console.log("checker: memberrole:",i)
+            // console.log(role.includes(i))
+            if (i.includes(role)) { found.push(role)}
         })
     })
-    return result
+    return found
 }
 
 module.exports = {
@@ -59,27 +61,36 @@ module.exports = {
                 mode = inputMode
                 args.slice(1,).forEach(arg => roles.push(clean_args))
             }
+            roles = [...new Set(roles)][0]
             const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             interaction.guild.members.cache.each(member => {
-                let memberroles = member._roles
-                const test = checker(memberroles,roles)
-                if(test) {
-                    count++
-                    if (!member.user.bot) { memberList.push(member.id) }
+                if (!member.user.bot) { 
+                    let memberroles = member._roles
+                    // console.log("Member:",member.displayName)
+                    // console.log("memberroles:",memberroles)
+                    // console.log("roles to check:",roles)
+                    const test = checker(memberroles,roles)
+                    // console.log("TEST:",test)
+                    // console.log("-------------")
+                    if(test.length) {
+                        count++
+                        memberList.push(member.id);
+                    }
                 }
             })
             memberList.sort()
+            // console.log(memberList)
             let role_names_unsorted_list = []
             let role_names_sorted_string = "\n"
 
-            roles.forEach(rolein => {
-                rolein.forEach(i=>{
-                    interaction.guild.roles.cache.find(role => {
-                        if (role.id == i) { 
-                            role_names_unsorted_list.push(cleanString(role.name))
-                        }
-                    })
+            roles.forEach(i => {
+                // console.log("r:",i)
+                interaction.guild.roles.cache.find(role => {
+                    // console.log("role",role.id,i)
+                    if (role.id == i) { 
+                        role_names_unsorted_list.push(cleanString(role.name))
+                    }
                 })
             })
             
@@ -92,7 +103,6 @@ module.exports = {
             let currentLength = 0;
             for (let user of memberList ) {
                 let userMentionLength = `<@${user}>\n`.length;
-                
                 if ((currentLength + userMentionLength) <= 950) {
                     lists[currentListIndex].push(`<@${user}>\n`);
                     currentLength += userMentionLength;
