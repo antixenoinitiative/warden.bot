@@ -147,10 +147,11 @@ module.exports = {
                         const guildMemberJSON = memberObjects.map(member => ({
                             nickname: member.nickname,
                             userId: member.user.id,
-                            rank: cleanupRoles(member.user.roles)
+                            rank: cleanupRoles(member.user.roles,'officer_ranks'),
+                            status: cleanupRoles(member.user.roles,'status_ranks')
                         }));
-                        function cleanupRoles(roles) {
-                            let matchingRanks = roles.filter(rank => config.GuardianAI.officer_ranks.some(officerRank => officerRank.rank_name === rank));
+                        function cleanupRoles(roles,configType) {
+                            let matchingRanks = roles.filter(rank => config[botIdent().activeBot.botName][configType].some(i => i.rank_name === rank));
                             if (!matchingRanks.length) {
                                 matchingRanks = ['Learner']
                             }
@@ -166,7 +167,7 @@ module.exports = {
                     }
                 });
             }
-            const approvalRanks = config.GuardianAI.operation_order.opord_participant_approval
+            const approvalRanks = config[botIdent().activeBot.botName].operation_order.opord_participant_approval
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member;
             if (!hasSpecifiedRole(member, approvalRanks)) {
@@ -345,7 +346,7 @@ module.exports = {
             }
         }
         if (interaction.options.getSubcommand() === 'information') {
-            let opord_approval_authority = config.GuardianAI.operation_order.opord_approval_ranks
+            let opord_approval_authority = config[botIdent().activeBot.botName].operation_order.opord_approval_ranks
             opord_approval_authority = opord_approval_authority.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             
             embed = new Discord.EmbedBuilder()

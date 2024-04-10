@@ -45,6 +45,11 @@
         "systemURL": "https://elitebgs.app/api/ebgs/v5/systems"
     },
     "GuardianAI": {
+        "status_ranks": [
+            { "rank_name": "Active Duty", "id": "1174573882070536242"},
+            { "rank_name": "Reserve Duty", "id": "1174574296899797023"},
+            { "rank_name": "Honorably Discharged", "id": "1174574436708515910"}
+        ],
         "officer_ranks": [
             { "rank_name": "General Staff", "id": "1173407686797303928"},
             { "rank_name": "Colonel", "id": "1176734917263102063"},
