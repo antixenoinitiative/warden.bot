@@ -6,7 +6,7 @@ function checker(memberroles, roles) {
     let found = []
     roles.forEach(role => {
         // console.log("checker: role:",role)
-        memberroles.forEach(i => {
+        memberroles.every(i => {
             // console.log("checker: memberrole:",i)
             // console.log(role.includes(i))
             if (i.includes(role)) { found.push(role)}
@@ -62,6 +62,7 @@ module.exports = {
                 args.slice(1,).forEach(arg => roles.push(clean_args))
             }
             roles = [...new Set(roles)][0]
+            roles.shift()
             const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             interaction.guild.members.cache.each(member => {
