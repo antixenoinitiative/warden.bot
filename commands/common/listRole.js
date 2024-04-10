@@ -48,20 +48,18 @@ module.exports = {
     async execute(interaction) {
         try {   
             await interaction.deferReply({ ephemeral: true });
-            const approvalRanks = config[botIdent().activeBot.botName].roleViewingAuthorization
+            const approvalRanks = config[botIdent().activeBot.botName].listRoleAuthorization
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member
             if (!hasSpecifiedRole(member, approvalRanks)) {
                 botLog(interaction.guild,new Discord.EmbedBuilder()
-                .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
-                .setTitle(`/opord ${interaction.options.getSubcommand()}`)
-                ,2
+                    .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
+                    .setTitle(`/listrole ${interaction.options.getSubcommand()}`)
+                    ,2
                 )
-                await interaction.editReply({ content: `You do not have the roles to add to the participation tracker. Contact ${approvalRanks_string}`, ephemeral: true });
+                await interaction.editReply({ content: `You do not have the roles to do this command, Contact ${approvalRanks_string}`, ephemeral: true });
                 return
             }
-            const input_vals = interaction.options._hoistedOptions
-            // const inputValue = input_vals.find(i => i.name === 'opord_number').value
             let args = []
             let clean_args = []
             for (let data of interaction.options.data) {

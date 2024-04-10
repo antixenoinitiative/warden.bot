@@ -53,7 +53,7 @@
             { "rank_name": "Lieutenant", "id": "1176734436746874910"},
             { "rank_name": "Aviator", "id": "1176734299031093329"}
         ],
-        "roleViewingAuthorization": [
+        "listRoleAuthorization": [
             { "rank_name": "General Staff", "id": "1173407686797303928"},
             { "rank_name": "Colonel", "id": "1176734917263102063"},
             { "rank_name": "Major", "id": "1176734800103608461"},
