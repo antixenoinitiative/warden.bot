@@ -2,16 +2,11 @@ const Discord = require("discord.js");
 
 const { cleanString } = require('../../functions');
 
-function checker(memberroles, roles) {
-    let found = []
-    roles.forEach(role => {
-        // console.log("checker: role:",role)
-        memberroles.every(i => {
-            // console.log("checker: memberrole:",i)
-            // console.log(role.includes(i))
-            if (i.includes(role)) { found.push(role)}
-        })
-    })
+function checker(memberroles, rolesToCheck) {
+    let found = null
+    const containsAllRoles = rolesToCheck.every(role => memberroles.includes(role));
+    found = containsAllRoles ? found = containsAllRoles : found = false
+
     return found
 }
 
@@ -72,9 +67,9 @@ module.exports = {
                     // console.log("memberroles:",memberroles)
                     // console.log("roles to check:",roles)
                     const test = checker(memberroles,roles)
-                    // console.log("TEST:",test)
+                    // console.log("TEST:",test,typeof test)
                     // console.log("-------------")
-                    if(test.length) {
+                    if(test) {
                         count++
                         memberList.push(member.id);
                     }
@@ -139,10 +134,12 @@ module.exports = {
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
                         // {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},
                     )
-                    for (let i = 0; i < lists.length; i++) {
-                        returnEmbed.addFields({ name: `Users`, value: lists[i].join(""), inline: true });
+                    if (lists[0].length > 0) {
+                        for (let i = 0; i < lists.length; i++) {
+                            returnEmbed.addFields({ name: `Users`, value: lists[i].join(""), inline: true });
+                        }
                     }
-                    interaction.reply({ embeds: [returnEmbed.setTimestamp()] })  
+                    interaction.reply({ embeds: [returnEmbed.setTimestamp()] })
                 }
             }
         }
