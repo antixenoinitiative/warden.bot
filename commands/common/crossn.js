@@ -1,9 +1,16 @@
 const Discord = require("discord.js");
 
-const { cleanString,getRoleID } = require('../../functions');
+const { cleanString } = require('../../functions');
 
 function checker(memberrolearray, requestedroles) {
-    return requestedroles.every(elem => memberrolearray.indexOf(elem)>-1)
+    let result = []
+    requestedroles.every(i => {
+        i.forEach(a => {
+            const res = memberrolearray.includes(a)
+            if (res) { result.push(res) }
+        })
+    })
+    return result
 }
 
 module.exports = {
@@ -19,17 +26,21 @@ module.exports = {
         ))
     .addStringOption(option => option.setName('roles')
 		.setDescription('List roles to check "role1" "role2"')
-		.setRequired(false)),
+		.setRequired(true)),
 	    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 	permissions: 0,
     execute(interaction) {
-        let args = []
-        for (let data of interaction.options.data) {
-            args.push(data.value);
-        }
-        console.log(args)
-        try
-        {   
+        try {   
+            let args = []
+            let clean_args = []
+            for (let data of interaction.options.data) { 
+                const items = data.value.split(" ")
+                items.forEach(i=>{ args.push(i) })
+            }
+            args.forEach((i,index)=>{
+                if (index == 0) { clean_args.push(i) }
+                if (index != 0) { clean_args.push(i.replace(/\D/g,'')) }
+            })
             if (interaction.mentions !== undefined) {
                 if(interaction.mentions.roles.length != undefined || interaction.mentions.members.length != undefined)
                 throw("Illegal input detected!")
@@ -46,32 +57,52 @@ module.exports = {
             else
             {
                 mode = inputMode
-                args.slice(1,).forEach(arg => roles.push(getRoleID(interaction,arg)))
+                args.slice(1,).forEach(arg => roles.push(clean_args))
             }
             const returnEmbed = new Discord.EmbedBuilder()
             .setColor('#FF7100')
             interaction.guild.members.cache.each(member => {
                 let memberroles = member._roles
-                if(checker(memberroles,roles))
-                {
-                    count+=1
-                    memberList.push(member.displayName)
+                const test = checker(memberroles,roles)
+                if(test) {
+                    count++
+                    if (!member.user.bot) { memberList.push(member.id) }
                 }
             })
             memberList.sort()
             let role_names_unsorted_list = []
             let role_names_sorted_string = "\n"
+
             roles.forEach(rolein => {
-                role_names_unsorted_list.push(cleanString(interaction.guild.roles.cache.find(role => role.id == rolein).name))
+                rolein.forEach(i=>{
+                    interaction.guild.roles.cache.find(role => {
+                        if (role.id == i) { 
+                            role_names_unsorted_list.push(cleanString(role.name))
+                        }
+                    })
+                })
             })
+            
             role_names_unsorted_list.sort()
-            role_names_unsorted_list.forEach(rolein =>{
-                role_names_sorted_string = role_names_sorted_string + rolein + "\n"
-            })
-            let memberList_sorted_string = "\n"
-            memberList.forEach(name =>{
-                memberList_sorted_string = memberList_sorted_string + name + "\n"
-            })
+            role_names_sorted_string = [...new Set(role_names_unsorted_list)]
+
+            // let users = role_names_unsorted_list.members.map(m => m.user.id);
+            let lists = [[]]; // Initialize an array to hold lists of users
+            let currentListIndex = 0;
+            let currentLength = 0;
+            for (let user of memberList ) {
+                let userMentionLength = `<@${user}>\n`.length;
+                
+                if ((currentLength + userMentionLength) <= 950) {
+                    lists[currentListIndex].push(`<@${user}>\n`);
+                    currentLength += userMentionLength;
+                } else {
+                    currentListIndex++;
+                    lists[currentListIndex] = [`<@${user}>\n`];
+                    currentLength = userMentionLength;
+                }
+            }
+
             if(mode == "count")
             {
                 returnEmbed.setTitle(`**Count of Cross of N roles**`)
@@ -84,7 +115,7 @@ module.exports = {
             else
             {
                 returnEmbed.setTitle(`**Names of Cross of N roles**`)
-                if(memberList_sorted_string == "\n")
+                if(memberList == "\n")
                 {
                     returnEmbed.addFields(
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
@@ -92,14 +123,14 @@ module.exports = {
                     )
                     interaction.reply({ embeds: [returnEmbed.setTimestamp()] }) 
                 }
-                else if(memberList_sorted_string.length > 1023) {
-                    interaction.reply({ content: `Sorry, there are too many users to display, please use the 'Count' option.`})
-                } 
                 else {
                     returnEmbed.addFields(
                         {name:"Members with the following roles:",value:"```" + role_names_sorted_string + "```"},
-                        {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},
+                        // {name:"Nicknames",value:"```" + memberList_sorted_string + "```"},
                     )
+                    for (let i = 0; i < lists.length; i++) {
+                        returnEmbed.addFields({ name: `Users`, value: lists[i].join(""), inline: true });
+                    }
                     interaction.reply({ embeds: [returnEmbed.setTimestamp()] })  
                 }
             }

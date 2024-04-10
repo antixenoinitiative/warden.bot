@@ -37,7 +37,7 @@ module.exports = {
             .setDescription(`User List for ${role}`)
             // .addFields({name: "Users", value: `${list}`, inline: true})
             for (let i = 0; i < lists.length; i++) {
-                returnEmbed.addFields({ name: `Users Part ${i + 1}`, value: lists[i].join(""), inline: true });
+                returnEmbed.addFields({ name: `${i + 1}`, value: lists[i].join(""), inline: true });
             }
             interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
         }
