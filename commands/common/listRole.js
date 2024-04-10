@@ -48,9 +48,9 @@ module.exports = {
     async execute(interaction) {
         try {   
             await interaction.deferReply({ ephemeral: true });
-            const approvalRanks = config.GuardianAI.roleViewingAuthorization
+            const approvalRanks = config[botIdent().activeBot.botName].roleViewingAuthorization
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
-            const member = interaction.member;
+            const member = interaction.member
             if (!hasSpecifiedRole(member, approvalRanks)) {
                 botLog(interaction.guild,new Discord.EmbedBuilder()
                 .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
