@@ -1,5 +1,12 @@
 [
     {
+        "argument": "spirecompass",
+        "title": "Spire Clock Positions",
+        "description": "Shows graphics on spire clock positions",
+        "link": "https://xenostrikeforce.com/wp-content/uploads/2024/04/XSF_Spire_Reference_v2_1080.png",
+        "type": "text"
+    },
+    {
         "argument": "titan",
         "title": "Titan Information",
         "description": "Titan Information",
