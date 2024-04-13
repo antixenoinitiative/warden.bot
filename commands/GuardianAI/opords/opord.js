@@ -170,7 +170,7 @@ module.exports = {
             const approvalRanks = config[botIdent().activeBot.botName].operation_order.opord_participant_approval
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member;
-            if (!hasSpecifiedRole(member, approvalRanks)) {
+            if (hasSpecifiedRole(member, approvalRanks) == 0) {
                 botLog(interaction.guild,new Discord.EmbedBuilder()
                 .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
                 .setTitle(`/opord ${interaction.options.getSubcommand()}`)

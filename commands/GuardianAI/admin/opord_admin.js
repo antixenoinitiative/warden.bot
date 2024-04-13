@@ -77,7 +77,7 @@ module.exports = {
             const approvalRanks = config[botIdent().activeBot.botName].operation_order.opord_admin
             const approvalRanks_string = approvalRanksF(approvalRanks)
             const member = interaction.member;
-            if (!hasSpecifiedRole(member, approvalRanks)) {
+            if (hasSpecifiedRole(member, approvalRanks) == 0) {
                 botLog(interaction.guild,new Discord.EmbedBuilder()
                 .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
                 .setTitle(`/opord_admin ${interaction.options.getSubcommand()}`)
@@ -188,7 +188,7 @@ module.exports = {
             const [channel_await,channel_approved] = opordChannels()
             const member = interaction.member;
             //On Role Fail
-            if (!hasSpecifiedRole(member, approvalRanks)) {
+            if (hasSpecifiedRole(member, approvalRanks) == 0) {
                 botLog(interaction.guild,new Discord.EmbedBuilder()
                     .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
                     .setTitle(`/opord_admin ${interaction.options.getSubcommand()} : Op Order #**${opord_number}**`)

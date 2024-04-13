@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const { cleanString } = require('../../functions');
+const { cleanString } = require('../../../functions');
 const fs = require('fs')
 
 module.exports = {
