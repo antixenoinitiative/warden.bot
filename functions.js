@@ -269,7 +269,7 @@ const thisBotFunctions = {
             const roleIdsToCheck = approvalRanks.map(rank => rank.id);
             const roleNamesToCheck = approvalRanks.map(rank => rank.rank_name);
     
-            return member.roles.cache.some(role => roleIdsToCheck.includes(role.id) || roleNamesToCheck.includes(role.name));
+            return member.roles.cache.some(role => roleIdsToCheck.includes(role.id) || roleNamesToCheck.includes(role.name)) ? 1 : 0;
         }
         return false;
     },

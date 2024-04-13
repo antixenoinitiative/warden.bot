@@ -77,7 +77,7 @@
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"},
                 { "rank_name": "Major", "id": "1176734800103608461"},
-                { "rank_name": "Captain", "id": "345345345345345"}
+                { "rank_name": "Captain", "id": "1176734589742481549"}
             ],
             "opord_admin": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
@@ -85,7 +85,24 @@
                 { "rank_name": "Major", "id": "1176734800103608461"}
             ]
         },
+        "experienceQuery": [
+            { "rank_name": "General Staff", "id": "1173407686797303928"},
+            { "rank_name": "Colonel", "id": "1176734917263102063"},
+            { "rank_name": "Major", "id": "1176734800103608461"},
+            { "rank_name": "Captain", "id": "1176734589742481549"},
+            { "rank_name": "Lieutenant", "id": "1176734436746874910"}
+        ],
         "general_stuff": {
+            "allRanks": [
+                { "rank_name": "General Staff", "id": "1173407686797303928"},
+                { "rank_name": "Colonel", "id": "1176734917263102063"},
+                { "rank_name": "Major", "id": "1176734800103608461"},
+                { "rank_name": "Captain", "id": "1176734589742481549"},
+                { "rank_name": "Lieutenant", "id": "1176734436746874910"},
+                { "rank_name": "Aviator", "id": "1176734299031093329"},
+                { "rank_name": "Learner", "id": "1173406969453887528"}
+            ],
+            
             "event_start_stop": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"},
@@ -97,7 +114,25 @@
                 { "rank_name": "Colonel", "id": "1176734917263102063"},
                 { "rank_name": "Major", "id": "1176734800103608461"}
             ],
-            "carrier_jump_room": "ready-room"
+            "carrier_jump_room": "ready-room",
+            "testServer": {
+                "experienceQuery_testServer": [
+                    { "rank_name": "General Staff", "id": "961718365603393576"},
+                    { "rank_name": "Colonel", "id": "961718368270958692"},
+                    { "rank_name": "Major", "id": "961718369118216273"},
+                    { "rank_name": "Captain", "id": "961718369512484885"},
+                    { "rank_name": "Lieutenant", "id": "961718370326167613"}
+                ],
+                "allRanks_testServer": [
+                    { "rank_name": "General Staff", "id": "961718365603393576"},
+                    { "rank_name": "Colonel", "id": "961718368270958692"},
+                    { "rank_name": "Major", "id": "961718369118216273"},
+                    { "rank_name": "Captain", "id": "961718369512484885"},
+                    { "rank_name": "Lieutenant", "id": "961718370326167613"},
+                    { "rank_name": "Aviator", "id": "1228458062306607214"},
+                    { "rank_name": "Learner", "id": "1228458127842738196"}
+                ]
+            }
         }
     },
     "botTypes": [
