@@ -143,6 +143,12 @@ module.exports = {
         }
         if (interaction.options.getSubcommand() === 'rank') {
             //Start
+            const inputs = interaction.options._hoistedOptions
+            const input = inputs.find(i => i.name === 'rank').value
+            if (!input.includes("@")) {
+                await interaction.editReply({ content: `You did not use Mentionables: Example. "@rank"`, ephemeral: true });
+                return
+            }
             let [state,approvalRanks_string] = await rankAuth()
             if (state == 0) { await interaction.followUp({ content: `You do not have the roles to view this. Contact ${approvalRanks_string}`, ephemeral: true}); return }
 
@@ -177,8 +183,7 @@ module.exports = {
                 })
                 return clean_ranks
             }
-            const inputs = interaction.options._hoistedOptions
-            const input = inputs.find(i => i.name === 'rank').value
+
             const mysql_opord_sql = 'SELECT participant_uniform FROM `opord`';
             const mysql_opord_response = await database.query(mysql_opord_sql)
 
@@ -275,6 +280,7 @@ module.exports = {
             if (mysql_opord_response.length > 0 ) {
                 if (state == 2) { input = `<@${interaction.user.id}>` }
                 discordUser = JSON.parse(`[${await getUserIDsFromMention(input, interaction)}]`)
+                if (discordUser == -1 || discordUser == 0) { return }
 
                 let ranks = [];
                 for (const user of discordUser) {
