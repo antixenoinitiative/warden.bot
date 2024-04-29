@@ -4,7 +4,7 @@ const config = require('../../../config.json')
 const colors = require('colors')
 
 //Allow changes to ranks
-let evaluateRolesStatus = 1
+let evaluateRolesStatus = 0
 
 
 function checker(memberroles, rolesToCheck,type) {
