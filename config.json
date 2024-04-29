@@ -132,6 +132,10 @@
             "carrier_jump_room": "ready-room",
             "testServer": {
                 "test_room": "general",
+                "evaluateRoles_authorized": [
+                    { "rank_name": "General Staff", "id": "961718365603393576"},
+                    { "rank_name": "Colonel", "id": "961718368270958692"}
+                ],
                 "experienceQuery_testServer": [
                     { "rank_name": "General Staff", "id": "961718365603393576"},
                     { "rank_name": "Colonel", "id": "961718368270958692"},

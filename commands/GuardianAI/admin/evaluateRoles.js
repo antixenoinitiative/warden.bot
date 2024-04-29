@@ -4,7 +4,7 @@ const config = require('../../../config.json')
 const colors = require('colors')
 
 //Allow changes to ranks
-let evaluateRolesStatus = 0
+let evaluateRolesStatus = 1
 
 
 function checker(memberroles, rolesToCheck,type) {
@@ -30,8 +30,10 @@ module.exports = {
     ,
     async execute(interaction) {
         try {   
-            await interaction.deferReply({ ephemeral: true });
-            const approvalRanks = config[botIdent().activeBot.botName].general_stuff.evaluateRoles_authorized
+            await interaction.deferReply({ ephemeral: true })
+            const approvalRanks = process.env.MODE != 'testserver' 
+            ? config[botIdent().activeBot.botName].general_stuff.evaluateRoles_authorized 
+            : config[botIdent().activeBot.botName].general_stuff.testServer.evaluateRoles_authorized
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member
             if (hasSpecifiedRole(member, approvalRanks) == 0) {
@@ -43,9 +45,13 @@ module.exports = {
                 await interaction.editReply({ content: `You do not have the roles to do this command, Contact ${approvalRanks_string}`, ephemeral: true });
                 return
             }
-            const roleMap = config[botIdent().activeBot.botName].general_stuff.onboarding_roles
+            const roleMap = process.env.MODE != 'testserver' 
+            ? config[botIdent().activeBot.botName].general_stuff.onboarding_roles 
+            : config[botIdent().activeBot.botName].general_stuff.testServer.onboarding_roles_testServer
             const roles = roleMap.map(id => id.id)
-            const allRolesMap = config[botIdent().activeBot.botName].general_stuff.allRanks
+            const allRolesMap = process.env.MODE != 'testserver' 
+            ? config[botIdent().activeBot.botName].general_stuff.allRanks 
+            : config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer
             const allRoles = allRolesMap.map(id => id.id)
             let dontHaveSkillRanks_memberList = []
             let haveSkillRanks_memberList = []
@@ -77,16 +83,17 @@ module.exports = {
                         haveSkillRanks_memberList.push(member.id)
                         if (evaluateRolesStatus) { await member.roles.add(allRolesMap.find(i => i.rank_name == 'Learner').id) }
                     }
-                    const dividers = config[botIdent().activeBot.botName].general_stuff.onboarding_roles_dividers.map(i => i.id)
+                    const dividers = process.env.MODE != 'testserver' 
+                    ? config[botIdent().activeBot.botName].general_stuff.onboarding_roles_dividers.map(i => i.id) 
+                    : config[botIdent().activeBot.botName].general_stuff.testServer.onboarding_roles_dividers_testServer.map(i => i.id)
                     if (evaluateRolesStatus) { await member.roles.add(dividers) }
                 }
             })
             function mention(userID) { return `<@${userID}>` }
             dontHaveSkillRanks_memberList = dontHaveSkillRanks_memberList.map(member => mention(member))
-            dontHaveSkillRanks_memberList = dontHaveSkillRanks_memberList.join(" ")
+            // const dontHaveSkillRanks_memberList_mention = dontHaveSkillRanks_memberList.join(" ")
             haveSkillRanks_memberList = haveSkillRanks_memberList.map(member => mention(member))
-            haveSkillRanks_memberList = haveSkillRanks_memberList.join(" ")
-            
+            // const haveSkillRanks_memberList_mention = haveSkillRanks_memberList.join(" ")
             
             if (haveSkillRanks_memberList.length > 0 || dontHaveSkillRanks_memberList.length > 0) {
                 const embed = new Discord.EmbedBuilder()
@@ -94,8 +101,8 @@ module.exports = {
                 .setTitle('Evaluated Roles')
                 .setDescription('This command gives role dividers and ensures basic roles; XSF Ranks and Skill Ranks.')
                 .addFields(
-                    { name: "Rank of Pilot Given", value: dontHaveSkillRanks_memberList, inline: true },
-                    { name: "Rank of Learner Given", value: haveSkillRanks_memberList, inline: true }
+                    { name: "Rank of Pilot Given", value: `${dontHaveSkillRanks_memberList.length}`, inline: true },
+                    { name: "Rank of Learner Given", value: `${haveSkillRanks_memberList.length}`, inline: true }
                 )
                 // const room = interaction.guild.channels.cache.find(c => c.name === config[botIdent().activeBot.botName].general_stuff.testServer.test_room)
                 // await room.send({ embeds: [embed] })
@@ -107,7 +114,6 @@ module.exports = {
             }
         }
         catch(e) {
-            console.log("You may not have properly setup the config.json file.")
             console.log(e)
         }
     }
