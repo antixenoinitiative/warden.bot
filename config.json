@@ -48,7 +48,8 @@
         "status_ranks": [
             { "rank_name": "Active Duty", "id": "1174573882070536242"},
             { "rank_name": "Reserve Duty", "id": "1174574296899797023"},
-            { "rank_name": "Honorably Discharged", "id": "1174574436708515910"}
+            { "rank_name": "Honorably Discharged", "id": "1174574436708515910"},
+            { "rank_name": "--- Strike Force Ranks ---", "id": "1176733727498436699"}
         ],
         "officer_ranks": [
             { "rank_name": "General Staff", "id": "1173407686797303928"},
@@ -93,6 +94,21 @@
             { "rank_name": "Lieutenant", "id": "1176734436746874910"}
         ],
         "general_stuff": {
+            "evaluateRoles_authorized": [
+                { "rank_name": "General Staff", "id": "1173407686797303928"},
+                { "rank_name": "Colonel", "id": "1176734917263102063"}
+            ],
+            "onboarding_roles": [
+                { "rank_name": "Decent Pilot", "id": "1173407248161198230"},
+                { "rank_name": "Pilot", "id": "1173406969453887528"},
+                { "rank_name": "Collector", "id": "1173407165126549668"}
+            ],
+            "onboarding_roles_dividers": [
+                { "rank_name": "strikeForceRanks", "id": "1176733727498436699"},
+                { "rank_name": "skillranks", "id": "1174039901910618132"},
+                { "rank_name": "earnedRanks", "id": "1174040200352116806"},
+                { "rank_name": "activityranks", "id": "1174573514985050163"}
+            ],
             "allRanks": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"},
@@ -100,9 +116,8 @@
                 { "rank_name": "Captain", "id": "1176734589742481549"},
                 { "rank_name": "Lieutenant", "id": "1176734436746874910"},
                 { "rank_name": "Aviator", "id": "1176734299031093329"},
-                { "rank_name": "Learner", "id": "1173406969453887528"}
+                { "rank_name": "Learner", "id": "1234222974115119169"}
             ],
-            
             "event_start_stop": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"},
@@ -116,6 +131,7 @@
             ],
             "carrier_jump_room": "ready-room",
             "testServer": {
+                "test_room": "general",
                 "experienceQuery_testServer": [
                     { "rank_name": "General Staff", "id": "961718365603393576"},
                     { "rank_name": "Colonel", "id": "961718368270958692"},
@@ -131,6 +147,25 @@
                     { "rank_name": "Lieutenant", "id": "961718370326167613"},
                     { "rank_name": "Aviator", "id": "1228458062306607214"},
                     { "rank_name": "Learner", "id": "1228458127842738196"}
+                ],
+                "off_testServer": [
+                    { "rank_name": "General Staff", "id": "961718365603393576"},
+                    { "rank_name": "Colonel", "id": "961718368270958692"},
+                    { "rank_name": "Major", "id": "961718369118216273"},
+                    { "rank_name": "Captain", "id": "961718369512484885"},
+                    { "rank_name": "Lieutenant", "id": "961718370326167613"},
+                    { "rank_name": "Aviator", "id": "1228458062306607214"}
+                ],
+                "onboarding_roles_testServer": [
+                    { "rank_name": "Decent Pilot", "id": "1234317427261571143"},
+                    { "rank_name": "Collector", "id": "1234317389064306832"},
+                    { "rank_name": "Pilot", "id": "1234317464553263125"}
+                ],
+                "onboarding_roles_dividers_testServer": [
+                    { "rank_name": "xsf", "id": "1234318432758140999"},
+                    { "rank_name": "skillranks", "id": "1234318538605465700"},
+                    { "rank_name": "earnedRanks", "id": "1234318724161339412"},
+                    { "rank_name": "activityranks", "id": "1234347324415676498"}
                 ]
             }
         }
