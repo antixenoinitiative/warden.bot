@@ -3,16 +3,12 @@ const { eventTimeValidate } = require('../../functions')
 
 const config = require('../../config.json')
 
-
-
 let date = new Date();
 let diff = Math.round((new Date() - date) / 1000)
 var rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
 
 // const timestamp = eventTimeValidate("30/Apr 10:30",-6);
 // console.log(timestamp);
-
-
 
 const timeGen = {
     default: { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false },
@@ -51,7 +47,7 @@ module.exports = {
     )
     .addStringOption(option => 
         option.setName('datetime')
-            .setDescription('Enter a timestamp in your local time: 15/Jan 15:30')
+            .setDescription('Enter the date-time in your local time in this format only: 15/Jan 15:30')
             .setRequired(true)
     )
     ,
