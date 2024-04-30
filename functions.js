@@ -401,7 +401,9 @@ const thisBotFunctions = {
                     if (testMode) { console.log("Result Timestamp:",timestamp) }
                 }
                 else {
-                    timestamp = Math.floor(localTime.getTime() / 1000)
+                    const nowUTC = now;
+                    timestamp = Math.floor(nowUTC.getTime() / 1000);
+                    console.log(timestamp)
                 }
                 return timestamp;
             }
