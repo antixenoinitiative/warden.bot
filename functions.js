@@ -223,7 +223,7 @@ const thisBotFunctions = {
     
         return `${day}/${month}/${year} ${hours}:${minutes}`;
     },
-    eventTimeCreate: (date,time) => {
+    eventTimeCreate: (date,time) => { //date only
         try {
             date = date.toLowerCase();
 
@@ -257,6 +257,86 @@ const thisBotFunctions = {
             const unixTimestampMilliseconds = combinedDateTime.getTime();
             return unixTimestampMilliseconds;
         } catch (e) {
+            return "malformed";
+        }
+    },
+    eventTimeValidate: (dateTime) => {
+        try {
+            let errorList = []
+            function monthToNumber(monthStr) {
+                const months = {'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+                'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11};
+                return months[monthStr.toLowerCase()]
+            }
+            function localTimeToUTCTimestamp(localTimeStr) {
+                if (!localTimeStr) {
+                    errorList.push(`Invalid input: Local time string is undefined: ${localTimeStr}`)
+                    return errorList
+                }
+                if (dateTime.indexOf('/') === -1) {
+                    errorList.push(`Invalid input: Missing '/' in dateTime string: ${localTimeStr}`)
+                    return errorList
+                }
+                const parts = localTimeStr.split(' ');
+                if (parts.length !== 2) {
+                    errorList.push(`Invalid input format: Expected format '15/Mmm HH:MM': ${parts}`)
+                    return errorList
+                }
+                const [dayStr, monthStr] = parts[0].split('/');
+                if (!/^\d+$/.test(dayStr)) {
+                    errorList.push(`Invalid input: day must contain only numbers: ${dayStr}`)
+                    return errorList
+                }
+                if (!/^[a-zA-Z]+$/.test(monthStr)) {
+                    errorList.push(`Invalid input: month must contain only letters: ${monthStr}`)
+                    return errorList
+                }
+                const [hourStr, minuteStr] = parts[1].split(':');
+                if (!/^\d+$/.test(hourStr) || !/^\d+$/.test(minuteStr)) {
+                    errorList.push(`Invalid input: Hour and minute must contain only numbers: ${hourStr}:${minuteStr}`)
+                    return errorList
+                }
+                const day = parseInt(dayStr);
+                if (day < 1 || day > 31) {
+                    errorList.push(`Invalid day: Day must be between 1 and 31: ${dayStr}`)
+                    return errorList
+                }
+                const month = monthToNumber(monthStr)
+                if (month === undefined) {
+                    errorList.push(`Invalid month: Month abbreviation is not recognized: ${monthStr}`)
+                    return errorList
+                }
+                const hour = parseInt(hourStr);
+                const minute = parseInt(minuteStr);
+                
+                if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+                    errorList.push(`Invalid time: Hour must be between 0 and 23, minute must be between 0 and 59: ${hourStr}:${minuteStr}`)
+                    return errorList
+                }
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                const currentDay = now.getDate();
+            
+                const localTime = new Date(currentYear, month, day, hour, minute);
+                if (localTime < now) {
+                    if (month < currentMonth || (month === currentMonth && day < currentDay)) {
+                        localTime.setFullYear(currentYear + 1); 
+                    } else {
+                        errorList.push(`Invalid input: Time cannot be in the past`)
+                        return errorList
+                    }
+                }
+                const timestamp = Math.floor(localTime.getTime() / 1000);
+                return timestamp;
+            }
+            if (errorList.length > 0) { 
+                console.log(errorList)
+                return errorList
+            }
+            return localTimeToUTCTimestamp(dateTime)
+        } catch (e) {
+            console.log(e)
             return "malformed";
         }
     },

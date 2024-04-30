@@ -1,48 +1,63 @@
-// const Discord = require("discord.js");
-// const { botIdent, eventTimeCreate, hasSpecifiedRole, botLog } = require('../../functions')
+const Discord = require("discord.js");
+const { eventTimeValidate } = require('../../functions')
 
-// const config = require('../../config.json')
-
-// let date = new Date();
-// let diff = Math.round((new Date() - date) / 1000)
-// var rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+let date = new Date();
+let diff = Math.round((new Date() - date) / 1000)
+var rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
 
 
-// const timeGen = {
-//     default: { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false },
-//     shortTime: { hour: '2-digit', minute: '2-digit', hour12: false },
-//     longTime: { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false },
-//     shortDate: { month: '2-digit', day: '2-digit', year: 'numeric' },
-//     longDate: { month: 'numeric', day: '2-digit', year: 'numeric' },
-//     shotDateTime: { month: 'numeric', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false },
-//     longDateTime: { weekday: 'short', month: 'numeric', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false },
-//     relativeTime: rtf.format(-diff, 'second')
-// }
+const timeGen = {
+    default: { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false },
+    shortTime: { hour: '2-digit', minute: '2-digit', hour12: false },
+    longTime: { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false },
+    shortDate: { month: '2-digit', day: '2-digit', year: 'numeric' },
+    longDate: { month: 'numeric', day: '2-digit', year: 'numeric' },
+    shotDateTime: { month: 'numeric', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false },
+    longDateTime: { weekday: 'short', month: 'numeric', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false },
+    relativeTime: rtf.format(-diff, 'second')
+}
 
-// // console.log(date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.longDateTime }))
-
-// module.exports = {
-//     data: new Discord.SlashCommandBuilder()
-//     .setName(`timegen`)
-//     .setDescription(`Create a discord timestamp`)
-// 	.addStringOption(option => 
-//         option.setName('type')
-//             .setDescription('Select the timestamp type')
-//             .setRequired(true)
-//             .addChoices(
-//                 {name: `Default: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.default })}`, value: 'a'},
-//                 {name: `Short Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.shortTime })}`, value: 't'},
-//                 {name: `Long Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.longTime })}`, value: 'T'},
-//                 {name: `Short Date: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.shortDate })}`, value: 'd'},
-//                 {name: `Long Date: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.longDate })}`, value: 'D'},
-//                 {name: `Short Date/Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.shotDateTime })}`, value: 'f'},
-//                 {name: `Long Date/Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.longDateTime })}`, value: 'F'},
-//                 {name: `Relative Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.relativeTime })}`, value: 'R'}
-//             )
-//     ),
-//     permissions: 0,
-//     async execute(interaction) {
-//         await interaction.deferReply({ ephemeral: true })
-//         console.log(interaction.locale)
-//     }
-// }
+module.exports = {
+    data: new Discord.SlashCommandBuilder()
+    .setName(`timegen`)
+    .setDescription(`Create a discord timestamp`)
+	.addStringOption(option => 
+        option.setName('type')
+            .setDescription('Select the timestamp type')
+            .setRequired(true)
+            .addChoices(
+                {name: `Default: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.default })}`, value: 'a'},
+                {name: `Short Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.shortTime })}`, value: 't'},
+                {name: `Long Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.longTime })}`, value: 'T'},
+                {name: `Short Date: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.shortDate })}`, value: 'd'},
+                {name: `Long Date: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.longDate })}`, value: 'D'},
+                {name: `Short Date/Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.shotDateTime })}`, value: 'f'},
+                {name: `Long Date/Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.longDateTime })}`, value: 'F'},
+                {name: `Relative Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.relativeTime })}`, value: 'R'}
+            )
+        )
+    .addStringOption(option => 
+        option.setName('datetime')
+            .setDescription('Enter a timestamp in your local time: 15/Jan 15:30')
+            .setRequired(true)
+    )
+    ,
+    async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true })
+        let inputs = interaction.options._hoistedOptions
+        let timeFormat = inputs.find(i => i.name === 'type').value
+        let timeValue = inputs.find(i => i.name === 'datetime').value
+        const timestamp = eventTimeValidate(timeValue)
+        const time = timeFormat == 'a' ? `<t:${timestamp}>` : `<t:${timestamp}:${timeFormat}>`
+        const time_unformatted = timeFormat == 'a' ? '```<t:' + timestamp + '>```' : '```<t:' + timestamp + ':' + timeFormat + '>```';
+        const embed = new  Discord.EmbedBuilder()
+            .setTitle('Custom Time')
+            .setDescription('Created a discord timestamp from your chosen local time inputed.')
+            .addFields(
+                {name: 'Your local time input:', value: timeValue, inline: true},
+                {name: 'Your local time visual', value: time, inline: true},
+                {name: 'Code to paste somewhere', value: time_unformatted, inline: false},
+            )
+        await interaction.editReply({ content: `Action Complete`, embeds:[embed], ephemeral: true });
+    }
+}
