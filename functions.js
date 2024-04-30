@@ -2,7 +2,6 @@ let config = require('./config.json')
 const fs = require("fs")
 const path = require("path")
 const glob = require('glob')
-const moment = require('moment-timezone')
 //This functions.js file serves as a global functions context for all bots that may resuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
@@ -364,39 +363,45 @@ const thisBotFunctions = {
 
                 if (interaction && testMode) { console.log(interaction.member.displayName) }
                 const [tzo,bot_sign] = tzOffset();
-                let user_sign = timezone > 0 ? "+" : "-"
-                if (testMode) { console.log('user_sign:',user_sign) }
-                if (testMode) { console.log('bot_sign:',bot_sign) }
-                if (testMode) { console.log('TZO:',tzo) }
                 // const tzo = -5
-                let tzArray = []
-                if (Math.abs(timezone) > Math.abs(tzo)) { tzArray.push(timezone); tzArray.push(tzo) }
-                if (Math.abs(timezone) < Math.abs(tzo)) { tzArray.push(tzo); tzArray.push(timezone) }
-                if (testMode) { console.log("TZARRAY:",tzArray) }
-                let time = null;
+                let user_sign = timezone > 0 ? "+" : "-"
                 let timestamp = null;
-                switch (user_sign) {
-                    case '0':
-                        time = 0
-                        if (testMode) { console.log("1 Time Diff:",time) }
-                        timestamp = Math.floor(localTime.getTime() / 1000)
-                        break
-                    case '+':
-                        time = isNaN(Number(tzArray[0]) + Number(tzArray[1])) ? 0 : Number(tzArray[0]) + Number(tzArray[1])
-                        if (testMode) { console.log("2 Time Diff:",time) }
-                        time = time * 3600
-                        timestamp = Math.floor(localTime.getTime() / 1000) + time
-                        break
-                    case '-': 
-                        time = isNaN(Number(tzArray[0]) - Number(tzArray[1])) ? 0 : Number(tzArray[0]) - Number(tzArray[1])
-                        if (testMode) { console.log("3 Time Diff:",time) }
-                        time = time * 3600
-                        timestamp = Math.floor(localTime.getTime() / 1000) - Math.abs(time) //so much easier than doing the stupid array....
-                        break
+                if (tzo != 0) { 
+                    if (testMode) { console.log('user_sign:',user_sign) }
+                    if (testMode) { console.log('bot_sign:',bot_sign) }
+                    if (testMode) { console.log('TZO:',tzo) }
+                    let tzArray = []
+                    if (Math.abs(timezone) > Math.abs(tzo)) { tzArray.push(timezone); tzArray.push(tzo) }
+                    if (Math.abs(timezone) < Math.abs(tzo)) { tzArray.push(tzo); tzArray.push(timezone) }
+                    if (testMode) { console.log("TZARRAY:",tzArray) }
+                    let time = null;
+                    
+                    switch (user_sign) {
+                        case '0':
+                            time = 0
+                            if (testMode) { console.log("1 Time Diff:",time) }
+                            timestamp = Math.floor(localTime.getTime() / 1000)
+                            break
+                        case '+':
+                            time = isNaN(Number(tzArray[0]) + Number(tzArray[1])) ? 0 : Number(tzArray[0]) + Number(tzArray[1])
+                            if (testMode) { console.log("2 Time Diff:",time) }
+                            time = time * 3600
+                            timestamp = Math.floor(localTime.getTime() / 1000) + time
+                            break
+                        case '-': 
+                            time = isNaN(Number(tzArray[0]) - Number(tzArray[1])) ? 0 : Number(tzArray[0]) - Number(tzArray[1])
+                            if (testMode) { console.log("3 Time Diff:",time) }
+                            time = time * 3600
+                            timestamp = Math.floor(localTime.getTime() / 1000) - Math.abs(time) //so much easier than doing the stupid array....
+                            break
+                    }
+                    
+                    if (testMode) { console.log("Time Diff Sec:",time) }
+                    if (testMode) { console.log("Result Timestamp:",timestamp) }
                 }
-                
-                if (testMode) { console.log("Time Diff Sec:",time) }
-                if (testMode) { console.log("Result Timestamp:",timestamp) }
+                else {
+                    timestamp = Math.floor(localTime.getTime() / 1000)
+                }
                 return timestamp;
             }
             if (errorList.length > 0) { 
