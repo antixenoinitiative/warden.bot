@@ -333,7 +333,7 @@ const thisBotFunctions = {
         
                 const localTime = new Date(currentYear, month, day, hour, minute);
         
-                const utcDiff = Date.UTC(currentYear, currentMonth, currentDay, currentHour, currentMinute) - now.getTime();
+                const utcDiff = localTime.getTime() - Date.UTC(currentYear, currentMonth, currentDay, currentHour, currentMinute);
         
                 localTime.setTime(localTime.getTime() - utcDiff);
         
