@@ -3,11 +3,15 @@ const { eventTimeValidate } = require('../../functions')
 
 const config = require('../../config.json')
 
+
+
+
+
 let date = new Date();
 let diff = Math.round((new Date() - date) / 1000)
 var rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
 
-// const timestamp = eventTimeValidate("01/Jan 10:30");
+// const timestamp = eventTimeValidate("30/Apr 10:30",-6);
 // console.log(timestamp);
 
 
@@ -42,6 +46,11 @@ module.exports = {
                 {name: `Relative Time: ${date.toLocaleString('en-US', { timeZone: 'UTC', ...timeGen.relativeTime })}`, value: 'R'}
             )
         )
+    .addNumberOption(option => 
+        option.setName('timezone')
+            .setDescription('Enter your current timezone: Example: 0,-5,+2')
+            .setRequired(true)
+    )
     .addStringOption(option => 
         option.setName('datetime')
             .setDescription('Enter a timestamp in your local time: 15/Jan 15:30')
@@ -53,7 +62,8 @@ module.exports = {
         let inputs = interaction.options._hoistedOptions
         let timeFormat = inputs.find(i => i.name === 'type').value
         let timeValue = inputs.find(i => i.name === 'datetime').value
-        const timestamp = eventTimeValidate(timeValue)
+        let timeZone = inputs.find(i => i.name === 'timezone').value
+        const timestamp = eventTimeValidate(timeValue,timeZone,interaction)
         const time = timeFormat == 'a' ? `<t:${timestamp}>` : `<t:${timestamp}:${timeFormat}>`
         const time_unformatted = timeFormat == 'a' ? '```<t:' + timestamp + '>```' : '```<t:' + timestamp + ':' + timeFormat + '>```';
         const embed = new  Discord.EmbedBuilder()

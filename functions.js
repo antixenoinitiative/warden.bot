@@ -2,6 +2,7 @@ let config = require('./config.json')
 const fs = require("fs")
 const path = require("path")
 const glob = require('glob')
+const moment = require('moment-timezone')
 //This functions.js file serves as a global functions context for all bots that may resuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
@@ -260,107 +261,154 @@ const thisBotFunctions = {
             return "malformed";
         }
     },
-    eventTimeValidate: (dateTime) => {
+    eventTimeValidate: (dateTime,timezone,interaction) => {
         try {
-            let errorList = [];
-        
+            const testMode = 1
+            let errorList = []
+            function tzOffset() {
+                // //local time
+                const currentDate = new Date();
+                // const year = currentDate.getFullYear();
+                // const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                // const day = String(currentDate.getDate()).padStart(2, '0');
+                // const hours = String(currentDate.getHours()).padStart(2, '0');
+                // const minutes = String(currentDate.getMinutes()).padStart(2, '0');
+                // const seconds = String(currentDate.getSeconds()).padStart(2, '0');
+                
+                // const localTimeString = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+                // console.log("LOCAL:",localTimeString);
+                // //utc time
+                // const yearUTC = currentDate.getUTCFullYear();
+                // const monthUTC = String(currentDate.getUTCMonth() + 1).padStart(2, '0');
+                // const dayUTC = String(currentDate.getUTCDate()).padStart(2, '0');
+                // const hoursUTC = String(currentDate.getUTCHours()).padStart(2, '0');
+                // const minutesUTC = String(currentDate.getUTCMinutes()).padStart(2, '0');
+                // const secondsUTC = String(currentDate.getUTCSeconds()).padStart(2, '0');
+
+                // const utcTimeString = `${yearUTC}-${monthUTC}-${dayUTC} ${hoursUTC}:${minutesUTC}:${secondsUTC}`;
+                // console.log("UTC:",utcTimeString);
+ 
+                // Time Difference
+                const localTimeMilliseconds = currentDate.getTime();
+                const utcTimeMilliseconds = currentDate.getTime() + (currentDate.getTimezoneOffset() * 60 * 1000);
+                const timeDifferenceMilliseconds = localTimeMilliseconds - utcTimeMilliseconds;
+
+                const timeDifferenceHours = Math.abs(timeDifferenceMilliseconds) / (1000 * 60 * 60);
+                const timeDifferenceSign = timeDifferenceMilliseconds >= 0 ? "+" : "-";
+                if (testMode) { console.log("Bot Time Difference:", timeDifferenceSign + timeDifferenceHours + " hours"); }
+                return  [timeDifferenceSign + timeDifferenceHours,timeDifferenceSign]
+
+            }
             function monthToNumber(monthStr) {
                 const months = {'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
                 'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11};
-                return months[monthStr.toLowerCase()];
+                return months[monthStr.toLowerCase()]
             }
-        
             function localTimeToUTCTimestamp(localTimeStr) {
                 if (!localTimeStr) {
-                    errorList.push(`Invalid input: Local time string is undefined: ${localTimeStr}`);
-                    return errorList;
+                    errorList.push(`Invalid input: Local time string is undefined: ${localTimeStr}`)
+                    return errorList
                 }
-        
-                if (localTimeStr.indexOf('/') === -1) {
-                    errorList.push(`Invalid input: Missing '/' in dateTime string: ${localTimeStr}`);
-                    return errorList;
+                if (dateTime.indexOf('/') === -1) {
+                    errorList.push(`Invalid input: Missing '/' in dateTime string: ${localTimeStr}`)
+                    return errorList
                 }
-        
                 const parts = localTimeStr.split(' ');
                 if (parts.length !== 2) {
-                    errorList.push(`Invalid input format: Expected format '15/Mmm HH:MM': ${parts}`);
-                    return errorList;
+                    errorList.push(`Invalid input format: Expected format '15/Mmm HH:MM': ${parts}`)
+                    return errorList
                 }
-        
                 const [dayStr, monthStr] = parts[0].split('/');
                 if (!/^\d+$/.test(dayStr)) {
-                    errorList.push(`Invalid input: day must contain only numbers: ${dayStr}`);
-                    return errorList;
+                    errorList.push(`Invalid input: day must contain only numbers: ${dayStr}`)
+                    return errorList
                 }
-        
                 if (!/^[a-zA-Z]+$/.test(monthStr)) {
-                    errorList.push(`Invalid input: month must contain only letters: ${monthStr}`);
-                    return errorList;
+                    errorList.push(`Invalid input: month must contain only letters: ${monthStr}`)
+                    return errorList
                 }
-        
                 const [hourStr, minuteStr] = parts[1].split(':');
                 if (!/^\d+$/.test(hourStr) || !/^\d+$/.test(minuteStr)) {
-                    errorList.push(`Invalid input: Hour and minute must contain only numbers: ${hourStr}:${minuteStr}`);
-                    return errorList;
+                    errorList.push(`Invalid input: Hour and minute must contain only numbers: ${hourStr}:${minuteStr}`)
+                    return errorList
                 }
-        
                 const day = parseInt(dayStr);
                 if (day < 1 || day > 31) {
-                    errorList.push(`Invalid day: Day must be between 1 and 31: ${dayStr}`);
-                    return errorList;
+                    errorList.push(`Invalid day: Day must be between 1 and 31: ${dayStr}`)
+                    return errorList
                 }
-        
-                const month = monthToNumber(monthStr);
+                const month = monthToNumber(monthStr)
                 if (month === undefined) {
-                    errorList.push(`Invalid month: Month abbreviation is not recognized: ${monthStr}`);
-                    return errorList;
+                    errorList.push(`Invalid month: Month abbreviation is not recognized: ${monthStr}`)
+                    return errorList
                 }
-        
                 const hour = parseInt(hourStr);
                 const minute = parseInt(minuteStr);
-        
                 if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-                    errorList.push(`Invalid time: Hour must be between 0 and 23, minute must be between 0 and 59: ${hourStr}:${minuteStr}`);
-                    return errorList;
+                    errorList.push(`Invalid time: Hour must be between 0 and 23, minute must be between 0 and 59: ${hourStr}:${minuteStr}`)
+                    return errorList
                 }
-        
                 const now = new Date();
-                const currentYear = now.getUTCFullYear();
-                const currentMonth = now.getUTCMonth();
-                const currentDay = now.getUTCDate();
-                const currentHour = now.getUTCHours();
-                const currentMinute = now.getUTCMinutes();
-        
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                const currentDay = now.getDate();
                 const localTime = new Date(currentYear, month, day, hour, minute);
-        
-                const utcDiff = localTime.getTime() - Date.UTC(currentYear, currentMonth, currentDay, currentHour, currentMinute);
-        
-                localTime.setTime(localTime.getTime() - utcDiff);
-        
                 if (localTime < now) {
                     if (month < currentMonth || (month === currentMonth && day < currentDay)) {
-                        localTime.setUTCFullYear(currentYear + 1);
+                        localTime.setFullYear(currentYear + 1); 
                     } else {
-                        errorList.push(`Invalid input: Time cannot be in the past`);
-                        return errorList;
+                        errorList.push(`Invalid input: Time cannot be in the past`)
+                        return errorList
                     }
                 }
-        
-                const timestamp = Math.floor(localTime.getTime() / 1000);
+
+                if (interaction && testMode) { console.log(interaction.member.displayName) }
+                const [tzo,bot_sign] = tzOffset();
+                let user_sign = timezone > 0 ? "+" : "-"
+                if (testMode) { console.log('user_sign:',user_sign) }
+                if (testMode) { console.log('bot_sign:',bot_sign) }
+                if (testMode) { console.log('TZO:',tzo) }
+                // const tzo = -5
+                let tzArray = []
+                if (Math.abs(timezone) > Math.abs(tzo)) { tzArray.push(timezone); tzArray.push(tzo) }
+                if (Math.abs(timezone) < Math.abs(tzo)) { tzArray.push(tzo); tzArray.push(timezone) }
+                if (testMode) { console.log("TZARRAY:",tzArray) }
+                let time = null;
+                let timestamp = null;
+                switch (user_sign) {
+                    case '0':
+                        time = 0
+                        if (testMode) { console.log("1 Time Diff:",time) }
+                        timestamp = Math.floor(localTime.getTime() / 1000)
+                        break
+                    case '+':
+                        time = isNaN(Number(tzArray[0]) + Number(tzArray[1])) ? 0 : Number(tzArray[0]) + Number(tzArray[1])
+                        if (testMode) { console.log("2 Time Diff:",time) }
+                        time = time * 3600
+                        timestamp = Math.floor(localTime.getTime() / 1000) + time
+                        break
+                    case '-': 
+                        time = isNaN(Number(tzArray[0]) - Number(tzArray[1])) ? 0 : Number(tzArray[0]) - Number(tzArray[1])
+                        if (testMode) { console.log("3 Time Diff:",time) }
+                        time = time * 3600
+                        timestamp = Math.floor(localTime.getTime() / 1000) - Math.abs(time) //so much easier than doing the stupid array....
+                        break
+                }
+                
+                if (testMode) { console.log("Time Diff Sec:",time) }
+                if (testMode) { console.log("Result Timestamp:",timestamp) }
                 return timestamp;
             }
-        
-            if (errorList.length > 0) {
-                console.log(errorList);
-                return errorList;
+            if (errorList.length > 0) { 
+                if (testMode) { console.log(errorList) }
+                return errorList
             }
-        
-            return localTimeToUTCTimestamp(dateTime);
+            if (testMode) { console.log('---------------------------------') }
+            return localTimeToUTCTimestamp(dateTime)
         } catch (e) {
-            console.log(e);
+            console.log("/timegen",e)
             return "malformed";
         }
-        
     },
     hasSpecifiedRole: (member,specifiedRanks) => {
         let approvalRanks = specifiedRanks

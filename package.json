@@ -19,6 +19,7 @@
     "dotenv": "^10.0.0",
     "glob": "^10.3.10",
     "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.5.45",
     "mysql2": "^3.9.1",
     "node-cron": "^3.0.0",
     "node-fetch": "2.7.0",
