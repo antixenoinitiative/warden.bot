@@ -401,7 +401,9 @@ const thisBotFunctions = {
                     if (testMode) { console.log("Result Timestamp:",timestamp) }
                 }
                 else {
+                    if (testMode) { console.log("Timezone:",timezone) }
                     timestamp = Math.floor(localTime.getTime() / 1000) + Math.abs(timezone * 3600)
+                    if (testMode) { console.log("Result Timestamp:",timestamp) }
                 }
                 return timestamp;
             }
