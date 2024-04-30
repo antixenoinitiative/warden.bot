@@ -5,8 +5,6 @@ const config = require('../../config.json')
 
 
 
-
-
 let date = new Date();
 let diff = Math.round((new Date() - date) / 1000)
 var rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })

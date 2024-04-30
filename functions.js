@@ -347,7 +347,8 @@ const thisBotFunctions = {
                     errorList.push(`Invalid time: Hour must be between 0 and 23, minute must be between 0 and 59: ${hourStr}:${minuteStr}`)
                     return errorList
                 }
-                const now = new Date();
+                const now = new Date()
+                now.setHours(now.getHours() + timezone)
                 const currentYear = now.getFullYear();
                 const currentMonth = now.getMonth();
                 const currentDay = now.getDate();
