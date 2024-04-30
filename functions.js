@@ -262,7 +262,7 @@ const thisBotFunctions = {
     },
     eventTimeValidate: (dateTime,timezone,interaction) => {
         try {
-            const testMode = 1
+            const testMode = 0
             let errorList = []
             function tzOffset() {
                 // //local time

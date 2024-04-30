@@ -573,7 +573,7 @@ module.exports = {
                     }
                 })
                 returnEmbed.addFields({ name: 'Uniform', value: 'Being in Uniform is being part of the team, view here:\nhttps://xenostrikeforce.com/?page_id=239', inline: false })
-                returnEmbed.addFields({ name: 'XSF Private Group', value: 'Official Operations are in the XSF PG. Type in any channel for instructions:\n```/pg```', inline: false })
+                returnEmbed.addFields({ name: 'XSF Official private group', value: 'Official Operations are in the XSF Official private group. Type in any channel for instructions:\n```/pgo```', inline: false })
                 try {
                     const buttonRow = new Discord.ActionRowBuilder()
                         .addComponents(new Discord.ButtonBuilder().setLabel('Approve').setCustomId('Approve').setStyle(Discord.ButtonStyle.Success))
