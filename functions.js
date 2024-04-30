@@ -364,7 +364,7 @@ const thisBotFunctions = {
 
                 if (interaction && testMode) { console.log(interaction.member.displayName) }
                 const [tzo,bot_sign] = tzOffset();
-                // const tzo = -5
+                // const tzo = 0
                 let user_sign = timezone > 0 ? "+" : "-"
                 let timestamp = null;
                 if (tzo != 0) { 
@@ -401,7 +401,7 @@ const thisBotFunctions = {
                     if (testMode) { console.log("Result Timestamp:",timestamp) }
                 }
                 else {
-                    timestamp = Math.floor(now.getTime() / 1000)
+                    timestamp = Math.floor(localTime.getTime() / 1000) + Math.abs(timezone * 3600)
                 }
                 return timestamp;
             }
