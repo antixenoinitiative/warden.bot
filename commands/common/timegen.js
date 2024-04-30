@@ -1,9 +1,15 @@
 const Discord = require("discord.js");
 const { eventTimeValidate } = require('../../functions')
 
+const config = require('../../config.json')
+
 let date = new Date();
 let diff = Math.round((new Date() - date) / 1000)
 var rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+
+// const timestamp = eventTimeValidate("01/Jan 10:30");
+// console.log(timestamp);
+
 
 
 const timeGen = {
@@ -58,6 +64,7 @@ module.exports = {
                 {name: 'Your local time visual', value: time, inline: true},
                 {name: 'Code to paste somewhere', value: time_unformatted, inline: false},
             )
+        // await interaction.guild.channels.cache.find(c => c.id === interaction.channelId).send(`${time}`)
         await interaction.editReply({ content: `Action Complete`, embeds:[embed], ephemeral: true });
     }
 }

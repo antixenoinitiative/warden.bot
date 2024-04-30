@@ -262,83 +262,105 @@ const thisBotFunctions = {
     },
     eventTimeValidate: (dateTime) => {
         try {
-            let errorList = []
+            let errorList = [];
+        
             function monthToNumber(monthStr) {
                 const months = {'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
                 'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11};
-                return months[monthStr.toLowerCase()]
+                return months[monthStr.toLowerCase()];
             }
+        
             function localTimeToUTCTimestamp(localTimeStr) {
                 if (!localTimeStr) {
-                    errorList.push(`Invalid input: Local time string is undefined: ${localTimeStr}`)
-                    return errorList
+                    errorList.push(`Invalid input: Local time string is undefined: ${localTimeStr}`);
+                    return errorList;
                 }
-                if (dateTime.indexOf('/') === -1) {
-                    errorList.push(`Invalid input: Missing '/' in dateTime string: ${localTimeStr}`)
-                    return errorList
+        
+                if (localTimeStr.indexOf('/') === -1) {
+                    errorList.push(`Invalid input: Missing '/' in dateTime string: ${localTimeStr}`);
+                    return errorList;
                 }
+        
                 const parts = localTimeStr.split(' ');
                 if (parts.length !== 2) {
-                    errorList.push(`Invalid input format: Expected format '15/Mmm HH:MM': ${parts}`)
-                    return errorList
+                    errorList.push(`Invalid input format: Expected format '15/Mmm HH:MM': ${parts}`);
+                    return errorList;
                 }
+        
                 const [dayStr, monthStr] = parts[0].split('/');
                 if (!/^\d+$/.test(dayStr)) {
-                    errorList.push(`Invalid input: day must contain only numbers: ${dayStr}`)
-                    return errorList
+                    errorList.push(`Invalid input: day must contain only numbers: ${dayStr}`);
+                    return errorList;
                 }
+        
                 if (!/^[a-zA-Z]+$/.test(monthStr)) {
-                    errorList.push(`Invalid input: month must contain only letters: ${monthStr}`)
-                    return errorList
+                    errorList.push(`Invalid input: month must contain only letters: ${monthStr}`);
+                    return errorList;
                 }
+        
                 const [hourStr, minuteStr] = parts[1].split(':');
                 if (!/^\d+$/.test(hourStr) || !/^\d+$/.test(minuteStr)) {
-                    errorList.push(`Invalid input: Hour and minute must contain only numbers: ${hourStr}:${minuteStr}`)
-                    return errorList
+                    errorList.push(`Invalid input: Hour and minute must contain only numbers: ${hourStr}:${minuteStr}`);
+                    return errorList;
                 }
+        
                 const day = parseInt(dayStr);
                 if (day < 1 || day > 31) {
-                    errorList.push(`Invalid day: Day must be between 1 and 31: ${dayStr}`)
-                    return errorList
+                    errorList.push(`Invalid day: Day must be between 1 and 31: ${dayStr}`);
+                    return errorList;
                 }
-                const month = monthToNumber(monthStr)
+        
+                const month = monthToNumber(monthStr);
                 if (month === undefined) {
-                    errorList.push(`Invalid month: Month abbreviation is not recognized: ${monthStr}`)
-                    return errorList
+                    errorList.push(`Invalid month: Month abbreviation is not recognized: ${monthStr}`);
+                    return errorList;
                 }
+        
                 const hour = parseInt(hourStr);
                 const minute = parseInt(minuteStr);
-                
+        
                 if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-                    errorList.push(`Invalid time: Hour must be between 0 and 23, minute must be between 0 and 59: ${hourStr}:${minuteStr}`)
-                    return errorList
+                    errorList.push(`Invalid time: Hour must be between 0 and 23, minute must be between 0 and 59: ${hourStr}:${minuteStr}`);
+                    return errorList;
                 }
+        
                 const now = new Date();
-                const currentYear = now.getFullYear();
-                const currentMonth = now.getMonth();
-                const currentDay = now.getDate();
-            
+                const currentYear = now.getUTCFullYear();
+                const currentMonth = now.getUTCMonth();
+                const currentDay = now.getUTCDate();
+                const currentHour = now.getUTCHours();
+                const currentMinute = now.getUTCMinutes();
+        
                 const localTime = new Date(currentYear, month, day, hour, minute);
+        
+                const utcDiff = Date.UTC(currentYear, currentMonth, currentDay, currentHour, currentMinute) - now.getTime();
+        
+                localTime.setTime(localTime.getTime() - utcDiff);
+        
                 if (localTime < now) {
                     if (month < currentMonth || (month === currentMonth && day < currentDay)) {
-                        localTime.setFullYear(currentYear + 1); 
+                        localTime.setUTCFullYear(currentYear + 1);
                     } else {
-                        errorList.push(`Invalid input: Time cannot be in the past`)
-                        return errorList
+                        errorList.push(`Invalid input: Time cannot be in the past`);
+                        return errorList;
                     }
                 }
+        
                 const timestamp = Math.floor(localTime.getTime() / 1000);
                 return timestamp;
             }
-            if (errorList.length > 0) { 
-                console.log(errorList)
-                return errorList
+        
+            if (errorList.length > 0) {
+                console.log(errorList);
+                return errorList;
             }
-            return localTimeToUTCTimestamp(dateTime)
+        
+            return localTimeToUTCTimestamp(dateTime);
         } catch (e) {
-            console.log(e)
+            console.log(e);
             return "malformed";
         }
+        
     },
     hasSpecifiedRole: (member,specifiedRanks) => {
         let approvalRanks = specifiedRanks
