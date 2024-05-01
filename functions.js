@@ -262,7 +262,7 @@ const thisBotFunctions = {
     },
     eventTimeValidate: (dateTime,timezone,interaction) => {
         try {
-            const testMode = 0
+            const testMode = 1
             let errorList = []
             function tzOffset() {
                 // //local time
@@ -348,14 +348,15 @@ const thisBotFunctions = {
                     return errorList
                 }
                 const now = new Date()
-                now.setHours(now.getHours() + timezone)
-                const currentYear = now.getFullYear();
-                const currentMonth = now.getMonth();
-                const currentDay = now.getDate();
-                const localTime = new Date(currentYear, month, day, hour, minute);
+                if (testMode) { console.log("NOW:\n",now) }
+                const currentYear = now.getFullYear()
+                const currentMonth = now.getMonth()
+                const currentDay = now.getDate()
+                let localTime = new Date(currentYear, month, day, hour, minute)
+                if (testMode) { console.log("Entry Time:\n",localTime) }
                 if (localTime < now) {
                     if (month < currentMonth || (month === currentMonth && day < currentDay)) {
-                        localTime.setFullYear(currentYear + 1); 
+                        localTime.setFullYear(currentYear + 1)
                     } else {
                         errorList.push(`Invalid input: Time cannot be in the past`)
                         return errorList
@@ -363,49 +364,41 @@ const thisBotFunctions = {
                 }
 
                 if (interaction && testMode) { console.log(interaction.member.displayName) }
-                const [tzo,bot_sign] = tzOffset();
-                // const tzo = 0
+                const [tzo,bot_sign] = tzOffset(); 
                 let user_sign = timezone > 0 ? "+" : "-"
                 let timestamp = null;
-                if (tzo != 0) { 
-                    if (testMode) { console.log('user_sign:',user_sign) }
-                    if (testMode) { console.log('bot_sign:',bot_sign) }
-                    if (testMode) { console.log('TZO:',tzo) }
-                    let tzArray = []
-                    if (Math.abs(timezone) > Math.abs(tzo)) { tzArray.push(timezone); tzArray.push(tzo) }
-                    if (Math.abs(timezone) < Math.abs(tzo)) { tzArray.push(tzo); tzArray.push(timezone) }
-                    if (testMode) { console.log("TZARRAY:",tzArray) }
-                    let time = null;
-                    
-                    switch (user_sign) {
-                        case '0':
-                            time = 0
-                            if (testMode) { console.log("1 Time Diff:",time) }
-                            timestamp = Math.floor(localTime.getTime() / 1000)
-                            break
-                        case '+':
-                            time = isNaN(Number(tzArray[0]) + Number(tzArray[1])) ? 0 : Number(tzArray[0]) + Number(tzArray[1])
-                            if (testMode) { console.log("2 Time Diff:",time) }
-                            time = time * 3600
-                            timestamp = Math.floor(localTime.getTime() / 1000) + time
-                            break
-                        case '-': 
-                            time = isNaN(Number(tzArray[0]) - Number(tzArray[1])) ? 0 : Number(tzArray[0]) - Number(tzArray[1])
-                            if (testMode) { console.log("3 Time Diff:",time) }
-                            time = time * 3600
-                            timestamp = Math.floor(localTime.getTime() / 1000) - Math.abs(time) //so much easier than doing the stupid array....
-                            break
-                    }
-                    
-                    if (testMode) { console.log("Time Diff Sec:",time) }
-                    if (testMode) { console.log("Result Timestamp:",timestamp) }
+                if (testMode) { console.log('user_sign:',user_sign) }
+                if (testMode) { console.log('bot_sign:',bot_sign) }
+                if (testMode) { console.log('TZO:',tzo) }
+                let tzArray = []
+                if (Math.abs(timezone) > Math.abs(tzo)) { tzArray.push(timezone); tzArray.push(tzo) }
+                if (Math.abs(timezone) < Math.abs(tzo)) { tzArray.push(tzo); tzArray.push(timezone) }
+                if (testMode) { console.log("TZARRAY:",tzArray) }
+                let time = null;
+                
+                switch (user_sign) {
+                    case '0':
+                        time = 0
+                        if (testMode) { console.log("1 Time Diff:",time) }
+                        timestamp = Math.floor(localTime.getTime() / 1000)
+                        break
+                    case '+':
+                        time = isNaN(Number(tzArray[0]) + Number(tzArray[1])) ? 0 : Number(tzArray[0]) + Number(tzArray[1])
+                        if (testMode) { console.log("2 Time Diff:",time) }
+                        time = time * 3600
+                        timestamp = Math.floor(localTime.getTime() / 1000) + time
+                        break
+                    case '-': 
+                        time = isNaN(Number(tzArray[0]) - Number(tzArray[1])) ? 0 : Number(tzArray[0]) - Number(tzArray[1])
+                        if (testMode) { console.log("3 Time Diff:",time) }
+                        time = time * 3600
+                        timestamp = Math.floor(localTime.getTime() / 1000) - Math.abs(time)
+                        break
                 }
-                else {
-                    if (testMode) { console.log("Timezone:",timezone) }
-                    if (testMode) { console.log("LocalTime:",localTime) }
-                    timestamp = Math.floor(localTime.getTime() / 1000) + Math.abs(timezone * 3600)
-                    if (testMode) { console.log("Result Timestamp:",timestamp) }
-                }
+                
+                if (testMode) { console.log("Time Diff Sec:",time) }
+                if (testMode) { console.log("Result Timestamp:",timestamp) }
+                
                 return timestamp;
             }
             if (errorList.length > 0) { 
