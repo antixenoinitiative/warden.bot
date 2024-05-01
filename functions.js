@@ -262,7 +262,7 @@ const thisBotFunctions = {
     },
     eventTimeValidate: (dateTime,timezone,interaction) => {
         try {
-            const testMode = 1
+            const testMode = 0
             let errorList = []
             function tzOffset() {
                 // //local time
@@ -382,17 +382,17 @@ const thisBotFunctions = {
                         if (testMode) { console.log("1 Time Diff:",time) }
                         timestamp = Math.floor(localTime.getTime() / 1000)
                         break
-                    case '-':
-                        time = isNaN(Number(tzArray[0]) + Number(tzArray[1])) ? 0 : Number(tzArray[0]) + Number(tzArray[1])
+                    case '+':
+                        time = isNaN(Number(tzArray[0]) + Number(tzArray[1])) ? 0 : Number(tzArray[0]) - Number(tzArray[1])
                         if (testMode) { console.log("2 Time Diff:",time) }
                         time = time * 3600
-                        timestamp = Math.floor(localTime.getTime() / 1000) + time
+                        timestamp = Math.floor(localTime.getTime() / 1000) - time
                         break
-                    case '+':
-                        time = isNaN(Number(tzArray[0]) - Number(tzArray[1])) ? 0 : Number(tzArray[0]) - Number(tzArray[1])
+                    case '-':
+                        time = isNaN(Number(tzArray[0]) - Number(tzArray[1])) ? 0 : Number(tzArray[0]) + Number(tzArray[1])
                         if (testMode) { console.log("3 Time Diff:",time) }
                         time = time * 3600
-                        timestamp = Math.floor(localTime.getTime() / 1000) - Math.abs(time)
+                        timestamp = Math.floor(localTime.getTime() / 1000) + Math.abs(time)
                         break
                 }
                 
