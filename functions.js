@@ -353,6 +353,17 @@ const thisBotFunctions = {
                 const currentMonth = now.getMonth()
                 const currentDay = now.getDate()
                 let localTime = new Date(currentYear, month, day, hour, minute)
+                const hour_adjust = hour + Math.abs(timezone)
+                const localTime_adjust = new Date(currentYear, month, day, hour_adjust, minute)
+                if (testMode) { console.log("Entry Time:\n",localTime); console.log("Adjust Time:\n",new Date(currentYear, month, day, hour_adjust, minute)) }
+                if (localTime_adjust < now) {
+                    if (month < currentMonth || (month === currentMonth && day < currentDay)) {
+                        localTime_adjust.setFullYear(currentYear + 1)
+                    } else {
+                        errorList.push(`Invalid input: Time cannot be in the past`)
+                        return errorList
+                    }
+                }
                 if (testMode) { console.log("Entry Time:\n",localTime) }
                 if (localTime < now) {
                     if (month < currentMonth || (month === currentMonth && day < currentDay)) {
