@@ -5,9 +5,14 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
     .setName(`platform`)
     .setDescription(`Create the Platform buttons`)
-    .setDefaultPermission(false),
+    .setDefaultMemberPermissions(0),
     permissions: 2,
     async execute (interaction) {
+        if(!interaction.member.roles.cache.has('894437648851165234'))
+        {
+            interaction.reply({content: "Missing permissions.", ephemeral: true});
+            return;
+        }
         const returnEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')
 		.setTitle("**Welcome to the Anti-Xeno Initiative!**")
