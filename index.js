@@ -258,5 +258,6 @@ bot.login(process.env.TOKEN)
 process.on('uncaughtException', function (err) {
 	console.log(`⛔ Fatal error occured:`)
 	console.error(err);
-	bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced: ${err}` })
+	bot.channels.cache.get(process.env.ERRORCHANNEL).send({ content: `⛔ Fatal error experienced: ${err}` }).catch(console.error);
+	bot.channels.cache.get(process.env.ERRORCHANNEL).send({ content: "```" + err.stack + "```" }).catch(console.error);
 });
