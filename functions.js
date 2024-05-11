@@ -2,10 +2,10 @@ let config = require('./config.json')
 const fs = require("fs")
 const path = require("path")
 const glob = require('glob')
-//This functions.js file serves as a global functions context for all bots that may resuse the same code.
+//This functions.js file serves as a global functions context for all bots that may reuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
- * @function adjustActive,botIdent,fileNameBotMatch,deployCommands,eventTimeCreate
+ * @function adjustActive,botIdent,fileNameBotMatch,deployCommands,eventTimeCreate,eventTimeValidate,hasSpecifiedRole
  */
 
 const thisBotFunctions = {
