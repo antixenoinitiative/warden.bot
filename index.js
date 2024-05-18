@@ -184,7 +184,7 @@ bot.on('messageDelete', async message => {
 
 // Message Updated by user
 bot.on('messageUpdate', (oldMessage, newMessage) => {
-	if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID && oldMessage.content.length < 3000 && newMessage.content.length < 3000) {
+	if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID && oldMessage.content.length < 2000 && newMessage.content.length < 2000) {
 		botLog(new EmbedBuilder().setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`).setTitle(`Message Updated 📝`),1)
 	}
 });
