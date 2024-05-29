@@ -8,7 +8,7 @@ const glob = require('glob')
  * @function adjustActive,botIdent,fileNameBotMatch,deployCommands,eventTimeCreate,eventTimeValidate,hasSpecifiedRole
  */
 
-const thisBotFunctions = {
+const thisBotFunctions = { 
     adjustActive: function(current,mode) {
         try {
             function getFile(current) {
