@@ -56,7 +56,7 @@ let type = null;
  */
 
 // Imported Modules
-const { Client, IntentsBitField, EmbedBuilder, Collection } = require("discord.js")
+const { Client, IntentsBitField, EmbedBuilder, Collection, ActivityType } = require("discord.js")
 const { REST } = require('@discordjs/rest')
 const { Routes } = require('discord-api-types/v9')
 const botFunc = require('./functions.js')
@@ -107,9 +107,8 @@ function mainOperation(){
 		
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
-		const db  = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
-		guardianai_vars[db] = db
-
+		const database = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+		guardianai_vars = database
 		
 	}
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
@@ -130,6 +129,15 @@ function mainOperation(){
 			/**
 			* @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
 			*/
+			
+			//Assigns the ActivityType (status) of the bot with the system name.
+			const currentSystem_sql = 'SELECT starSystem FROM `carrier_jump` ORDER BY id DESC LIMIT 1';
+			const currentSystem_response = await guardianai_vars.query(currentSystem_sql)
+			if (currentSystem_response.length > 0) {
+				let guardianai = await guild.members.fetch({query: botFunc.botIdent().activeBot.botName, limit: 1})
+				guardianai = guardianai.first()
+				guardianai.user.setActivity(`${currentSystem_response[0].starSystem}`, { type: ActivityType.Custom });
+			}
 		}
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
 			// Scheduled Role Backup Task

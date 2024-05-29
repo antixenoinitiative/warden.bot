@@ -60,12 +60,13 @@ async function query(query, values) {
 //! ##############################
 //! #######STARTUP CHECKS#########
 opordChecks()
-// deleteOpordTable('opord')
+carrier_jumpChecks()
+// deleteTable('carrier_jump')
 //! ##############################
 //! ##############################
 //! ##############################
 //! ##############################
-function deleteOpordTable(table) {
+function deleteTable(table) {
     const values = [table]
     const sql = `DROP TABLE IF EXISTS ${values}`;
     try {
@@ -80,6 +81,7 @@ function deleteOpordTable(table) {
         console.error('Error:', e.stack);
     }
 }
+
 // Check if the table exists
 async function opordChecks() {
     try {
@@ -124,5 +126,32 @@ async function opordChecks() {
         console.error(e);
     }
 }
-
+async function carrier_jumpChecks() {
+    try {
+        const carrier_jump_table_sql = `SELECT 1 FROM information_schema.tables WHERE table_name = ? LIMIT 1`;
+        const carrier_jump_table_values = ['carrier_jump']
+        const carrier_jump_table_result = await query(carrier_jump_table_sql, carrier_jump_table_values)
+        if (carrier_jump_table_result.length == 0) {
+            const carrier_jump_table_create_values = ['0']
+            const carrier_jump_table_create_sql = `
+                CREATE TABLE carrier_jump (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    starSystem varchar(255)
+                );
+            `;
+            await query(carrier_jump_table_create_sql,carrier_jump_table_create_values)
+            const carrier_jump_table_insert_row0_values = ['Sol']
+            const carrier_jump_table_insert_row0_sql = `
+                INSERT INTO carrier_jump (starSystem) VALUES (?);
+            `;
+            const carrier_jump_table_insert_row0_response = await query(carrier_jump_table_insert_row0_sql, carrier_jump_table_insert_row0_values)
+            if (carrier_jump_table_insert_row0_response) {
+                console.log("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating carrier_jump Table:".magenta, '✅');
+            }
+        }
+    } catch (e) {
+        console.error("[STARTUP]".yellow, `${botIdent().activeBot.botName}`.green, "Creating carrier_jump Table Fail:".magenta, '❌');
+        console.error(e);
+    }
+}
 module.exports = { pool, query };

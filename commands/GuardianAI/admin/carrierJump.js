@@ -38,26 +38,17 @@ module.exports = {
     async execute(interaction) {
         const carrier_name = `[XSF] GuardianAI - G5Y-67K`
         await interaction.deferReply({ ephemeral: true });
-        let channel_await = null;
-        let channel_approved = null;
-        try {
-            channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
-            channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //logchannel or other.
-            if (!channel_await || !channel_approved) {
-                console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")
-                channel_await = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env
-                channel_approved = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
-            }
-        }
-        catch (e) {
-            console.log("[FAIL]".bgRed, "channel_await or channel_approved  Channel IDs dont match. Check config.json")
-        }
+
         const inputValues = interaction.options._hoistedOptions
         const jumpLocation = inputValues[0].value
         const lightSeconds = inputValues[1].value
         const description = inputValues[2].value
         const opord = inputValues[3]?.value != null ? inputValues[3].value : null
-        const approvalRanks = config.GuardianAI.general_stuff.carrier_jump
+        const approvalRanks = config[botIdent().activeBot.botName].general_stuff.carrier_jump
+        if (!approvalRanks) {
+            console.log("[CAUTION]".bgYellow, "Carrier Jump approval Ranks dont match. Check config. Defaulting to Test Server configuration in the .env file.")
+            approvalRanks = config[botIdent().activeBot.botName].general_stuff.testServer.carrier_jump //GuardianAI.env
+        }
         const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
         const member = interaction.member;
         if (hasSpecifiedRole(member, approvalRanks) == 0) {
@@ -101,18 +92,32 @@ module.exports = {
             embed_room = interaction.guild.channels.cache.find(c => c.name === config[botIdent().activeBot.botName].general_stuff.carrier_jump_room)
             if (!embed_room) {
                 console.log("[CAUTION]".bgYellow, `config.json -> ${botIdent().activeBot.botName}.general_stuff.carrier_jump: Check config. Defaulting to Test Server configuration in the .env file.`)
-                embed_room = interaction.guild.channels.cache.get(process.env.TESTSERVER_CARRIERJUMP_ROOM); //GuardianAI.env
+                embed_room = interaction.guild.channels.cache.find(c => c.name === config[botIdent().activeBot.botName].general_stuff.testServer.carrier_jump_room) //GuardianAI.env
             }
         }
         catch (e) {
             console.log("[FAIL]".bgRed, `config.json -> ${botIdent().activeBot.botName}.general_stuff.carrier_jump: Channel IDs dont match. Check config.json`)
         }
         await embed_room.send({ embeds: [embed] })
-        await interaction.editReply({ content: `Carrier Jump Complete.`, ephemeral: true });
+        await interaction.followUp({ content: `Carrier Jump Complete.`, ephemeral: true });
         botLog(interaction.guild,new Discord.EmbedBuilder()
         .setDescription(`${interaction.member.nickname} Used this command.`)
         .setTitle(`/${inputValues[0].name}`)
         ,0
         )
+        // const opord_currentSystem_values = opord
+        // const opord_currentSystem_sql = 'SELECT approved_message_id FROM `opord` WHERE opord_number = (?)';
+        // const opord_currentSystem_response = await database.query(opord_currentSystem_sql, opord_currentSystem_values)
+        // if (opord_currentSystem_response.length > 0) {
+        // }
+        const opord_currentSystem_values = [jumpLocation]
+        const opord_currentSystem_sql =
+        `
+            INSERT INTO carrier_jump (
+                starSystem
+            ) 
+            VALUES (?);
+        `
+        await database.query(opord_currentSystem_sql, opord_currentSystem_values)
     } 
 };
