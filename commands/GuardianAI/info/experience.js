@@ -287,6 +287,7 @@ module.exports = {
                 let ranks = [];
                 for (const user of discordUser) {
                     const rank = await getName(mysql_opord_response, user);
+                    console.log(rank)
                     ranks.push(rank);
                 }
                 const nameOfRequestor = interaction.member.nickname != null ? interaction.member.nickname : interaction.member.globalName
