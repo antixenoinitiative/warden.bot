@@ -119,7 +119,7 @@ module.exports = {
                     }));
                     
                     const guildMemberJSON = memberObjects.map(member => ({
-                        nickname: member.nickname,
+                        nickname: member.nickname != null ? member.nickname : member.globalName,
                         userId: member.user.id,
                         rank: cleanupRoles(member.user.roles,'officer_ranks'),
                         status: cleanupRoles(member.user.roles,'status_ranks')
@@ -287,7 +287,6 @@ module.exports = {
                 let ranks = [];
                 for (const user of discordUser) {
                     const rank = await getName(mysql_opord_response, user);
-                    console.log(rank)
                     ranks.push(rank);
                 }
                 const nameOfRequestor = interaction.member.nickname != null ? interaction.member.nickname : interaction.member.globalName
