@@ -117,9 +117,8 @@ module.exports = {
                             return null;
                         }
                     }));
-                    
                     const guildMemberJSON = memberObjects.map(member => ({
-                        nickname: member.nickname != null ? member.nickname : member.globalName,
+                        nickname: member.nickname != null ? member.nickname : member.user.globalName,
                         userId: member.user.id,
                         rank: cleanupRoles(member.user.roles,'officer_ranks'),
                         status: cleanupRoles(member.user.roles,'status_ranks')
@@ -300,7 +299,6 @@ module.exports = {
 
                 ranks.forEach((rankGroup,index) => {
                     // console.log(index,Object.values(rankGroup))
-                    console.log(discordUser[index])
                     embed.addFields({ name: "\u200B", value: `**${discordUser[index].nickname}**`, inline: false })
                     Object.values(rankGroup).forEach((rank,index) => {
                         const rankVALUE = "```" + Object.values(rank)[0] + "```"

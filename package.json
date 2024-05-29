@@ -1,6 +1,6 @@
 {
   "name": "warden",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "description": "The Warden Discord Bot powered by Discord.JS to manage and control the AXI Discord Server.",
   "main": "index.js",
   "scripts": {
