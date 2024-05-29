@@ -143,9 +143,8 @@ module.exports = {
                                 return null;
                             }
                         }));
-                        
                         const guildMemberJSON = memberObjects.map(member => ({
-                            nickname: member.nickname,
+                            nickname: member.nickname != null ? member.nickname : member.globalName,
                             userId: member.user.id,
                             rank: cleanupRoles(member.user.roles,'officer_ranks'),
                             status: cleanupRoles(member.user.roles,'status_ranks')

@@ -224,7 +224,10 @@ module.exports = {
                 let ranks = []
                 inputArray.forEach(i => {
                     if (i.participant_uniform != null) {
+                        // const multi2 = JSON.parse(`[${i.opord_number}]`);
+                        // console.log(multi2)
                         const multi = JSON.parse(`[${i.participant_uniform}]`);
+                        // console.log(multi)
                         multi.forEach(single => {
                             if (single.userId == inputName.userId) {
                                 if (!ranks.find(i=>i[single.rank])) {
@@ -274,11 +277,10 @@ module.exports = {
 
             // Check database for correctly selected opord_number
             // const mysql_opord_values = [opord_number]
-            const mysql_opord_sql = 'SELECT participant_uniform FROM `opord`';
+            const mysql_opord_sql = 'SELECT participant_uniform,opord_number FROM `opord`';
             const mysql_opord_response = await database.query(mysql_opord_sql)
-
             if (mysql_opord_response.length > 0 ) {
-                if (state == 2) { input = `<@${interaction.user.id}>` }
+                if (state == 2) { input = `<@${interaction.user.id}>`; }
                 discordUser = JSON.parse(`[${await getUserIDsFromMention(input, interaction)}]`)
                 if (discordUser == -1 || discordUser == 0) { return }
 
@@ -287,10 +289,10 @@ module.exports = {
                     const rank = await getName(mysql_opord_response, user);
                     ranks.push(rank);
                 }
-
+                const nameOfRequestor = interaction.member.nickname != null ? interaction.member.nickname : interaction.member.globalName
                 let embed = new Discord.EmbedBuilder()
                     .setTitle('Experience Credit')
-                    .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+                    .setAuthor({ name: nameOfRequestor, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                     .setThumbnail(botIdent().activeBot.icon)
                     .setColor('#FAFA37') //87FF2A green
                     .setDescription(`Ranks Experience Credit was given as:`)
