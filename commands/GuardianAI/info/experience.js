@@ -299,7 +299,8 @@ module.exports = {
 
                 ranks.forEach((rankGroup,index) => {
                     // console.log(index,Object.values(rankGroup))
-                    embed.addFields({ name: "\u200B", value: `**${discordUser[index].nickname}**`, inline: false })
+                    embed.addFields({ name: "\u200B", value: `<@${discordUser[index].userId}>`, inline: false })
+                    // embed.addFields({ name: "\u200B", value: `**${discordUser[index].nickname}**`, inline: false })
                     Object.values(rankGroup).forEach((rank,index) => {
                         const rankVALUE = "```" + Object.values(rank)[0] + "```"
                         embed.addFields({ name: Object.keys(rank)[0], value: rankVALUE, inline: true })
