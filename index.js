@@ -1,6 +1,7 @@
 /**
  * Changing the 'Type' variable to anything, but Null will result in "Dev" mode and the name of the bot being declared.
  */
+//TEST DATA
 let type = null;
 // let type = "GuardianAI"
 // let type = "Warden"
