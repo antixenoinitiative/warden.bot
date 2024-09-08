@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-
+const { botLog } = require('../../../functions');
 module.exports = {
 	data: new Discord.SlashCommandBuilder()
 	.setName('ranks')
@@ -17,7 +17,7 @@ module.exports = {
 			.addComponents(new Discord.ButtonBuilder().setCustomId('other').setLabel('Other Ranks').setStyle(Discord.ButtonStyle.Primary),)
 		message.reply({ content: "Select which ranks to list:", components: [row], ephemeral: true });
 
-		// Recieve the button response
+		// Recieve the button response 
 		const filter = i => i.user.id === message.member.id;
 		const collector = message.channel.createMessageComponentCollector({ filter, time: 15000 });
 		collector.on('collect', async i => {
@@ -60,6 +60,12 @@ module.exports = {
 				} catch (err) {
 					console.error(err);
 					i.channel.send({ content: `Something went wrong. Error: ${err}` });
+					botLog(i.guild,new Discord.EmbedBuilder()
+						.setDescription('```' + err.stack + '```')
+						.setTitle(`⛔ Fatal error experienced`)
+						,2
+						,'error'
+					)
 				}
 			}
 			if (i.customId === 'competitive') {
@@ -77,6 +83,12 @@ module.exports = {
 				} catch (err) {
 					console.error(err);
 					i.channel.send({ content: `Something went wrong. Error: ${err}` });
+					botLog(i.guild,new Discord.EmbedBuilder()
+						.setDescription('```' + err.stack + '```')
+						.setTitle(`⛔ Fatal error experienced`)
+						,2
+						,'error'
+					)
 				}
 			}
 			if (i.customId === 'progression') {
@@ -102,6 +114,12 @@ module.exports = {
 				} catch (err) {
 					console.error(err);
 					i.channel.send(`Something went wrong. Error: ${err}`);
+					botLog(i.guild,new Discord.EmbedBuilder()
+						.setDescription('```' + err.stack + '```')
+						.setTitle(`⛔ Fatal error experienced`)
+						,2
+						,'error'
+					)
 				}
 			}
 			if (i.customId === 'other') {
@@ -137,6 +155,12 @@ module.exports = {
 				} catch (err) {
 					console.error(err);
 					i.channel.send({ content: `Something went wrong. Error: ${err}` });
+					botLog(i.guild,new Discord.EmbedBuilder()
+						.setDescription('```' + err.stack + '```')
+						.setTitle(`⛔ Fatal error experienced`)
+						,2
+						,'error'
+					)
 				}
 			}
 		});

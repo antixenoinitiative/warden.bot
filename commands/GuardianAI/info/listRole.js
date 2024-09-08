@@ -1,6 +1,9 @@
 const Discord = require("discord.js");
-const { botIdent,cleanString,botLog,hasSpecifiedRole } = require('../../functions');
-const config = require('../../config.json')
+const { botIdent,cleanString,botLog,hasSpecifiedRole } = require('../../../functions');
+const config = require('../../../config.json')
+//todo Not setup for Warden.
+//todo Warden uses /ranks
+
 function checker(memberroles, rolesToCheck) {
     let found = null
     const containsAllRoles = rolesToCheck.every(role => memberroles.includes(role));
@@ -46,8 +49,8 @@ module.exports = {
     ,
     permissions: 0,
     async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true });
         try {   
-            await interaction.deferReply({ ephemeral: true });
             const approvalRanks = config[botIdent().activeBot.botName].listRoleAuthorization
             const approvalRanks_string = approvalRanks.map(rank => rank.rank_name).join(', ').replace(/,([^,]*)$/, ', or$1');
             const member = interaction.member
@@ -182,8 +185,14 @@ module.exports = {
         }
         catch(err)
         {
+            await interaction.followUp({ content: `An error occured! Let admin know what you were trying to do.` })
             console.error(err);
-            interaction.followUp({ content: `An error occured!\n${err}` })
+            botLog(interaction.guild,new Discord.EmbedBuilder()
+                .setDescription('```' + err.stack + '```')
+                .setTitle(`⛔ Fatal error experienced`)
+                ,2
+                ,'error'
+            )
         }
 
 
