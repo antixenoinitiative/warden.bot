@@ -35,7 +35,7 @@ If you are new to development, you will need the following recommended programs 
 5. IMPORTANT: Make sure you give your bot the "bot" and "applications.commands" permissions in OAuth when inviting your bot. ![image](https://user-images.githubusercontent.com/85346345/132811570-2332bfdc-9365-4b11-afd2-051ee699083b.png)
 6. In OAuth2 select the dropdown option of 'USER INSTALL'
 7. Copy the link provided on the dev page and run in your browser, select yoru new test server and add it. 
-8. Run the SETUP.ps1 file in Powershell (Run as Admin if you have any issues).
+8. Run the SETUP.ps1 file in Powershell (Run as Admin if you have any issues). If you have scope security errors, use a VM and in PS, run `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`. PS2 may also need this setting to operate. Use a test environment VM if you have security concerns and ensure you reset the execution policy back to what you had previoiusly to `Signed`. https://stackoverflow.com/questions/54776324/powershell-bug-execution-of-scripts-is-disabled-on-this-system for more information regarding this.
 9. Follow the prompts and enter the Bot TOKEN.
 10. Start the bot using `npm start` in command line or terminal.
 
