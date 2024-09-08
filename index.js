@@ -53,7 +53,7 @@ let type = null;
 
 /**
  * @package.json Known issues
- * Upgrade node-fetch past version two will incure ES Module errors. node-fetch v3 is ES Module only.
+ * Upgrade node-fetch past version two will incure ES Module errors. node-fetch v3 is ES Module only. BLUF use v2.7.0
  */
 
 // Imported Modules
@@ -101,7 +101,7 @@ function mainOperation(){
 	// Local Modules determined by bot "active" state.
 	// Specific bots need specific things, load them here.
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
-	    const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
+		const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
 		warden_vars[leaderboardInteraction] = leaderboardInteraction
 		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
 		warden_vars[query] = query

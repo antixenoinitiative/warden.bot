@@ -14,7 +14,14 @@ const exp = {
     },
     messageUpdate: async (oldMessage, newMessage, bot) => {
         if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID) {
-            botLog(bot,new Discord.EmbedBuilder().setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```' + `Updated Message:` + '```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`).setTitle(`Message Updated 📝`),1)
+            //Field values max char limit 1024
+            //Description max char 4096 
+            botLog(bot,new Discord.EmbedBuilder()
+            .setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```')
+            .setTitle(`Original Message 📝`),1)
+            botLog(bot,new Discord.EmbedBuilder()
+            .setDescription('```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`)
+            .setTitle(`Updated Message📝`),1)
         }
     },
     guildMemberRemove: async (member, bot) => { 
