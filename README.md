@@ -17,6 +17,9 @@ which can be coded from your own point of view. It is modular after all.
 Example: If the active bot is GuardianAI, it can invoke "Warden.Fun" to include the bot and what commmand path (folder) to include. 'Fun' would be a subfolder.
 - Feature: active bot can choose to "ignore" commands from within its own folder path.
 
+## Index.js
+Contains a lot of comments about how the modularity works. Please review that section. It will get added to this readme in the future.
+
 ## Development
 Setting up a local copy of the bot for development.
 
