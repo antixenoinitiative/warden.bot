@@ -53,7 +53,7 @@ https://medium.com/analytics-vidhya/setting-up-google-cloud-vision-api-with-node
 
 ## PM2
 [https://](https://pm2.keymetrics.io/)
-Run `npm install pm2 -g`
+- Run `npm install pm2 -g`
 Create pm2-config.json file with the following code.
 ```js
 {
