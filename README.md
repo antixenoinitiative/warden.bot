@@ -10,11 +10,11 @@ Warden is a discord bot for the Anti-Xeno Initiative Discord Server. Based on Di
 [![AXI Discord](https://discord.com/api/guilds/380246809076826112/embed.png?style=banner3)](https://discord.gg/bqmDxdm)
 
 ## Modularity
-The bot was overhauled and provides a single codebase where multiple bots can be ran from. Recommend running them from different hostnames as they are coded to detect the hostname they are configured to run on.
-that can be coded from your own point of view. It is modular after all. 
+The bot was overhauled and provides a single codebase where multiple bots can be ran from. Recommend running them from different hostnames as they are coded to detect the hostname they are configured to run on
+which can be coded from your own point of view. It is modular after all. 
 - Feature: active and inactive bot status of which are automatically detected based upon hostname 'botTypes' configuration.
 - Feature: 'global commands' scope where the active bot can choose global command paths to include in the registered commands list.
-Example: If the active bot is GuardianAI, it can invoke "Warden.Fun" to include the bot and what commmand path (folder) to include.
+Example: If the active bot is GuardianAI, it can invoke "Warden.Fun" to include the bot and what commmand path (folder) to include. 'Fun' would be a subfolder.
 - Feature: active bot can choose to "ignore" commands from within its own folder path.
 
 ## Development
