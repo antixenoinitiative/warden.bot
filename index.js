@@ -10,10 +10,10 @@ let type = null;
 /**
  * @description The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
  * @description Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
- * @example       -The config.json file "botTypes[0].active" is determined by the 'hostname'.
- * @description   -Bot will fail to run if hostname does not match.
+ * @example       - The config.json file "botTypes[0].active" is determined by the 'hostname'.
+ * @description   - Bot will fail to run if hostname does not match.
  * @description Dont place the main contents of the bot in a folder with the same name of the bot.
- * @example      - Use something like './warden.bot/' not ./warden/
+ * @example      - IF bot name is Warden.bot, Use something like './warden.bot/' not ./warden/
  * @description  - Naming the bot root directory as the same name of the bot will cause it to fail hardcore.
  */
 //! functions.js 
@@ -73,9 +73,7 @@ let guardianai_vars = {};
 
 
 // Retrieve hostname so the bot knows where its being launched from.
-//!! If you are running *NOT* running all bots from the SAME HOST. You'll have to come up with another solution on your own if you want to.
-//!! Best case is to run it from a separate folder/repo if you want to do the same host. 
-//!!      or make a map of the remaining code and run as a loop.
+//!! If you are running running all bots from the SAME HOST. You'll have to come up with another solution on your own if you want to have them run from the same host. This is a great bot template.
 const os = require('os');
 
 /**

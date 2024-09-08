@@ -1,4 +1,6 @@
 const Discord = require("discord.js");
+// const { botIdent, eventTimeCreate, hasSpecifiedRole,botLog } = require('../../../functions')
+// const config = require('../../../config.json')
 
 module.exports = {
     data: new Discord.SlashCommandBuilder()
@@ -12,7 +14,7 @@ module.exports = {
             interaction.channel.send({ content: "Processing, this may take a while."})
             let updated = 0
             let count = 0
-
+            // const role = config[botIdent().activeBot.botName].operation_order.opord_channel_await
             // fix all missing recruits
             let users = await interaction.guild.members.fetch()
             console.log(users)

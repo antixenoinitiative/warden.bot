@@ -62,10 +62,11 @@ module.exports = {
             let channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
             let channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //opord channel where approved op orders appear
             if (!channel_await || !channel_approved) {
-                console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")
-                channel_await = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env
-                channel_approved = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
+                console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the config.json file. guardianai.general_stuff.testServer.opord.")
+                channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].general_stuff.testServer.operation_order.opord_channel_await)
+                channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].general_stuff.testServer.operation_order.opord_channel_approved)
             }
+            
             return [ channel_await,channel_approved ]
         }
         function approvalRanksF(approvalRanks) {
