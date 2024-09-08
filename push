@@ -1,0 +1,118 @@
+[33mcommit f9542045510014bb27f58335acbc4c151d8f3401[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain-overhaul[m[33m, [m[1;31morigin/main-overhaul[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Medi0cr3 <testfax.medi0cr3@gmail.com>
+Date:   Sun Sep 8 10:44:29 2024 -0700
+
+    review
+
+[1mdiff --git a/commands/GuardianAI/admin/opord_admin.js b/commands/GuardianAI/admin/opord_admin.js[m
+[1mindex 19f547d..4b4946e 100644[m
+[1m--- a/commands/GuardianAI/admin/opord_admin.js[m
+[1m+++ b/commands/GuardianAI/admin/opord_admin.js[m
+[36m@@ -62,10 +62,11 @@[m [mmodule.exports = {[m
+             let channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.[m
+             let channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //opord channel where approved op orders appear[m
+             if (!channel_await || !channel_approved) {[m
+[31m-                console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")[m
+[31m-                channel_await = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env[m
+[31m-                channel_approved = interaction.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env[m
+[32m+[m[32m                console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the config.json file. guardianai.general_stuff.testServer.opord.")[m
+[32m+[m[32m                channel_await = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].general_stuff.testServer.operation_order.opord_channel_await)[m
+[32m+[m[32m                channel_approved = interaction.guild.channels.cache.get(config[botIdent().activeBot.botName].general_stuff.testServer.operation_order.opord_channel_approved)[m
+             }[m
+[32m+[m[41m            [m
+             return [ channel_await,channel_approved ][m
+         }[m
+         function approvalRanksF(approvalRanks) {[m
+[1mdiff --git a/commands/Warden/admin/fixroles.js b/commands/Warden/admin/fixroles.js[m
+[1mindex ecb98a5..1a9ff06 100644[m
+[1m--- a/commands/Warden/admin/fixroles.js[m
+[1m+++ b/commands/Warden/admin/fixroles.js[m
+[36m@@ -1,4 +1,6 @@[m
+ const Discord = require("discord.js");[m
+[32m+[m[32m// const { botIdent, eventTimeCreate, hasSpecifiedRole,botLog } = require('../../../functions')[m
+[32m+[m[32m// const config = require('../../../config.json')[m
+ [m
+ module.exports = {[m
+     data: new Discord.SlashCommandBuilder()[m
+[36m@@ -12,7 +14,7 @@[m [mmodule.exports = {[m
+             interaction.channel.send({ content: "Processing, this may take a while."})[m
+             let updated = 0[m
+             let count = 0[m
+[31m-[m
+[32m+[m[32m            // const role = config[botIdent().activeBot.botName].operation_order.opord_channel_await[m
+             // fix all missing recruits[m
+             let users = await interaction.guild.members.fetch()[m
+             console.log(users)[m
+[1mdiff --git a/config.json b/config.json[m
+[1mindex 39ff5c5..ee8b6d7 100644[m
+[1m--- a/config.json[m
+[1m+++ b/config.json[m
+[36m@@ -32,11 +32,39 @@[m
+             }[m
+         },[m
+         "otherRoles": [[m
+[32m+[m[32m            { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m            { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m            { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m            { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m            { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m            { "name": "55555555555555", "roles": [555555555555555]},[m
+             { "name": "platformpc", "roles": [428260067901571073,380247760668065802]},[m
+             { "name": "platformxb", "roles": [533774176478035991,380247760668065802]},[m
+             { "name": "platformps", "roles": [428259777206812682,380247760668065802]},[m
+             { "name": "separators", "roles": [642840406580658218,642839749777948683]}[m
+         ],[m
+[32m+[m[32m        "ranksCommand": {[m
+[32m+[m[32m            "challenge_ranks": [],[m
+[32m+[m[32m            "competitive_ranks": [],[m
+[32m+[m[32m            "progression_ranks": [],[m
+[32m+[m[32m            "other_ranks": [[m
+[32m+[m[32m                "Annihilator",[m
+[32m+[m[32m                "Exterminator"[m
+[32m+[m[32m            ][m
+[32m+[m[32m        },[m
+[32m+[m[32m        "testServer": {[m
+[32m+[m[32m            "otherRoles": [[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]},[m
+[32m+[m[32m                { "name": "55555555555555", "roles": [555555555555555]}[m
+[32m+[m[32m            ][m
+[32m+[m[32m        },[m
+         "dateFormatPattern": "DD.MM.YY, HH:mm",[m
+         "maxMessageLength": 2000,[m
+         "zenURL": "https://zenquotes.io/api/random",[m
+[1mdiff --git a/index.js b/index.js[m
+[1mindex 8f193bd..6b134eb 100644[m
+[1m--- a/index.js[m
+[1m+++ b/index.js[m
+[36m@@ -10,10 +10,10 @@[m [mlet type = null;[m
+ /**[m
+  * @description The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.[m
+  * @description Your responsibility is to name them appropriately. Extremely recommended to lable both the same.[m
+[31m- * @example       -The config.json file "botTypes[0].active" is determined by the 'hostname'.[m
+[31m- * @description   -Bot will fail to run if hostname does not match.[m
+[32m+[m[32m * @example       - The config.json file "botTypes[0].active" is determined by the 'hostname'.[m
+[32m+[m[32m * @description   - Bot will fail to run if hostname does not match.[m
+  * @description Dont place the main contents of the bot in a folder with the same name of the bot.[m
+[31m- * @example      - Use something like './warden.bot/' not ./warden/[m
+[32m+[m[32m * @example      - IF bot name is Warden.bot, Use something like './warden.bot/' not ./warden/[m
+  * @description  - Naming the bot root directory as the same name of the bot will cause it to fail hardcore.[m
+  */[m
+ //! functions.js [m
+[36m@@ -73,9 +73,7 @@[m [mlet guardianai_vars = {};[m
+ [m
+ [m
+ // Retrieve hostname so the bot knows where its being launched from.[m
+[31m-//!! If you are running *NOT* running all bots from the SAME HOST. You'll have to come up with another solution on your own if you want to.[m
+[31m-//!! Best case is to run it from a separate folder/repo if you want to do the same host. [m
+[31m-//!!      or make a map of the remaining code and run as a loop.[m
+[32m+[m[32m//!! If you are running running all bots from the SAME HOST. You'll have to come up with another solution on your own if you want to have them run from the same host. This is a great bot template.[m
+ const os = require('os');[m
+ [m
+ /**[m
