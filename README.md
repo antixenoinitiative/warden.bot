@@ -1,8 +1,5 @@
 <p align="center">
-<img src="https://user-images.githubusercontent.com/85346345/128631152-1b2fb9d3-b5cf-4451-a287-a6a7124e1818.png" width="250">
 <img src="https://github.com/user-attachments/assets/1ac23572-9a4a-4713-9ecd-68a7c3e76213" width="250">
-
- 
 </p>
 
 # Warden.bot
