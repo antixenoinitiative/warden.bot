@@ -22,15 +22,22 @@ Contains a lot of comments about how the modularity works. Please review that se
 
 ## Development
 Setting up a local copy of the bot for development.
+If you are new to development, you will need the following recommended programs to run a local version of the bot.
+- Node.js https://nodejs.org/en/download/package-manager/current
+- Git https://git-scm.com/
+- Recommend VSCode with appropriate extensions
+- PM2 https://pm2.keymetrics.io/
 
 1. Clone the repository to your system.
 2. Run `npm i` to install dependencies.
 3. [Create a Discord Server for Testing](https://www.howtogeek.com/318890/how-to-set-up-your-own-discord-chat-server/#:~:text=To%20create%20your%20own%20server,a%20Server%E2%80%9D%20on%20the%20left.)
 4. [Create a Discord Bot and Invite it to your Test Server](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token) (Make sure it has read/write permissions in your text channels).
 5. IMPORTANT: Make sure you give your bot the "bot" and "applications.commands" permissions in OAuth when inviting your bot. ![image](https://user-images.githubusercontent.com/85346345/132811570-2332bfdc-9365-4b11-afd2-051ee699083b.png)
-6. Run the SETUP.ps1 file in Powershell (Run as Admin if you have any issues).
-7. Follow the prompts and enter the Bot TOKEN.
-8. Start the bot using `npm start` in command line or terminal.
+6. In OAuth2 select the dropdown option of 'USER INSTALL'
+7. Copy the link provided on the dev page and run in your browser, select yoru new test server and add it. 
+8. Run the SETUP.ps1 file in Powershell (Run as Admin if you have any issues).
+9. Follow the prompts and enter the Bot TOKEN.
+10. Start the bot using `npm start` in command line or terminal.
 
 The `SETUP.ps1` file will create a `.env` file in your root directory, if you need to make any changes, edit the variables in this file.
 The `SETUP.ps1` file will also modify the `config.json`, which you will need to review. 
@@ -39,9 +46,36 @@ The `SETUP.ps1` file will also modify the `config.json`, which you will need to 
 
 
 ## Useful Links
-For working with google cloud vision (sentry commands)
+- For working with google cloud vision (sentry commands)
 https://discordjs.guide/preparations/setting-up-a-bot-application.html#creating-your-bot
 https://medium.com/analytics-vidhya/setting-up-google-cloud-vision-api-with-node-js-db29d1b6fbe2
+- Utilize PM2 utility to manage real team code changes and monitor error logs. Provides bot restart automatically on file changes.
+
+## PM2
+[https://](https://pm2.keymetrics.io/)
+Run `npm install pm2 -g`
+Create pm2-config.json file with the following code.
+```js
+{
+    "apps": [
+        {
+            "name":"Warden",
+            "script": "index.js",
+            "ignore_watch": [".env",".git*",".ps1"],
+            "watch": true,
+            "exec_mode": "fork",
+            "max_restarts": 1,
+            "min_uptime": 5000
+        }
+    ]
+}
+```
+### STARTING
+- Ensure your current working directory is viewable to index.js and run `pm2 start pm2-config.json --watch`
+-One it is loaded, run `pm2 logs`
+### STOPPING
+- Once you are done developing for the day, its recommended to type `pm2 stop all`
+
 
 # Creating Commands
 
