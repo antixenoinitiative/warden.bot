@@ -11,13 +11,10 @@ function botInstantiate {
         "COMMUNITYNAME" = ""
         "TOKEN" = ""
         "SOCKET_TOKEN" = ""
-        "TESTSERVER_OPORD_APPROVED" = ""
-        "TESTSERVER_OPORD_AWAIT" = ""
-        "TESTSERVER_APPROVAL_RANK" = ""
-        "TESTSERVER_CARRIERJUMP_ROOM" = ""
         "CLIENTID" = ""
         "GUILDID" = ""
         "LOGCHANNEL" = ""
+        "ERRORCHANNEL" = ""
         "EVENTCHANNELID" = ""
         "STAFFCHANNELID" = ""
         "remark1" = "# Defence Targets Embed (optional)"
@@ -40,6 +37,7 @@ function botInstantiate {
     $botInfo.CLIENTID = Read-Host -Prompt 'Enter your Discord Bot Client ID'
     $botInfo.GUILDID = Read-Host -Prompt 'Enter your Test Server ID'
     $botInfo.LOGCHANNEL = Read-Host -Prompt 'Enter your Log Channel ID'
+    $botInfo.ERRORCHANNEL = Read-Host -Prompt 'Enter your Error Channel ID'
     $botInfo.EVENTCHANNELID = ''
     $botInfo.STAFFCHANNELID = ''
     

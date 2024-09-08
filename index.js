@@ -211,6 +211,6 @@ function mainOperation(){
 		const dateTime = botFunc.generateDateTime();
 		console.log('[ERROR]'.red,`${dateTime} ⛔ Fatal error occured:`)
 		console.error(err);
-		bot.channels.cache.get(process.env.LOGCHANNEL).send({ content: `⛔ Fatal error experienced:\n ${err.stack}` })
+		bot.channels.cache.get(process.env.ERRORCHANNEL).send({ content: `⛔ Fatal error experienced:\n ${err.stack}` })
 	})
 }

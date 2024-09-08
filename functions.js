@@ -441,27 +441,42 @@ const thisBotFunctions = {
      * @author  (Mgram) Marcus Ingram @MgramTheDuck
      * @function botLog
     */
-    botLog: async (bot,embed,severity) => {
+    botLog: async (bot,embed,severity,logType) => {
         require("dotenv").config({ path: `./${thisBotFunctions.botIdent().activeBot.env}/` });
 		let logColor
 		switch (severity) {
 			case 0:
-				logColor = '#42f569'
+				logColor = '#42f569' //Green
 				break;
 			case 1:
-				logColor = '#f5bf42'
+				logColor = '#f5bf42' //Orange
 				break;
 			case 2:
-				logColor = '#f55142'
+				logColor = '#f55142' //Red
 				break;
+		}
+        let logFeature
+        let logTranslate
+        switch (logType) {
+			case "info":
+				logFeature = process.env.LOGCHANNEL
+                logTranslate = 'LOGCHANNEL'
+                break;
+            case "error":
+                logFeature = process.env.ERRORCHANNEL
+                logTranslate = 'ERRORCHANNEL'
+                break;
+            default:
+                logFeature = process.env.LOGCHANNEL
+                logTranslate = 'LOGCHANNEL'
 		}
 		embed.setColor(logColor)
 		.setTimestamp()
 		.setFooter({ text: `${thisBotFunctions.botIdent().activeBot.botName}  Logs`, iconURL: thisBotFunctions.botIdent().activeBot.icon });
 		try {
-            await bot.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed], })
+            await bot.channels.cache.get(logFeature).send({ embeds: [embed], })
 		} catch {
-			console.error("ERROR: No Log Channel Environment Variable Found, Logging will not work. OR your bot permissions are not high enough.")
+			console.error(`ERROR: ${logTranslate} Environment Variable Found, Logging will not work. OR your bot permissions are not high enough.`)
 		}
 	},
     getSortedRoleIDs: (message) => {

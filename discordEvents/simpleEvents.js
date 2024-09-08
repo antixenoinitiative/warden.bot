@@ -36,7 +36,7 @@ const exp = {
             { name: `Roles`, value: `${roles}`},
         ),2)
     },
-    guildScheduledEventDelete: async (event) => {
+    guildScheduledEventDelete: async (event) => { //XSF specific
         try {
             const opord_number_values = [event.id]
             const opord_number_sql = 'SELECT opord_number FROM opord WHERE event_id = ?';
