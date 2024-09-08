@@ -54,7 +54,7 @@ https://medium.com/analytics-vidhya/setting-up-google-cloud-vision-api-with-node
 ## PM2
 https://pm2.keymetrics.io/
 - Run `npm install pm2 -g`
-Create pm2-config.json file with the following code.
+- Create pm2-config.json file with the following code.
 ```js
 {
     "apps": [
@@ -72,7 +72,7 @@ Create pm2-config.json file with the following code.
 ```
 ### STARTING
 - Ensure your current working directory is viewable to index.js and run `pm2 start pm2-config.json --watch`
--One it is loaded, run `pm2 logs`
+- Once it is loaded, run `pm2 logs`
 ### STOPPING
 - Once you are done developing for the day, its recommended to type `pm2 stop all`
 
