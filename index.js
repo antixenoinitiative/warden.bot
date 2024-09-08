@@ -6,7 +6,7 @@ let type = null;
 // let type = "GuardianAI"
 // let type = "Warden"
 
-//! Modularity for codebase.
+//! Modularity for codebase. Stff
 /**
  * @description The bot's "bot.user.username" is dictated by the Discord Dev Portal and the name of the bot you selected there. Not here.
  * @description Your responsibility is to name them appropriately. Extremely recommended to lable both the same.
