@@ -52,7 +52,7 @@ https://medium.com/analytics-vidhya/setting-up-google-cloud-vision-api-with-node
 - Utilize PM2 utility to manage real team code changes and monitor error logs. Provides bot restart automatically on file changes.
 
 ## PM2
-[https://](https://pm2.keymetrics.io/)
+https://pm2.keymetrics.io/
 - Run `npm install pm2 -g`
 Create pm2-config.json file with the following code.
 ```js
