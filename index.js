@@ -99,10 +99,12 @@ function mainOperation(){
 	// Local Modules determined by bot "active" state.
 	// Specific bots need specific things, load them here.
 	if (botFunc.botIdent().activeBot.botName == 'Warden') {
-		const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
-		warden_vars[leaderboardInteraction] = leaderboardInteraction
-		const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db`)
-		warden_vars[query] = query
+		// const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
+		// warden_vars[leaderboardInteraction] = leaderboardInteraction
+		// const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+		// warden_vars[query] = query
+		const database = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+		warden_vars = database
 		
 	}
 	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
@@ -142,33 +144,34 @@ function mainOperation(){
 			// Scheduled Role Backup Task
 			if(process.env.MODE == "PROD") {
 				cron.schedule('*/5 * * * *', function () {
-					backupClubRoles()
+					// backupClubRoles()
+					console.log("Reminder to implement backup features for roles.")
 				});
 				/**
 				 * Role backup system, takes the targetted role and table and backs up to SQL database.
 				 * @author  (Mgram) Marcus Ingram @MgramTheDuck
 				 */
-				async function backupClubRoles() {
-					let guilds = bot.guilds.cache.map((guild) => guild);
-					let guild = guilds[0]
-					await guild.members.fetch()
-					let members = guild.roles.cache.get('974673947784269824').members.map(m=>m.user)
-					try {
-						await warden_vars.query(`DELETE FROM club10`)
-					} catch (err) {
-						console.log(`Unable to delete rows from table`)
-						return;
-					}
-					for (let member of members) {
-						let name = await guild.members.cache.get(member.id).nickname
-						await warden_vars.query(`INSERT INTO club10(user_id, name, avatar) VALUES($1,$2,$3)`, [
-							member.id,
-							name,
-							member.avatar
-						])
-					}
-					console.log('Club 10 table updated')
-				}
+				// async function backupClubRoles() {
+				// 	let guilds = bot.guilds.cache.map((guild) => guild);
+				// 	let guild = guilds[0]
+				// 	await guild.members.fetch()
+				// 	let members = guild.roles.cache.get('974673947784269824').members.map(m=>m.user)
+				// 	try {
+				// 		await warden_vars.query(`DELETE FROM club10`)
+				// 	} catch (err) {
+				// 		console.log(`Unable to delete rows from table`)
+				// 		return;
+				// 	}
+				// 	for (let member of members) {
+				// 		let name = await guild.members.cache.get(member.id).nickname
+				// 		await warden_vars.query(`INSERT INTO club10(user_id, name, avatar) VALUES($1,$2,$3)`, [
+				// 			member.id,
+				// 			name,
+				// 			member.avatar
+				// 		])
+				// 	}
+				// 	console.log('Club 10 table updated')
+				// }
 				// //the following part handles the triggering of reminders
 				// let minutes = 0.1, the_interval = minutes * 60 * 1000; //this sets at what interval are the reminder due times getting checked
 				// setInterval(async function() {

@@ -1,4 +1,4 @@
-const db = require('../db/index');
+const db = require('../db/database');
 
 module.exports = {
     leaderboardInteraction: async (interaction) => {
