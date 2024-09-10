@@ -1,4 +1,5 @@
 const { botLog, botIdent } = require('../functions')
+const { leaderboardInteraction } = require('../commands/Warden/leaderboards/speedrun_func')
 const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
@@ -46,13 +47,15 @@ const exp = {
             }
         }
         if (interaction.isButton()) {
+            //! Placing function callers here allows you to not have to deal with message collectors.
+            //! Message collectors have a timeout. This does not force you to use a collection timeframe.
             // if (botIdent().activeBot.botName != 'GuardianAI') {
             //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
             // }
-            if (botIdent().activeBot.botName == 'Warden2') {
+            if (botIdent().activeBot.botName == 'Warden') {
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate();
-                    warden_vars.leaderboardInteraction(interaction);
+                    leaderboardInteraction(interaction);
                     return;
                 }
             }
