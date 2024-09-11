@@ -7,6 +7,6 @@ module.exports = {
     // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions:0,
     execute (interaction) {
-        interaction.reply({ content: "https://media.discordapp.net/attachments/832092794293190706/1246006599093587989/hydra.png" });
+        interaction.reply({ content: "https://cdn.discordapp.com/attachments/955583721883467787/1075228406528090123/Hydra.png" });
     }
 }
