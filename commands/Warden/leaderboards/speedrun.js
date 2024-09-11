@@ -1,5 +1,5 @@
-const { botLog  } = require('../../../functions');
-const database = require(`../../../Warden/db/database`)
+const { botLog, botIdent  } = require('../../../functions');
+const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 const Discord = require("discord.js");
 
 
@@ -53,19 +53,19 @@ module.exports = {
             args[key.name] = key.value
         }
 		// Checks
-		if (!args.link.startsWith('https://')) { return interaction.reply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
+		if (!args.link.startsWith('https://')) { return interaction.editReply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
 		if (args.user !== undefined) { user = args.user }
+		if (args.comments == undefined) { args.comments = '-' }
 		let name = await interaction.guild.members.cache.get(user).nickname != null ? await interaction.guild.members.cache.get(user).nickname : await interaction.guild.members.cache.get(user).displayName
-		
 
 		// Submit
 		if(interaction.guild.channels.cache.get(staffChannel) === undefined)  { // Check for staff channel
-			return interaction.reply({ content: `Staff Channel not found` })
+			return interaction.editReply({ content: `Staff Channel not found` })
 		}
 		try {
-			const submission_values = [user,name,args.time,args.shipclass,args.ship,args.variant,args.link,false,timestamp]
+			const submission_values = [user,name,args.time,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments]
 			const submission_sql = `
-				INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date) VALUES (?,?,?,?,?,?,?,?,?);
+				INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments) VALUES (?,?,?,?,?,?,?,?,?,?);
 			`;
 			await database.query(submission_sql, submission_values)
 
@@ -77,7 +77,7 @@ module.exports = {
 				,2
 				,'error'
 			)
-			return interaction.reply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
+			return interaction.editReply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
 		}
 		
 		let submissionId = null
@@ -100,7 +100,7 @@ module.exports = {
 		{name: "Class", value: `${args.shipclass}`, inline: true},
 		{name: "link", value: `${args.link}`, inline: true},
 		{name: "Comments", value: `${args.comments}`, inline: true})
-		interaction.followUp({ embeds: [returnEmbed.setTimestamp()] });
+		interaction.followUp({ embeds: [returnEmbed.setTimestamp()] })
 
 		// Create staff interaction
 		const staffEmbed = new Discord.EmbedBuilder()
@@ -118,9 +118,22 @@ module.exports = {
 		const row = new Discord.ActionRowBuilder()
 			.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-approve-${submissionId}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
 			.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
-        
 		let buttonResult = null;
-		buttonResult = await interaction.guild.channels.cache.get(staffChannel).send({ embeds: [staffEmbed], components: [row] });
+		buttonResult = await interaction.guild.channels.cache.get(staffChannel).send({ embeds: [staffEmbed], components: [row] })
+		const embedId = buttonResult.id
+		try {
+			const submissionUpdate_values = [embedId,submissionId]
+			const submissionUpdate_sql = `UPDATE speedrun SET embed_id = (?) WHERE id = (?);`
+			await database.query(submissionUpdate_sql, submissionUpdate_values)
+		} catch (err) {
+			console.log(err)
+			botLog(interaction.guild,new Discord.EmbedBuilder()
+				.setDescription('```' + err.stack + '```')
+				.setTitle(`⛔ Fatal error experienced`)
+				,2
+				,'error'
+			)
+		}
 		//! Example for a collector, however collectors have a timeframe before they expire.
 		// const collector = buttonResult.createMessageComponentCollector({ componentType: Discord.ComponentType.Button, time: 1_604_800_000 });
 		// collector.on('collect', async i => {

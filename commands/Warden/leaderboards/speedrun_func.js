@@ -1,11 +1,10 @@
 const { botIdent, botLog  } = require('../../../functions');
-const database = require(`../../../Warden/db/database`)
+const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 const Discord = require("discord.js");
 
 
 module.exports = {
 	leaderboardInteraction: async (i) => {
-		
 		let buttonResponse = i.customId.split("-")
 		let [ ,leaderboard, eventType, submissionId ] = buttonResponse
 		let res;
