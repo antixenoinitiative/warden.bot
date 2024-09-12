@@ -7,6 +7,6 @@ module.exports = {
     // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     permissions:0,
     execute (interaction) {
-        interaction.reply({ content: "https://cdn.discordapp.com/attachments/566728213737373707/1087075059539116044/Orthrus.png" });
+        interaction.reply({ content: "https://cdn.discordapp.com/attachments/832092794293190706/1246006601257848932/orthrus.png" });
     }
 }
