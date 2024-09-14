@@ -63,14 +63,18 @@ if (botIdent().activeBot.botName == 'Warden') {
     //! ##############################
     //! #######STARTUP CHECKS#########
 
-    //todo Create a function that checks for un-approved speedruns and replaces the old appprove/delete embed in the staff channel
-    //todo       with the new embed data.
-    checkSpeedrun()
-    async function checkSpeedrun() {
+    /**
+    * @author testfax (Medi0cre) @testfax
+    * @description This function ensures that the approve/deny staff buttons for leaderboard submissions are available after a server restart.
+    */
+    const leaderboards = ['speedrun','ace']
+    leaderboards.forEach(i => { checkLeaderboards(i) })
+
+    async function checkLeaderboards(leaderboard) {
         let unapproved_array = []
         try {
             const unapproved_list_values = false
-            const unapproved_list_sql = 'SELECT id,embed_id FROM `speedrun` WHERE approval = (?)'
+            const unapproved_list_sql = `SELECT id,embed_id FROM ${leaderboard} WHERE approval = (?)`
             const unapproved_list_response = await query(unapproved_list_sql, unapproved_list_values)
             if (unapproved_list_response.length > 0) {
                 unapproved_array = unapproved_list_response
@@ -79,7 +83,7 @@ if (botIdent().activeBot.botName == 'Warden') {
             console.log(err)
             botLog(global.guild,new Discord.EmbedBuilder()
                 .setDescription('```' + err.stack + '```')
-                .setTitle(`⛔ Fatal error experienced. checkSpeedrun()`)
+                .setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
                 ,2
                 ,'error'
             )
@@ -108,21 +112,21 @@ if (botIdent().activeBot.botName == 'Warden') {
                     newEmbed.addFields({name: i.name, value: i.value, inline: true},)
                 })
                 const row = new Discord.ActionRowBuilder()
-                    .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-approve-${dbInfo.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
-                    .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-deny-${dbInfo.id}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
+                    .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-approve-${dbInfo.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+                    .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-deny-${dbInfo.id}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
                 const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
                 let buttonResult = null;
                 buttonResult = await originalMessage.edit({ embeds: [editedEmbed], components: [row] })
                   
                 try {
                     const submissionUpdate_values = [dbInfo.embed_id,dbInfo.id]
-                    const submissionUpdate_sql = `UPDATE speedrun SET embed_id = (?) WHERE id = (?);`
+                    const submissionUpdate_sql = `UPDATE ${leaderboard} SET embed_id = (?) WHERE id = (?);`
                     await query(submissionUpdate_sql, submissionUpdate_values)
                 } catch (err) {
                     console.log(err)
                     botLog(global.guild,new Discord.EmbedBuilder()
                         .setDescription('```' + err.stack + '```')
-                        .setTitle(`⛔ Fatal error experienced`)
+                        .setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
                         ,2
                         ,'error'
                     )
@@ -132,7 +136,7 @@ if (botIdent().activeBot.botName == 'Warden') {
                 console.log(err)
                 botLog(global.guild,new Discord.EmbedBuilder()
                     .setDescription('```' + err.stack + '```')
-                    .setTitle(`⛔ Fatal error experienced: checkSpeedrun()`)
+                    .setTitle(`⛔ Fatal error experienced: checkLeaderboards(${leaderboard})`)
                     ,2
                     ,'error'
                 )
@@ -140,6 +144,7 @@ if (botIdent().activeBot.botName == 'Warden') {
             }
         })
     }
+    
 
     //! ##############################
     //! ##############################
