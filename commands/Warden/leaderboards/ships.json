@@ -1,0 +1,46 @@
+{
+ "large": [
+    "Anaconda",
+    "Beluga Liner",
+    "Federal Corvette",
+    "Imperial Clipper",
+    "Imperial Cutter",
+    "Orca",
+    "Type-10 Defender",
+    "Type-7 Transporter",
+    "Type-9 Heavy"
+ ],
+ "medium": [
+    "Alliance Challenger",
+    "Alliance Cheiftain",
+    "Alliance Crusader",
+    "Asp Explorer",
+    "Asp Scout",
+    "Federal Assault Ship",
+    "Federal Drop Ship",
+    "Federal Gunship",
+    "Fer-de-Lance",
+    "Krait Mk II",
+    "Krait Phantom",
+    "Mamba",
+    "Python",
+    "Python Mk II",
+    "Type-6 Transporter"
+ ],
+ "small": [
+    "Adder",
+    "Cobra Mk III",
+    "Cobra Mk IV",
+    "Diamondback Explorer",
+    "Diamondback Scout",
+    "Dolphin",
+    "Eagle",
+    "Hauler",
+    "Imperial Courier",
+    "Imperial Eagle",
+    "Sidewinder",
+    "Viper Mk III",
+    "Viper Mk IV",
+    "Vulture"
+ ]
+}

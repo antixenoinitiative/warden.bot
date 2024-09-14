@@ -1,4 +1,6 @@
-const { botIdent } = require('../../functions');
+const { botIdent, botLog } = require('../../functions')
+const Discord = require("discord.js");
+
 if (botIdent().activeBot.botName == 'Warden') {
     const mysql = require('mysql2');
     require("dotenv").config({ path: `../../${botIdent().activeBot.env}` });
@@ -61,7 +63,84 @@ if (botIdent().activeBot.botName == 'Warden') {
     //! ##############################
     //! #######STARTUP CHECKS#########
 
-    
+    //todo Create a function that checks for un-approved speedruns and replaces the old appprove/delete embed in the staff channel
+    //todo       with the new embed data.
+    checkSpeedrun()
+    async function checkSpeedrun() {
+        let unapproved_array = []
+        try {
+            const unapproved_list_values = false
+            const unapproved_list_sql = 'SELECT id,embed_id FROM `speedrun` WHERE approval = (?)'
+            const unapproved_list_response = await query(unapproved_list_sql, unapproved_list_values)
+            if (unapproved_list_response.length > 0) {
+                unapproved_array = unapproved_list_response
+            }
+        } catch (err) {
+            console.log(err)
+            botLog(global.guild,new Discord.EmbedBuilder()
+                .setDescription('```' + err.stack + '```')
+                .setTitle(`⛔ Fatal error experienced. checkSpeedrun()`)
+                ,2
+                ,'error'
+            )
+            return
+        } 
+        // console.log(unapproved_array)
+        const staffChannel = process.env.STAFFCHANNELID
+        const staffChannel_obj = await global.guild.channels.fetch(staffChannel)
+        unapproved_array.forEach(async dbInfo => {
+            // console.log(dbInfo)
+            try {
+                const originalMessage = await staffChannel_obj.messages.fetch(dbInfo.embed_id)
+                const receivedEmbed = originalMessage.embeds[0]
+                let oldEmbedSchema = {
+                    title: receivedEmbed.title,
+                    description: receivedEmbed.description,
+                    color: receivedEmbed.color,
+                    fields: receivedEmbed.fields
+                } 
+                const newEmbed = new Discord.EmbedBuilder()
+                    .setTitle(oldEmbedSchema.title)
+                    .setDescription(oldEmbedSchema.description)
+                    .setColor(oldEmbedSchema.color)
+                    .setThumbnail(botIdent().activeBot.icon)  
+                oldEmbedSchema.fields.forEach(i => {
+                    newEmbed.addFields({name: i.name, value: i.value, inline: true},)
+                })
+                const row = new Discord.ActionRowBuilder()
+                    .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-approve-${dbInfo.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+                    .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-speedrun-deny-${dbInfo.id}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
+                const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
+                let buttonResult = null;
+                buttonResult = await originalMessage.edit({ embeds: [editedEmbed], components: [row] })
+                  
+                try {
+                    const submissionUpdate_values = [dbInfo.embed_id,dbInfo.id]
+                    const submissionUpdate_sql = `UPDATE speedrun SET embed_id = (?) WHERE id = (?);`
+                    await query(submissionUpdate_sql, submissionUpdate_values)
+                } catch (err) {
+                    console.log(err)
+                    botLog(global.guild,new Discord.EmbedBuilder()
+                        .setDescription('```' + err.stack + '```')
+                        .setTitle(`⛔ Fatal error experienced`)
+                        ,2
+                        ,'error'
+                    )
+                }
+            }
+            catch (err) {
+                console.log(err)
+                botLog(global.guild,new Discord.EmbedBuilder()
+                    .setDescription('```' + err.stack + '```')
+                    .setTitle(`⛔ Fatal error experienced: checkSpeedrun()`)
+                    ,2
+                    ,'error'
+                )
+                return
+            }
+        })
+    }
+
     //! ##############################
     //! ##############################
     //! ##############################

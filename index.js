@@ -94,25 +94,8 @@ if (botFunc.adjustActive(os.hostname(),type)) {
 function mainOperation(){ 
 	// Start the bot with the correct .env
 	require("dotenv").config({ path: `${botFunc.botIdent().activeBot.env}` });
-
-	// Bot Determination
-	// Local Modules determined by bot "active" state.
-	// Specific bots need specific things, load them here.
-	if (botFunc.botIdent().activeBot.botName == 'Warden') {
-		// const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
-		// warden_vars[leaderboardInteraction] = leaderboardInteraction
-		// const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
-		// warden_vars[query] = query
-		const database = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
-		warden_vars = database
-		
-	}
-	if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
-		const database = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
-		guardianai_vars = database
-		
-	}
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
+
 	// Discord client setup
 	const serverIntents = new IntentsBitField(3276799);
 	const bot = new Client({ intents: serverIntents })
@@ -125,7 +108,9 @@ function mainOperation(){
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
 		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),0);
 		global.guild = bot.guilds.cache.first()	
-		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
+		if (global.guild && botFunc.botIdent().activeBot.botName == 'GuardianAI') {
+			const database = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+			guardianai_vars = database
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 			/**
 			* @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
@@ -139,8 +124,16 @@ function mainOperation(){
 				guardianai = guardianai.first()
 				guardianai.user.setActivity(`${currentSystem_response[0].starSystem}`, { type: ActivityType.Custom });
 			}
+
 		}
-		if (botFunc.botIdent().activeBot.botName == 'Warden') {
+		if (global.guild && botFunc.botIdent().activeBot.botName == 'Warden') {
+			// const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
+			// warden_vars[leaderboardInteraction] = leaderboardInteraction
+			// const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+			// warden_vars[query] = query
+			// console.log(global.guild)
+			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
+			warden_vars = database
 			// Scheduled Role Backup Task
 			if(process.env.MODE == "PROD") {
 				cron.schedule('*/5 * * * *', function () {
@@ -193,6 +186,7 @@ function mainOperation(){
 				// 	}
 				// }, the_interval);
 			}
+			
 			// If socket token is configured, bot will try to run the task manager.
 			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 			/**

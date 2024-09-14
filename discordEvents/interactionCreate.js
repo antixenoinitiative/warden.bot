@@ -1,5 +1,7 @@
 const { botLog, botIdent } = require('../functions')
-const { leaderboardInteraction } = require('../commands/Warden/leaderboards/speedrun_func')
+const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
+// if (botIdent().activeBot.botName == 'Warden') {
+// }
 const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
@@ -55,7 +57,7 @@ const exp = {
             if (botIdent().activeBot.botName == 'Warden') {
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate();
-                    leaderboardInteraction(interaction);
+                    leaderboardInteraction(interaction)
                     return;
                 }
             }

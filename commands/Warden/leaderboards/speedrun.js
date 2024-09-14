@@ -1,7 +1,7 @@
 const { botLog, botIdent  } = require('../../../functions');
 const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 const Discord = require("discord.js");
-
+const ships = require('./ships.json')
 
 module.exports = {
     data: new Discord.SlashCommandBuilder()
@@ -25,8 +25,10 @@ module.exports = {
 			{ name: 'Large', value: 'large' }
 		))
 	.addStringOption(option => option.setName('ship')
-		.setDescription('Ship Model eg: Anaconda, Krait Mk.II, etc')
-		.setRequired(true))
+			.setDescription('Ship Model eg: Anaconda, Krait Mk.II, etc')
+			.setRequired(true)
+			.setAutocomplete(true)
+	)
     .addIntegerOption(option => option.setName('time')
 		.setDescription('Time achieved in seconds')
 		.setRequired(true))
@@ -39,8 +41,19 @@ module.exports = {
 	.addStringOption(option => option.setName('comments')
 		.setDescription('Comment, banter, whatever')
 		.setRequired(false)),
-    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    permissions:0,
+	async autocomplete(interaction) {
+		const focusedOption = interaction.options.getFocused(true);
+        let choices; //array
+        if (focusedOption.name === 'ship') {
+			const selectionValues = interaction.options._hoistedOptions
+			const shipClass = selectionValues.find(i => i.name === 'shipclass').value
+			choices = ships[shipClass]
+        }
+        const filtered = choices.filter(choice => choice.startsWith(focusedOption.value));
+        await interaction.respond(
+            filtered.map(choice => ({ name: choice, value: choice })),
+        )
+    },
 	async execute(interaction) {
 		await interaction.deferReply({ ephemeral: false });
 		let args = {}
