@@ -57,7 +57,8 @@ let type = null;
  */
 
 // Imported Modules
-const { Client, IntentsBitField, EmbedBuilder, Collection, ActivityType } = require("discord.js")
+const Discord = require("discord.js")
+// const { Client, IntentsBitField, EmbedBuilder, Collection, ActivityType } = require("discord.js")
 const { REST } = require('@discordjs/rest')
 const { Routes } = require('discord-api-types/v9')
 const botFunc = require('./functions.js')
@@ -97,24 +98,24 @@ function mainOperation(){
 	console.log("[STARTUP]".yellow, `${botFunc.botIdent().activeBot.botName}`.green,"Loading Commands:".magenta,"🕗")
 
 	// Discord client setup
-	const serverIntents = new IntentsBitField(3276799);
-	const bot = new Client({ intents: serverIntents })
+	const serverIntents = new Discord.IntentsBitField(3276799);
+	const bot = new Discord.Client({ intents: serverIntents })
 	/**
 	 * Loads command objects from the commands folder
 	 * @author  (testfax) Medi0cr3 @testfax
 	 */
-	let commandsColl = bot.commands = new Collection()
+	let commandsColl = bot.commands = new Discord.Collection()
 	bot.on("ready", async() => {
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
-		botFunc.botLog(bot,new EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),0);
-		global.guild = bot.guilds.cache.first()	
-		if (global.guild && botFunc.botIdent().activeBot.botName == 'GuardianAI') {
+		botFunc.botLog(bot,new Discord.EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),0);
+		global.guild = bot.guilds.cache.first()
+		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 			const database = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			guardianai_vars = database
-			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 			/**
-			* @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
+			 * @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI as XSF honors AXI ranks.
 			*/
+			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
 			
 			//Assigns the ActivityType (status) of the bot with the system name.
 			const currentSystem_sql = 'SELECT starSystem FROM `carrier_jump` ORDER BY id DESC LIMIT 1';
@@ -122,11 +123,10 @@ function mainOperation(){
 			if (currentSystem_response.length > 0) {
 				let guardianai = await guild.members.fetch({query: botFunc.botIdent().activeBot.botName, limit: 1})
 				guardianai = guardianai.first()
-				guardianai.user.setActivity(`${currentSystem_response[0].starSystem}`, { type: ActivityType.Custom });
+				guardianai.user.setActivity(`${currentSystem_response[0].starSystem}`, { type: Discord.ActivityType.Custom });
 			}
-
 		}
-		if (global.guild && botFunc.botIdent().activeBot.botName == 'Warden') {
+		if (botFunc.botIdent().activeBot.botName == 'Warden') {
 			// const leaderboardInteraction = require(`./${botFunc.botIdent().activeBot.botName}/interaction/submission.js`)
 			// warden_vars[leaderboardInteraction] = leaderboardInteraction
 			// const { query } = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
@@ -134,6 +134,88 @@ function mainOperation(){
 			// console.log(global.guild)
 			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			warden_vars = database
+
+			/**
+			* @author testfax (Medi0cre) @testfax
+			* @description This function ensures that the approve/deny staff buttons for leaderboard submissions are available after a server restart.
+			*/
+			const leaderboards = ['speedrun','ace']
+			leaderboards.forEach(i => { checkLeaderboards(i) })
+			async function checkLeaderboards(leaderboard) {
+				let unapproved_array = []
+				try {
+					const unapproved_list_values = false
+					const unapproved_list_sql = `SELECT id,embed_id FROM ${leaderboard} WHERE approval = (?)`
+					const unapproved_list_response = await database.query(unapproved_list_sql, unapproved_list_values)
+					if (unapproved_list_response.length > 0) {
+						unapproved_array = unapproved_list_response
+					}
+				} catch (err) {
+					console.log(err)
+					botFunc.botLog(guild,new Discord.EmbedBuilder()
+						.setDescription('```' + err.stack + '```')
+						.setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
+						,2
+						,'error'
+					)
+					return
+				} 
+				// console.log(unapproved_array)
+				const staffChannel = process.env.STAFFCHANNELID
+				const staffChannel_obj = await guild.channels.fetch(staffChannel)
+				unapproved_array.forEach(async dbInfo => {
+					// console.log(dbInfo)
+					try {
+						const originalMessage = await staffChannel_obj.messages.fetch(dbInfo.embed_id)
+						const receivedEmbed = originalMessage.embeds[0]
+						let oldEmbedSchema = {
+							title: receivedEmbed.title,
+							description: receivedEmbed.description,
+							color: receivedEmbed.color,
+							fields: receivedEmbed.fields
+						} 
+						const newEmbed = new Discord.EmbedBuilder()
+							.setTitle(oldEmbedSchema.title)
+							.setDescription(oldEmbedSchema.description)
+							.setColor(oldEmbedSchema.color)
+							.setThumbnail(botIdent().activeBot.icon)  
+						oldEmbedSchema.fields.forEach(i => {
+							newEmbed.addFields({name: i.name, value: i.value, inline: true},)
+						})
+						const row = new Discord.ActionRowBuilder()
+							.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-approve-${dbInfo.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+							.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-deny-${dbInfo.id}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
+						const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
+						let buttonResult = null;
+						buttonResult = await originalMessage.edit({ embeds: [editedEmbed], components: [row] })
+							
+						try {
+							const submissionUpdate_values = [dbInfo.embed_id,dbInfo.id]
+							const submissionUpdate_sql = `UPDATE ${leaderboard} SET embed_id = (?) WHERE id = (?);`
+							await database.query(submissionUpdate_sql, submissionUpdate_values)
+						} catch (err) {
+							console.log(err)
+							botFunc.botLog(guild,new Discord.EmbedBuilder()
+								.setDescription('```' + err.stack + '```')
+								.setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
+								,2
+								,'error'
+							)
+						}
+					}
+					catch (err) {
+						console.log(err)
+						botFunc.botLog(guild,new Discord.EmbedBuilder()
+							.setDescription('```' + err.stack + '```')
+							.setTitle(`⛔ Fatal error experienced: checkLeaderboards(${leaderboard})`)
+							,2
+							,'error'
+						)
+						return
+					}
+				})
+			}
+			
 			// Scheduled Role Backup Task
 			if(process.env.MODE == "PROD") {
 				cron.schedule('*/5 * * * *', function () {
@@ -204,8 +286,8 @@ function mainOperation(){
 	// General error handling
 	process.on('uncaughtException', function (err) {
 		const dateTime = botFunc.generateDateTime();
-		console.log('[ERROR]'.red,`${dateTime} ⛔ Fatal error occured:`)
+		console.log('[ERROR]'.red,`${dateTime} ⛔ Unhandled Exception:`)
 		console.error(err);
-		bot.channels.cache.get(process.env.ERRORCHANNEL).send({ content: `⛔ Fatal error experienced:\n ${err.stack}` })
+		bot.channels.cache.get(process.env.ERRORCHANNEL).send({ content: `⛔ Unhandled Exception:\n ${err.stack}` })
 	})
 }
