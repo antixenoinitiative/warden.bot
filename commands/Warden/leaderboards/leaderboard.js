@@ -64,7 +64,7 @@ data: new Discord.SlashCommandBuilder()
 					.addChoices(
 						{ name: 'Alliance Challenger', value: 'Challenger' },
 						{ name: 'Alliance Chieftain', value: 'Chieftain' },
-						{ name: 'Fer-de-Lance', value: 'FDL' },
+						{ name: 'Fer-de-Lance', value: 'Fdl	' },
 						{ name: 'Krait Mk II', value: 'Kraitmk2' }
 				)
 			)
