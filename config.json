@@ -44,12 +44,52 @@
             { "name": "separators", "roles": [642840406580658218,642839749777948683]}
         ],
         "ranksCommand": {
-            "challenge_ranks": [],
-            "competitive_ranks": [],
-            "progression_ranks": [],
+            "challenge_ranks": [
+                "Decent Pilot",
+                "The Swarm",
+                "Hephaestus Shunned",
+                "Cerberus' Bane",
+                "Astraea's Clarity",
+                "Snake Eater",
+                "Soaring Sleipnir",
+                "100% Club",
+                "Myrmidon",
+                "Vanguard"
+            ],
+            "competitive_ranks": [
+                "Caduceus' Glint",
+                "Ace"
+            ],
+            "progression_ranks": [
+                "Herculean Conqueror",
+                "Herculean Warrior",
+                "Serpent's Nemesis",
+                "Ossified Dyad",
+                "Sole Survivor",
+                "Twain Talons",
+                "Apollo's Wrath",
+                "Cyclopean Duo",
+                "Quadrivial Vestige",
+                "Pilot"
+            ],
             "other_ranks": [
                 "Annihilator",
-                "Exterminator"
+                "Exterminator",
+                "Defender",
+                "Mentor",
+                "Veteran",
+                "Collector",
+                "Party Champion",
+                "Party Survivor",
+                "Old Guard",
+                "Lernaean Seeker",
+                "Callous Fringe",
+                "Xeno Unraveller",
+                "Avower",
+                "BGS Loyalist",
+                "BGS Operator",
+                "Conspirator",
+                "Ambassador"
             ]
         },
         "testServer": {
