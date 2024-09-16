@@ -1,10 +1,10 @@
 const Discord = require("discord.js");
 const config = require('../../../config.json');
-const { botLog } = require('../../../functions');
+const { botLog,botIdent } = require('../../../functions');
 
 function getRanks(ranktype, roleCache) {
-	if (!config.Warden.ranksCommand[ranktype]) throw new Error(`Invalid rank type: ${ranktype}`);
-	const ranks = config.Warden.ranksCommand[ranktype];
+	if (!config[botIdent().activeBot.botName].ranksCommand[ranktype]) throw new Error(`Invalid rank type: ${ranktype}`);
+	const ranks = config[botIdent().activeBot.botName].ranksCommand[ranktype];
 		
 	let rankData = [];
 	for(const rank of ranks) {		

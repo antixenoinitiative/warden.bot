@@ -108,7 +108,7 @@ function mainOperation(){
 	bot.on("ready", async() => {
 		await botFunc.deployCommands(commandsColl,REST,Routes,bot);
 		botFunc.botLog(bot,new Discord.EmbedBuilder().setDescription(`💡 ${bot.user.username} online! logged in as ${bot.user.tag}`).setTitle(`${bot.user.username} Online`),0);
-		global.guild = bot.guilds.cache.first()
+		global.guild = bot.guilds.cache.first() 
 		if (botFunc.botIdent().activeBot.botName == 'GuardianAI') {
 			const database = require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			guardianai_vars = database
@@ -135,89 +135,91 @@ function mainOperation(){
 			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			warden_vars = database
 
-			/**
-			* @author testfax (Medi0cre) @testfax
-			* @description This function ensures that the approve/deny staff buttons for leaderboard submissions are available after a server restart.
-			*/
-			const leaderboards = ['speedrun','ace']
-			leaderboards.forEach(i => { checkLeaderboards(i) })
-			async function checkLeaderboards(leaderboard) {
-				let unapproved_array = []
-				try {
-					const unapproved_list_values = false
-					const unapproved_list_sql = `SELECT id,embed_id FROM ${leaderboard} WHERE approval = (?)`
-					const unapproved_list_response = await database.query(unapproved_list_sql, unapproved_list_values)
-					if (unapproved_list_response.length > 0) {
-						unapproved_array = unapproved_list_response
-					}
-				} catch (err) {
-					console.log(err)
-					botFunc.botLog(guild,new Discord.EmbedBuilder()
-						.setDescription('```' + err.stack + '```')
-						.setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
-						,2
-						,'error'
-					)
-					return
-				} 
-				// console.log(unapproved_array)
-				const staffChannel = process.env.STAFFCHANNELID
-				const staffChannel_obj = await guild.channels.fetch(staffChannel)
-				unapproved_array.forEach(async dbInfo => {
-					// console.log(dbInfo)
+			
+			
+			// Scheduled Role Backup Task
+			if(process.env.MODE == "PROD") {
+				/**
+				* @author testfax (Medi0cre) @testfax
+				* @description This function ensures that the approve/deny staff buttons for leaderboard submissions are available after a server restart.
+				*/
+				const leaderboards = ['speedrun','ace']
+				leaderboards.forEach(i => { checkLeaderboards(i) })
+				async function checkLeaderboards(leaderboard) {
+					let unapproved_array = []
 					try {
-						const originalMessage = await staffChannel_obj.messages.fetch(dbInfo.embed_id)
-						const receivedEmbed = originalMessage.embeds[0]
-						let oldEmbedSchema = {
-							title: receivedEmbed.title,
-							description: receivedEmbed.description,
-							color: receivedEmbed.color,
-							fields: receivedEmbed.fields
-						} 
-						const newEmbed = new Discord.EmbedBuilder()
-							.setTitle(oldEmbedSchema.title)
-							.setDescription(oldEmbedSchema.description)
-							.setColor(oldEmbedSchema.color)
-							.setThumbnail(botIdent().activeBot.icon)  
-						oldEmbedSchema.fields.forEach(i => {
-							newEmbed.addFields({name: i.name, value: i.value, inline: true},)
-						})
-						const row = new Discord.ActionRowBuilder()
-							.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-approve-${dbInfo.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
-							.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-deny-${dbInfo.id}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
-						const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
-						let buttonResult = null;
-						buttonResult = await originalMessage.edit({ embeds: [editedEmbed], components: [row] })
-							
-						try {
-							const submissionUpdate_values = [dbInfo.embed_id,dbInfo.id]
-							const submissionUpdate_sql = `UPDATE ${leaderboard} SET embed_id = (?) WHERE id = (?);`
-							await database.query(submissionUpdate_sql, submissionUpdate_values)
-						} catch (err) {
-							console.log(err)
-							botFunc.botLog(guild,new Discord.EmbedBuilder()
-								.setDescription('```' + err.stack + '```')
-								.setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
-								,2
-								,'error'
-							)
+						const unapproved_list_values = false
+						const unapproved_list_sql = `SELECT id,embed_id FROM ${leaderboard} WHERE approval = (?)`
+						const unapproved_list_response = await database.query(unapproved_list_sql, unapproved_list_values)
+						if (unapproved_list_response.length > 0) {
+							unapproved_array = unapproved_list_response
 						}
-					}
-					catch (err) {
+					} catch (err) {
 						console.log(err)
 						botFunc.botLog(guild,new Discord.EmbedBuilder()
 							.setDescription('```' + err.stack + '```')
-							.setTitle(`⛔ Fatal error experienced: checkLeaderboards(${leaderboard})`)
+							.setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
 							,2
 							,'error'
 						)
 						return
-					}
-				})
-			}
-			
-			// Scheduled Role Backup Task
-			if(process.env.MODE == "PROD") {
+					} 
+					// console.log(unapproved_array)
+					const staffChannel = process.env.STAFFCHANNELID
+					const staffChannel_obj = await guild.channels.fetch(staffChannel)
+					unapproved_array.forEach(async dbInfo => {
+						// console.log(dbInfo)
+						try {
+							const originalMessage = await staffChannel_obj.messages.fetch(dbInfo.embed_id)
+							const receivedEmbed = originalMessage.embeds[0]
+							let oldEmbedSchema = {
+								title: receivedEmbed.title,
+								description: receivedEmbed.description,
+								color: receivedEmbed.color,
+								fields: receivedEmbed.fields
+							} 
+							const newEmbed = new Discord.EmbedBuilder()
+								.setTitle(oldEmbedSchema.title)
+								.setDescription(oldEmbedSchema.description)
+								.setColor(oldEmbedSchema.color)
+								.setThumbnail(botIdent().activeBot.icon)  
+							oldEmbedSchema.fields.forEach(i => {
+								newEmbed.addFields({name: i.name, value: i.value, inline: true},)
+							})
+							const row = new Discord.ActionRowBuilder()
+								.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-approve-${dbInfo.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success),)
+								.addComponents(new Discord.ButtonBuilder().setCustomId(`submission-${leaderboard}-deny-${dbInfo.id}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
+							const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
+							let buttonResult = null;
+							buttonResult = await originalMessage.edit({ embeds: [editedEmbed], components: [row] })
+								
+							try {
+								const submissionUpdate_values = [dbInfo.embed_id,dbInfo.id]
+								const submissionUpdate_sql = `UPDATE ${leaderboard} SET embed_id = (?) WHERE id = (?);`
+								await database.query(submissionUpdate_sql, submissionUpdate_values)
+							} catch (err) {
+								console.log(err)
+								botFunc.botLog(guild,new Discord.EmbedBuilder()
+									.setDescription('```' + err.stack + '```')
+									.setTitle(`⛔ Fatal error experienced. checkLeaderboards(${leaderboard})`)
+									,2
+									,'error'
+								)
+							}
+						}
+						catch (err) {
+							console.log(err)
+							botFunc.botLog(guild,new Discord.EmbedBuilder()
+								.setDescription('```' + err.stack + '```')
+								.setTitle(`⛔ Fatal error experienced: checkLeaderboards(${leaderboard})`)
+								,2
+								,'error'
+							)
+							return
+						}
+					})
+				}
+
 				cron.schedule('*/5 * * * *', function () {
 					// backupClubRoles()
 					console.log("Reminder to implement backup features for roles.")

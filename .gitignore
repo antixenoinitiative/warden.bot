@@ -10,3 +10,4 @@ package copy.json
 *.sql
 GuardianAI/prisma
 package-lock.json
+GuardianAI/bookofsentinel
