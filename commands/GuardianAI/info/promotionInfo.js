@@ -1,7 +1,7 @@
 const Discord = require("discord.js");
 const { botIdent, eventTimeCreate, hasSpecifiedRole, botLog } = require('../../../functions')
 
-const bos = require(`../../../${botIdent().activeBot.botName}/bookofsentinel/bos.json`)
+// const bos = require(`../../../${botIdent().activeBot.botName}/bookofsentinel/bos.json`)
 const config = require('../../../config.json')
 const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 
