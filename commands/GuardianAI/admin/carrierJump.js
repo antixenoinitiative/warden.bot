@@ -2,7 +2,7 @@ const Discord = require("discord.js");
 const { botIdent, eventTimeCreate, hasSpecifiedRole,botLog } = require('../../../functions')
 const objectives = require('../opords/opord_values.json')
 const config = require('../../../config.json')
-const database = require('../../../GuardianAI/db/database')
+const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 
 
 module.exports = {

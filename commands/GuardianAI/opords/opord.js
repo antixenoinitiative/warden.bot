@@ -2,7 +2,7 @@ const Discord = require("discord.js");
 const { botIdent, eventTimeCreate, hasSpecifiedRole,botLog } = require('../../../functions')
 const objectives = require('./opord_values.json')
 const config = require('../../../config.json')
-const database = require('../../../GuardianAI/db/database')
+const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 
 // console.log(eventTimeCreate("05/Dec",'0000'))
 
