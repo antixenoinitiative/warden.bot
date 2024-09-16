@@ -182,7 +182,7 @@ function mainOperation(){
 								.setTitle(oldEmbedSchema.title)
 								.setDescription(oldEmbedSchema.description)
 								.setColor(oldEmbedSchema.color)
-								.setThumbnail(botIdent().activeBot.icon)  
+								.setThumbnail(botFunc.botIdent().activeBot.icon)  
 							oldEmbedSchema.fields.forEach(i => {
 								newEmbed.addFields({name: i.name, value: i.value, inline: true},)
 							})
