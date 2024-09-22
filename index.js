@@ -1,9 +1,9 @@
 /**
- * Changing the 'Type' variable to anything, but Null will result in "Dev" mode and the name of the bot being declared.
+ @description * Changing the 'Type' variable to 'null' results in production level mode automatically and the name of the bot being declared by the .env file.
+ @description * Enter a declared DEV mode by naming the bot.
  */
-//TEST DATA
-let type = null;
-// let type = "GuardianAI"
+// let type = null;
+let type = "GuardianAI"
 // let type = "Warden"
 
 //! Modularity for codebase. Stff

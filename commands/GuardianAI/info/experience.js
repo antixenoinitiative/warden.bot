@@ -272,7 +272,7 @@ module.exports = {
             // Gather data from the slash command
             const inputs = interaction.options._hoistedOptions
             let input = inputs.find(i => i.name === 'names').value
-            
+            console.log(input)
 
             // Check database for correctly selected opord_number
             // const mysql_opord_values = [opord_number]

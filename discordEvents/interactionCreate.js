@@ -1,5 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
+const { nextTestQuestion } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 // if (botIdent().activeBot.botName == 'Warden') {
 // }
 const Discord = require('discord.js')
@@ -13,7 +14,7 @@ const exp = {
         //!   the interaction.commandName pathing. It is dealt with from the client code itself.
         // if (interaction.isModalSubmit()) {
         //     const command = interaction.client.commands.get(interaction.commandName);
-           
+
         //     if (!command) return;
 
         //     try {
@@ -58,6 +59,13 @@ const exp = {
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate();
                     leaderboardInteraction(interaction)
+                    return;
+                }
+            }
+            if (botIdent().activeBot.botName == 'GuardianAI') {
+                if (interaction.customId.startsWith("answerquestion")) {
+                    interaction.deferUpdate();
+                    nextTestQuestion(interaction);
                     return;
                 }
             }

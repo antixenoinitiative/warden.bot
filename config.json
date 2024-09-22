@@ -120,12 +120,12 @@
             { "rank_name": "--- Strike Force Ranks ---", "id": "1176733727498436699"}
         ],
         "officer_ranks": [
-            { "rank_name": "General Staff", "id": "1173407686797303928"},
-            { "rank_name": "Colonel", "id": "1176734917263102063"},
-            { "rank_name": "Major", "id": "1176734800103608461"},
-            { "rank_name": "Captain", "id": "1176734589742481549"},
-            { "rank_name": "Lieutenant", "id": "1176734436746874910"},
-            { "rank_name": "Aviator", "id": "1176734299031093329"}
+            { "rank_name": "General Staff", "id": "1173407686797303928", "emoji": "<:XSF_General:1232022156393709668>" },
+            { "rank_name": "Colonel", "id": "1176734917263102063", "emoji": "<:XSF_Colonel:1232022138576441364>" },
+            { "rank_name": "Major", "id": "1176734800103608461", "emoji": "<:XSF_Major:1232022119731302440>" },
+            { "rank_name": "Captain", "id": "1176734589742481549", "emoji": "<:XSF_Captain:1232022101116981391>" },
+            { "rank_name": "Lieutenant", "id": "1176734436746874910", "emoji": "<:XSF_Lieutenant:1232022076555005993>" },
+            { "rank_name": "Aviator", "id": "1176734299031093329", "emoji": "<:XSF_Aviator:1232022053113303061>"}
         ],
         "listRoleAuthorization": [
             { "rank_name": "General Staff", "id": "1173407686797303928"},
@@ -162,6 +162,9 @@
             { "rank_name": "Lieutenant", "id": "1176734436746874910"}
         ],
         "general_stuff": {
+            "knowledge_proficiency": {
+                "embedChannel": "1174435454595125289"
+            }, 
             "evaluateRoles_authorized": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"}
@@ -178,13 +181,13 @@
                 { "rank_name": "activityranks", "id": "1174573514985050163"}
             ],
             "allRanks": [
-                { "rank_name": "General Staff", "id": "1173407686797303928"},
-                { "rank_name": "Colonel", "id": "1176734917263102063"},
-                { "rank_name": "Major", "id": "1176734800103608461"},
-                { "rank_name": "Captain", "id": "1176734589742481549"},
-                { "rank_name": "Lieutenant", "id": "1176734436746874910"},
-                { "rank_name": "Aviator", "id": "1176734299031093329"},
-                { "rank_name": "Learner", "id": "1234222974115119169"}
+                { "rank_name": "General Staff", "id": "1173407686797303928", "emoji": "<:XSF_General:1232022156393709668>" },
+                { "rank_name": "Colonel", "id": "1176734917263102063", "emoji": "<:XSF_Colonel:1232022138576441364>" },
+                { "rank_name": "Major", "id": "1176734800103608461", "emoji": "<:XSF_Major:1232022119731302440>" },
+                { "rank_name": "Captain", "id": "1176734589742481549", "emoji": "<:XSF_Captain:1232022101116981391>" },
+                { "rank_name": "Lieutenant", "id": "1176734436746874910", "emoji": "<:XSF_Lieutenant:1232022076555005993>" },
+                { "rank_name": "Aviator", "id": "1176734299031093329", "emoji": "<:XSF_Aviator:1232022053113303061>" },
+                { "rank_name": "Learner", "id": "1234222974115119169", "emoji": "<:XSF_Learner:1232022017625165886>" }
             ],
             "event_start_stop": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
@@ -199,6 +202,9 @@
             ],
             "carrier_jump_room": "ready-room",
             "testServer": {
+                "knowledge_proficiency": { 
+                    "embedChannel": "1285754040419876914"
+                }, 
                 "operation_order": {
                     "opord_channel_approved": "",
                     "opord_channel_await": ""

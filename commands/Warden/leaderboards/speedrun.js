@@ -30,7 +30,7 @@ module.exports = {
 			.setAutocomplete(true)
 	)
     .addIntegerOption(option => option.setName('time')
-		.setDescription('Time achieved in seconds')
+		.setDescription('Time achieved in milliseconds')
 		.setRequired(true))
 	.addStringOption(option => option.setName('link')
 		.setDescription('Include video link for proof (Please use shortened links)')

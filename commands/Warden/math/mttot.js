@@ -353,11 +353,22 @@ module.exports = {
                   });
                 
                   collector.on('collect', async (i) => {
-                    const selection = i.values[0]
-                    await i.update({ components: [], content: 'Weapon Classification: ' + selection, ephemeral: true });
-                    weaponsArray[thisIndex]["type"] = selection
-                    collector.stop();
-					addMoreWeapons(interaction)
+					try {
+						const selection = i.values[0]
+						await i.update({ components: [], content: 'Weapon Classification: ' + selection, ephemeral: true });
+						weaponsArray[thisIndex]["type"] = selection
+						collector.stop();
+						addMoreWeapons(interaction)	
+					}
+					catch (err) {
+						console.log(err)
+						botLog(interaction.guild,new Discord.EmbedBuilder()
+							.setDescription('```' + err.stack + '```')
+							.setTitle(`⛔ Fatal error experienced: Error line 357 diagnose`)
+							,2
+							,'error'
+						)
+					}
                   });
                 }
             }
