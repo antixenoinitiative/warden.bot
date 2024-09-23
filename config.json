@@ -92,6 +92,9 @@
                 "Ambassador"
             ]
         },
+        "channels": {
+            "privateGroupRules": "Private Group Rules"
+        },
         "testServer": {
             "otherRoles": [
                 { "name": "55555555555555", "roles": [555555555555555]},
