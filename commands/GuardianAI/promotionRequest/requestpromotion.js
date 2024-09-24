@@ -3,7 +3,10 @@ const { botIdent, eventTimeCreate, hasSpecifiedRole, botLog } = require('../../.
 
 // const bos = require(`../../../${botIdent().activeBot.botName}/bookofsentinel/bos.json`)
 const config = require('../../../config.json')
-const bos = require(`../../../${botIdent().activeBot.botName}/bookofsentinel/bos.json`)
+let bos = null;
+if (botIdent().activeBot.botName == 'GuardianAI') { 
+    bos = require(`../../../GuardianAI/bookofsentinel/bos.json`)
+}
 const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 
 
