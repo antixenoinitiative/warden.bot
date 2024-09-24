@@ -3,9 +3,9 @@ const Discord = require('discord.js')
 const database = require('../GuardianAI/db/database')
 const config = require('../config.json')
 const exp = {
-    messageCreate: async (message, bot) => {
-        console.log(message)
-    },
+    // messageCreate: async (message, bot) => {
+    //     if (botIdent().activeBot.botName == 'GuardianAI') { console.log(message) }
+    // },
     messageDelete: async (message, bot) => {
         if (!message.author.bot) {  
             try {
