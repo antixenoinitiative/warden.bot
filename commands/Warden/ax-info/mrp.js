@@ -19,7 +19,9 @@ module.exports = {
         - Military slots should be used for HRPs (Hull Reinceforcement Packages), and not for MRPs
         - The guardian version of the MRP (GMRP) offers a bit more integrity than the normal one, albeit at the cost of power, so you should choose what suits you best.
         
-        Always ensure your largest MRP is in an optional slot (and not a military one) or your module protection will be compromised much sooner.`)
+        The GMRP can be engineered with Anti-Guardian Zone Resistance at the engineer Ram Tah in Meene
+        
+        - Always ensure your largest MRP is in an optional slot (and not a military one) or your module protection will be compromised much sooner.`)
         .setFooter({ text: 'Module Reinforcement Package', iconURL: botIdent().activeBot.icon });
         interaction.reply({embeds: [returnEmbed]})
     }
