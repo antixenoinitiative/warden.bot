@@ -70,15 +70,15 @@ module.exports = {
 							let timeTaken = submissionData[0].time;
 							let shipclass = submissionData[0].class;
 							if(shipclass == 'small') {
-								if(timeTaken < 1440) {
+								if(timeTaken < (1440 * 1000)) {
 									i.channel.send({ content: `Hey, ${i.member}!
 										**Speedrun submission #${submissionId}** is eligible for **Myrmidon**
-										Please contact <@${approvedUserId}> to see if they want the rank.` 
+										Please contact <@${approvedUserId}> to see if they want the rank.`
 									})
 								}
 							}
 							if(shipclass == 'medium') {
-								if(timeTaken < 720) {
+								if(timeTaken < (720 * 1000)) {
 									i.channel.send({ content: `Hey, ${i.member}!
 										**Speedrun submission #${submissionId}** is eligible for **Myrmidon**
 										Please contact <@${approvedUserId}> to see if they want the rank.` 
@@ -86,7 +86,7 @@ module.exports = {
 								}
 							}
 							if(shipclass == 'large') {
-								if(timeTaken < 360) {
+								if(timeTaken < (360 * 1000)) {
 									i.channel.send({ content: `Hey, ${i.member}!
 										**Speedrun submission #${submissionId}** is eligible for **Myrmidon**
 										Please contact <@${approvedUserId}> to see if they want the rank.` 

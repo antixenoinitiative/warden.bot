@@ -30,7 +30,10 @@ module.exports = {
 			.setAutocomplete(true)
 	)
     .addIntegerOption(option => option.setName('time')
-		.setDescription('Time achieved in milliseconds')
+		.setDescription('Time achieved in Seconds. Milliseconds will be the next question.')
+		.setRequired(true))
+	.addIntegerOption(option => option.setName('milliseconds')
+		.setDescription('Must be 3 digits. 000 if None.')
 		.setRequired(true))
 	.addStringOption(option => option.setName('link')
 		.setDescription('Include video link for proof (Please use shortened links)')
@@ -67,22 +70,42 @@ module.exports = {
         }
 		// Checks
 		if (!args.link.startsWith('https://')) { return interaction.editReply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
+		if (args.milliseconds.length < 2) { return interaction.editReply({ content: `❌ Please enter the Milliseconds with 3 digits. ` }) } 
 		if (args.user !== undefined) { user = args.user }
 		if (args.comments == undefined) { args.comments = '-' }
 		let name = await interaction.guild.members.cache.get(user).nickname != null ? await interaction.guild.members.cache.get(user).nickname : await interaction.guild.members.cache.get(user).displayName
-
+		
 		// Submit
 		if(interaction.guild.channels.cache.get(staffChannel) === undefined)  { // Check for staff channel
 			return interaction.editReply({ content: `Staff Channel not found` })
 		}
+		const timewithmilliseconds = args.time + args.milliseconds
+		const seconds = Math.floor(timewithmilliseconds / 1000)
+		const milliseconds = args.time % 1000
+		const date = new Date(seconds * 1000 + milliseconds)
+		const timeString = date.toISOString().substr(11, 8) + '.' + date.getMilliseconds().toString().padStart(3, '0')
+		function timeConverter(totalMilliseconds) {
+			// Extract hours, minutes, seconds, and milliseconds
+			let hours = Math.floor(totalMilliseconds / (1000 * 60 * 60));
+			let minutes = Math.floor((totalMilliseconds % (1000 * 60 * 60)) / (1000 * 60));
+			let seconds = Math.floor((totalMilliseconds % (1000 * 60)) / 1000);
+			let milliseconds = totalMilliseconds % 1000;
+			// Format the result as hh:mm:ss:ms
+			let timeString = 
+				String(hours).padStart(2, '0') + ':' +
+				String(minutes).padStart(2, '0') + ':' +
+				String(seconds).padStart(2, '0') + ':' +
+				String(milliseconds).padStart(3, '0')
+			return timeString
+		}
 		try {
-			const submission_values = [user,name,args.time,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments]
+			const submission_values = [user,name,timeString,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments]
 			const submission_sql = `
 				INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments) VALUES (?,?,?,?,?,?,?,?,?,?);
 			`;
 			await database.query(submission_sql, submission_values)
-
-		} catch (err) {
+		} 
+		catch (err) {
 			console.log(err)
 			botLog(interaction.guild,new Discord.EmbedBuilder()
 				.setDescription('```' + err.stack + '```')
@@ -100,6 +123,7 @@ module.exports = {
 		if (submitted_request_response.length > 0) {
 			submissionId = submitted_request_response[0].id
 		}
+		
 		// Print out data
 		const returnEmbed = new Discord.EmbedBuilder()
 		.setColor('#FF7100')
@@ -109,7 +133,7 @@ module.exports = {
 		{name: "Pilot", value: `<@${user}>`, inline: true},
         {name: "Ship", value: `${args.ship}`, inline: true},
         {name: "Variant", value: `${args.variant}`, inline: true},
-        {name: "Time", value: `${new Date(args.time * 1000).toISOString().substr(11, 8)}`, inline: true},
+        {name: "Time", value: `${timeConverter(timeString)}`, inline: true},
 		{name: "Class", value: `${args.shipclass}`, inline: true},
 		{name: "link", value: `${args.link}`, inline: true},
 		{name: "Comments", value: `${args.comments}`, inline: true})
@@ -124,7 +148,7 @@ module.exports = {
 		{name: "Pilot", value: `<@${user}>`, inline: true},
         {name: "Ship", value: `${args.ship}`, inline: true},
         {name: "Variant", value: `${args.variant}`, inline: true},
-        {name: "Time", value: `${new Date(args.time * 1000).toISOString().substr(11, 8)}`, inline: true},
+        {name: "Time", value: `${timeConverter(timeString)}`, inline: true},
 		{name: "Class", value: `${args.shipclass}`, inline: true},
 		{name: "link", value: `${args.link}`, inline: true},
 		{name: "Comments", value: `${args.comments}`, inline: true})
