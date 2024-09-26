@@ -62,41 +62,46 @@ module.exports = {
                 {
                     highlength = interaction.options.data.find(arg => arg.name === 'maxlength').value
                 }
+                let memberEmbedList = []
                 memberwithrole.map(m =>
                 {
                     if(type == 'tag')
                     {
                         memberList = memberList + m.user.tag + "\n"
+                        memberEmbedList.push(m.user.tag)
                     }
                     if(type == 'username')
                     {
                         memberList = memberList + m.user.username + "\n"
+                        memberEmbedList.push(m.user.username)
                     }
                     if(type == 'id')
                     {
                         memberList = memberList + m.user.id + "\n"
+                        memberEmbedList.push(m.user.id)
                     }
                     if(type == 'nickname')
                     {
                         memberList = memberList + m.displayName + "\n"
+                        memberEmbedList.push(m.displayName)
                     }
                 })
                 let membercount
                 try
                 {
                     membercount = memberList.match(/[\n]/g).length
-                    console.log(membercount);
                 }
                 catch(TypeError)
                 {
                     throw(`No members found with role ${actualrole}`)
                 }
-                if(memberList.match(/[\n]/g).length <= highlength)
+                if(membercount <= highlength)
+                // if(memberList.match(/[\n]/g).length <= highlength)
                 {
                     const returnEmbed = new Discord.EmbedBuilder()
                     .setColor('#FF7100')
                     .setTitle("**Member List**")
-                    returnEmbed.addFields({ name: "List of members holding rank " + actualrole +":", value: "```"+memberList+"```" })
+                    returnEmbed.addFields({ name: "List of members holding rank " + actualrole +":", value: `**${memberEmbedList.join("\n")}**`})
                     interaction.reply({ embeds: [returnEmbed.setTimestamp()] });
                 }
                 else

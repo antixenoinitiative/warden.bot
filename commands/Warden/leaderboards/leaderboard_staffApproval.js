@@ -101,7 +101,7 @@ module.exports = {
 				const submissionUpdate_values = [1,submissionId]
 				const submissionUpdate_sql = `UPDATE ${leaderboard} SET approval = (?) WHERE id = (?);`
 				await database.query(submissionUpdate_sql, submissionUpdate_values)
-			} 
+			}
 			catch (err) {
 				console.log(err)
 				botLog(i.guild,new Discord.EmbedBuilder()

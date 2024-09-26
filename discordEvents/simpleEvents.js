@@ -1,11 +1,40 @@
 const { generateDateTime, botLog, botIdent } = require('../functions')
+const { nextTestQuestion } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
 const Discord = require('discord.js')
 const database = require('../GuardianAI/db/database')
 const config = require('../config.json')
+let applyForRanks_guardianai = null
+if (process.env.MODE != "PROD") {
+    applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.embedChannel
+    console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
+}
+else { applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel }
 const exp = {
-    // messageCreate: async (message, bot) => {
-    //     if (botIdent().activeBot.botName == 'GuardianAI') { console.log(message) }
-    // },
+    messageCreate: async (message, bot) => {
+        if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
+            let messageParent = message.channel.parentId
+            if (messageParent == applyForRanks_guardianai) {
+                // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
+                if (message.channel.name.includes("Submission")) {
+                    console.log("winning")
+                    try {
+                        // const values = [message.author.id]
+                        // const sql = `UPDATE promotion SET question_num = question_num + 1, ind = ind + 1 WHERE userId = (?);`
+                        // await database.query(sql, values)
+                        nextTestQuestion(message)
+                    } catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```js' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                }
+            }
+        }
+    },
     messageDelete: async (message, bot) => {
         if (!message.author.bot) {  
             try {

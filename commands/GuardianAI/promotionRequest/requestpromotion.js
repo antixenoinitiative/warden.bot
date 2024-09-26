@@ -17,6 +17,9 @@ function capitalizeWords(str) {
 }
 
 module.exports = {
+    gradingProcess: async function(interaction) {
+        console.log("grade me")
+    },
     nextTestQuestion: function(interaction) {
         let promotion = {
             requestor: interaction.member,
@@ -32,6 +35,11 @@ module.exports = {
             "Lieutenant": "advanced",
             "Captain": "master",
             "General Staff": "master",
+        }
+        const graderTypes = {
+            "basic": "Captain",
+            "advanced": "Major",
+            "master": "Colonel"
         }
         // let testEmbed = new Discord.EmbedBuilder()
         //     .setTitle(`"${requestor_nextRank}" Promotion Knowledge Proficiency Test Results`)
@@ -51,12 +59,14 @@ module.exports = {
         let colonel = null;
         let major = null;
         let captain = null;
+        let graderRank = []
         if (process.env.MODE != "PROD") {
             embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.embedChannel
             console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
             colonel = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Colonel').id
             major = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Major').id
             captain = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Captain').id
+            graderRank.push({"Colonel":colonel,"Major":major,"Captain":captain})
         }
         else {
             embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel
@@ -138,10 +148,11 @@ module.exports = {
                             messages: [
                                 `<@${promotion.requestor.id}>`,
                                 'Instructions',
-                                '- Promotion Challenge\n- Knowledge Proficiency Test'
+                                '- Promotion Challenge\n- Knowledge Proficiency Test',
+                                '- Edited Answers will not be recorded. Ensure accuracy before pressing enter'
                             ]
                         }
-                        async function createThread(channel,info) {
+                        async function createThread(channel,info,sendEmbed) {
                             try {
                                 let channelObj = interaction.guild.channels.cache.get(channel)
                                 const thread = await channelObj.threads.create({
@@ -157,7 +168,7 @@ module.exports = {
                                     }
                                     let embed = new Discord.EmbedBuilder()
                                         .setTitle(`test`)
-                                        .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+                                        .setAuthor({ name: interaction.member.displayName, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                                         .setThumbnail(botIdent().activeBot.icon)
                                         // .setColor('#87FF2A') //bight green
                                         // .setColor('#f20505') //bight red
@@ -166,7 +177,7 @@ module.exports = {
                                         .addFields(
                                             { name: "test", value: "test", inline: false }
                                     )
-                                    await thread.send({ embeds: [embed] })
+                                    if (sendEmbed) { await thread.send({ embeds: [embed] }) }
                                 }
                                 return thread.id
                             } 
@@ -192,15 +203,15 @@ module.exports = {
                                 return response
                             }
                             else {
-                                const leadershipSubmissionThread = await createThread(embedChannel,leadership_info)
-                                const requestorSubmissionThread = await createThread(embedChannel,requestor_info)
+                                const leadershipSubmissionThread = await createThread(embedChannel,leadership_info,1)
+                                const requestorSubmissionThread = await createThread(embedChannel,requestor_info,1)
                                 const values2 = [userId,leadershipSubmissionThread,requestorSubmissionThread,testTypes[promotion.requestor_nextRank]]
                                 const sql2 = `
                                 INSERT INTO promotion (userId, leadership_threadId, requestor_threadId, testType) 
-                                VALUES (?,?,?,?)   
+                                VALUES (?,?,?,?)
                                 `
                                 await database.query(sql2, values2)
-                                response.push({promotable: 1, leadership_threadId: leadershipSubmissionThread, requestor_threadId: requestorSubmissionThread})
+                                response.push({question_num: 0, promotable: 1, leadership_threadId: leadershipSubmissionThread, requestor_threadId: requestorSubmissionThread})
                                 console.log('didnt exist')
                                 return response
                             }
@@ -232,12 +243,12 @@ module.exports = {
                 }
             }
         }        
-        function testFunc(section,promotable_db_info,question_position) {
+        function testFunc(section,promotable_db_info,question_position,ind) {
             if (question_position) {
                 const random_question_element = Math.floor(Math.random() * question_position.questions.length)
                 const tester = { section: capitalizeWords(section), title: question_position.title, question: question_position.questions[random_question_element] }
                 const grader = { section: capitalizeWords(section), title: question_position.title, question: question_position.questions[random_question_element], answer: question_position.answers[random_question_element] }
-                displayQuestion(tester,grader,promotable_db_info,section,question_position)
+                displayQuestion(tester,grader,promotable_db_info,section,question_position,ind)
             }
         }
         function quantity(section,testTypes) {
@@ -247,13 +258,19 @@ module.exports = {
             })
             return quantities
         }
-        async function displayQuestion(tester,grader,promotable_db_info,section,question_position) {
+        async function displayQuestion(tester,grader,promotable_db_info,section,question_position,ind) {
             const quantities = quantity(section,testTypes)
 
             const leadership_thread = await interaction.guild.channels.fetch(promotable_db_info[0].leadership_threadId)
-            let leadership_lastMessage = await leadership_thread.messages.fetch({limit: 1})
-            leadership_lastMessage = leadership_lastMessage.first()
+            let leadership_lastMessage = await leadership_thread.messages.fetch({limit: 100})
+            for (let message of leadership_lastMessage.values()) {
+                if (message.embeds.length > 0) {
+                    leadership_lastMessage = message;
+                    break;
+                }
+            }
             const leadership_embed = leadership_lastMessage.embeds[0]
+
             const leadership_oldEmbedSchema = {
                 title: leadership_embed.title,
                 author: { name: promotion.requestor.displayName, iconURL: promotion.requestor.user.displayAvatarURL({ dynamic: true }) },
@@ -268,14 +285,19 @@ module.exports = {
                 .setThumbnail(botIdent().activeBot.icon)
                 .addFields(
                     { name: "Promotion Rank", value: "```" + promotion.requestor_nextRank + "```", inline: false },
-                    { name: "Test Info", value: "```" + `${capitalizeWords(testTypes[promotion.requestor_nextRank])} - ${capitalizeWords(section)} - ${promotable_db_info[0].question_num}/${quantities}` + "```", inline: true },
+                    { name: "Test Info", value: "```" + `${capitalizeWords(testTypes[promotion.requestor_nextRank])} - ${capitalizeWords(section)} - ${ind + 1}/${quantities}` + "```", inline: true },
                     { name: "Question Info", value: "```" + grader.question + "```", inline: false },
                     { name: "Answer Info", value: "```" + grader.answer + "```", inline: false },
                 )
 
             const requestor_thread = await interaction.guild.channels.cache.get(promotable_db_info[0].requestor_threadId)
-            let requestor_lastMessage = await requestor_thread.messages.fetch({limit: 1})
-            requestor_lastMessage = requestor_lastMessage.first()
+            let requestor_lastMessage = await requestor_thread.messages.fetch({limit: 100})
+            for (let message of requestor_lastMessage.values()) {
+                if (message.embeds.length > 0) {
+                    requestor_lastMessage = message;
+                    break;
+                }
+            }
             const requestor_embed = requestor_lastMessage.embeds[0]
             const requestor_oldEmbedSchema = {
                 title: requestor_embed.title,
@@ -291,7 +313,7 @@ module.exports = {
                 .setThumbnail(botIdent().activeBot.icon)
                 .addFields(
                     { name: "Promotion Rank", value: "```" + promotion.requestor_nextRank + "```", inline: false },
-                    { name: "Question Number", value: "```" + `${capitalizeWords(testTypes[promotion.requestor_nextRank])} - ${capitalizeWords(section)} - ${promotable_db_info[0].question_num}/${quantities}` + "```", inline: true },
+                    { name: "Question Number", value: "```" + `${capitalizeWords(testTypes[promotion.requestor_nextRank])} - ${capitalizeWords(section)} - ${ind + 1}/${quantities}` + "```", inline: true },
                     { name: "Information", value: "```" + `Respond to all questions in the chat box.` + "```", inline: false },
                     { name: "Question", value: "```" + `${tester.question}` + "```", inline: false },   
                 )
@@ -300,10 +322,10 @@ module.exports = {
                 //     .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
             inprogress_embedId = await leadership_lastMessage.edit({embeds: [leadership_newEmbed]})
             question_embedId = await requestor_thread.send({embeds: [requestor_newEmbed]})
-
+            
             try {
-                const values = [inprogress_embedId.id, question_embedId.id, section, promotion.requestor.id ]
-                const sql = `UPDATE promotion SET leadership_embedId = (?), requestor_embedId = (?), section = (?) WHERE userId = (?);`
+                const values = [inprogress_embedId.id, question_embedId.id, section, ind, promotion.requestor.id]
+                const sql = `UPDATE promotion SET leadership_embedId = (?), requestor_embedId = (?), section = (?), question_num = question_num + 1, ind = (?) WHERE userId = (?);`
                 await database.query(sql, values)
             } catch (err) {
                 console.log(err)
@@ -314,30 +336,114 @@ module.exports = {
                     ,'error'
                 )
             }
+            
         }
         takeTheTest()
         async function takeTheTest() {
-            let promotable_db_info = await checkPromotable()
-            if (promotable_db_info[0].promotable) {
-                //todo resume test
-                if (promotable_db_info[0].question_num >= 1) {
-                    console.log("resume test")
-                    const section = promotable_db_info[0].section
-                    const testType = promotable_db_info[0].testType
-                    const ind = promotable_db_info[0].ind
-                    const question_position = bos[section][testType][ind]
-                    testFunc(section,promotable_db_info,question_position)
+            try {
+                let promotable_db_info = await checkPromotable()
+                if (promotable_db_info[0].promotable) {
+                    //todo resume test
+                    if (promotable_db_info[0].question_num >= 1) {
+                        const leadership_thread = await interaction.guild.channels.fetch(promotable_db_info[0].leadership_threadId)
+                        const requestor_thread = await interaction.guild.channels.fetch(promotable_db_info[0].requestor_threadId)
+                        let section = promotable_db_info[0].section
+                        let testType = promotable_db_info[0].testType
+                        let ind = promotable_db_info[0].ind
+                        const quantities = quantity(section,testTypes)
+                        let section_next = null
+                        //Get next section 
+                        const bos_keys = Object.keys(bos)
+                        for (const [index, key] of bos_keys.entries()) {
+                            if (key === section) {
+                                if (index + 1 < bos_keys.length) {
+                                    section_next = bos_keys[index + 1]
+                                    console.log("resume test")
+                                } else {
+                                    console.log("No next section available.")
+                                    section_next = 0
+                                    const requestor_embed = new Discord.EmbedBuilder()
+                                        .setTitle(`${capitalizeWords(promotion.requestor_nextRank)} ${capitalizeWords(testTypes[promotion.requestor_nextRank])} Knowledge Proficiency Test Completed`)
+                                        .setDescription(`Now that you are complete with your test, please wait for a grader to review your test.`)
+                                         // .setColor('#87FF2A') //bight green
+                                        // .setColor('#f20505') //bight red
+                                        .setColor('#87FF2A') 
+                                        .setAuthor({ name: promotion.requestor.displayName, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+                                        .setThumbnail(botIdent().activeBot.icon)
+                                        .addFields(
+                                            { name: "Grader Progress", value: "Pending...", inline: true },
+                                            { name: "Score", value: "Pending...", inline: true },
+                                        )
+                                        await requestor_thread.send({embeds: [requestor_embed]})
+
+                                        let leadership_lastMessage = await leadership_thread.messages.fetch({limit: 100})
+                                        for (let message of leadership_lastMessage.values()) {
+                                            if (message.embeds.length > 0) {
+                                                leadership_lastMessage = message;
+                                                break;
+                                            }
+                                        }
+                                        const old_leadership_embed = leadership_lastMessage.embeds[0]
+                                        const leadership_oldEmbedSchema = {
+                                            title: old_leadership_embed.title,
+                                            author: { name: promotion.requestor.displayName, iconURL: promotion.requestor.user.displayAvatarURL({ dynamic: true }) },
+                                            description: old_leadership_embed.description,
+                                            color: old_leadership_embed.color
+                                        }
+                                        const grader_ident = graderTypes[testTypes[promotion.requestor_nextRank]]
+                                        const leadership_embed = new Discord.EmbedBuilder()
+                                            .setTitle(`${promotion.requestor_nextRank} ${capitalizeWords(testTypes[promotion.requestor_nextRank])} Knowledge Proficiency Test Completed`)
+                                            .setDescription(`The test has been locked and is awaiting grading... `)
+                                            // .setColor('#87FF2A') //bight green
+                                            // .setColor('#f20505') //bight red
+                                            .setColor('#87FF2A') 
+                                            .setAuthor(leadership_oldEmbedSchema.author)
+                                            .setThumbnail(botIdent().activeBot.icon)
+                                            .addFields(
+                                                { name: "Required Grading by:", value: `<@&${graderRank[0][grader_ident]}> or Higher`, inline: false }
+                                            )
+                                        await leadership_lastMessage.edit({embeds: [leadership_embed]})
+                                }
+                                break
+                            }
+                        }
+                        if (!section_next) { //There isn't another section, start grading process.
+                            //Get Thread Objects
+                            
+                            //Lock Threads
+                            await leadership_thread.setLocked(true)
+                            await requestor_thread.setLocked(true)
+                            //todo Write a function that handles cleaning up the test taking thread and locking it.
+                            //todo Write a function that handles setting up the Grading portion of the test.
+                            
+                            return await interaction.editReply({ content: `Promotion Request for **${promotion.requestor_nextRank}** is awaiting grading.` })
+                        }
+                        //Iterate the index of the section questions. If its at the end then do next section
+                        if ((ind + 1) < quantities) { ind++ }
+                        else { section = section_next; ind = 0 }
+
+                        const question_position = bos[section][testType][ind]
+                        testFunc(section,promotable_db_info,question_position,ind)
+                    }
+                    //todo start test
+                    else { 
+                        console.log("start test")
+                        const section = "researchability"
+                        const testType = testTypes[promotion.requestor_nextRank]
+                        const ind = 0
+                        const question_position = bos[section][testType][ind]
+                        testFunc(section,promotable_db_info,question_position,ind)
+                    }
                 }
-                //todo start test
-                else {
-                    console.log("start test")
-                    const section = "researchability"
-                    const testType = testTypes[promotion.requestor_nextRank]
-                    const ind = 0
-                    const question_position = bos[section][testType][ind]
-                    testFunc(section,promotable_db_info,question_position)
-                }
-                
+            }
+            catch (err) {
+                console.log(err)
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription('```' + err.stack + '```')
+                    .setTitle(`⛔ Fatal error experienced`)
+                    ,2
+                    ,'error'
+                )
             }
         }
     },

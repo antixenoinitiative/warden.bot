@@ -86,9 +86,9 @@ module.exports = {
 		let date = new Date(totalMilliseconds) 
 		const timeString = date.toISOString().substr(11, 8) + '.' + String(timeStuff.milliseconds).padStart(3, '0')
 		try {
-			const submission_values = [user,name,timewithmilliseconds,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments]
+			const submission_values = [user,name,timewithmilliseconds,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments,timeStuff.milliseconds]
 			const submission_sql = `
-				INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments) VALUES (?,?,?,?,?,?,?,?,?,?);
+				INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments,milliseconds) VALUES (?,?,?,?,?,?,?,?,?,?,?);
 			`;
 			await database.query(submission_sql, submission_values)
 		} 
