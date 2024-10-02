@@ -47,7 +47,7 @@ try {
             return new Promise(async (resolve,reject) => {
                 try { socket.emit('joinRoom',data, async (response) => { 
                     resolve(response);
-                    socketRooms = response
+                    socketRooms = response 
                 }); }
                 catch(error) { console.log(error); reject(error) }
             })

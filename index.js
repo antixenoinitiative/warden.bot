@@ -89,7 +89,7 @@ const os = require('os');
  */
 if (botFunc.adjustActive(os.hostname(),type)) {
 	console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Hostname Retrieved:".magenta,`${os.hostname()}`.yellow)
-	mainOperation()
+	mainOperation()  
 }
 //Separated to provide control over execution during hostname retrieval.
 function mainOperation(){ 

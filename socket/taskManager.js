@@ -8,7 +8,7 @@ const uuid = require('uuid');
 
 
 socket.on('fromSocketServer', async (data) => { 
-    console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
+    // console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
     if (data.type == 'roles_request') { //Server asks all servers in room
         let identifiedUser = null
         try {
@@ -18,7 +18,9 @@ socket.on('fromSocketServer', async (data) => {
             console.log(e)
         }
         if (identifiedUser) {
-            let roles = await identifiedUser.roles.cache.map(role => role.name)
+            let roles = await identifiedUser.roles.cache
+                .sort((a, b) => b.position - a.position)
+                .map(role => role.name)
             roles = roles.filter(role=>role != '@everyone')
             let rolesPackage = {
                 type: "roles_return_data",
@@ -50,18 +52,18 @@ socket.on('fromSocketServer', async (data) => {
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
         const roles = Array.isArray(data.user.roles) ? data.user.roles.join(' \n') : data.user.roles
         let discoveredUsername = null
-        identifiedUser_subject.nickname
-        if (identifiedUser_subject.nickname) { discoveredUsername = identifiedUser_subject.nickname }
+        if (identifiedUser_subject.displayName) { discoveredUsername = identifiedUser_subject.displayName }
         else { discoveredUsername = identifiedUser_subject.user.globalName + "<> User has not changed their nickname '/nick'" }
         const embed = new Discord.EmbedBuilder()
             .setTitle('Role List Request')
-            .setAuthor({name: identifiedUser_requestor.nickname, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
+            .setAuthor({name: identifiedUser_requestor.displayName, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
             .setThumbnail(botIdent().activeBot.icon)
             .setColor(color)
             .addFields(
-                {name: "Server", value: data.from_server },
-                {name: "Who", value: discoveredUsername },
-                {name: "Roles Found", value: roles }
+                {name: "Server", value: "```"+data.from_server+"```" },
+                {name: "Who", value: `<@${data.user.id}>` },
+                {name: "Roles Found", value: "```"+roles+"```" }
+                // {name: "Roles Found", value: roles }
             )
         await guild.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed] })
     }
@@ -108,9 +110,8 @@ const taskList = {
                     callback({response})
                 }
                 console.log(`[SOCKET SERVER - TASK MANAGER - '${data.event}']`.yellow)
-                console.log("[TM]".green);
+                console.log("[TM]".green)
                 console.timeEnd(timerID)
-                console.log(response)
                 // console.log(colorize(response, {pretty:true}))
                 
             return discuss;
@@ -118,6 +119,5 @@ const taskList = {
         }
         catch(error) { console.log(error) }
     },
-    
 }
 module.exports = taskList
