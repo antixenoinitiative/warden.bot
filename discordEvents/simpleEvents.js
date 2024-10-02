@@ -1,28 +1,97 @@
 const { generateDateTime, botLog, botIdent } = require('../functions')
 const { nextTestQuestion } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
 const Discord = require('discord.js')
-const database = require('../GuardianAI/db/database')
+const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
-let applyForRanks_guardianai = null
-if (process.env.MODE != "PROD") {
-    applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.embedChannel
-    console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
-}
-else { applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel }
-const exp = {
+const exp = { 
     messageCreate: async (message, bot) => {
         if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
+            let applyForRanks_guardianai = null
+            if (process.env.MODE != "PROD") {
+                applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.embedChannel
+                console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
+            }
+            else { applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel }
+            
             let messageParent = message.channel.parentId
             if (messageParent == applyForRanks_guardianai) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
                 if (message.channel.name.includes("Submission")) {
-                    console.log("winning")
+                    // console.log("submitting")
+                    // .setColor('#87FF2A') //bight green
+                    // .setColor('#f20505') //bight red
+                    // .setColor('#f2ff00') //bight yellow
+
                     try {
-                        // const values = [message.author.id]
-                        // const sql = `UPDATE promotion SET question_num = question_num + 1, ind = ind + 1 WHERE userId = (?);`
-                        // await database.query(sql, values)
-                        nextTestQuestion(message)
-                    } catch (err) {
+                        const values = [message.author.id]
+                        const sql = 'SELECT leadership_threadId FROM `promotion` WHERE userId = (?)'
+                        const response = await database.query(sql,values)
+
+                        if (response.length > 0) {
+                            //requestor
+                            const messages = await message.channel.messages.fetch({ limit: 2 });
+                            const previousMessageWithEmbed = messages.last();
+                            const receivedEmbed = previousMessageWithEmbed.embeds[0]
+ 
+                            let oldEmbedSchema = {
+                                author: receivedEmbed.author,
+                                title: receivedEmbed.title,
+                                description: receivedEmbed.description,
+                                color: receivedEmbed.color,
+                                fields: receivedEmbed.fields
+                            } 
+                            const newEmbed = new Discord.EmbedBuilder()
+                                .setTitle(oldEmbedSchema.title)
+                                .setDescription(oldEmbedSchema.description)
+                                .setAuthor(oldEmbedSchema.author)
+                                .setColor("#f2ff00")
+                                .setThumbnail(botIdent().activeBot.icon)  
+                            oldEmbedSchema.fields.forEach((i,index) => {
+                                if (index < 5) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline }) }
+                                if (index == 4) { newEmbed.addFields({ name: "Answer:", value: "```"+message.content+"```", inline: i.inline }) }
+                            })
+
+                            const row = new Discord.ActionRowBuilder()
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`answerquestion-${message.author.id}`).setLabel('Next Question').setStyle(Discord.ButtonStyle.Success))
+                            const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
+                            await previousMessageWithEmbed.edit({ embeds: [editedEmbed], components: [row] })
+
+                            //leadership
+                            const leadership_thread = await message.guild.channels.cache.get(response[0].leadership_threadId)
+                            let leadership_lastMessage = await leadership_thread.messages.fetch({limit: 100})
+                            for (let message of leadership_lastMessage.values()) {
+                                if (message.embeds.length > 0) {
+                                    leadership_lastMessage = message
+                                    break
+                                }
+                            }
+                            const leadership_receivedEmbed = leadership_lastMessage.embeds[0]
+                            let leadership_oldEmbedSchema = {
+                                author: leadership_receivedEmbed.author,
+                                title: leadership_receivedEmbed.title,
+                                description: leadership_receivedEmbed.description,
+                                color: leadership_receivedEmbed.color,
+                                fields: leadership_receivedEmbed.fields
+                            } 
+                            const leadership_newEmbed = new Discord.EmbedBuilder()
+                                .setTitle(leadership_oldEmbedSchema.title)
+                                .setDescription(leadership_oldEmbedSchema.description)
+                                .setColor("#f2ff00")
+                                .setAuthor(leadership_oldEmbedSchema.author)
+                                .setThumbnail(botIdent().activeBot.icon)  
+                                leadership_oldEmbedSchema.fields.forEach((i,index) => {
+                                    if (index < 5) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline }) }
+                                    if (index == 4) { leadership_newEmbed.addFields({ name: "Member Answer:", value: "```"+message.content+"```", inline: i.inline }) }
+                                })
+                            
+                            await message.delete()
+                            await leadership_lastMessage.edit({ embeds: [leadership_newEmbed] })
+                        }
+                        else {
+                            message.delete()
+                        }
+                    } 
+                    catch (err) {
                         console.log(err)
                         botLog(interaction.guild,new Discord.EmbedBuilder()
                             .setDescription('```js' + err.stack + '```')
@@ -68,103 +137,106 @@ const exp = {
             { name: `Roles`, value: `${roles}`},
         ),2)
     },
-    guildScheduledEventDelete: async (event) => { //XSF specific
-        try {
-            const opord_number_values = [event.id]
-            const opord_number_sql = 'SELECT opord_number FROM opord WHERE event_id = ?';
-            const opord_number_response = await database.query(opord_number_sql, opord_number_values)
-            const opordToDelete = opord_number_response[0].opord_number;
-            if (opordToDelete) {
-                try {
-                    const guild = event.guild;
-                    // Get opord channels
-                    let channel_await = null;
-                    let channel_approved = null;
-                    channel_await = event.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
-                    channel_approved = event.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //opord channel where approved op orders appear
-                    if (!channel_await || !channel_approved) {
-                        console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")
-                        channel_await = event.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env
-                        channel_approved = event.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
-                    }
-                    //delete oporder and emssage
-                    const delete_embed_opord_number_sql = 'SELECT approved_message_id,await_message_id FROM opord WHERE opord_number = ?';
-                    const delete_embed_opord_number_response = await database.query(delete_embed_opord_number_sql, opordToDelete)
-                    
-                    const deleteThis_channel_approved = await channel_approved.messages.fetch(delete_embed_opord_number_response[0].approved_message_id)
-                    const deleteThis_channel_await = await channel_await.messages.fetch(delete_embed_opord_number_response[0].await_message_id)
-                    deleteThis_channel_approved.delete()
-                    deleteThis_channel_await.delete()
-                    
-                    const delete_sql = 'DELETE FROM opord WHERE opord_number = ?';
-                    await database.query(delete_sql, opordToDelete);
-                    //update opord_number from the remaining rows
-                    const update_sql = 'UPDATE opord SET opord_number = opord_number - 1 WHERE opord_number > ?';
-                    await database.query(update_sql, opordToDelete);
-                    //Get all remaining rows to update embed.
-                    const embed_opord_number_sql = 'SELECT event_id,approved_message_id,await_message_id,creator FROM opord WHERE opord_number >= ?';
-                    const embed_number_response = await database.query(embed_opord_number_sql, opordToDelete)
-                    if (embed_number_response) {
-                        function editedEmbed(lastMessage,creator) {
-                            const new_opord_number = lastMessage.embeds[0].data.fields[0].value - 1
-                            const receivedEmbed = lastMessage.embeds[0];
-                            const oldEmbedSchema = {
-                                title: receivedEmbed.title,
-                                author: { name: creator.nickname, iconURL: creator.user.displayAvatarURL({ dynamic: true }) },
-                                description: receivedEmbed.description,
-                                fields: receivedEmbed.fields,
-                                color: receivedEmbed.color
-                            }
-                            const newEmbed = new Discord.EmbedBuilder()
-                                .setTitle(oldEmbedSchema.title)
-                                .setDescription(oldEmbedSchema.description)
-                                .setColor(oldEmbedSchema.color)
-                                .setAuthor(oldEmbedSchema.author)
-                                .setThumbnail(botIdent().activeBot.icon)
-
-                            oldEmbedSchema.fields.forEach((field, index) => {
-                                if (index == 0) {
-                                    newEmbed.addFields({ name: "Operation Order #", value: `${new_opord_number}`, inline: field.inline })
-                                }
-                                if (index > 0) {
-                                    newEmbed.addFields({ name: field.name, value: field.value, inline: field.inline })
-                                }
-                            })
-                            
-                            const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
-                            // console.log(editedEmbed)
-                            lastMessage.edit({ embeds: [editedEmbed] })
+    guildScheduledEventDelete: async (event) => { 
+        if (botIdent().activeBot.botName == "GuardianAI") {
+            //XSF specific
+            try {
+                const opord_number_values = [event.id]
+                const opord_number_sql = 'SELECT opord_number FROM opord WHERE event_id = ?';
+                const opord_number_response = await database.query(opord_number_sql, opord_number_values)
+                const opordToDelete = opord_number_response[0].opord_number;
+                if (opordToDelete) {
+                    try {
+                        const guild = event.guild;
+                        // Get opord channels
+                        let channel_await = null;
+                        let channel_approved = null;
+                        channel_await = event.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_await); //logchannel or other.
+                        channel_approved = event.guild.channels.cache.get(config[botIdent().activeBot.botName].operation_order.opord_channel_approved); //opord channel where approved op orders appear
+                        if (!channel_await || !channel_approved) {
+                            console.log("[CAUTION]".bgYellow, "channel_await or channel_approved Channel IDs dont match. Check config. Defaulting to Test Server configuration in the .env file.")
+                            channel_await = event.guild.channels.cache.get(process.env.TESTSERVER_OPORD_AWAIT); //GuardianAI.env
+                            channel_approved = event.guild.channels.cache.get(process.env.TESTSERVER_OPORD_APPROVED); //GuardianAI.env
                         }
-                        // async function editEventList(event) {
-                            
-                        //     let description = event.description.split("\n")[0]
-                        //     description = parseInt(description.match(/\d+/)[0]);
-                        //     description = description - 1
-                        //     // event[description] = description
-                        //     event.edit({ description: description })
-                        // }
-                        embed_number_response.forEach(async items=>{
-                            //modify the events list description for operation order
-                            // const thisEvent = await channel_approved.guild.scheduledEvents.fetch(items.event_id)
-                            // editEventList(thisEvent)
-                            //modify the await and approved channels
-                            const creator = guild.members.cache.get(items.creator.id)
-                            const thisChannel_approved = await channel_approved.messages.fetch(items.approved_message_id)
-                            editedEmbed(thisChannel_approved,creator)
-                            const thisChannel_await = await channel_await.messages.fetch(items.await_message_id)
-                            editedEmbed(thisChannel_await,creator)
-                        })
+                        //delete oporder and emssage
+                        const delete_embed_opord_number_sql = 'SELECT approved_message_id,await_message_id FROM opord WHERE opord_number = ?';
+                        const delete_embed_opord_number_response = await database.query(delete_embed_opord_number_sql, opordToDelete)
+                        
+                        const deleteThis_channel_approved = await channel_approved.messages.fetch(delete_embed_opord_number_response[0].approved_message_id)
+                        const deleteThis_channel_await = await channel_await.messages.fetch(delete_embed_opord_number_response[0].await_message_id)
+                        deleteThis_channel_approved.delete()
+                        deleteThis_channel_await.delete()
+                        
+                        const delete_sql = 'DELETE FROM opord WHERE opord_number = ?';
+                        await database.query(delete_sql, opordToDelete);
+                        //update opord_number from the remaining rows
+                        const update_sql = 'UPDATE opord SET opord_number = opord_number - 1 WHERE opord_number > ?';
+                        await database.query(update_sql, opordToDelete);
+                        //Get all remaining rows to update embed.
+                        const embed_opord_number_sql = 'SELECT event_id,approved_message_id,await_message_id,creator FROM opord WHERE opord_number >= ?';
+                        const embed_number_response = await database.query(embed_opord_number_sql, opordToDelete)
+                        if (embed_number_response) {
+                            function editedEmbed(lastMessage,creator) {
+                                const new_opord_number = lastMessage.embeds[0].data.fields[0].value - 1
+                                const receivedEmbed = lastMessage.embeds[0];
+                                const oldEmbedSchema = {
+                                    title: receivedEmbed.title,
+                                    author: { name: creator.nickname, iconURL: creator.user.displayAvatarURL({ dynamic: true }) },
+                                    description: receivedEmbed.description,
+                                    fields: receivedEmbed.fields,
+                                    color: receivedEmbed.color
+                                }
+                                const newEmbed = new Discord.EmbedBuilder()
+                                    .setTitle(oldEmbedSchema.title)
+                                    .setDescription(oldEmbedSchema.description)
+                                    .setColor(oldEmbedSchema.color)
+                                    .setAuthor(oldEmbedSchema.author)
+                                    .setThumbnail(botIdent().activeBot.icon)
+    
+                                oldEmbedSchema.fields.forEach((field, index) => {
+                                    if (index == 0) {
+                                        newEmbed.addFields({ name: "Operation Order #", value: `${new_opord_number}`, inline: field.inline })
+                                    }
+                                    if (index > 0) {
+                                        newEmbed.addFields({ name: field.name, value: field.value, inline: field.inline })
+                                    }
+                                })
+                                
+                                const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
+                                // console.log(editedEmbed)
+                                lastMessage.edit({ embeds: [editedEmbed] })
+                            }
+                            // async function editEventList(event) {
+                                
+                            //     let description = event.description.split("\n")[0]
+                            //     description = parseInt(description.match(/\d+/)[0]);
+                            //     description = description - 1
+                            //     // event[description] = description
+                            //     event.edit({ description: description })
+                            // }
+                            embed_number_response.forEach(async items=>{
+                                //modify the events list description for operation order
+                                // const thisEvent = await channel_approved.guild.scheduledEvents.fetch(items.event_id)
+                                // editEventList(thisEvent)
+                                //modify the await and approved channels
+                                const creator = guild.members.cache.get(items.creator.id)
+                                const thisChannel_approved = await channel_approved.messages.fetch(items.approved_message_id)
+                                editedEmbed(thisChannel_approved,creator)
+                                const thisChannel_await = await channel_await.messages.fetch(items.await_message_id)
+                                editedEmbed(thisChannel_await,creator)
+                            })
+                        }
+    
+                    } catch (error) {
+                        // const dateTime = generateDateTime();
+                        // console.log(dateTime,'⛔ guildScheduledEventDelete detected an event_id that did not exist. check database and verify opord_number are all in numerical order.')
+                        console.log(error)
                     }
-
-                } catch (error) {
-                    // const dateTime = generateDateTime();
-                    // console.log(dateTime,'⛔ guildScheduledEventDelete detected an event_id that did not exist. check database and verify opord_number are all in numerical order.')
-                    console.log(error)
                 }
             }
-        }
-        catch (e) {
-            //Required for events that are not in the database.
+            catch (e) {
+                //Required for events that are not in the database.
+            }
         }
     }
 }

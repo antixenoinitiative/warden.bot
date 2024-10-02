@@ -184,13 +184,13 @@
                 { "rank_name": "activityranks", "id": "1174573514985050163"}
             ],
             "allRanks": [
-                { "rank_name": "General Staff", "id": "1173407686797303928", "emoji": "<:XSF_General:1232022156393709668>" },
-                { "rank_name": "Colonel", "id": "1176734917263102063", "emoji": "<:XSF_Colonel:1232022138576441364>" },
-                { "rank_name": "Major", "id": "1176734800103608461", "emoji": "<:XSF_Major:1232022119731302440>" },
-                { "rank_name": "Captain", "id": "1176734589742481549", "emoji": "<:XSF_Captain:1232022101116981391>" },
-                { "rank_name": "Lieutenant", "id": "1176734436746874910", "emoji": "<:XSF_Lieutenant:1232022076555005993>" },
-                { "rank_name": "Aviator", "id": "1176734299031093329", "emoji": "<:XSF_Aviator:1232022053113303061>" },
-                { "rank_name": "Learner", "id": "1234222974115119169", "emoji": "<:XSF_Learner:1232022017625165886>" }
+                { "rank_name": "General Staff", "id": "1173407686797303928", "emoji": "<:XSF_General:1232022156393709668>", "experienceCredit": "5" },
+                { "rank_name": "Colonel", "id": "1176734917263102063", "emoji": "<:XSF_Colonel:1232022138576441364>", "experienceCredit": "5" },
+                { "rank_name": "Major", "id": "1176734800103608461", "emoji": "<:XSF_Major:1232022119731302440>", "experienceCredit": "5" },
+                { "rank_name": "Captain", "id": "1176734589742481549", "emoji": "<:XSF_Captain:1232022101116981391>", "experienceCredit": "5" },
+                { "rank_name": "Lieutenant", "id": "1176734436746874910", "emoji": "<:XSF_Lieutenant:1232022076555005993>", "experienceCredit": "5" },
+                { "rank_name": "Aviator", "id": "1176734299031093329", "emoji": "<:XSF_Aviator:1232022053113303061>", "experienceCredit": "1" },
+                { "rank_name": "Learner", "id": "1234222974115119169", "emoji": "<:XSF_Learner:1232022017625165886>", "experienceCredit": "0" }
             ],
             "event_start_stop": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
@@ -231,13 +231,13 @@
                     { "rank_name": "Lieutenant", "id": "961718370326167613"}
                 ],
                 "allRanks_testServer": [
-                    { "rank_name": "General Staff", "id": "961718365603393576"},
-                    { "rank_name": "Colonel", "id": "961718368270958692"},
-                    { "rank_name": "Major", "id": "961718369118216273"},
-                    { "rank_name": "Captain", "id": "961718369512484885"},
-                    { "rank_name": "Lieutenant", "id": "961718370326167613"},
-                    { "rank_name": "Aviator", "id": "1228458062306607214"},
-                    { "rank_name": "Learner", "id": "1228458127842738196"}
+                    { "rank_name": "General Staff", "id": "961718365603393576", "experienceCredit": "5"},
+                    { "rank_name": "Colonel", "id": "961718368270958692", "experienceCredit": "5"},
+                    { "rank_name": "Major", "id": "961718369118216273", "experienceCredit": "5"},
+                    { "rank_name": "Captain", "id": "961718369512484885", "experienceCredit": "5"},
+                    { "rank_name": "Lieutenant", "id": "961718370326167613", "experienceCredit": "5"},
+                    { "rank_name": "Aviator", "id": "1228458062306607214", "experienceCredit": "1"},
+                    { "rank_name": "Learner", "id": "1228458127842738196", "experienceCredit": "0"}
                 ],
                 "off_testServer": [
                     { "rank_name": "General Staff", "id": "961718365603393576"},

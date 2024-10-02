@@ -1,11 +1,13 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { nextTestQuestion } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
+const { nextTestQuestion, nextGradingQuestion } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
+const database = require(`../${botIdent().activeBot.botName}/db/database`)
 // if (botIdent().activeBot.botName == 'Warden') {
 // }
 const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
+const { default: test } = require('node:test')
 
 const exp = {
     interactionCreate: async (interaction,bot) => {
@@ -57,15 +59,87 @@ const exp = {
             // }
             if (botIdent().activeBot.botName == 'Warden') {
                 if (interaction.customId.startsWith("submission")) {
-                    interaction.deferUpdate();
+                    interaction.deferUpdate()
                     leaderboardInteraction(interaction)
                     return;
                 }
             }
             if (botIdent().activeBot.botName == 'GuardianAI') {
-                if (interaction.customId.startsWith("answerquestion")) {
+                if (interaction.customId.startsWith("answerquestion")) { //promotion request
                     interaction.deferUpdate();
+                    interaction.message.edit({ components: [] })
+                    try {
+                        const messages = await interaction.channel.messages.fetch({ limit: 1 });
+                        const previousMessageWithEmbed = messages.last();
+                        const receivedEmbed = previousMessageWithEmbed.embeds[0]
+                        let oldEmbedSchema = {
+                            title: receivedEmbed.title,
+                            description: receivedEmbed.description,
+                            color: receivedEmbed.color,
+                            fields: receivedEmbed.fields
+                        } 
+                        const newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(oldEmbedSchema.title)
+                            .setDescription(oldEmbedSchema.description)
+                            .setColor("#87FF2A")
+                            .setThumbnail(botIdent().activeBot.icon)
+                        oldEmbedSchema.fields.forEach((i,index) => {
+                            newEmbed.addFields({name: i.name, value: i.value, inline: i.inline }) 
+                        })
+
+                        const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
+                        await previousMessageWithEmbed.edit({ embeds: [editedEmbed], components: [] })
+                    } 
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```js' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
                     nextTestQuestion(interaction);
+                    return;
+                }
+                if (interaction.customId.startsWith("startgradingtest")) { //promotion request
+                    interaction.deferUpdate()
+                    nextGradingQuestion(interaction)
+                    return;
+                }
+                if (interaction.customId.startsWith("grading")) { //grade and update database
+                    interaction.deferUpdate()
+                    interaction.message.edit({ components: [] })
+                    const customId_array = interaction.customId.split("-")
+                    const testInfo = {
+                        userId: customId_array[1],
+                        answer: customId_array[2]
+                    }
+                    let score = 0
+                    if (testInfo.answer == 'c') { score = 1 }
+                    if (testInfo.answer == 'w') { score = 0 }
+                    if (testInfo.answer == 'wc') { score = 1 }
+                    if (testInfo.answer == 'nc') { score = 0 }
+                    //Update progress number and save to database.
+                    try {
+                        const values = [Number(score), testInfo.userId]
+                        const sql = `UPDATE promotion SET score = score + (?), grading_number = grading_number + 1  WHERE userId = (?);`
+                        const d = await database.query(sql, values)
+                        if (d) {
+                            // console.log('saved')
+                            nextGradingQuestion(interaction) 
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    
                     return;
                 }
             }

@@ -295,8 +295,7 @@ module.exports = {
                     .setThumbnail(botIdent().activeBot.icon)
                     .setColor('#FAFA37') //87FF2A green
                     .setDescription(`Ranks Experience Credit was given as:`)
-                    
-
+                // console.log(ranks)
                 ranks.forEach((rankGroup,index) => {
                     // console.log(index,Object.values(rankGroup))
                     embed.addFields({ name: "\u200B", value: `<@${discordUser[index].userId}>`, inline: false })
