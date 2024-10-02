@@ -38,6 +38,7 @@ socket.on('fromSocketServer', async (data) => {
             let rolesPackage = {
                 type: "roles_return_data",
                 commandAsk: data.commandAsk,
+                commandChan: data.commandChan,
                 person_asking: data.person_asking,
                 from_server: guild.name,
                 from_serverID: guild.id,
@@ -68,8 +69,15 @@ socket.on('fromSocketServer', async (data) => {
                 {name: "Roles Found", value: "```"+roles+"```" }
                 // {name: "Roles Found", value: roles }
             )
-        console.log(data)
-        await guild.channels.cache.get(process.env.TEMPCHAN).send({ embeds: [embed] })
+        if (data.from_serverID == "380246809076826112" && data.commandAsk == "roles_req") { 
+            data.commandChan.forEach(async chan => {
+                await guild.channels.cache.get(process.env.TEMPCHAN).send({ embeds: [embed], ephemeral: true }) 
+            })
+        } 
+        if (data.from_serverID == "380246809076826112" && data.commandAsk == "promotionrequest") { 
+            await guild.channels.cache.get(data.commandChan).send({ embeds: [embed], ephemeral: true }) 
+        }
+        // await guild.channels.cache.get(process.env.TEMPCHAN).send({ embeds: [embed] })
     }
 }) 
 

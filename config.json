@@ -164,10 +164,18 @@
             { "rank_name": "Captain", "id": "1176734589742481549"},
             { "rank_name": "Lieutenant", "id": "1176734436746874910"}
         ],
+        "rolesRequestQuery": [
+            { "rank_name": "General Staff", "id": "1173407686797303928"},
+            { "rank_name": "Colonel", "id": "1176734917263102063"},
+            { "rank_name": "Major", "id": "1176734800103608461"},
+            { "rank_name": "Captain", "id": "1176734589742481549"},
+            { "rank_name": "Lieutenant", "id": "1176734436746874910"}
+        ],
         "general_stuff": {
             "knowledge_proficiency": {
                 "embedChannel": "1174435454595125289"
-            }, 
+            },
+            "bot_approvals_chan": "1184592283337752697",
             "evaluateRoles_authorized": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"}
@@ -207,7 +215,8 @@
             "testServer": {
                 "knowledge_proficiency": { 
                     "embedChannel": "1285754040419876914"
-                }, 
+                },
+                "bot_approvals_chan": "1178705376087113728",
                 "operation_order": {
                     "opord_channel_approved": "",
                     "opord_channel_await": ""
@@ -229,6 +238,15 @@
                     { "rank_name": "Major", "id": "961718369118216273"},
                     { "rank_name": "Captain", "id": "961718369512484885"},
                     { "rank_name": "Lieutenant", "id": "961718370326167613"}
+                ],
+                "rolesRequestQuery_testServer": [
+                    { "rank_name": "General Staff", "id": "961718365603393576", "experienceCredit": "5"},
+                    { "rank_name": "Colonel", "id": "961718368270958692", "experienceCredit": "5"},
+                    { "rank_name": "Major", "id": "961718369118216273", "experienceCredit": "5"},
+                    { "rank_name": "Captain", "id": "961718369512484885", "experienceCredit": "5"},
+                    { "rank_name": "Lieutenant", "id": "961718370326167613", "experienceCredit": "5"},
+                    { "rank_name": "Aviator", "id": "1228458062306607214", "experienceCredit": "1"},
+                    { "rank_name": "Learner", "id": "1228458127842738196", "experienceCredit": "0"}
                 ],
                 "allRanks_testServer": [
                     { "rank_name": "General Staff", "id": "961718365603393576", "experienceCredit": "5"},
@@ -268,6 +286,7 @@
             "botName": "Warden",
             "icon": "https://axicloud.blob.core.windows.net/public/images/AXI_Insignia_Hypen_512.png",
             "communityName": "Anti-Xeno Initiative",
+            "guildId": "380246809076826112",
             "inaraAppName":"AXIWarden",
             "useGlobalCommands": [],
             "ignoreCommands": ["sheriff","reminder"],
@@ -281,6 +300,7 @@
             "botName": "GuardianAI",
             "icon": "https://xenostrikeforce.com/wp-content/uploads/2023/11/XSF_Logo_Large_Final-1024x1024.png",
             "communityName": "Xeno Strike Force",
+            "guildId": "1173384782512652348",
             "inaraAppName":"GuardianAI",
             "useGlobalCommands": ["Warden.interceptorcards","Warden.ax-info","Warden.wiki","Warden.math","Warden.common","Warden.inara"],
             "ignoreCommands": [],
