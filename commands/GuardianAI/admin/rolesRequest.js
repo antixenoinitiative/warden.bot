@@ -24,13 +24,13 @@ module.exports = {
                 roles = roles.filter(x=>x != '@everyone')
                 let rolePackage = { 
                     commandAsk: "roles_req",
+                    commandChan: interaction.channel.id,
                     type: "roles_request",
                     user: subject, 
                     roles: roles,
                     person_asking: person_asking  
                 }
                 const data = await requestInfo(rolePackage)
-                console.log(data)
                 return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
             }
             catch(e) {

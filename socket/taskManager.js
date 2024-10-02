@@ -25,6 +25,7 @@ socket.on('fromSocketServer', async (data) => {
             let rolesPackage = {
                 type: "roles_return_data",
                 commandAsk: data.commandAsk,
+                commandChan: data.commandChan,
                 person_asking: data.person_asking,
                 from_server: guild.name,
                 from_serverID: guild.id,
