@@ -23,12 +23,14 @@ module.exports = {
                 let roles = member.roles.cache.map(role=>role.name)
                 roles = roles.filter(x=>x != '@everyone')
                 let rolePackage = { 
+                    commandAsk: "roles_req",
                     type: "roles_request",
                     user: subject, 
                     roles: roles,
                     person_asking: person_asking  
                 }
-                requestInfo(rolePackage)
+                const data = await requestInfo(rolePackage)
+                console.log(data)
                 return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
             }
             catch(e) {

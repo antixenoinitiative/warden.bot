@@ -24,6 +24,7 @@ socket.on('fromSocketServer', async (data) => {
             roles = roles.filter(role=>role != '@everyone')
             let rolesPackage = {
                 type: "roles_return_data",
+                commandAsk: data.commandAsk,
                 person_asking: data.person_asking,
                 from_server: guild.name,
                 from_serverID: guild.id,
@@ -35,6 +36,7 @@ socket.on('fromSocketServer', async (data) => {
         else {
             let rolesPackage = {
                 type: "roles_return_data",
+                commandAsk: data.commandAsk,
                 person_asking: data.person_asking,
                 from_server: guild.name,
                 from_serverID: guild.id,
@@ -65,7 +67,8 @@ socket.on('fromSocketServer', async (data) => {
                 {name: "Roles Found", value: "```"+roles+"```" }
                 // {name: "Roles Found", value: roles }
             )
-        await guild.channels.cache.get(process.env.LOGCHANNEL).send({ embeds: [embed] })
+        console.log(data)
+        await guild.channels.cache.get(process.env.TEMPCHAN).send({ embeds: [embed] })
     }
 }) 
 
@@ -107,7 +110,8 @@ const taskList = {
             
             let discuss = socket.emit('eventTransmit',data, (response) => {
                 if (response.event === "redisRequest") { 
-                    callback({response})
+                    // callback({response})
+                    console.log(response)
                 }
                 console.log(`[SOCKET SERVER - TASK MANAGER - '${data.event}']`.yellow)
                 console.log("[TM]".green)
