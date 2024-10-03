@@ -68,7 +68,8 @@ socket.on('fromSocketServer', async (data) => {
                 {name: "Roles Found", value: "```"+roles+"```" }
                 // {name: "Roles Found", value: roles }
             )
-        if (approvedServers.includes(data.from_serverID)) { 
+        if (approvedServers.includes(data.from_serverID)) {
+            console.log(data) 
             data.commandChan.forEach(async chan => {
                 await guild.channels.cache.get(chan).send({ embeds: [embed] })
             })
