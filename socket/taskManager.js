@@ -19,7 +19,8 @@ socket.on('fromSocketServer', async (data) => {
             console.log(e)
         }
         if (identifiedUser) {
-            let roles = await identifiedUser.roles
+            console.log(identifiedUser)
+            let roles = await identifiedUser.roles.cache
                 .sort((a, b) => b.position - a.position)
                 .map(role => role.name)
             roles = roles.filter(role=>role != '@everyone')
