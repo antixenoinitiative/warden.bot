@@ -24,18 +24,61 @@ function getPercentage(part, whole) {
 }
 module.exports = {
     showPromotionChallenge: async function (data) {
-        console.log(data)
+        const testTypes = {
+            "basic": "Aviator",
+            "advanced": "Lieutenant",
+            "master": "Captain",
+            "master": "General Staff",
+        }
         const requestor = await guild.members.fetch(data.user.id)
         // (!args.link.startsWith('https://')) { return interaction.editReply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
         const leadership_newEmbed = new Discord.EmbedBuilder()
-            .setTitle(tester.title)
-            .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox.`)
-            .setColor("#f2ff00")
+            .setTitle(`Promotion Challenege Proof`)
+            .setDescription(`Waiting on requestor to submit Promotion Challenge Proof.`)
+            .setColor("#f20505")
+                // .setColor('#87FF2A') //bight green
+                // .setColor('#f20505') //bight red
+                // .setColor('#f2ff00') //bight yellow
             .setAuthor({ name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) })
             .setThumbnail(botIdent().activeBot.icon)
             .addFields(
-                { name: "Promotion Rank", value: "```" + promotion.requestor_nextRank + "```", inline: true },
+                { name: "Promotion Rank", value: "```" + testTypes[data.promotion.testType] + "```", inline: true },
+                { name: "Promotion Challenge Status", value: "```" + 'Pending....' + "```", inline: true },
             )
+        const requestor_newEmbed = new Discord.EmbedBuilder()
+            .setTitle(`Promotion Challenege Proof`)
+            .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox.`)
+            .setColor("#f20505")
+                // .setColor('#87FF2A') //bight green
+                // .setColor('#f20505') //bight red
+                // .setColor('#f2ff00') //bight yellow
+            .setAuthor({ name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) })
+            .setThumbnail(botIdent().activeBot.icon)
+            .addFields(
+                { name: "Promotion Rank", value: "```" + testTypes[data.promotion.testType] + "```", inline: true },
+                { name: "Promotion Challenge Status", value: "```" + 'Pending....' + "```", inline: true },
+            )
+            const leadership_thread = await guild.channels.fetch(data.promotion.leadership_threadId)
+            const requestor_thread = await guild.channels.fetch(data.promotion.requestor_threadId)
+            await requestor_thread.setLocked(false)
+            const leadership_embedId = await leadership_thread.send( { embeds: [leadership_newEmbed]} )
+            const requestor_embedId = await requestor_thread.send( { embeds: [requestor_newEmbed]} )
+
+            try {
+                const values = [leadership_embedId.id,requestor_embedId.id,data.promotion.userId]
+                const sql = `UPDATE promotion SET challenge_requestor_embedId = (?), challenge_leadership_embedId WHERE userId = (?);`
+                await database.query(sql, values)
+            }
+            catch (err) {
+                console.log(err)
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription('```' + err.stack + '```')
+                    .setTitle(`⛔ Fatal error experienced`)
+                    ,2
+                    ,'error'
+                )
+            }
+
 
     },
     showAXIroles: async function (userId,threadEmbeds,promotion) {
@@ -754,7 +797,7 @@ module.exports = {
                             const requestor_embed = new Discord.EmbedBuilder()
                                 .setTitle(`${capitalizeWords(promotion.requestor_nextRank)} ${capitalizeWords(testTypes[promotion.requestor_nextRank])} Knowledge Proficiency Test Completed`)
                                 .setDescription(`Now that you are complete with your test, please wait for a grader to review your test.`)
-                                    // .setColor('#87FF2A') //bight green
+                                // .setColor('#87FF2A') //bight green
                                 // .setColor('#f20505') //bight red
                                 // .setColor('#f2ff00') //bight yellow
                                 .setColor('#f2ff00')

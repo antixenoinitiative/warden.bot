@@ -16,17 +16,40 @@ const exp = {
             let messageParent = message.channel.parentId
             if (messageParent == applyForRanks_guardianai) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
-                if (message.channel.name.includes("Submission")) {
+                if (message.channel.name.includes("Submission") && message.attachments.size > 0) {
+                    message.attachments.forEach(attachment => {
+                        if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+                          console.log('Image detected:', attachment.url)
+                          //todo DO STUFF TO CHANGE PROMOTION CHALLENGE EMBED
+
+                        }
+                    })
+                }
+                if (message.channel.name.includes("Submission")  && message.attachments.size == 0) {
                     // console.log("submitting")
                     // .setColor('#87FF2A') //bight green
                     // .setColor('#f20505') //bight red
                     // .setColor('#f2ff00') //bight yellow
+                    
+                    const urlRegex = /(https:\/\/[^\s]+)/g
+                    const urls = message.content.match(urlRegex)
 
                     try {
                         const values = [message.author.id]
-                        const sql = 'SELECT leadership_threadId FROM `promotion` WHERE userId = (?)'
+                        const sql = 'SELECT leadership_threadId,grading_state FROM `promotion` WHERE userId = (?)'
                         const response = await database.query(sql,values)
+                        if (response[0].grading_state == 2 && urls != null) {
+                            console.log("urls:",urls)
 
+                            //todo DO STUFF TO CHANGE PROMOTION CHALLENGE EMBED
+
+                            return
+                        }
+                        if (response[0].grading_state == 2 && urls == null) {
+                            message.delete()
+                            message.channel.send('❌ Please enter a valid URL, eg: https://...')
+                            return
+                        }
                         if (response.length > 0) {
                             //requestor
                             const messages = await message.channel.messages.fetch({ limit: 2 });
