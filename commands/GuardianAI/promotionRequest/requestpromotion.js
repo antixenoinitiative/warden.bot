@@ -23,9 +23,26 @@ function getPercentage(part, whole) {
     return ((part / whole) * 100).toFixed(2)
 }
 module.exports = {
+    showAXIroles2: async function (userId,threadEmbeds) {
+        console.log(userId)
+        let person_asking = userId
+        const subject = guild.members.cache.get(userId)
+        const member = guild.members.cache.get(userId)
+        let roles = member.roles.cache.map(role=>role.name)
+        roles = roles.filter(x=>x != '@everyone')
+        let rolePackage = {
+            commandAsk: "promotion",
+            commandChan: [threadEmbeds.requestor,threadEmbeds.leadership],
+            type: "roles_request",
+            user: subject,
+            roles: roles,
+            person_asking: person_asking
+        }
+        await requestInfo(rolePackage)
+    },
     showAXIroles: async function (userId,threadEmbeds) {
         let person_asking = userId
-        const subject = userId
+        const subject = guild.members.cache.get(userId)
         const member = guild.members.cache.get(userId)
         let roles = member.roles.cache.map(role=>role.name)
         roles = roles.filter(x=>x != '@everyone')
@@ -899,13 +916,14 @@ module.exports = {
             for (let key of interaction.options._hoistedOptions) {
                 args[key.name] = key.value
             }
-            this.nextTestQuestion(interaction)
-          
+            // this.nextTestQuestion(interaction)
 
-            // const requestor_thread = await interaction.guild.channels.fetch("1290685691482865695")
-            // const mess = await requestor_thread.messages.fetch("1290685741852266607")
-            // console.log(mess)
-            // module.exports.viewExperienceCredit("194001098539925504",message,interaction)
+            const threadEmbeds = {
+                requestor: "1285754040419876914",
+                leadership: "1285754040419876914"
+            }
+
+            module.exports.showAXIroles2("194001098539925504",threadEmbeds)
         }
     }
 }

@@ -49,6 +49,7 @@ module.exports = {
                 const { options } = interaction
                 let person_asking = interaction.user.id
                 const subject = options.getUser('user')
+                console.log(subject)
                 const member = guild.members.cache.get(subject.id)
                 let roles = member.roles.cache.map(role=>role.name)
                 roles = roles.filter(x=>x != '@everyone')
