@@ -904,14 +904,14 @@ module.exports = {
             for (let key of interaction.options._hoistedOptions) {
                 args[key.name] = key.value
             }
-            this.nextTestQuestion(interaction)
+            // this.nextTestQuestion(interaction)
 
-            // const threadEmbeds = {
-            //     requestor: "1285754040419876914",
-            //     leadership: "1285754040419876914"
-            // }
+            const threadEmbeds = {
+                requestor: "1285754040419876914",
+                leadership: "1285754040419876914"
+            }
 
-            // module.exports.showAXIroles2("194001098539925504",threadEmbeds)
+            module.exports.showAXIroles("194001098539925504",threadEmbeds)
         }
     }
 }

@@ -4,7 +4,7 @@ const Discord = require("discord.js");
 const config = require("../config.json")
 const { socket } = require('./socketMain')
 const uuid = require('uuid');
-const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
+
 
 const approvedServers = config.socketStuff.appoved_fromServer_GuildIds
 let dataFromPromotion = null
@@ -73,6 +73,7 @@ socket.on('fromSocketServer', async (data) => {
             data.commandChan.forEach(async chan => {
                 await guild.channels.cache.get(chan).send({ embeds: [embed] })
             })
+            const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
             showPromotionChallenge(data)
         }
     }
