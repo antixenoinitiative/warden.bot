@@ -279,6 +279,9 @@
             }
         }
     },
+    "socketStuff": {
+        "appoved_fromServer_GuildIds": ["380246809076826112"]
+    },
     "botTypes": [
         {
             "env": "Warden.env",
@@ -290,7 +293,7 @@
             "inaraAppName":"AXIWarden",
             "useGlobalCommands": [],
             "ignoreCommands": ["sheriff","reminder"],
-            "socketConfig": {
+            "socketRoom": {
                 "id":"AXI-guardianAI"
             }
         },
@@ -304,7 +307,7 @@
             "inaraAppName":"GuardianAI",
             "useGlobalCommands": ["Warden.interceptorcards","Warden.ax-info","Warden.wiki","Warden.math","Warden.common","Warden.inara"],
             "ignoreCommands": [],
-            "socketConfig": {
+            "socketRoom": {
                 "id":"AXI-guardianAI"
             }
         }

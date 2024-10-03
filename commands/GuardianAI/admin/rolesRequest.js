@@ -61,7 +61,7 @@ module.exports = {
                     roles: roles,
                     person_asking: person_asking
                 }
-                const data = await requestInfo(rolePackage)
+                await requestInfo(rolePackage)
                 return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
             }
             catch(e) {

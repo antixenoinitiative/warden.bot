@@ -1,10 +1,11 @@
 const { io, Manager } = require('socket.io-client')
 const { botIdent } = require('../functions')
 const Discord = require("discord.js");
-
+const config = require("../config.json")
 const { socket } = require('./socketMain')
 const uuid = require('uuid');
 
+const approvedServers = config.socketStuff.appoved_fromServer_GuildIds
 
 
 socket.on('fromSocketServer', async (data) => { 
@@ -69,15 +70,11 @@ socket.on('fromSocketServer', async (data) => {
                 {name: "Roles Found", value: "```"+roles+"```" }
                 // {name: "Roles Found", value: roles }
             )
-        if (data.from_serverID == "380246809076826112" && data.commandAsk == "roles_req") { 
+        if (approvedServers.includes(data.from_serverID)) { 
             data.commandChan.forEach(async chan => {
-                await guild.channels.cache.get(process.env.TEMPCHAN).send({ embeds: [embed], ephemeral: true }) 
+                await guild.channels.cache.get(chan).send({ embeds: [embed] })
             })
-        } 
-        if (data.from_serverID == "380246809076826112" && data.commandAsk == "promotionrequest") { 
-            await guild.channels.cache.get(data.commandChan).send({ embeds: [embed], ephemeral: true }) 
         }
-        // await guild.channels.cache.get(process.env.TEMPCHAN).send({ embeds: [embed] })
     }
 }) 
 
@@ -115,12 +112,12 @@ const taskList = {
             const timerID = uuid.v4().slice(-5); 
             console.time(timerID)
             const botClient = botIdent().activeBot.botName
-            data = {...data, "botClient":botClient, "room": botIdent().activeBot.socketConfig.id, "requestor_socket": socket.id}
+            data = {...data, "botClient":botClient, "room": botIdent().activeBot.socketRoom.id, "requestor_socket": socket.id}
             
             let discuss = socket.emit('eventTransmit',data, (response) => {
                 if (response.event === "redisRequest") { 
-                    // callback({response})
-                    console.log(response)
+                    callback({response})
+                    // console.log(response)
                 }
                 console.log(`[SOCKET SERVER - TASK MANAGER - '${data.event}']`.yellow)
                 console.log("[TM]".green)

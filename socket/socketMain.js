@@ -52,7 +52,7 @@ try {
                 catch(error) { console.log(error); reject(error) }
             })
         }  
-        socketReconnect(botIdent().activeBot.socketConfig.id)
+        socketReconnect(botIdent().activeBot.socketRoom.id)
     })
     socket.on("disconnect", (reason) => {
         console.log("[SOCKET CLIENT]".blue,"Disconnect Reason: ".bgRed,reason)
