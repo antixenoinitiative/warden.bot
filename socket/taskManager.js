@@ -11,16 +11,12 @@ let dataFromPromotion = null
 socket.on('fromSocketServer', async (data) => { 
     // console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
     if (data.type == 'roles_request') { //Server asks all servers in room
-        console.log(data)
         let identifiedUser = null
         try {
             identifiedUser = await guild.members.fetch(data.user.id)
         }
-        catch (e) {
-            console.log(e)
-        }
+        catch (e) { console.log(e) }
         if (identifiedUser) {
-            // console.log(identifiedUser)
             let roles = await identifiedUser.roles.cache
                 .sort((a, b) => b.position - a.position)
                 .map(role => role.name)

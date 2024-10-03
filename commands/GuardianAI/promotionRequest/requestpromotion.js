@@ -23,7 +23,7 @@ function getPercentage(part, whole) {
     return ((part / whole) * 100).toFixed(2)
 }
 module.exports = {
-    showAXIroles2: async function (userId,threadEmbeds) {
+    showAXIroles: async function (userId,threadEmbeds) {
         let person_asking = userId
         const subject = guild.members.cache.get(userId)
         const member = guild.members.cache.get(userId)
@@ -33,23 +33,7 @@ module.exports = {
             commandAsk: "promotion",
             commandChan: [threadEmbeds.requestor,threadEmbeds.leadership],
             type: "roles_request",
-            user: subject,
-            roles: roles,
-            person_asking: person_asking
-        }
-        await requestInfo(rolePackage)
-    },
-    showAXIroles: async function (userId,threadEmbeds) {
-        let person_asking = userId
-        const subject = guild.members.cache.get(userId)
-        const member = guild.members.cache.get(userId)
-        let roles = member.roles.cache.map(role=>role.name)
-        roles = roles.filter(x=>x != '@everyone')
-        let rolePackage = {
-            commandAsk: "promotion",
-            commandChan: [threadEmbeds.requestor.channel.id,threadEmbeds.leadership.channel.id],
-            type: "roles_request",
-            user: subject,
+            user: subject.user,
             roles: roles,
             person_asking: person_asking
         }
@@ -915,14 +899,14 @@ module.exports = {
             for (let key of interaction.options._hoistedOptions) {
                 args[key.name] = key.value
             }
-            // this.nextTestQuestion(interaction)
+            this.nextTestQuestion(interaction)
 
-            const threadEmbeds = {
-                requestor: "1285754040419876914",
-                leadership: "1285754040419876914"
-            }
+            // const threadEmbeds = {
+            //     requestor: "1285754040419876914",
+            //     leadership: "1285754040419876914"
+            // }
 
-            module.exports.showAXIroles2("194001098539925504",threadEmbeds)
+            // module.exports.showAXIroles2("194001098539925504",threadEmbeds)
         }
     }
 }
