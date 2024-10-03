@@ -31,7 +31,7 @@ module.exports = {
         roles = roles.filter(x=>x != '@everyone')
         let rolePackage = {
             commandAsk: "promotion",
-            commandChan: [threadEmbeds.requestor,threadEmbeds.leadership],
+            commandChan: [threadEmbeds.requestor.channel.id,threadEmbeds.leadership.channel.id],
             type: "roles_request",
             user: subject.user,
             roles: roles,
