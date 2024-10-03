@@ -25,9 +25,25 @@ function getPercentage(part, whole) {
 module.exports = {
     showPromotionChallenge: async function (data) {
         console.log(data)
+        const requestor = await guild.members.fetch(data.user.id)
         // (!args.link.startsWith('https://')) { return interaction.editReply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
+        const leadership_newEmbed = new Discord.EmbedBuilder()
+            .setTitle(tester.title)
+            .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox.`)
+            .setColor("#f2ff00")
+            .setAuthor({ name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) })
+            .setThumbnail(botIdent().activeBot.icon)
+            .addFields(
+                { name: "Promotion Rank", value: "```" + promotion.requestor_nextRank + "```", inline: true },
+                { name: "Test Element", value: "```" + ind+"-"+random_question_element + "```", inline: true },
+                { name: "Question Number", value: "```" + `${capitalizeWords(testTypes[promotion.requestor_nextRank])} - ${capitalizeWords(section)} - ${ind + 1}/${quantities}` + "```", inline: true },
+                { name: "Official Question", value: "```" + `${tester.question}` + "```", inline: false },
+                { name: "Official Answer", value: "```" + `${grader.answer}` + "```", inline: false },
+                { name: "Member Answer", value: "```" + `Pending...` + "```", inline: false },
+            )
+
     },
-    showAXIroles: async function (userId,threadEmbeds) {
+    showAXIroles: async function (userId,threadEmbeds,promotion) {
         let person_asking = userId
         const subject = guild.members.cache.get(userId)
         const member = guild.members.cache.get(userId)
@@ -36,6 +52,7 @@ module.exports = {
         let rolePackage = {
             commandAsk: "promotion",
             commandChan: [threadEmbeds.requestor.channel.id,threadEmbeds.leadership.channel.id],
+            promotion: promotion.length > 1 ? promotion : "nopromotion",
             type: "roles_request",
             user: subject.user,
             roles: roles,
@@ -44,7 +61,7 @@ module.exports = {
         await requestInfo(rolePackage)
         //review taskManager.js roles_return_data and have it submit promotion embeds.
     },
-    viewExperienceCredit: async function(userId,threadEmbeds,interaction) {
+    viewExperienceCredit: async function(userId,threadEmbeds,interaction,promotion) {
         try {
             async function getName(inputArray,inputName) {
                 let ranks = []
@@ -123,7 +140,7 @@ module.exports = {
                 })
                 await threadEmbeds.requestor.channel.send({embeds: [embed]})
                 await threadEmbeds.leadership.channel.send({embeds: [embed]})
-                module.exports.showAXIroles(userId,threadEmbeds)
+                module.exports.showAXIroles(userId,threadEmbeds,promotion)
             }
         }
         catch (err) {
@@ -266,7 +283,7 @@ module.exports = {
                     )
                 }
                 const threadEmbeds = {requestor: requestor_originalMessage, leadership: leadership_originalMessage}
-                await module.exports.viewExperienceCredit(promotion.userId,threadEmbeds,interaction)
+                await module.exports.viewExperienceCredit(promotion.userId,threadEmbeds,interaction,promotion)
             }
             catch (err) {
                 console.log(err)
@@ -904,14 +921,14 @@ module.exports = {
             for (let key of interaction.options._hoistedOptions) {
                 args[key.name] = key.value
             }
-            // this.nextTestQuestion(interaction)
+            this.nextTestQuestion(interaction)
 
-            const threadEmbeds = {
-                requestor: "1285754040419876914",
-                leadership: "1285754040419876914"
-            }
+            // const threadEmbeds = {
+            //     requestor: "1285754040419876914",
+            //     leadership: "1285754040419876914"
+            // }
 
-            module.exports.showAXIroles("194001098539925504",threadEmbeds)
+            // module.exports.showAXIroles("194001098539925504",threadEmbeds)
         }
     }
 }
