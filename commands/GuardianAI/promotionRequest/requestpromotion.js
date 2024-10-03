@@ -23,6 +23,10 @@ function getPercentage(part, whole) {
     return ((part / whole) * 100).toFixed(2)
 }
 module.exports = {
+    showPromotionChallenge: async function (data) {
+        console.log(data)
+        // (!args.link.startsWith('https://')) { return interaction.editReply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
+    },
     showAXIroles: async function (userId,threadEmbeds) {
         let person_asking = userId
         const subject = guild.members.cache.get(userId)
@@ -38,6 +42,7 @@ module.exports = {
             person_asking: person_asking
         }
         await requestInfo(rolePackage)
+        //review taskManager.js roles_return_data and have it submit promotion embeds.
     },
     viewExperienceCredit: async function(userId,threadEmbeds,interaction) {
         try {
