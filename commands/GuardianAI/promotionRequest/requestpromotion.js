@@ -35,11 +35,6 @@ module.exports = {
             .setThumbnail(botIdent().activeBot.icon)
             .addFields(
                 { name: "Promotion Rank", value: "```" + promotion.requestor_nextRank + "```", inline: true },
-                { name: "Test Element", value: "```" + ind+"-"+random_question_element + "```", inline: true },
-                { name: "Question Number", value: "```" + `${capitalizeWords(testTypes[promotion.requestor_nextRank])} - ${capitalizeWords(section)} - ${ind + 1}/${quantities}` + "```", inline: true },
-                { name: "Official Question", value: "```" + `${tester.question}` + "```", inline: false },
-                { name: "Official Answer", value: "```" + `${grader.answer}` + "```", inline: false },
-                { name: "Member Answer", value: "```" + `Pending...` + "```", inline: false },
             )
 
     },
@@ -52,7 +47,7 @@ module.exports = {
         let rolePackage = {
             commandAsk: "promotion",
             commandChan: [threadEmbeds.requestor.channel.id,threadEmbeds.leadership.channel.id],
-            promotion: promotion.length > 1 ? promotion : "nopromotion",
+            promotion: promotion,
             type: "roles_request",
             user: subject.user,
             roles: roles,

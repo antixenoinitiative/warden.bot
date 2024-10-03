@@ -55,6 +55,7 @@ module.exports = {
                 let rolePackage = {
                     commandAsk: "roles_req",
                     commandChan: [embedChannel],
+                    promotion: "nopromotion",
                     type: "roles_request",
                     user: subject,
                     roles: roles,
