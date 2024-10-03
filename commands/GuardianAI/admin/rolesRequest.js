@@ -53,13 +53,13 @@ module.exports = {
                 let roles = member.roles.cache.map(role=>role.name)
                 roles = roles.filter(x=>x != '@everyone')
                 // commandChan: [interaction.channel.id],
-                let rolePackage = { 
+                let rolePackage = {
                     commandAsk: "roles_req",
                     commandChan: [embedChannel],
                     type: "roles_request",
-                    user: subject, 
+                    user: subject,
                     roles: roles,
-                    person_asking: person_asking  
+                    person_asking: person_asking
                 }
                 const data = await requestInfo(rolePackage)
                 return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
