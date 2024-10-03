@@ -279,7 +279,8 @@
         }
     },
     "socketStuff": {
-        "appoved_fromServer_GuildIds": ["380246809076826112"]
+        "appoved_fromServer_GuildIds1": ["380246809076826112"],
+        "appoved_fromServer_GuildIds": ["1173384782512652348"]
     },
     "botTypes": [
         {
