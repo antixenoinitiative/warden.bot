@@ -24,7 +24,6 @@ function getPercentage(part, whole) {
 }
 module.exports = {
     showAXIroles2: async function (userId,threadEmbeds) {
-        console.log(userId)
         let person_asking = userId
         const subject = guild.members.cache.get(userId)
         const member = guild.members.cache.get(userId)
