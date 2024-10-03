@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const {requestInfo} = require('../../../socket/taskManager')
+const { requestInfo } = require('../../../socket/taskManager')
 const { botIdent, hasSpecifiedRole, botLog } = require('../../../functions')
 const config = require('../../../config.json')
 
@@ -40,11 +40,11 @@ module.exports = {
             try {
                 let embedChannel = null
                 if (process.env.MODE != "PROD") {
-                    embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.bot_approvals_chan
-                    console.log("[CAUTION]".bgYellow, "rolesRequest embed channel required. Check config.json file. guardianai.general_stuff.bot_approvals_chan. Using testServer input if available")  
+                    embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.role_request_queryChan
+                    console.log("[CAUTION]".bgYellow, "rolesRequest embed channel required. Check config.json file. guardianai.general_stuff.role_request_queryChan. Using testServer input if available")  
                 }
                 else {
-                    embedChannel = config[botIdent().activeBot.botName].general_stuff.bot_approvals_chan
+                    embedChannel = config[botIdent().activeBot.botName].general_stuff.role_request_queryChan
                 }
                 const { options } = interaction
                 let person_asking = interaction.user.id
@@ -52,7 +52,6 @@ module.exports = {
                 const member = guild.members.cache.get(subject.id)
                 let roles = member.roles.cache.map(role=>role.name)
                 roles = roles.filter(x=>x != '@everyone')
-                // commandChan: [interaction.channel.id],
                 let rolePackage = {
                     commandAsk: "roles_req",
                     commandChan: [embedChannel],

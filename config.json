@@ -168,14 +168,13 @@
             { "rank_name": "General Staff", "id": "1173407686797303928"},
             { "rank_name": "Colonel", "id": "1176734917263102063"},
             { "rank_name": "Major", "id": "1176734800103608461"},
-            { "rank_name": "Captain", "id": "1176734589742481549"},
-            { "rank_name": "Lieutenant", "id": "1176734436746874910"}
+            { "rank_name": "Captain", "id": "1176734589742481549"}
         ],
         "general_stuff": {
             "knowledge_proficiency": {
                 "embedChannel": "1174435454595125289"
             },
-            "bot_approvals_chan": "1184592283337752697",
+            "role_request_queryChan": "1184592283337752697",
             "evaluateRoles_authorized": [
                 { "rank_name": "General Staff", "id": "1173407686797303928"},
                 { "rank_name": "Colonel", "id": "1176734917263102063"}
@@ -216,7 +215,7 @@
                 "knowledge_proficiency": { 
                     "embedChannel": "1285754040419876914"
                 },
-                "bot_approvals_chan": "1178705376087113728",
+                "role_request_queryChan": "1178705376087113728",
                 "operation_order": {
                     "opord_channel_approved": "",
                     "opord_channel_await": ""

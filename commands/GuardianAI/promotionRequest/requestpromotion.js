@@ -1,10 +1,9 @@
 const Discord = require("discord.js");
 const { botIdent, eventTimeCreate, hasSpecifiedRole, botLog } = require('../../../functions')
+const { requestInfo } = require('../../../socket/taskManager')
 const config = require('../../../config.json')
 let bos = null;
-if (botIdent().activeBot.botName == 'GuardianAI') { 
-    bos = require(`../../../GuardianAI/bookofsentinel/bos.json`)
-}
+if (botIdent().activeBot.botName == 'GuardianAI') { bos = require(`../../../GuardianAI/bookofsentinel/bos.json`) }
 const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
 
 function capitalizeWords(str) {
@@ -24,6 +23,22 @@ function getPercentage(part, whole) {
     return ((part / whole) * 100).toFixed(2)
 }
 module.exports = {
+    showAXIroles: async function (userId,threadEmbeds) {
+        let person_asking = userId
+        const subject = userId
+        const member = guild.members.cache.get(userId)
+        let roles = member.roles.cache.map(role=>role.name)
+        roles = roles.filter(x=>x != '@everyone')
+        let rolePackage = {
+            commandAsk: "promotion",
+            commandChan: [threadEmbeds.requestor.channel.id,threadEmbeds.leadership.channel.id],
+            type: "roles_request",
+            user: subject,
+            roles: roles,
+            person_asking: person_asking
+        }
+        await requestInfo(rolePackage)
+    },
     viewExperienceCredit: async function(userId,threadEmbeds,interaction) {
         try {
             async function getName(inputArray,inputName) {
@@ -103,7 +118,7 @@ module.exports = {
                 })
                 await threadEmbeds.requestor.channel.send({embeds: [embed]})
                 await threadEmbeds.leadership.channel.send({embeds: [embed]})
-                
+                module.exports.showAXIroles(userId,threadEmbeds)
             }
         }
         catch (err) {

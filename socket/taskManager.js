@@ -6,7 +6,7 @@ const { socket } = require('./socketMain')
 const uuid = require('uuid');
 
 const approvedServers = config.socketStuff.appoved_fromServer_GuildIds
-
+let dataFromPromotion = null
 
 socket.on('fromSocketServer', async (data) => { 
     // console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
