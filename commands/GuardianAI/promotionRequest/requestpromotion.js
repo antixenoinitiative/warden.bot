@@ -25,15 +25,11 @@ function getPercentage(part, whole) {
 
 module.exports = {
     getRankEmoji: async function (interaction) {
-
         let roles = await interaction.member.roles.cache.map(role=>role.name)
         roles = roles.filter(x=>x != '@everyone')
-    
-    
         const rankObj = config[botIdent().activeBot.botName].officer_ranks.find(rank => 
             roles.includes(rank.rank_name)
         )
-        console.log(rankObj)
         return rankObj.emoji
     },
     promotionChallengeResult: async function (data,interaction) {
@@ -66,9 +62,7 @@ module.exports = {
                         // .setColor('#f2ff00') //bight yellow
                     .setAuthor(oldEmbedSchema.author)
                     .setThumbnail(botIdent().activeBot.icon)
-                // newEmbed.addFields(
-                //     { name: "Promotion Status", value: "<:customEmojiName:emojiID> Promotion Approved!", inline: false }
-                // );
+
                 newEmbed.setColor(challenge_score_color)
                 let rank_emoji = await module.exports.getRankEmoji(interaction);
                 if (rank_emoji == null) { rank_emoji == "" }
