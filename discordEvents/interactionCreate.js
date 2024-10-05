@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { nextTestQuestion, nextGradingQuestion } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
+const { nextTestQuestion, nextGradingQuestion, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 // if (botIdent().activeBot.botName == 'Warden') {
 // }
@@ -128,6 +128,41 @@ const exp = {
                         if (d) {
                             // console.log('saved')
                             nextGradingQuestion(interaction) 
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    
+                    return;
+                }
+                if (interaction.customId.startsWith("promotionchallenge")) { //grade and update database
+                    interaction.deferUpdate()
+                    interaction.message.edit({ components: [] })
+                    const customId_array = interaction.customId.split("-")
+                    const challengeInfo = {
+                        state: customId_array[1],
+                        userId: customId_array[2],
+                        reviewer: interaction.user.id
+                    }
+                    let score = 0
+                    if (challengeInfo.state == 'approve') { score = 1 }
+                    if (challengeInfo.state == 'deny') { score = 0 }
+                   
+                    //Update progress number and save to database.
+                    try {
+                        const values = [Number(score), challengeInfo.userId]
+                        const sql = `UPDATE promotion SET challenge_state = (?)  WHERE userId = (?);`
+                        const d = await database.query(sql, values)
+                        if (d) {
+                            // console.log('saved')
+                            promotionChallengeResult(challengeInfo,interaction)
                         }
                     }
                     catch (err) {

@@ -22,7 +22,78 @@ function getPercentage(part, whole) {
     if (whole === 0) return 0 // Avoid division by zero
     return ((part / whole) * 100).toFixed(2)
 }
+
 module.exports = {
+    getRankEmoji: async function (interaction) {
+
+        let roles = await interaction.member.roles.cache.map(role=>role.name)
+        roles = roles.filter(x=>x != '@everyone')
+    
+    
+        const rankObj = config[botIdent().activeBot.botName].officer_ranks.find(rank => 
+            roles.includes(rank.rank_name)
+        )
+        console.log(rankObj)
+        return rankObj.emoji
+    },
+    promotionChallengeResult: async function (data,interaction) {
+        try {
+            const values = [data.userId]
+            const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+            const response = await database.query(sql,values)
+            if (response.length > 0) {
+                const challenge_score = response[0].challenge_state == 1 ? "Approved" : "Denied"
+                const challenge_score_color = response[0].challenge_state == 1 ? '#87FF2A' : '#F20505'
+                const leadership_thread = await interaction.guild.channels.fetch(response[0].leadership_threadId)
+                const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
+                const requestor = await guild.members.fetch(data.userId)
+                const leadership_challenge = await leadership_thread.messages.fetch(response[0].challenge_leadership_embedId)
+
+                const requestor_challenge = await requestor_thread.messages.fetch(response[0].challenge_requestor_embedId)
+                const leadership_receivedEmbed = leadership_challenge.embeds[0]
+                const oldEmbedSchema = {
+                    title: leadership_receivedEmbed.title,
+                    author: { name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) },
+                    description: leadership_receivedEmbed.description,
+                    color: leadership_receivedEmbed.color,
+                    fields: leadership_receivedEmbed.fields
+                }
+                const newEmbed = new Discord.EmbedBuilder()
+                    .setTitle(oldEmbedSchema.title)
+                    .setDescription(`Challenge Proof Reviewed by Leadership`)
+                        // .setColor('#87FF2A') //bight green
+                        // .setColor('#f20505') //bight red
+                        // .setColor('#f2ff00') //bight yellow
+                    .setAuthor(oldEmbedSchema.author)
+                    .setThumbnail(botIdent().activeBot.icon)
+                // newEmbed.addFields(
+                //     { name: "Promotion Status", value: "<:customEmojiName:emojiID> Promotion Approved!", inline: false }
+                // );
+                newEmbed.setColor(challenge_score_color)
+                let rank_emoji = await module.exports.getRankEmoji(interaction);
+                if (rank_emoji == null) { rank_emoji == "" }
+                oldEmbedSchema.fields.forEach((i,index) => {
+                    if (index == 0) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                    if (index == 1) { newEmbed.addFields({ name: "Promotion Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
+                    if (index == 2) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                    if (index == 3) { newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${data.reviewer}>`, inline: i.inline}) }
+                })
+                await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
+                await requestor_challenge.edit( { embeds: [newEmbed] } )
+                await requestor_thread.setLocked(true)
+                
+            }
+        }
+        catch (err) {
+            console.log(err)
+            botLog(interaction.guild,new Discord.EmbedBuilder()
+                .setDescription('```' + err.stack + '```')
+                .setTitle(`⛔ Fatal error experienced`)
+                ,2
+                ,'error'
+            )
+        }
+    },
     showPromotionChallenge: async function (data) {
         const testTypes = {
             "basic": "Aviator",
@@ -31,7 +102,6 @@ module.exports = {
             "master": "General Staff",
         }
         const requestor = await guild.members.fetch(data.user.id)
-        // (!args.link.startsWith('https://')) { return interaction.editReply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
         const leadership_newEmbed = new Discord.EmbedBuilder()
             .setTitle(`Promotion Challenege Proof`)
             .setDescription(`Waiting on requestor to submit Promotion Challenge Proof.`)
@@ -65,8 +135,8 @@ module.exports = {
             const requestor_embedId = await requestor_thread.send( { embeds: [requestor_newEmbed]} )
 
             try {
-                const values = [leadership_embedId.id,requestor_embedId.id,data.promotion.userId]
-                const sql = `UPDATE promotion SET challenge_requestor_embedId = (?), challenge_leadership_embedId WHERE userId = (?);`
+                const values = [requestor_embedId.id,leadership_embedId.id,data.promotion.userId]
+                const sql = `UPDATE promotion SET grading_state = 3, challenge_requestor_embedId = (?), challenge_leadership_embedId = (?) WHERE userId = (?);`
                 await database.query(sql, values)
             }
             catch (err) {

@@ -1,5 +1,5 @@
 const { generateDateTime, botLog, botIdent } = require('../functions')
-const { nextTestQuestion } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
+const { nextTestQuestion,getRankEmoji } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
 const Discord = require('discord.js')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
@@ -7,48 +7,125 @@ const exp = {
     messageCreate: async (message, bot) => {
         if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
             let applyForRanks_guardianai = null
+            let graderRank = []
             if (process.env.MODE != "PROD") {
                 applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.embedChannel
                 console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
+                generalstaff = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'General Staff').id
+                colonel = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Colonel').id
+                major = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Major').id
+                captain = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Captain').id
+                graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
             }
-            else { applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel }
+            else { 
+                applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel 
+                generalstaff = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'General Staff').id
+                colonel = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Colonel').id
+                major = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Major').id
+                captain = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Captain').id
+                graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
+            }
             
             let messageParent = message.channel.parentId
             if (messageParent == applyForRanks_guardianai) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
-                if (message.channel.name.includes("Submission") && message.attachments.size > 0) {
-                    message.attachments.forEach(attachment => {
-                        if (attachment.contentType && attachment.contentType.startsWith('image/')) {
-                          console.log('Image detected:', attachment.url)
-                          //todo DO STUFF TO CHANGE PROMOTION CHALLENGE EMBED
-
-                        }
-                    })
-                }
-                if (message.channel.name.includes("Submission")  && message.attachments.size == 0) {
+                if (message.channel.name.includes("Submission")) {
+                    
                     // console.log("submitting")
                     // .setColor('#87FF2A') //bight green
                     // .setColor('#f20505') //bight red
                     // .setColor('#f2ff00') //bight yellow
                     
-                    const urlRegex = /(https:\/\/[^\s]+)/g
-                    const urls = message.content.match(urlRegex)
-
                     try {
                         const values = [message.author.id]
-                        const sql = 'SELECT leadership_threadId,grading_state FROM `promotion` WHERE userId = (?)'
+                        const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
                         const response = await database.query(sql,values)
-                        if (response[0].grading_state == 2 && urls != null) {
-                            console.log("urls:",urls)
+                        //For promotion challenge proof
+                        if (response[0].grading_state == 3) {
+                            const rankTypes = {
+                                "basic": "Aviator",
+                                "advanced": "Lieutenant",
+                                "master": "Captain",
+                                "master": "General Staff",
+                            }
+                            const testTypes = {
+                                "Aviator": "basic",
+                                "Lieutenant": "advanced",
+                                "Captain": "master",
+                                "General Staff": "master",
+                            }
+                            const graderTypes = {
+                                "basic": "Captain",
+                                "advanced": "Major",
+                                "master": "Colonel"
+                            }
+                            const grader_ident = graderTypes[response[0].testType]
+                            const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
+                            if (leadership_thread.id == message.channel.id) {
+                                //If chat is discovered in the leadership thread, abandon this script.
+                                return
+                            }
+                            //use 1 embed and modify both leadership embed and requestor embed
+                            const leadership_challenge = await leadership_thread.messages.fetch(response[0].challenge_leadership_embedId)
+                            const leadership_embed = leadership_challenge.embeds[0]
+    
+                            const requestor_thread = await message.guild.channels.cache.get(response[0].requestor_threadId)
+                            const requestor_challenge = await requestor_thread.messages.fetch(response[0].challenge_requestor_embedId)
 
-                            //todo DO STUFF TO CHANGE PROMOTION CHALLENGE EMBED
-
-                            return
-                        }
-                        if (response[0].grading_state == 2 && urls == null) {
-                            message.delete()
-                            message.channel.send('❌ Please enter a valid URL, eg: https://...')
-                            return
+                            const leadership_oldEmbedSchema = {
+                                title: leadership_embed.title,
+                                author: { name: message.author.displayName, iconURL: message.author.displayAvatarURL({ dynamic: true }) },
+                                description: leadership_embed.description,
+                                color: leadership_embed.color
+                            }
+                            
+                            const newEmbed = new Discord.EmbedBuilder()
+                                .setTitle(leadership_oldEmbedSchema.title)
+                                .setDescription(`Waiting on approval from Leadership.`)
+                                .setColor("#f2ff00")
+                                    // .setColor('#87FF2A') //bight green
+                                    // .setColor('#f20505') //bight red
+                                    // .setColor('#f2ff00') //bight yellow
+                                .setAuthor(leadership_oldEmbedSchema.author)
+                                .setThumbnail(botIdent().activeBot.icon)
+                                .addFields(
+                                    { name: "Promotion Rank", value: "```" + rankTypes[response[0].testType] + "```", inline: true },
+                                    { name: "Promotion Challenge Status", value: "```" + 'Submitted, awaiting leadership approval' + "```", inline: true },
+                                )
+                            const row = new Discord.ActionRowBuilder()
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotionchallenge-approve-${message.author.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success))
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotionchallenge-deny-${message.author.id}`).setLabel('Deny').setStyle(Discord.ButtonStyle.Danger))
+                            if (message.attachments.size > 0) {
+                                message.attachments.forEach(async attachment => {
+                                    if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+                                      newEmbed.addFields(
+                                          { name: "Promotion Challenge Proof", value: attachment.url, inline: false },
+                                          { name: "Required Approval by:", value: `<@&${graderRank[0][grader_ident]}> or Higher`, inline: false }
+                                      )
+                                    }
+                                })
+                                await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
+                                await requestor_challenge.edit( { embeds: [newEmbed] } )
+                                return
+                            }
+                            const urlRegex = /(https:\/\/[^\s]+)/g
+                            let urls = message.content.match(urlRegex)
+                            if (urls == null && message.attachments.size == 0) {
+                                message.delete()
+                                message.channel.send('❌ Please enter a valid URL, eg: https://...')
+                                return
+                            }
+                            if (urls != null && message.attachments.size == 0) {
+                                urls = urls.map(i => i + "\n")
+                                newEmbed.addFields(
+                                    { name: "Promotion Challenge Proof", value: `${urls}`, inline: false },
+                                    { name: "Required Approval by:", value: `<@&${graderRank[0][grader_ident]}> or Higher`, inline: false }
+                                )
+                                message.delete()
+                                await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
+                                await requestor_challenge.edit( { embeds: [newEmbed] } )
+                                return
+                            }
                         }
                         if (response.length > 0) {
                             //requestor
