@@ -435,6 +435,14 @@ const thisBotFunctions = {
         }
         return false;
     },
+    getRankEmoji: async function (interaction) {
+        let roles = await interaction.member.roles.cache.map(role=>role.name)
+        roles = roles.filter(x=>x != '@everyone')
+        const rankObj = config[botIdent().activeBot.botName].general_stuff.allRanks.find(rank => 
+            roles.includes(rank.rank_name)
+        )
+        return rankObj.emoji
+    },
     /**
      * Log a discord bot event in the Log Channel
      * @author  (Mgram) Marcus Ingram @MgramTheDuck

@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const { botIdent, eventTimeCreate, hasSpecifiedRole, botLog } = require('../../../functions')
+const { botIdent, getRankEmoji, botLog } = require('../../../functions')
 const { requestInfo } = require('../../../socket/taskManager')
 const config = require('../../../config.json')
 let bos = null;
@@ -24,58 +24,55 @@ function getPercentage(part, whole) {
 }
 
 module.exports = {
-    getRankEmoji: async function (interaction) {
-        let roles = await interaction.member.roles.cache.map(role=>role.name)
-        roles = roles.filter(x=>x != '@everyone')
-        const rankObj = config[botIdent().activeBot.botName].officer_ranks.find(rank => 
-            roles.includes(rank.rank_name)
-        )
-        return rankObj.emoji
-    },
+    
     promotionChallengeResult: async function (data,interaction) {
         try {
             const values = [data.userId]
             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
             const response = await database.query(sql,values)
             if (response.length > 0) {
-                const challenge_score = response[0].challenge_state == 1 ? "Approved" : "Denied"
-                const challenge_score_color = response[0].challenge_state == 1 ? '#87FF2A' : '#F20505'
-                const leadership_thread = await interaction.guild.channels.fetch(response[0].leadership_threadId)
-                const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
-                const requestor = await guild.members.fetch(data.userId)
-                const leadership_challenge = await leadership_thread.messages.fetch(response[0].challenge_leadership_embedId)
-
-                const requestor_challenge = await requestor_thread.messages.fetch(response[0].challenge_requestor_embedId)
-                const leadership_receivedEmbed = leadership_challenge.embeds[0]
-                const oldEmbedSchema = {
-                    title: leadership_receivedEmbed.title,
-                    author: { name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) },
-                    description: leadership_receivedEmbed.description,
-                    color: leadership_receivedEmbed.color,
-                    fields: leadership_receivedEmbed.fields
+                if (!response[0].challenge_state) {
+                    //todo Create code for a Modal when Challenge Proof is Denied.
                 }
-                const newEmbed = new Discord.EmbedBuilder()
-                    .setTitle(oldEmbedSchema.title)
-                    .setDescription(`Challenge Proof Reviewed by Leadership`)
-                        // .setColor('#87FF2A') //bight green
-                        // .setColor('#f20505') //bight red
-                        // .setColor('#f2ff00') //bight yellow
-                    .setAuthor(oldEmbedSchema.author)
-                    .setThumbnail(botIdent().activeBot.icon)
-
-                newEmbed.setColor(challenge_score_color)
-                let rank_emoji = await module.exports.getRankEmoji(interaction);
-                if (rank_emoji == null) { rank_emoji == "" }
-                oldEmbedSchema.fields.forEach((i,index) => {
-                    if (index == 0) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
-                    if (index == 1) { newEmbed.addFields({ name: "Promotion Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
-                    if (index == 2) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
-                    if (index == 3) { newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${data.reviewer}>`, inline: i.inline}) }
-                })
-                await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
-                await requestor_challenge.edit( { embeds: [newEmbed] } )
-                await requestor_thread.setLocked(true)
-                
+                if (response[0].challenge_state) {
+                    const challenge_score = response[0].challenge_state == 1 ? "Approved" : "Denied"
+                    const challenge_score_color = response[0].challenge_state == 1 ? '#87FF2A' : '#F20505'
+                    const leadership_thread = await interaction.guild.channels.fetch(response[0].leadership_threadId)
+                    const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
+                    const requestor = await guild.members.fetch(data.userId)
+                    const leadership_challenge = await leadership_thread.messages.fetch(response[0].challenge_leadership_embedId)
+    
+                    const requestor_challenge = await requestor_thread.messages.fetch(response[0].challenge_requestor_embedId)
+                    const leadership_receivedEmbed = leadership_challenge.embeds[0]
+                    const oldEmbedSchema = {
+                        title: leadership_receivedEmbed.title,
+                        author: { name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) },
+                        description: leadership_receivedEmbed.description,
+                        color: leadership_receivedEmbed.color,
+                        fields: leadership_receivedEmbed.fields
+                    }
+                    const newEmbed = new Discord.EmbedBuilder()
+                        .setTitle(oldEmbedSchema.title)
+                        .setDescription(`Challenge Proof Reviewed by Leadership`)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                        .setAuthor(oldEmbedSchema.author)
+                        .setThumbnail(botIdent().activeBot.icon)
+    
+                    newEmbed.setColor(challenge_score_color)
+                    let rank_emoji = await getRankEmoji(interaction);
+                    if (rank_emoji == null) { rank_emoji == "" }
+                    oldEmbedSchema.fields.forEach((i,index) => {
+                        if (index == 0) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                        if (index == 1) { newEmbed.addFields({ name: "Promotion Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
+                        if (index == 2) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                        if (index == 3) { newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${data.reviewer}>`, inline: i.inline}) }
+                    })
+                    await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
+                    await requestor_challenge.edit( { embeds: [newEmbed] } )
+                    await requestor_thread.setLocked(true)
+                }
             }
         }
         catch (err) {
@@ -93,7 +90,6 @@ module.exports = {
             "basic": "Aviator",
             "advanced": "Lieutenant",
             "master": "Captain",
-            "master": "General Staff",
         }
         const requestor = await guild.members.fetch(data.user.id)
         const leadership_newEmbed = new Discord.EmbedBuilder()
@@ -111,7 +107,7 @@ module.exports = {
             )
         const requestor_newEmbed = new Discord.EmbedBuilder()
             .setTitle(`Promotion Challenege Proof`)
-            .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox.`)
+            .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox. Example: https://www.youtube.com`)
             .setColor("#f20505")
                 // .setColor('#87FF2A') //bight green
                 // .setColor('#f20505') //bight red
@@ -501,7 +497,6 @@ module.exports = {
             "Aviator": "basic",
             "Lieutenant": "advanced",
             "Captain": "master",
-            "General Staff": "master",
         }
         const graderTypes = {
             "basic": "Captain",
@@ -623,8 +618,12 @@ module.exports = {
                                 const thread = await channelObj.threads.create({
                                     name: info.title,
                                     autoArchiveDuration: 4320,
+                                    type: Discord.ChannelType.PrivateThread, 
                                     reason: info.description,
                                 });
+                                if (!info.title.startsWith("Promotion Request")) {
+                                    await interaction.editReply({ content: `Test Initialized, Click to start -> ${thread.url}` })
+                                }
                                 if (info.rankMessage) { await thread.send(info.rankMessage) }
                                 if (info.messages.length > 0) {
                                     for (const i of info.messages) {
@@ -953,84 +952,26 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
         .setName('requestpromotion') 
         .setDescription('Select a promotion request category')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('challenge')
-                .setDescription('Location to enter Video')
-                .addStringOption(option => option
-                    .setName("wing_members")
-                    .setDescription("Enter all wing members starting with @")
-                    .setRequired(true)
-                )
-                .addStringOption(option => option
-                    .setName("url")
-                    .setDescription("Enter URL. Starting with http://")
-                    .setRequired(true)
-                )
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('knowledge_proficiency')
-                .setDescription('Take the knowledge proficiency test')
-        )
     ,
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: true })
-        if (interaction.options.getSubcommand() === 'challenge') {
-            let args = {}
-            for (let key of interaction.options._hoistedOptions) {
-                args[key.name] = key.value
-            }
-            if (!args.wing_members.includes("@")) { return interaction.editReply({ content: `❌ Please enter a mentionable user. IE. @player` }) }
-            if (!args.url.startsWith('https://')) { return interaction.editReply({ content: `❌ Please enter a valid URL, eg: https://...` }) }
-		
-            const requestor = interaction.member.id
-            const requestor_roles = interaction.member.roles.cache.map(r=>r.name)
-            const requestor_currentRank = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => requestor_roles.includes(value))
-            const xsf_ranks = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name)
-            const requestor_nextRank = xsf_ranks[xsf_ranks.indexOf(requestor_currentRank[0])-1]
-            let description_wingMembers = []
-            let wing_members = args.wing_members.split(" ") //[ '<@194001098539925504>', '<@302598408773042188>' ]
-            let wing_members_DB = wing_members.map(i => i.replace(/[<@>]/g, '')) //[ '194001098539925504', '302598408773042188' ]
-            const array_cleaned = wing_members.map(str => str.match(/<@!?\d+>/)).filter(Boolean)
-            const memberObjects = await Promise.all(array_cleaned.map(async mention => {
-                const userId = mention[0].match(/\d+/)[0]
-                let user = await interaction.guild.members.fetch(userId);
-                user = user.roles.cache.map(r=>r.name)
-                const current_rank = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => user.includes(value))
-                const rank = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name == current_rank)
-                description_wingMembers.push(`${rank.emoji} <@${userId}>\n`)
-            }))
-            description_wingMembers = description_wingMembers
-                .join(",")
-                .replace(",","")
-
-            returnEmbed = new Discord.EmbedBuilder()
-                .setTitle(`"${requestor_nextRank}" Promotion Challenge Entry`)
-                .setAuthor({ name: interaction.member.nickname, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) }) 
-                .setThumbnail(botIdent().activeBot.icon)
-                .setColor('#87FF2A') //87FF2A
-                .setDescription(`Submission of the Promotion Challenge has been stored.`)
-                .addFields(
-                    { name: "Promotion Rank", value: "```" + requestor_nextRank + "```", inline: false },
-                    { name: "Wing Members", value: description_wingMembers, inline: false },
-                    { name: "Video", value: args.url, inline: false }
-                )
-            await interaction.editReply({ embeds: [returnEmbed] })
-        }
-        if (interaction.options.getSubcommand() === 'knowledge_proficiency') {
-            let args = {}
-            for (let key of interaction.options._hoistedOptions) {
-                args[key.name] = key.value
-            }
+        const roles = interaction.member.roles.cache.map(r=>r.name)
+        const current_xsf_role = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => roles.includes(value))[0]
+        const reject_roles = ['General Staff','Colonel','Major','Captain']
+        if (!reject_roles.includes(current_xsf_role)) {
             this.nextTestQuestion(interaction)
-
-            // const threadEmbeds = {
-            //     requestor: "1285754040419876914",
-            //     leadership: "1285754040419876914"
-            // }
-
-            // module.exports.showAXIroles("194001098539925504",threadEmbeds)
         }
+        else {
+            return interaction.editReply({ content: `❌ Your rank (${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })
+        }
+        
+
+        // const threadEmbeds = {
+        //     requestor: "1285754040419876914",
+        //     leadership: "1285754040419876914"
+        // }
+
+        // module.exports.showAXIroles("194001098539925504",threadEmbeds)
+        
     }
 }

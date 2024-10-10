@@ -25,7 +25,6 @@ const exp = {
                 captain = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Captain').id
                 graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
             }
-            
             let messageParent = message.channel.parentId
             if (messageParent == applyForRanks_guardianai) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
