@@ -641,7 +641,8 @@ module.exports = {
                                         .addFields(
                                             { name: "Answer Entry", value: "Answers will be typed into the chat box", inline: false },
                                             { name: "Answer Editing", value: "You may change your answer again, by typing into the chat box", inline: false },
-                                            { name: "Answer Submission", value: "Click the 'Next Question' button to submit the answer", inline: false }
+                                            { name: "Answer Submission", value: "Click the 'Next Question' button to submit the answer", inline: false },
+                                            { name: "Test Populating...", value: "The test will begin shortly, be paitient for it to populate.", inline: false }
                                     )
                                     if (sendEmbed) { await thread.send({ embeds: [embed] }) }
                                 }
@@ -663,9 +664,13 @@ module.exports = {
                             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)';
                             let response = await database.query(sql, values)
                             if (response.length > 0) {
-                                if (response[0].grading_state == 1) { 
-                                    await interaction.editReply({ content: `**${promotion.requestor_nextRank}** grading is pending...` })
-                                } 
+                                if (response[0].grading_progress == '-1') {
+                                    const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
+                                    await interaction.editReply({ content: `**${promotion.requestor_nextRank}** test is inprogress here -> ${requestor_thread.url}` })
+                                    response.push({ promotable: "testInProgress" })
+                                    response = [{ ...response[0], ...response[1] }]
+                                    return response
+                                }   
                                 response.push({"promotable":1})
                                 response = [{ ...response[0], ...response[1] }]
                                 // console.log("exists")
@@ -677,8 +682,8 @@ module.exports = {
                                 const requestorSubmissionThread = await createThread(embedChannel,requestor_info,1)
                                 const values2 = [userId,leadershipSubmissionThread,requestorSubmissionThread,testTypes[promotion.requestor_nextRank],emptyArray]
                                 const sql2 = `
-                                INSERT INTO promotion (userId, leadership_threadId, requestor_threadId, testType, requestor_embedId) 
-                                VALUES (?,?,?,?,?)
+                                    INSERT INTO promotion (userId, leadership_threadId, requestor_threadId, testType, requestor_embedId) 
+                                    VALUES (?,?,?,?,?)
                                 `
                                 await database.query(sql2, values2)
                                 response.push({question_num: 0, promotable: 1, leadership_threadId: leadershipSubmissionThread, requestor_threadId: requestorSubmissionThread})
@@ -712,7 +717,7 @@ module.exports = {
                     return 0
                 }
             }
-        }        
+        }
         function testFunc(section,promotable_db_info,question_position,ind) {
             if (question_position) {
                 const random_question_element = Math.floor(Math.random() * question_position.questions.length)
@@ -828,7 +833,8 @@ module.exports = {
         async function takeTheTest() {
             try {
                 let promotable_db_info = await checkPromotable()
-                if (promotable_db_info[0].promotable && promotable_db_info[0].grading_state != 1) {
+                if (promotable_db_info[0].promotable == "testInProgress") { return }
+                if (promotable_db_info[0].promotable == 1 && promotable_db_info[0].grading_state != 1) {
                     //todo resume test
                     if (promotable_db_info[0].question_num >= 1) {
                         const leadership_thread = await interaction.guild.channels.fetch(promotable_db_info[0].leadership_threadId)

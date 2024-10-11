@@ -116,11 +116,10 @@ function mainOperation(){
 			 * @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI as XSF honors AXI ranks.
 			*/
 			if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
-			//! CHANGE TO ==
-			if(process.env.MODE != "PROD") {
+			if (process.env.MODE != "PROD") {
 				//Assigns the ActivityType (status) of the bot with the system name.
 				carrierJumpRedisplay()
-				knowledgeTestEmbeds()
+				// knowledgeTestEmbeds()
 				async function carrierJumpRedisplay() {
 					const currentSystem_sql = 'SELECT starSystem FROM `carrier_jump` ORDER BY id DESC LIMIT 1';
 					const currentSystem_response = await guardianai_vars.query(currentSystem_sql)
@@ -130,78 +129,78 @@ function mainOperation(){
 						guardianai.user.setActivity(`${currentSystem_response[0].starSystem}`, { type: Discord.ActivityType.Custom });
 					}
 				}
-				async function knowledgeTestEmbeds() {
-					try {
-						const pending_list_values = false
-						const pending_list_sql = `SELECT * FROM promotion WHERE grading_state = 1`
-						const pending_list_response = await guardianai_vars.query(pending_list_sql, pending_list_values)
-						if (pending_list_response.length > 0) {
-							let pending_array = [] 
-							pending_array = pending_list_response
-							pending_array.forEach(async pending_tests => {
-								if (pending_tests.grading_state == 1) {
-									const leadership_thread = await guild.channels.fetch(pending_tests.leadership_threadId)
-									try {
-										const originalMessage = await leadership_thread.messages.fetch(pending_tests.grading_embedId)
-										const receivedEmbed = originalMessage.embeds[0]
-										let oldEmbedSchema = {
-											title: receivedEmbed.title,
-											description: receivedEmbed.description,
-											color: receivedEmbed.color,
-											fields: receivedEmbed.fields
-										}
+				// async function knowledgeTestEmbeds() {
+				// 	try {
+				// 		const pending_list_values = false
+				// 		const pending_list_sql = `SELECT * FROM promotion WHERE grading_state = 1`
+				// 		const pending_list_response = await guardianai_vars.query(pending_list_sql, pending_list_values)
+				// 		if (pending_list_response.length > 0) {
+				// 			let pending_array = [] 
+				// 			pending_array = pending_list_response
+				// 			pending_array.forEach(async pending_tests => {
+				// 				if (pending_tests.grading_state == 1) {
+				// 					const leadership_thread = await guild.channels.fetch(pending_tests.leadership_threadId)
+				// 					try {
+				// 						const originalMessage = await leadership_thread.messages.fetch(pending_tests.grading_embedId)
+				// 						const receivedEmbed = originalMessage.embeds[0]
+				// 						let oldEmbedSchema = {
+				// 							title: receivedEmbed.title,
+				// 							description: receivedEmbed.description,
+				// 							color: receivedEmbed.color,
+				// 							fields: receivedEmbed.fields
+				// 						}
 										
-										const newEmbed = new Discord.EmbedBuilder()
-											.setTitle(oldEmbedSchema.title)
-											.setDescription(oldEmbedSchema.description)
-											.setColor(oldEmbedSchema.color)
-											.setThumbnail(botFunc.botIdent().activeBot.icon)  
-										oldEmbedSchema.fields.forEach(i => { 
-											newEmbed.addFields({name: i.name, value: i.value, inline: i.inline})
-										})
-										const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
-										console.log("server start> grading progress:",pending_tests.grading_progress)
-										let row = []
-										if (pending_tests.grading_progress == -1) {
-											row = new Discord.ActionRowBuilder()  
-												.addComponents(new Discord.ButtonBuilder().setCustomId(`startgradingtest-${pending_tests.id}`).setLabel('Start Grading').setStyle(Discord.ButtonStyle.Success))
-											await originalMessage.edit({ embeds: [editedEmbed], components: [row] })
-										}
-										if (pending_tests.grading_progress >= 0 && pending_tests.grading_progress < 2) {
-											row = originalMessage.components.map(row => {
-												return new Discord.ActionRowBuilder() 
-													.addComponents(
-														row.components.map(component => Discord.ButtonBuilder.from(component))  // Clone each button
-													)
-											})
-											await originalMessage.edit({ embeds: [editedEmbed], components: row })
-										}
-									} 
-									catch (err) {
-										console.log(err)
-										botFunc.botLog(guild,new Discord.EmbedBuilder()
-											.setDescription('```' + err.stack + '```')
-											.setTitle(`⛔ Fatal error experienced: knowledgeTestEmbeds()`)
-											,2
-											,'error'
-										)
-										return
-									}
-								}
-							})
-						}
-					} 
-					catch (err) {
-						console.log(err)
-						botFunc.botLog(guild,new Discord.EmbedBuilder()
-							.setDescription('```' + err.stack + '```')
-							.setTitle(`⛔ Fatal error experienced. knowledgeTestEmbeds())`)
-							,2
-							,'error'
-						)
-						return
-					}
-				}
+				// 						const newEmbed = new Discord.EmbedBuilder()
+				// 							.setTitle(oldEmbedSchema.title)
+				// 							.setDescription(oldEmbedSchema.description)
+				// 							.setColor(oldEmbedSchema.color)
+				// 							.setThumbnail(botFunc.botIdent().activeBot.icon)  
+				// 						oldEmbedSchema.fields.forEach(i => { 
+				// 							newEmbed.addFields({name: i.name, value: i.value, inline: i.inline})
+				// 						})
+				// 						const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
+				// 						console.log("server start> grading progress:",pending_tests.grading_progress)
+				// 						let row = []
+				// 						if (pending_tests.grading_progress == -1) {
+				// 							row = new Discord.ActionRowBuilder()  
+				// 								.addComponents(new Discord.ButtonBuilder().setCustomId(`startgradingtest-${pending_tests.id}`).setLabel('Start Grading').setStyle(Discord.ButtonStyle.Success))
+				// 							await originalMessage.edit({ embeds: [editedEmbed], components: [row] })
+				// 						}
+				// 						if (pending_tests.grading_progress >= 0 && pending_tests.grading_progress < 2) {
+				// 							row = originalMessage.components.map(row => {
+				// 								return new Discord.ActionRowBuilder() 
+				// 									.addComponents(
+				// 										row.components.map(component => Discord.ButtonBuilder.from(component))  // Clone each button
+				// 									)
+				// 							})
+				// 							await originalMessage.edit({ embeds: [editedEmbed], components: row })
+				// 						}
+				// 					} 
+				// 					catch (err) {
+				// 						console.log(err)
+				// 						botFunc.botLog(guild,new Discord.EmbedBuilder()
+				// 							.setDescription('```' + err.stack + '```')
+				// 							.setTitle(`⛔ Fatal error experienced: knowledgeTestEmbeds()`)
+				// 							,2
+				// 							,'error'
+				// 						)
+				// 						return
+				// 					}
+				// 				}
+				// 			})
+				// 		}
+				// 	} 
+				// 	catch (err) {
+				// 		console.log(err)
+				// 		botFunc.botLog(guild,new Discord.EmbedBuilder()
+				// 			.setDescription('```' + err.stack + '```')
+				// 			.setTitle(`⛔ Fatal error experienced. knowledgeTestEmbeds())`)
+				// 			,2
+				// 			,'error'
+				// 		)
+				// 		return
+				// 	}
+				// }
 			}
 		}
 		if (botFunc.botIdent().activeBot.botName == 'Warden') {
