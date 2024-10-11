@@ -77,7 +77,7 @@ module.exports = {
 		if(interaction.guild.channels.cache.get(staffChannel) === undefined)  { // Check for staff channel
 			return interaction.editReply({ content: `Staff Channel not found` })
 		}
-		const timewithmilliseconds = Number(`${args.time}` + `${args.milliseconds}`)
+		// const timewithmilliseconds = Number(`${args.time}` + `${args.milliseconds}`)
 		let timeStuff = {
 			seconds: Number(args.time),      
 			milliseconds: Number(args.milliseconds) 
@@ -85,13 +85,40 @@ module.exports = {
 		let totalMilliseconds = timeStuff.seconds * 1000 + timeStuff.milliseconds
 		let date = new Date(totalMilliseconds) 
 		const timeString = date.toISOString().substr(11, 8) + '.' + String(timeStuff.milliseconds).padStart(3, '0')
+
 		try {
-			const submission_values = [user,name,timeStuff.seconds,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments,timeStuff.milliseconds]
-			const submission_sql = `
-				INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments,milliseconds) VALUES (?,?,?,?,?,?,?,?,?,?,?);
-			`;
-			await database.query(submission_sql, submission_values)
-		} 
+			const values = [user,args.variant,args.shipclass]
+			const sql = 'SELECT * FROM `speedrun` WHERE user_id = (?) AND variant = (?) AND class = (?)';
+			const response = await database.query(sql, values)
+			if (response.length > 0) {
+				let db_timeStuff = {
+					seconds: Number(response[0].time),      
+					milliseconds: Number(response[0].milliseconds) 
+				}
+				if (Number(db_timeStuff.seconds + db_timeStuff.milliseconds) <= Number(timeStuff.seconds + timeStuff.milliseconds)) {
+					return interaction.editReply({ content: `You have a previous entry of **${args.shipclass.toUpperCase()}** **${args.variant.toUpperCase()}** which is faster than or equal to this entry. Submission aborted.` })
+				}
+				else {
+					try {
+						const submission_values = [user,name,timeStuff.seconds,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments,timeStuff.milliseconds]
+						const submission_sql = `
+							INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments,milliseconds) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+						`;
+						await database.query(submission_sql, submission_values)
+					} 
+					catch (err) {
+						console.log(err)
+						botLog(interaction.guild,new Discord.EmbedBuilder()
+							.setDescription('```' + err.stack + '```')
+							.setTitle(`⛔ Fatal error experienced`)
+							,2
+							,'error'
+						)
+						return interaction.editReply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
+					}
+				}
+			}
+		}
 		catch (err) {
 			console.log(err)
 			botLog(interaction.guild,new Discord.EmbedBuilder()
@@ -100,8 +127,8 @@ module.exports = {
 				,2
 				,'error'
 			)
-			return interaction.editReply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
 		}
+		
 		
 		let submissionId = null
 		const submitted_request_values = timestamp
