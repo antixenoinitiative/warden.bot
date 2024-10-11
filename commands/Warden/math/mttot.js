@@ -1,6 +1,7 @@
 /* eslint-disable no-bitwise */
 const Discord = require("discord.js");
 const weapons = require("./data/weapons.json");
+const { botLog } = require('../../../functions') 
 /*
  weapons entry format:
  "code" : {
