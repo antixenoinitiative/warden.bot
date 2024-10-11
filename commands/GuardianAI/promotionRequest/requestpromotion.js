@@ -95,7 +95,7 @@ module.exports = {
         const leadership_newEmbed = new Discord.EmbedBuilder()
             .setTitle(`Promotion Challenege Proof`)
             .setDescription(`Waiting on requestor to submit Promotion Challenge Proof.`)
-            .setColor("#f20505")
+            .setColor("#f2ff00")
                 // .setColor('#87FF2A') //bight green
                 // .setColor('#f20505') //bight red
                 // .setColor('#f2ff00') //bight yellow
@@ -108,7 +108,7 @@ module.exports = {
         const requestor_newEmbed = new Discord.EmbedBuilder()
             .setTitle(`Promotion Challenege Proof`)
             .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox. Example: https://www.youtube.com`)
-            .setColor("#f20505")
+            .setColor("#f2ff00")
                 // .setColor('#87FF2A') //bight green
                 // .setColor('#f20505') //bight red
                 // .setColor('#f2ff00') //bight yellow
@@ -666,10 +666,7 @@ module.exports = {
                             if (response.length > 0) {
                                 if (response[0].grading_progress == '-1') {
                                     const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
-                                    await interaction.editReply({ content: `**${promotion.requestor_nextRank}** test is inprogress here -> ${requestor_thread.url}` })
-                                    response.push({ promotable: "testInProgress" })
-                                    response = [{ ...response[0], ...response[1] }]
-                                    return response
+                                    await interaction.editReply({ content: `**${promotion.requestor_nextRank}** request is inprogress here -> ${requestor_thread.url}` })
                                 }   
                                 response.push({"promotable":1})
                                 response = [{ ...response[0], ...response[1] }]
@@ -833,7 +830,8 @@ module.exports = {
         async function takeTheTest() {
             try {
                 let promotable_db_info = await checkPromotable()
-                if (promotable_db_info[0].promotable == "testInProgress") { return }
+                if (promotable_db_info[0].grading_state > 1) { return await interaction.editReply({ content: `Promotion request is in progress already. Check your Promotion Request thread.` }) }
+                if (promotable_db_info[0].grading_state == 1) { return await interaction.editReply({ content: `Grading is inprogress. Please wait for grading completion...` }) }
                 if (promotable_db_info[0].promotable == 1 && promotable_db_info[0].grading_state != 1) {
                     //todo resume test
                     if (promotable_db_info[0].question_num >= 1) {
@@ -943,7 +941,7 @@ module.exports = {
                         testFunc(section,promotable_db_info,question_position,ind)
                     }
                 }
-            }
+            }   
             catch (err) {
                 console.log(err)
                 botLog(interaction.guild,new Discord.EmbedBuilder()
@@ -965,7 +963,7 @@ module.exports = {
         const current_xsf_role = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => roles.includes(value))[0]
         const reject_roles = ['General Staff','Colonel','Major','Captain']
         if (!reject_roles.includes(current_xsf_role)) {
-            this.nextTestQuestion(interaction)
+            this.nextTestQuestion(interaction) 
         }
         else {
             return interaction.editReply({ content: `❌ Your rank (${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })

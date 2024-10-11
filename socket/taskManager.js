@@ -14,6 +14,7 @@ socket.on('fromSocketServer', async (data) => {
     if (data.type == 'roles_request') { //Server asks all servers in room
         let identifiedUser = null
         try {
+            // identifiedUser = await guild.members.fetch('783141808074522654')
             identifiedUser = await guild.members.fetch(data.user.id)
         }
         catch (e) { console.log(e) }
