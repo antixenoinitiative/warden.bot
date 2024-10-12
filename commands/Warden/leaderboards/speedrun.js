@@ -92,8 +92,8 @@ module.exports = {
 			const response = await database.query(sql, values)
 			if (response.length > 0) {
 				let db_timeStuff = {
-					seconds: Number(response[0].time),      
-					milliseconds: Number(response[0].milliseconds) 
+					seconds: Number(response[0].time),
+					milliseconds: Number(response[0].milliseconds)
 				}
 				if (Number(db_timeStuff.seconds + db_timeStuff.milliseconds) <= Number(timeStuff.seconds + timeStuff.milliseconds)) {
 					return interaction.editReply({ content: `You have a previous entry of **${args.shipclass.toUpperCase()}** **${args.variant.toUpperCase()}** which is faster than or equal to this entry. Submission aborted.` })

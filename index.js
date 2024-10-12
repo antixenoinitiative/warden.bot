@@ -212,8 +212,7 @@ function mainOperation(){
 			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			warden_vars = database
 
-			
-			
+
 			// Scheduled Role Backup Task
 			if(process.env.MODE == "PROD") {
 				/**
@@ -303,7 +302,7 @@ function mainOperation(){
 
 				cron.schedule('*/5 * * * *', function () {
 					// backupClubRoles()
-					console.log("Reminder to implement backup features for roles.")
+					// console.log("Reminder to implement backup features for roles.")
 				});
 				/**
 				 * Role backup system, takes the targetted role and table and backs up to SQL database.
