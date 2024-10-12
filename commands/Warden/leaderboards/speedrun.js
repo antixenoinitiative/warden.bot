@@ -79,11 +79,11 @@ module.exports = {
 		}
 		// const timewithmilliseconds = Number(`${args.time}` + `${args.milliseconds}`)
 		let timeStuff = {
-			seconds: Number(args.time),      
-			milliseconds: Number(args.milliseconds) 
+			seconds: Number(args.time),
+			milliseconds: Number(args.milliseconds)
 		}
 		let totalMilliseconds = timeStuff.seconds * 1000 + timeStuff.milliseconds
-		let date = new Date(totalMilliseconds) 
+		let date = new Date(totalMilliseconds)
 		const timeString = date.toISOString().substr(11, 8) + '.' + String(timeStuff.milliseconds).padStart(3, '0')
 
 		try {
@@ -98,24 +98,24 @@ module.exports = {
 				if (Number(db_timeStuff.seconds + db_timeStuff.milliseconds) <= Number(timeStuff.seconds + timeStuff.milliseconds)) {
 					return interaction.editReply({ content: `You have a previous entry of **${args.shipclass.toUpperCase()}** **${args.variant.toUpperCase()}** which is faster than or equal to this entry. Submission aborted.` })
 				}
-				else {
-					try {
-						const submission_values = [user,name,timeStuff.seconds,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments,timeStuff.milliseconds]
-						const submission_sql = `
-							INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments,milliseconds) VALUES (?,?,?,?,?,?,?,?,?,?,?);
-						`;
-						await database.query(submission_sql, submission_values)
-					} 
-					catch (err) {
-						console.log(err)
-						botLog(interaction.guild,new Discord.EmbedBuilder()
-							.setDescription('```' + err.stack + '```')
-							.setTitle(`⛔ Fatal error experienced`)
-							,2
-							,'error'
-						)
-						return interaction.editReply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
-					}
+			}
+			else {
+				try {
+					const submission_values = [user,name,timeStuff.seconds,args.shipclass,args.ship,args.variant,args.link,false,timestamp,args.comments,timeStuff.milliseconds]
+					const submission_sql = `
+						INSERT INTO speedrun (user_id,name,time,class,ship,variant,link,approval,date,comments,milliseconds) VALUES (?,?,?,?,?,?,?,?,?,?,?);
+					`;
+					await database.query(submission_sql, submission_values)
+				} 
+				catch (err) {
+					console.log(err)
+					botLog(interaction.guild,new Discord.EmbedBuilder()
+						.setDescription('```' + err.stack + '```')
+						.setTitle(`⛔ Fatal error experienced`)
+						,2
+						,'error'
+					)
+					return interaction.editReply({ content: `Something went wrong creating a Submission, please try again or contact staff!` })
 				}
 			}
 		}

@@ -116,7 +116,7 @@ function mainOperation(){
 			 * @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI as XSF honors AXI ranks.
 			*/
 			if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
-			if (process.env.MODE != "PROD") {
+			if (process.env.MODE == "PROD") {
 				//Assigns the ActivityType (status) of the bot with the system name.
 				carrierJumpRedisplay()
 				// knowledgeTestEmbeds()
@@ -352,11 +352,7 @@ function mainOperation(){
 				// }, the_interval);
 			}
 			
-			// If socket token is configured, bot will try to run the task manager.
-			// if (process.env.SOCKET_TOKEN) { require('./socket/taskManager.js') }
-			/**
-		 	* @description Socket Connection - Allows communication between Warden and GuardianAI. Gathers role information for GuardianAI.
-		 	*/
+			
 		}
 		console.log("[STARTUP]".yellow,`${botFunc.botIdent().activeBot.botName}`.green,"Bot has Logged In:".magenta,'✅');
 	})
