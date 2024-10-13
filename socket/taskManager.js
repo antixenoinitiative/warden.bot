@@ -9,30 +9,13 @@ const uuid = require('uuid');
 const approvedServers = config.socketStuff.appoved_fromServer_GuildIds
 let dataFromPromotion = null
 
-socket.on('fromSocketServer', async (data) => { 
+socket.on('fromSocketServer', async (data) => {
     // console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green)
     if (data.type == 'roles_request') { //Server asks all servers in room
         let identifiedUser = null
         try {
             // identifiedUser = await guild.members.fetch('783141808074522654')
             identifiedUser = await guild.members.fetch(data.user.id)
-        }
-        catch (e) { 
-            console.log(e.rawError.message,data.user.id)
-            let rolesPackage = {
-                from_server: guild.name,
-                type: "roles_return_data",
-                promotion: data.promotion,
-                commandAsk: data.commandAsk,
-                commandChan: data.commandChan,
-                person_asking: data.person_asking,
-                from_serverID: guild.id,
-                requestor_socket: data.requestor_socket,
-                user: { state: false, id: data.user.id, roles: ['unknown user'], }
-            }
-            socket.emit('roles_return',rolesPackage)
-        }
-        if (identifiedUser) {
             let roles = await identifiedUser.roles.cache
                 .sort((a, b) => b.position - a.position)
                 .map(role => role.name)
@@ -50,20 +33,21 @@ socket.on('fromSocketServer', async (data) => {
             }
             socket.emit('roles_return',rolesPackage)
         }
-        // else {
-        //     let rolesPackage = {
-        //         from_server: guild.name,
-        //         type: "roles_return_data",
-        //         promotion: data.promotion,
-        //         commandAsk: data.commandAsk,
-        //         commandChan: data.commandChan,
-        //         person_asking: data.person_asking,
-        //         from_serverID: guild.id,
-        //         requestor_socket: data.requestor_socket,
-        //         user: { state: false, id: data.user.id, roles: ['unknown user'], }
-        //     }
-        //     socket.emit('roles_return',rolesPackage)
-        // }
+        catch (e) {
+            console.log(e.rawError.message,data.user.id)
+            let rolesPackage = {
+                from_server: guild.name,
+                type: "roles_return_data",
+                promotion: data.promotion,
+                commandAsk: data.commandAsk,
+                commandChan: data.commandChan,
+                person_asking: data.person_asking,
+                from_serverID: guild.id,
+                requestor_socket: data.requestor_socket,
+                user: { state: false, id: data.user.id, roles: ['unknown user'] }
+            }
+            socket.emit('roles_return',rolesPackage)
+        }
     }
     if (data.type == 'roles_return_data') { //Server responds to the requesting bot with the role information from any reply server..
         let color = null
@@ -85,7 +69,6 @@ socket.on('fromSocketServer', async (data) => {
                 {name: "Who", value: `<@${data.user.id}>` },
                 {name: "Roles Found", value: "```"+roles+"```" }
             )
-        console.log(data)
         if (approvedServers.includes(data.from_serverID)) {
             if (data.commandAsk == "promotion") {
                 data.commandChan.forEach(async chan => {
@@ -94,10 +77,14 @@ socket.on('fromSocketServer', async (data) => {
                 const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
                 showPromotionChallenge(data)
             }
+            if (data.commandAsk == "nopromotion") {
+                data.commandChan.forEach(async chan => {
+                    await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                })
+            }
         }
     }
 }) 
-
 
 const taskList = {
     socket_joinRoom: async function(requestedRoom) {

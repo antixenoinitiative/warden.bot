@@ -159,10 +159,12 @@
         },
         "experienceQuery": [
             { "rank_name": "General Staff", "id": "1173407686797303928"},
-            { "rank_name": "Colonel", "id": "1176734917263102063"},
-            { "rank_name": "Major", "id": "1176734800103608461"},
-            { "rank_name": "Captain", "id": "1176734589742481549"},
-            { "rank_name": "Lieutenant", "id": "1176734436746874910"}
+            { "rank_name": "Colonel", "id": "1176734917263102063" },
+            { "rank_name": "Major", "id": "1176734800103608461" },
+            { "rank_name": "Captain", "id": "1176734589742481549" },
+            { "rank_name": "Lieutenant", "id": "1176734436746874910" },
+            { "rank_name": "Aviator", "id": "1176734299031093329" },
+            { "rank_name": "Learner", "id": "1234222974115119169" }
         ],
         "rolesRequestQuery": [
             { "rank_name": "General Staff", "id": "1173407686797303928"},

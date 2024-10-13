@@ -1,5 +1,4 @@
-const { generateDateTime, botLog, botIdent, getRankEmoji } = require('../functions')
-const { nextTestQuestion } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
+const { botLog, botIdent, getRankEmoji } = require('../functions')
 const Discord = require('discord.js')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
@@ -226,7 +225,7 @@ const exp = {
                         )
                     }
                     if (promotion.grading_state == 3 && promotion.challenge_state >= 0) {
-                        //!If denial message statement is required, delete messages by anyboyd not the reviewer.
+                        //!If denial message statement is required, delete messages by anybody that is not the reviewer.
                         //todo Come up with a better system. Maybe try harder with modals even though they aren't compatable with deferedUpdates.
                         if (message.author.id != promotion.challenge_reviewer) {
                             message.delete()
@@ -237,6 +236,7 @@ const exp = {
                         if (denyMsg.last().id != promotion.challenge_leadership_embedId) {
                             denyMsg.last().delete()
                         }
+
                         //Modify the embeds in both
                         let rank_emoji = await getRankEmoji(message);
                         if (rank_emoji == null) { rank_emoji == "" }
@@ -295,7 +295,7 @@ const exp = {
                             if (index == 2) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
                             if (index == 3) { leadership_newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${message.author.id}>`, inline: i.inline}) }
                         })
-    
+
                         leadership_newEmbed.addFields(
                             { name: "Denial Reason:", value: '```'+denyMsg.first().content+'```', inline: false }
                         )
@@ -321,17 +321,26 @@ const exp = {
                         }
                     }
                 }
-            }
+            } 
         }
     },
     messageDelete: async (message, bot) => {
         if (!message.author.bot) {  
             try {
                 botLog(bot,new Discord.EmbedBuilder().setDescription(`Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```').setTitle(`Message Deleted 🗑️`),1)
-            } catch (err) {
-                botLog(bot,new Discord.EmbedBuilder().setDescription(`Something went wrong while logging a Deletion event: ${err}`).setTitle(`Logging Error`),2);
+            } 
+            catch (err) {
+                console.log(err)
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription('```' + err.stack + '```')
+                    .setTitle(`⛔ Fatal error experienced`)
+                    ,2
+                    ,'error'
+                )
             }
         }
+
+
     },
     messageUpdate: async (oldMessage, newMessage, bot) => {
         if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID) {
@@ -447,10 +456,15 @@ const exp = {
                             })
                         }
     
-                    } catch (error) {
-                        // const dateTime = generateDateTime();
-                        // console.log(dateTime,'⛔ guildScheduledEventDelete detected an event_id that did not exist. check database and verify opord_number are all in numerical order.')
-                        console.log(error)
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
                     }
                 }
             }

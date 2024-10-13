@@ -62,7 +62,7 @@ module.exports = {
                     person_asking: person_asking
                 }
                 await requestInfo(rolePackage)
-                return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers.`, ephemeral: true })
+                return interaction.reply({ content:`Checking roles of ${rolePackage.user} on other configured servers. Sent to this Channel. <#${embedChannel}>`, ephemeral: true })
             }
             catch(e) {
                 console.log(e)
