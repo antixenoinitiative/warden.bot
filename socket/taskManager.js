@@ -17,7 +17,7 @@ socket.on('fromSocketServer', async (data) => {
             // identifiedUser = await guild.members.fetch('783141808074522654')
             identifiedUser = await guild.members.fetch(data.user.id)
         }
-        catch (e) { console.log(e) }
+        catch (e) { console.log(e.rawError.message,data.user.id) }
         if (identifiedUser) {
             let roles = await identifiedUser.roles.cache
                 .sort((a, b) => b.position - a.position)
@@ -70,14 +70,16 @@ socket.on('fromSocketServer', async (data) => {
                 {name: "Server", value: "```"+data.from_server+"```" },
                 {name: "Who", value: `<@${data.user.id}>` },
                 {name: "Roles Found", value: "```"+roles+"```" }
-                // {name: "Roles Found", value: roles }
             )
+        console.log(data)
         if (approvedServers.includes(data.from_serverID)) {
-            data.commandChan.forEach(async chan => {
-                await guild.channels.cache.get(chan).send({ embeds: [embed] })
-            })
-            const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
-            showPromotionChallenge(data)
+            if (data.commandAsk == "promotion") {
+                data.commandChan.forEach(async chan => {
+                    await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                })
+                const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
+                showPromotionChallenge(data)
+            }
         }
     }
 }) 

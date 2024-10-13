@@ -22,27 +22,26 @@ function getPercentage(part, whole) {
     if (whole === 0) return 0 // Avoid division by zero
     return ((part / whole) * 100).toFixed(2)
 }
-
+//206440307867385857  Absence of Gravitas
 module.exports = {
-    
     promotionChallengeResult: async function (data,interaction) {
         try {
             const values = [data.userId]
             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
             const response = await database.query(sql,values)
             if (response.length > 0) {
-                if (!response[0].challenge_state) {
-                    //todo Create code for a Modal when Challenge Proof is Denied.
+                const challenge_score = response[0].challenge_state == 1 ? "Approved" : "Denied"
+                const challenge_score_color = response[0].challenge_state == 1 ? '#87FF2A' : '#F20505'
+                const leadership_thread = await interaction.guild.channels.fetch(response[0].leadership_threadId)
+                const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
+                const requestor = await guild.members.fetch(data.userId)
+                const leadership_challenge = await leadership_thread.messages.fetch(response[0].challenge_leadership_embedId)
+
+                const requestor_challenge = await requestor_thread.messages.fetch(response[0].challenge_requestor_embedId)
+                if (response[0].challenge_state == 0) {
+                    await leadership_thread.send("❌ Please use the Chatbox to explain the denial. The denial will not complete until this has been done.")
                 }
-                if (response[0].challenge_state) {
-                    const challenge_score = response[0].challenge_state == 1 ? "Approved" : "Denied"
-                    const challenge_score_color = response[0].challenge_state == 1 ? '#87FF2A' : '#F20505'
-                    const leadership_thread = await interaction.guild.channels.fetch(response[0].leadership_threadId)
-                    const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
-                    const requestor = await guild.members.fetch(data.userId)
-                    const leadership_challenge = await leadership_thread.messages.fetch(response[0].challenge_leadership_embedId)
-    
-                    const requestor_challenge = await requestor_thread.messages.fetch(response[0].challenge_requestor_embedId)
+                if (response[0].challenge_state == 1) {
                     const leadership_receivedEmbed = leadership_challenge.embeds[0]
                     const oldEmbedSchema = {
                         title: leadership_receivedEmbed.title,
@@ -71,6 +70,13 @@ module.exports = {
                     })
                     await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
                     await requestor_challenge.edit( { embeds: [newEmbed] } )
+                    if (response[0].score >= 80) {
+                        await leadership_thread.send("# Leadership Potentail\n Team, please discuss this Promotion Request and the applicant's leadership potential.\n- Consider things such as: Communication on the battlefield, How their presence exudes leadership, Does this person show leadership qualities.\n- For all intents and purposes, the requestor should only be held back if there are significant issues with their ability to communicate effectively.")
+                    }
+                    if (response[0].score < 80) {
+                        await leadership_thread.send(`# Knowledge Proficiency Test Score: ${response[0].score }`)
+                        await leadership_thread.send(`- User has all prerequisites other than the failing test.`)
+                    }
                     await requestor_thread.setLocked(true)
                 }
             }
@@ -327,6 +333,7 @@ module.exports = {
         if (promotion.grading_number == promotion.question_num) {
             try {
                 let final_score = getPercentage(promotion.score, promotion.question_num)
+                const score_color = final_score >= 80 ? "#87FF2A" : "#f20505"
                 const leadership_originalMessage = await leadership_thread.messages.fetch(promotion.grading_embedId)
                 const leadership_receivedEmbed = leadership_originalMessage.embeds[0]
                 let leadership_oldEmbedSchema = {
@@ -338,12 +345,15 @@ module.exports = {
                 const leadership_newEmbed = new Discord.EmbedBuilder()
                     .setTitle(`${capitalizeWords(promotion.testType)} Knowledge Proficiency Test`)
                     .setDescription("The test has been graded and scored")
-                    .setColor(leadership_oldEmbedSchema.color)
+                        // .setColor('#87FF2A') //bight green
+                        // .setColor('#f20505') //bight red
+                        // .setColor('#f2ff00') //bight yellow
                     .setThumbnail(botIdent().activeBot.icon)
                     leadership_oldEmbedSchema.fields.forEach((i,index) => {
                     if (index == 0) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
                     if (index == 2) { leadership_newEmbed.addFields({ name: "Score:", value: "```"+final_score+"%```", inline: false }) }
                 })
+                leadership_newEmbed.setColor(score_color)
                 const leadership_editedEmbed = Discord.EmbedBuilder.from(leadership_newEmbed)
                 await leadership_originalMessage.edit({ embeds: [leadership_editedEmbed], components: [] })
 
@@ -364,6 +374,7 @@ module.exports = {
                         if (index == 0) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
                         if (index == 1) { requestor_newEmbed.addFields({ name: "Score:", value: "```"+final_score+"%```", inline: false }) }
                     })
+                requestor_newEmbed.setColor(score_color)
                 const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
                 await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
                 try {
@@ -618,7 +629,7 @@ module.exports = {
                                 const thread = await channelObj.threads.create({
                                     name: info.title,
                                     autoArchiveDuration: 4320,
-                                    type: Discord.ChannelType.PrivateThread, 
+                                    // type: Discord.ChannelType.PrivateThread, 
                                     reason: info.description,
                                 });
                                 if (!info.title.startsWith("Promotion Request")) {
@@ -968,7 +979,47 @@ module.exports = {
         else {
             return interaction.editReply({ content: `❌ Your rank (${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })
         }
-        
+        // try {
+        //     const values = ['194001098539925504']
+        //     const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+        //     const response = await database.query(sql,values)
+        //     if (response.length > 0) {
+        //         if (response[0].challenge_state == 0) {
+        //             //todo Create code for a Modal when Challenge Proof is Denied.
+        //             const fields = {
+        //                 reason: new Discord.TextInputBuilder()
+        //                     .setCustomId(`denied`)
+        //                     .setLabel(`Input the reason for Denial`)
+        //                     .setStyle(Discord.TextInputStyle.Paragraph)
+        //                     .setRequired(true)
+        //                     .setPlaceholder(`Be descriptive of why you are denying this.`)
+        //             }
+    
+        //             const modal = new Discord.ModalBuilder()
+        //                 .setCustomId(`challengeProofModal-deny-${values}`)
+        //                 .setTitle('Reason for Denial')
+        //                 .addComponents(
+        //                     new Discord.ActionRowBuilder().addComponents(fields.reason),
+        //                 )
+        //             await interaction.showModal(modal);
+        //             const submitted = await interaction.awaitModalSubmit({
+        //                 time: 1800000,
+        //             }).catch(error => {
+        //                 console.error(error)
+        //                 return null
+        //             })
+        //             if (submitted) {
+        //                 const [reason] = submitted.fields.fields.map(i => i.value)
+        //                 console.log(submitted,reason)
+        //                 return [submitted, reason]
+    
+        //             }
+        //         }
+        //     }
+        // }
+        // catch(e) {
+        //     console.log(e)
+        // }
 
         // const threadEmbeds = {
         //     requestor: "1285754040419876914",

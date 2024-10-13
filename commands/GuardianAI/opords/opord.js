@@ -440,7 +440,6 @@ module.exports = {
                 }
             }
             async function opordDenyModal(i, interaction, returnEmbed) {
-
                 const fields = {
                     reason: new Discord.TextInputBuilder()
                         .setCustomId(`denied`)

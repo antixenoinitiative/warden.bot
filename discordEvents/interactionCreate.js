@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { nextTestQuestion, nextGradingQuestion, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
+const { nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 // if (botIdent().activeBot.botName == 'Warden') {
 // }
@@ -14,18 +14,25 @@ const exp = {
         //!isModalSubmit() is not 100% required, you can gather any modal replies from within the codebase your working from.
         //!Enabling this will cause issues with the Opord modals as they are initiated from a button response and do not contain
         //!   the interaction.commandName pathing. It is dealt with from the client code itself.
-        // if (interaction.isModalSubmit()) {
-        //     const command = interaction.client.commands.get(interaction.commandName);
-
-        //     if (!command) return;
-
-        //     try {
-        //         await command.execute(interaction);
-        //     } catch (error) {
-        //         console.error(error);
-        //         await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-        //     }
-        // }
+        if (interaction.isModalSubmit()) {
+            if (botIdent().activeBot.botName == 'GuardianAI') {
+                if (interaction.customId.startsWith("challengeProofModal")) {
+                    interaction.deferUpdate()
+                    console.log(interaction)
+                    return;
+                }
+                // const command = interaction.client.commands.get(interaction.commandName);
+    
+                // if (!command) return;
+    
+                // try {
+                //     await command.execute(interaction);
+                // } catch (error) {
+                //     console.error(error);
+                //     await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                // }
+            }
+        }
         if (interaction.isAutocomplete()) {
             const command = interaction.client.commands.get(interaction.commandName)
 
@@ -157,8 +164,8 @@ const exp = {
                    
                     //Update progress number and save to database.
                     try {
-                        const values = [Number(score), challengeInfo.userId]
-                        const sql = `UPDATE promotion SET challenge_state = (?)  WHERE userId = (?);`
+                        const values = [Number(score), interaction.user.id, challengeInfo.userId]
+                        const sql = `UPDATE promotion SET challenge_state = (?), challenge_reviewer = (?)  WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
                             // console.log('saved')
@@ -174,7 +181,48 @@ const exp = {
                             ,'error'
                         )
                     }
-                    
+                    return;
+                }
+                if (interaction.customId.startsWith("challProofDenyConf")) { //grade and update database
+                    interaction.deferUpdate()
+                    interaction.message.edit({ components: [] })
+                    const customId_array = interaction.customId.split("-")
+                    const challengeInfo = {
+                        state: 'deny',
+                        user: { 
+                            id: interaction.user.id
+                        },
+                        promotion: {
+                            userId: interaction.user.id,
+                            testType: customId_array[3],
+                            leadership_threadId: customId_array[4],
+                            requestor_threadId: customId_array[5],
+                        },
+                        reviewer: customId_array[2],
+                    }
+                    let score = 0
+                    if (challengeInfo.state == 'approve') { score = 1 }
+                    if (challengeInfo.state == 'deny') { score = 0 }
+                   
+                    //Update progress number and save to database.
+                    try {
+                        const values = [Number(score), interaction.user.id]
+                        const sql = `UPDATE promotion SET challenge_state = (?)  WHERE userId = (?);`
+                        const d = await database.query(sql, values)
+                        if (d) {
+                            // console.log('saved')
+                            showPromotionChallenge(challengeInfo,interaction)
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
                     return;
                 }
             }
