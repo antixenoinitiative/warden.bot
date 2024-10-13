@@ -17,39 +17,53 @@ socket.on('fromSocketServer', async (data) => {
             // identifiedUser = await guild.members.fetch('783141808074522654')
             identifiedUser = await guild.members.fetch(data.user.id)
         }
-        catch (e) { console.log(e.rawError.message,data.user.id) }
-        if (identifiedUser) {
-            let roles = await identifiedUser.roles.cache
-                .sort((a, b) => b.position - a.position)
-                .map(role => role.name)
-            roles = roles.filter(role=>role != '@everyone')
+        catch (e) { 
+            console.log(e.rawError.message,data.user.id)
             let rolesPackage = {
+                from_server: guild.name,
                 type: "roles_return_data",
+                promotion: data.promotion,
                 commandAsk: data.commandAsk,
                 commandChan: data.commandChan,
-                promotion: data.promotion,
                 person_asking: data.person_asking,
-                from_server: guild.name,
-                from_serverID: guild.id,
-                requestor_socket: data.requestor_socket,
-                user: { state: true, id: identifiedUser.id, roles: roles }
-            }
-            socket.emit('roles_return',rolesPackage)
-        }
-        else {
-            let rolesPackage = {
-                type: "roles_return_data",
-                commandAsk: data.commandAsk,
-                commandChan: data.commandChan,
-                promotion: data.promotion,
-                person_asking: data.person_asking,
-                from_server: guild.name,
                 from_serverID: guild.id,
                 requestor_socket: data.requestor_socket,
                 user: { state: false, id: data.user.id, roles: ['unknown user'], }
             }
             socket.emit('roles_return',rolesPackage)
         }
+        if (identifiedUser) {
+            let roles = await identifiedUser.roles.cache
+                .sort((a, b) => b.position - a.position)
+                .map(role => role.name)
+            roles = roles.filter(role=>role != '@everyone')
+            let rolesPackage = {
+                from_server: guild.name,
+                type: "roles_return_data",
+                promotion: data.promotion,
+                commandAsk: data.commandAsk,
+                commandChan: data.commandChan,
+                person_asking: data.person_asking,
+                from_serverID: guild.id,
+                requestor_socket: data.requestor_socket,
+                user: { state: true, id: identifiedUser.id, roles: roles }
+            }
+            socket.emit('roles_return',rolesPackage)
+        }
+        // else {
+        //     let rolesPackage = {
+        //         from_server: guild.name,
+        //         type: "roles_return_data",
+        //         promotion: data.promotion,
+        //         commandAsk: data.commandAsk,
+        //         commandChan: data.commandChan,
+        //         person_asking: data.person_asking,
+        //         from_serverID: guild.id,
+        //         requestor_socket: data.requestor_socket,
+        //         user: { state: false, id: data.user.id, roles: ['unknown user'], }
+        //     }
+        //     socket.emit('roles_return',rolesPackage)
+        // }
     }
     if (data.type == 'roles_return_data') { //Server responds to the requesting bot with the role information from any reply server..
         let color = null
