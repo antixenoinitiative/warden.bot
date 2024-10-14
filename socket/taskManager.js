@@ -49,7 +49,6 @@ socket.on('fromSocketServer', async (data) => {
             }
         }
         catch (e) {
-            console.log(e.rawError.message,data.user.id)
             let rolesPackage = {
                 from_server: guild.name,
                 type: "roles_return_data",

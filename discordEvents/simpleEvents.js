@@ -8,7 +8,8 @@ const exp = {
             let applyForRanks_guardianai = null
             let graderRank = []
             if (process.env.MODE != "PROD") {
-                applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.embedChannel
+                leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.leadership_embedChannel
+                requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.requestor_embedChannel
                 console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
                 generalstaff = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'General Staff').id
                 colonel = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Colonel').id
@@ -17,7 +18,8 @@ const exp = {
                 graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
             }
             else { 
-                applyForRanks_guardianai = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel 
+                leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.leadership_embedChannel 
+                requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.requestor_embedChannel 
                 generalstaff = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'General Staff').id
                 colonel = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Colonel').id
                 major = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Major').id
@@ -25,7 +27,7 @@ const exp = {
                 graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
             }
             let messageParent = message.channel.parentId
-            if (messageParent == applyForRanks_guardianai) {
+            if (messageParent == requestor_embedChannel || messageParent == leadership_embedChannel) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
                 if (message.channel.name.includes("Submission")) {
                     
@@ -132,6 +134,7 @@ const exp = {
                             }
                         }
                         if (response.length > 0 && response[0].grading_state <= 0) {
+                            
                             //requestor
                             const messages = await message.channel.messages.fetch({ limit: 2 });
                             const previousMessageWithEmbed = messages.last();
@@ -197,8 +200,8 @@ const exp = {
                     } 
                     catch (err) {
                         console.log(err)
-                        botLog(interaction.guild,new Discord.EmbedBuilder()
-                            .setDescription('```js' + err.stack + '```')
+                        botLog(message.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
                             .setTitle(`⛔ Fatal error experienced`)
                             ,2
                             ,'error'
@@ -218,7 +221,7 @@ const exp = {
                     }
                     catch (err) {
                         console.log(err)
-                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                        botLog(message.guild,new Discord.EmbedBuilder()
                             .setDescription('```' + err.stack + '```')
                             .setTitle(`⛔ Fatal error experienced`)
                             ,2
@@ -313,7 +316,7 @@ const exp = {
                         }
                         catch (err) {
                             console.log(err)
-                            botLog(interaction.guild,new Discord.EmbedBuilder()
+                            botLog(message.guild,new Discord.EmbedBuilder()
                                 .setDescription('```' + err.stack + '```')
                                 .setTitle(`⛔ Fatal error experienced`)
                                 ,2
@@ -332,7 +335,7 @@ const exp = {
             } 
             catch (err) {
                 console.log(err)
-                botLog(interaction.guild,new Discord.EmbedBuilder()
+                botLog(message.guild,new Discord.EmbedBuilder()
                     .setDescription('```' + err.stack + '```')
                     .setTitle(`⛔ Fatal error experienced`)
                     ,2
@@ -460,7 +463,7 @@ const exp = {
                     }
                     catch (err) {
                         console.log(err)
-                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                        botLog(message.guild,new Discord.EmbedBuilder()
                             .setDescription('```' + err.stack + '```')
                             .setTitle(`⛔ Fatal error experienced`)
                             ,2

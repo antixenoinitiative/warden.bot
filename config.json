@@ -174,7 +174,8 @@
         ],
         "general_stuff": {
             "knowledge_proficiency": {
-                "embedChannel": "1174435454595125289"
+                "leadership_embedChannel": "1174435454595125289",
+                "requestor_embedChannel": "1174435454595125289"
             },
             "role_request_queryChan": "1184592283337752697",
             "evaluateRoles_authorized": [
@@ -215,7 +216,8 @@
             "carrier_jump_room": "ready-room",
             "testServer": {
                 "knowledge_proficiency": { 
-                    "embedChannel": "1285754040419876914"
+                    "leadership_embedChannel": "1295226832290844755",
+                    "requestor_embedChannel": "1285754040419876914"
                 },
                 "role_request_queryChan": "1178705376087113728",
                 "operation_order": {

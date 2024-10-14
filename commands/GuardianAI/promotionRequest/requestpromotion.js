@@ -5,7 +5,7 @@ const config = require('../../../config.json')
 let bos = null;
 if (botIdent().activeBot.botName == 'GuardianAI') { bos = require(`../../../GuardianAI/bookofsentinel/bos.json`) }
 const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
-
+const applyForRanksChannelId = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel
 function capitalizeWords(str) {
     return str.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
@@ -71,11 +71,38 @@ module.exports = {
                     await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
                     await requestor_challenge.edit( { embeds: [newEmbed] } )
                     if (response[0].score >= 80) {
-                        await leadership_thread.send("# Leadership Potentail\n Team, please discuss this Promotion Request and the applicant's leadership potential.\n- Consider things such as: Communication on the battlefield, How their presence exudes leadership, Does this person show leadership qualities.\n- For all intents and purposes, the requestor should only be held back if there are significant issues with their ability to communicate effectively.")
-                    }
-                    if (response[0].score < 80) {
-                        await leadership_thread.send(`# Knowledge Proficiency Test Score: ${response[0].score }`)
-                        await leadership_thread.send(`- User has all prerequisites other than the failing test.`)
+                        const leadership_potential_embed = new Discord.EmbedBuilder()
+                        .setTitle(`Leadership Potential`)
+                        .setDescription(`Discuss this Promotion Request and the applicant's leadership abilities`)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                        .setColor('#f2ff00') //bight yellow
+                        .setAuthor(oldEmbedSchema.author)
+                        .setThumbnail(botIdent().activeBot.icon)
+                        .addFields(
+                            { name: "Non-constrained Topics:", value: "- Consider things such as: Communication on the battlefield\n- How their presence of leadership/past performance showing potential\n- Does this person show leadership qualities\n- For all intents and purposes, the requestor should only be held back if there are significant issues with their ability to communicate effectively.", inline: false },
+                            { name: "General Orders:", value: "Promotion should be an exciting thing, all members at all ranks reside at different parts of their AX Journey. Ensure discorse about members are evaluated carefuly;\n1. Are they capable of holding more than one (typically their own) point view.\n2. Are they willing to admit when they’re wrong, and that they don’t know everything.\n3. Have they demonstrate the ability to de-escalate (vs the opposite) in tense, controversial, or otherwise charged situations.\n4. Have they demonstrated a desire to put the interests of the community above their own.\n5. Are they recognized by others as someone to look up to, not just in terms of skill, but overall.\n6. Have they proven that they will “get their hands dirty” and/or 'take one for the team'.\n7. Have they proven they can be a excellent follower.", inline: false },
+                            { name: "Your Final Statement:", value: `Crucial step for certifying a promotion request. They provide a synapse of the current thinking on a member's leadership potential.\n**## Examples of what you could write ##**:\n- **!final** User is truely dedicated to XSF and exudes leadership at every facet of the XSF experience.\n- **!final** Member has taken their time to train eight members to be able to fight Hydra's solo.\n- **!final** Commander shows tactical and technical prowess during many of the Operation Orders in the recent past.\n- **!final** Lieutenant User communicates very effectively in voice communications.\n- **!final** Member contributed a week of their free time to developing a new strategy which we use daily; growing the Xeno Strike Force community.`, inline: false },
+                            { name: "Submitting your Final Statement:", value: "In the leadership channel, type the following:\n```!final Something that you wish to write as a final statement. You can submit multiple.```", inline: false },
+                            { name: "Final Statements:", value: "-", inline: false },
+                        )
+                        const leadershipPotential = await leadership_thread.send({embeds: [leadership_potential_embed]})
+                        try {
+                            const values = [leadershipPotential.id,response[0].userId]
+                            const sql = `UPDATE promotion SET potential_embedId = (?) WHERE userId = (?);`
+                            await database.query(sql, values)
+                            await requestor_thread.setLocked(false)
+                        }
+                        catch (err) {
+                            console.log(err)
+                            botLog(interaction.guild,new Discord.EmbedBuilder()
+                                .setDescription('```' + err.stack + '```')
+                                .setTitle(`⛔ Fatal error experienced`)
+                                ,2
+                                ,'error'
+                            )
+                        }
+
                     }
                     await requestor_thread.setLocked(true)
                 }
@@ -553,14 +580,16 @@ module.exports = {
         promotion["testTypes"] = testTypes
         promotion["graderTypes"] = graderTypes
 
-        let embedChannel = null;
+        let leadership_embedChannel = null;
+        let requestor_embedChannel = null;
         let colonel = null;
         let major = null;
         let captain = null;
         let graderRank = []
         let experienceCredits = {}
         if (process.env.MODE != "PROD") {
-            embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.embedChannel
+            leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.leadership_embedChannel
+            requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.requestor_embedChannel
             console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
             generalstaff = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'General Staff').id
             colonel = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Colonel').id
@@ -572,7 +601,8 @@ module.exports = {
             })
         }
         else {
-            embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel
+            leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.leadership_embedChannel
+            requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.requestor_embedChannel
             generalstaff = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'General Staff').id
             colonel = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Colonel').id
             major = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Major').id
@@ -644,7 +674,7 @@ module.exports = {
                     try {
                         const leadership_info = {
                             rankMessage: `<@&${generalstaff}> <@&${colonel}> <@&${major}> <@&${captain}>`,
-                            title: `Promotion Request -${promotion.requestor.user.displayName} - ${promotion.requestor_nextRank}`,
+                            title: `Promotion Request - ${promotion.requestor.user.displayName} - ${promotion.requestor_nextRank}`,
                             description: "Member has requested promotion to the next rank",
                             messages: [
                                 "This thread will populate with the requirements of the promotion request after the requesting member completes the Knowledge Proficiency Test.",
@@ -654,6 +684,7 @@ module.exports = {
                             ]
                         }
                         const requestor_info = {
+                            rankMessage: `<@${promotion.requestor.id}>`,
                             title: `${promotion.requestor.user.displayName} - ${promotion.requestor_nextRank} Promotion Request Submission`,
                             messages: [
                                 `<@${promotion.requestor.id}>`
@@ -665,13 +696,14 @@ module.exports = {
                                 const thread = await channelObj.threads.create({
                                     name: info.title,
                                     autoArchiveDuration: 4320,
-                                    // type: Discord.ChannelType.PrivateThread, 
+                                    type: Discord.ChannelType.PrivateThread,
                                     reason: info.description,
+                                    message: { content: info.rankMessage } 
                                 });
                                 if (!info.title.startsWith("Promotion Request")) {
                                     await interaction.editReply({ content: `Test Initialized, Click to start -> ${thread.url}` })
                                 }
-                                if (info.rankMessage) { await thread.send(info.rankMessage) }
+                                // if (info.rankMessage) { await thread.send(info.rankMessage) }
                                 if (info.messages.length > 0) {
                                     for (const i of info.messages) {
                                         // await thread.setLocked(true)
@@ -696,13 +728,13 @@ module.exports = {
                                 return thread.id
                             } 
                             catch (error) {
-                                console.log(err)
-                                    botLog(interaction.guild,new Discord.EmbedBuilder()
-                                        .setDescription('```' + err.stack + '```')
-                                        .setTitle(`⛔ Fatal error experienced. createThread()`)
-                                        ,2
-                                        ,'error'
-                                    )
+                                console.log(error)
+                                botLog(interaction.guild,new Discord.EmbedBuilder()
+                                    .setDescription('```' + err.stack + '```')
+                                    .setTitle(`⛔ Fatal error experienced. createThread()`)
+                                    ,2
+                                    ,'error'
+                                )
                             }
                         }
                         try {
@@ -721,8 +753,8 @@ module.exports = {
                             }
                             else {
                                 const emptyArray = JSON.stringify([])
-                                const leadershipSubmissionThread = await createThread(embedChannel,leadership_info,1)
-                                const requestorSubmissionThread = await createThread(embedChannel,requestor_info,1)
+                                const leadershipSubmissionThread = await createThread(leadership_embedChannel,leadership_info,1)
+                                const requestorSubmissionThread = await createThread(requestor_embedChannel,requestor_info,1)
                                 const values2 = [userId,leadershipSubmissionThread,requestorSubmissionThread,testTypes[promotion.requestor_nextRank],emptyArray]
                                 const sql2 = `
                                     INSERT INTO promotion (userId, leadership_threadId, requestor_threadId, testType, requestor_embedId) 
@@ -953,7 +985,7 @@ module.exports = {
                                 // .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
                             const gradingEmbedId = await leadership_lastMessage.edit({ embeds: [leadership_embed], components: [row] })
                             // await leadership_thread.send("Grading Required")
-                            
+
                             //Initiate the grading process
                             try {
                                 const values = [1,gradingEmbedId.id,requestor_scoreEmbedId.id,promotion.requestor.id]
