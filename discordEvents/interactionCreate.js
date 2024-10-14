@@ -231,6 +231,36 @@ const exp = {
                     }
                     return;
                 }
+                if (interaction.customId.startsWith("axiRankRetry")) { //grade and update database
+                    interaction.deferUpdate()
+                    interaction.message.edit({ components: [] })
+                    const customId_array = interaction.customId.split("-")
+                    const userId = customId_array[1]
+                    try {
+                        const values = [userId]
+                        const sql = `SELECT * FROM promotion WHERE userId = (?)`
+                        const response = await database.query(sql, values)
+                        if (response.length > 0) {
+                            const requestor_thread = await guild.channels.fetch(response[0].requestor_threadId)
+                            const leadership_thread = await guild.channels.fetch(response[0].leadership_threadId) 
+                            const requestor_originalMessage = await requestor_thread.messages.fetch(response[0].requestor_scoreEmbedId)
+                            const leadership_originalMessage = await leadership_thread.messages.fetch(response[0].grading_embedId)
+                            const threadEmbeds = {requestor: requestor_originalMessage, leadership: leadership_originalMessage}
+                            module.exports.showAXIroles(userId,threadEmbeds,response[0])
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    return
+                    // axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}
+                }
             }
         }
         // else if (interaction.isSelectMenu()) {
