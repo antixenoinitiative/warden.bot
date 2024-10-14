@@ -88,13 +88,37 @@ socket.on('fromSocketServer', async (data) => {
             )
         // console.log(data)
         if (approvedServers.includes(data.from_serverID)) {
+            const unknown_user = data.user.roles.includes("unknown user") ? 1 : 0
+            // console.log("unknown user:",unknown_user, data.user.roles)
             if (data.commandAsk == "promotion") {
+                const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
                 const axiRoles = data.user.roles 
                 const testTypes = {
                     "basic": "Sole Survivor",
                     "advanced": "Serpent's Nemesis",
                     "master": "Collector",
                 }
+                if (unknown_user) {
+                    embed.setTitle('Anti Xeno Initiative Progression Challenge')
+                    embed.setColor("#87FF2A")
+                    embed.addFields({name: "Error:", value: "```User Not detected on Anti-Xeno Initiative Server" +roles+ "```" })
+                    embed.addFields({name: "How to Rectify:", value: "```Drag and Drop image proof or try to request from AXI server again.```" })
+                    const requestor_components = new Discord.ActionRowBuilder()
+                        .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
+                    data.commandChan.forEach(async chan => {
+                        if (data.promotion.requestor_threadId == chan) {
+                            embed.addFields({name: "XSF", value: "The AXI Progression Challenge proof can be submitted here. Drag and Drop an image into the chat. Ensure you follow the AXI rank requirements as they are the same here.", inline: false})
+                            embed.addFields({name: "AXI", value: "You have an opportunity to join Anti-Xeno Initiative () and request the rank according to their procedures.", inline: false})
+                            await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
+                        }
+                        else {
+                            embed.addFields({name: "How to Rectify:", value: "```Waiting on user to submit proof...```" })
+                            await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                        }
+                    })
+                    return
+                }
+
                 const hasMatchingRole = testTypes[data.promotion.testType]
                 if (axiRoles.includes(hasMatchingRole)) {
                     embed.setTitle('Anti Xeno Initiative Progression Challenge')
@@ -103,6 +127,7 @@ socket.on('fromSocketServer', async (data) => {
                     data.commandChan.forEach(async chan => {
                         await guild.channels.cache.get(chan).send({ embeds: [embed] })
                     })
+                    showPromotionChallenge(data)
                 }
                 else {
                     embed.setTitle('Anti Xeno Initiative Progression Challenge')
@@ -121,8 +146,8 @@ socket.on('fromSocketServer', async (data) => {
                     })
                     return
                 }
-                const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
-                showPromotionChallenge(data)
+                
+                
             }
             if (data.commandAsk == "nopromotion") {
                 data.commandChan.forEach(async chan => {
