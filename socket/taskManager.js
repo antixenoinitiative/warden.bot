@@ -11,11 +11,10 @@ const approvedServers = config.socketStuff.appoved_fromServer_GuildIds
 let dataFromPromotion = null
 
 socket.on('fromSocketServer', async (data) => {
-    console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green, `${data.from_serverID}`.cyan)
+    // console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green, `${data.from_serverID}`.cyan)
     if (data.type == 'roles_request') { //Server asks all servers in room
         let identifiedUser = null
         try {
-            console.log("try:",data)
             // identifiedUser = await guild.members.fetch('783141808074522654')
             identifiedUser = await guild.members.fetch(data.user.id)
             let roles = await identifiedUser.roles.cache
@@ -52,7 +51,6 @@ socket.on('fromSocketServer', async (data) => {
             }
         }
         catch (e) {
-            console.log("catch:",data)
             let rolesPackage = {
                 from_server: guild.name,
                 type: "roles_return_data",
