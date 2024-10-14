@@ -41,12 +41,6 @@ socket.on('fromSocketServer', async (data) => {
                 }
                 catch (err) {
                     console.log(err)
-                    botLog(interaction.guild,new Discord.EmbedBuilder()
-                        .setDescription('```' + err.stack + '```')
-                        .setTitle(`⛔ Fatal error experienced`)
-                        ,2
-                        ,'error'
-                    )
                 }
             }
         }
@@ -71,12 +65,6 @@ socket.on('fromSocketServer', async (data) => {
                 }
                 catch (err) {
                     console.log(err)
-                    botLog(interaction.guild,new Discord.EmbedBuilder()
-                        .setDescription('```' + err.stack + '```')
-                        .setTitle(`⛔ Fatal error experienced`)
-                        ,2
-                        ,'error'
-                    )
                 }
              }
         }
