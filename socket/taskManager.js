@@ -4,6 +4,7 @@ const Discord = require("discord.js");
 const config = require("../config.json")
 const { socket } = require('./socketMain')
 const uuid = require('uuid');
+const database = require(`../${botIdent().activeBot.botName}/db/database`)
 
 
 const approvedServers = config.socketStuff.appoved_fromServer_GuildIds
@@ -32,6 +33,20 @@ socket.on('fromSocketServer', async (data) => {
                 user: { state: true, id: identifiedUser.id, roles: roles }
             }
             socket.emit('roles_return',rolesPackage)
+            try {
+                const values = [1, data.user.id]
+                const sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
+                await database.query(sql, values)
+            }
+            catch (err) {
+                console.log(err)
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription('```' + err.stack + '```')
+                    .setTitle(`⛔ Fatal error experienced`)
+                    ,2
+                    ,'error'
+                )
+            }
         }
         catch (e) {
             console.log(e.rawError.message,data.user.id)
@@ -47,12 +62,26 @@ socket.on('fromSocketServer', async (data) => {
                 user: { state: false, id: data.user.id, roles: ['unknown user'] }
             }
             socket.emit('roles_return',rolesPackage)
+            try {
+                const values = [0, data.user.id]
+                const sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
+                await database.query(sql, values)
+            }
+            catch (err) {
+                console.log(err)
+                botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription('```' + err.stack + '```')
+                    .setTitle(`⛔ Fatal error experienced`)
+                    ,2
+                    ,'error'
+                )
+            }
         }
     }
     if (data.type == 'roles_return_data') { //Server responds to the requesting bot with the role information from any reply server..
-        let color = null
-        if (color = data.user.state == true) { color = "#87FF2A" } //green
-        else { color = "#FD0E35" } //red
+        // let color = null
+        // if (color = data.user.state == true) { color = "#87FF2A" } //green
+        // else { color = "#FD0E35" } //red
         const identifiedUser_requestor = await guild.members.fetch(data.person_asking)
         const identifiedUser_subject = await guild.members.fetch(data.user.id)
         const roles = Array.isArray(data.user.roles) ? data.user.roles.join(' \n') : data.user.roles
@@ -60,25 +89,51 @@ socket.on('fromSocketServer', async (data) => {
         if (identifiedUser_subject.displayName) { discoveredUsername = identifiedUser_subject.displayName }
         else { discoveredUsername = identifiedUser_subject.user.globalName + "<> User has not changed their nickname '/nick'" }
         const embed = new Discord.EmbedBuilder()
-            .setTitle('Role List Request')
+            .setTitle('Anti Xeno Initiative Progression Challenge')
             .setAuthor({name: identifiedUser_requestor.displayName, iconURL: identifiedUser_requestor.user.displayAvatarURL({dynamic:true})})
             .setThumbnail(botIdent().activeBot.icon)
-            .setColor(color)
             .addFields(
                 {name: "Server", value: "```"+data.from_server+"```" },
-                {name: "Who", value: `<@${data.user.id}>` },
-                {name: "Roles Found", value: "```"+roles+"```" }
+                {name: "Requestor", value: `<@${data.user.id}>` },
             )
         if (approvedServers.includes(data.from_serverID)) {
             if (data.commandAsk == "promotion") {
-                data.commandChan.forEach(async chan => {
-                    await guild.channels.cache.get(chan).send({ embeds: [embed] })
-                })
+                const axiRoles = data.user.roles 
+                const testTypes = {
+                    "basic": "Sole Survivor",
+                    "advanced": "Serpent's Nemesis",
+                    "master": "Collector",
+                }
+                const hasMatchingRole = testTypes[data.promotion.testType]
+                if (axiRoles.includes(hasMatchingRole)) {
+                    embed.setColor("#87FF2A")
+                    embed.addFields({name: "Roles Found", value: "```Required AXI Roles detected: "+testTypes[data.promotion.testType]+"```" })
+                    data.commandChan.forEach(async chan => {
+                        await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                    })
+                }
+                else {
+                    embed.setColor('#FD0E35')
+                    embed.addFields({name: "Awaiting Requestor:", value: `Once requestor completes the qualifying AXI Progression Challenge **${testTypes[data.promotion.testType]}** (https://antixenoinitiative.com/about-us/ranks/) with proof. Click 'Update from AXI' or drag qualifying image into the chat to progress Promotion Request.`, inline: false })
+                    embed.addFields({name: "Roles Found", value: "```Required AXI Progression Challenge **NOT** detected: " +roles+ "```" })
+                    const requestor_components = new Discord.ActionRowBuilder()
+                        .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
+                    data.commandChan.forEach(async chan => {
+                        if (data.promotion.requestor_threadId == chan) {
+                            await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
+                        }
+                        else {
+                            await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                        }
+                    })
+                    return
+                }
                 const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
                 showPromotionChallenge(data)
             }
             if (data.commandAsk == "nopromotion") {
                 data.commandChan.forEach(async chan => {
+                    embed.addFields({name: "Roles Found", value: "```"+roles+"```" })
                     await guild.channels.cache.get(chan).send({ embeds: [embed] })
                 })
             }

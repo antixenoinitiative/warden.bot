@@ -53,7 +53,7 @@ module.exports = {
                 let roles = member.roles.cache.map(role=>role.name)
                 roles = roles.filter(x=>x != '@everyone')
                 let rolePackage = {
-                    commandAsk: "roles_req",
+                    commandAsk: "nopromotion",
                     commandChan: [embedChannel],
                     promotion: "nopromotion",
                     type: "roles_request",

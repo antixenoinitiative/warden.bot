@@ -259,7 +259,6 @@ module.exports = {
  
     },
     nextGradingQuestion: async function(interaction) {
-        // console.log("grade me") 
         let promotion = null
         //Get database stuff
         try {
@@ -354,8 +353,10 @@ module.exports = {
                     if (index == 2) { leadership_newEmbed.addFields({ name: "Score:", value: "```"+final_score+"%```", inline: false }) }
                 })
                 leadership_newEmbed.setColor(score_color)
-                const leadership_editedEmbed = Discord.EmbedBuilder.from(leadership_newEmbed)
-                await leadership_originalMessage.edit({ embeds: [leadership_editedEmbed], components: [] })
+                if (final_score < 80) { 
+                    leadership_newEmbed.addFields({ name: "Test Retake Required", value: "Final score was less than 80%, test retake starting.", inline: false})
+                }
+                
 
                 const requestor_originalMessage = await requestor_thread.messages.fetch(promotion.requestor_scoreEmbedId)
                 const requestor_receivedEmbed = requestor_originalMessage.embeds[0]
@@ -375,24 +376,59 @@ module.exports = {
                         if (index == 1) { requestor_newEmbed.addFields({ name: "Score:", value: "```"+final_score+"%```", inline: false }) }
                     })
                 requestor_newEmbed.setColor(score_color)
-                const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
-                await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
-                try {
-                    const values = [final_score,promotion.userId]
-                    const sql = `UPDATE promotion SET score = (?), grading_state = 2 WHERE userId = (?);`
-                    await database.query(sql, values)
+                if (final_score < 80) { 
+                    requestor_newEmbed.addFields({ name: "Test Retake Required", value: "Final score was less than 80%, test retake starting.", inline: false})
                 }
-                catch (err) {
-                    console.log(err)
-                    botLog(interaction.guild,new Discord.EmbedBuilder()
-                        .setDescription('```' + err.stack + '```')
-                        .setTitle(`⛔ Fatal error experienced`)
-                        ,2
-                        ,'error'
-                    )
+                
+                if (final_score >= 80) {
+                    try {
+                        const leadership_editedEmbed = Discord.EmbedBuilder.from(leadership_newEmbed)
+                        await leadership_originalMessage.edit({ embeds: [leadership_editedEmbed], components: [] })
+                        const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
+                        await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
+                        const threadEmbeds = {requestor: requestor_originalMessage, leadership: leadership_originalMessage}
+                        const values = [final_score,promotion.userId]
+                        const sql = `UPDATE promotion SET score = (?), grading_state = 2 WHERE userId = (?);`
+                        await database.query(sql, values)
+                        await module.exports.viewExperienceCredit(promotion.userId,threadEmbeds,interaction,promotion)
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
                 }
-                const threadEmbeds = {requestor: requestor_originalMessage, leadership: leadership_originalMessage}
-                await module.exports.viewExperienceCredit(promotion.userId,threadEmbeds,interaction,promotion)
+                if (final_score < 80) {
+                    //todo force user to retake the test. 
+                    try {
+                        
+                        const leadership_editedEmbed = Discord.EmbedBuilder.from(leadership_newEmbed)
+                        await leadership_originalMessage.edit({ embeds: [leadership_editedEmbed], components: [] })
+                        const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
+                        await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
+                        const values = [final_score,promotion.userId]
+                        const sql = `UPDATE promotion SET score = (?), requestor_embedId = '[]', section = 'researchability', ind = 0, grading_embedId = NULL, grading_state = 0, question_num = 0, grading_number = 0, grading_progress = -1 WHERE userId = (?);`
+                        const d = await database.query(sql, values)
+                        if (d) { 
+                            module.exports.nextTestQuestion(interaction)
+                            await requestor_thread.setLocked(false)
+                            console.log("retake test")
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                }
             }
             catch (err) {
                 console.log(err)
@@ -681,7 +717,6 @@ module.exports = {
                                 }   
                                 response.push({"promotable":1})
                                 response = [{ ...response[0], ...response[1] }]
-                                // console.log("exists")
                                 return response
                             }
                             else {
@@ -917,6 +952,8 @@ module.exports = {
                                     .addComponents(new Discord.ButtonBuilder().setCustomId(`startgradingtest-${promotable_db_info[0].id}`).setLabel('Start Grading').setStyle(Discord.ButtonStyle.Success))
                                 // .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
                             const gradingEmbedId = await leadership_lastMessage.edit({ embeds: [leadership_embed], components: [row] })
+                            // await leadership_thread.send("Grading Required")
+                            
                             //Initiate the grading process
                             try {
                                 const values = [1,gradingEmbedId.id,requestor_scoreEmbedId.id,promotion.requestor.id]

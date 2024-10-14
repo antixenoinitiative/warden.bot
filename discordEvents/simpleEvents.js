@@ -38,8 +38,9 @@ const exp = {
                         const values = [message.author.id]
                         const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
                         const response = await database.query(sql,values)
+                        if (response.length == 0 && !message.author.bot) { message.delete(); return; }
                         //For promotion challenge proof
-                        if (response[0].grading_state == 3) {
+                        if (response[0].grading_state == 3 && response[0].challenge_state != 3) {
                             const rankTypes = {
                                 "basic": "Aviator",
                                 "advanced": "Lieutenant",
@@ -130,7 +131,7 @@ const exp = {
                                 return
                             }
                         }
-                        if (response.length > 0) {
+                        if (response.length > 0 && response[0].grading_state <= 0) {
                             //requestor
                             const messages = await message.channel.messages.fetch({ limit: 2 });
                             const previousMessageWithEmbed = messages.last();
@@ -270,7 +271,7 @@ const exp = {
                             { name: "Denial Reason:", value: '```'+denyMsg.first().content+'```', inline: false },
                         )
                         const requestor_components = new Discord.ActionRowBuilder()
-                            .addComponents(new Discord.ButtonBuilder().setCustomId(`challProofDenyConf-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Click to Acknowledge").setStyle(Discord.ButtonStyle.Success))
+                            .addComponents(new Discord.ButtonBuilder().setCustomId(`challProofDenyConf-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Resubmit Updated Proof").setStyle(Discord.ButtonStyle.Success))
                         
                         const leadership_challenge = await message.channel.messages.fetch(promotion.challenge_leadership_embedId)
                         const leadership_receivedEmbed = leadership_challenge.embeds[0]
