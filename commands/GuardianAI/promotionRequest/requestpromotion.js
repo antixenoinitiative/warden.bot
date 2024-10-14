@@ -5,7 +5,7 @@ const config = require('../../../config.json')
 let bos = null;
 if (botIdent().activeBot.botName == 'GuardianAI') { bos = require(`../../../GuardianAI/bookofsentinel/bos.json`) }
 const database = require(`../../../${botIdent().activeBot.botName}/db/database`)
-const applyForRanksChannelId = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.embedChannel
+
 function capitalizeWords(str) {
     return str.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
