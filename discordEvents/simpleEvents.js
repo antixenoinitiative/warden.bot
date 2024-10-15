@@ -44,6 +44,14 @@ const exp = {
 
                         //For Role submission
                         if (response[0].axi_rolesCheck <= -2) {
+                            //TODO FINISH CODING DENIAL REASON
+                            const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
+                            if (leadership_thread.id == message.channel.id) {
+                                //If chat is discovered in the leadership thread, abandon this script.
+                                return
+                            }
+                        }
+                        if (response[0].axi_rolesCheck <= -3) {
                             const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
                             if (leadership_thread.id == message.channel.id) {
                                 //If chat is discovered in the leadership thread, abandon this script.

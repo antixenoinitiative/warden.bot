@@ -202,6 +202,20 @@ module.exports = {
 
                 const requestor_challenge = await requestor_thread.messages.fetch(response[0].requestor_roleEmbedId)
                 if (response[0].axiChallenge_state == 0) {
+                    try {
+                        let values = [-2, challengeInfo.user.id]
+                        let sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
+                        await database.query(sql, values)
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
                     await leadership_thread.send("❌ Please use the Chatbox to explain the denial. The denial will not complete until this has been done.")
                 }
                 if (response[0].axiChallenge_state == 1) {

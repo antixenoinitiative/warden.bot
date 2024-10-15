@@ -163,13 +163,13 @@ socket.on('fromSocketServer', async (data) => {
                         if (data.promotion.requestor_threadId == chan) {
                             const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
                             const values = [embedId.id,data.promotion.userId]
-                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
+                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
                             await database.query(sql, values)
                         }
                         else {
                             const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed] })
                             const values = [embedId.id,data.promotion.userId]
-                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
+                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
                             await database.query(sql, values)
                         }
                     })
