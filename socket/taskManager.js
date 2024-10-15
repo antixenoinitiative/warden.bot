@@ -145,7 +145,7 @@ socket.on('fromSocketServer', async (data) => {
                         if (data.promotion.leadership_threadId == chan) {
                             const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed] })
                             const values = [embedId.id,data.promotion.userId]
-                            const sql = `UPDATE promotion SET leadershi_roleEmbedId = (?) WHERE userId = (?);`
+                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?) WHERE userId = (?);`
                             await database.query(sql, values)
                         }
                     })

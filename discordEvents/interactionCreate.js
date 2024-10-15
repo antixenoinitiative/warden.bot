@@ -259,7 +259,6 @@ const exp = {
                         )
                     }
                     return
-                    // axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}
                 }
                 if (interaction.customId.startsWith("axichallengeProofDenyConf")) { //grade and update database
                     interaction.deferUpdate()
@@ -285,7 +284,7 @@ const exp = {
                     //Update progress number and save to database.
                     try {
                         const values = [Number(score), interaction.user.id]
-                        const sql = `UPDATE promotion SET challenge_state = (?)  WHERE userId = (?);`
+                        const sql = `UPDATE promotion SET axiChallenge_state = (?)  WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
                             // console.log('saved')

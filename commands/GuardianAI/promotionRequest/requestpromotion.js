@@ -26,6 +26,11 @@ function getPercentage(part, whole) {
 module.exports = {
     promotionChallengeResult: async function (data,interaction) {
         try {
+            const testTypes = {
+                "basic": "Aviator",
+                "advanced": "Lieutenant",
+                "master": "Captain",
+            }
             const values = [data.userId]
             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
             const response = await database.query(sql,values)
@@ -60,7 +65,7 @@ module.exports = {
                         .setThumbnail(botIdent().activeBot.icon)
     
                     newEmbed.setColor(challenge_score_color)
-                    let rank_emoji = await getRankEmoji(interaction);
+                    let rank_emoji = await getRankEmoji(data.reviewer);
                     if (rank_emoji == null) { rank_emoji == "" }
                     oldEmbedSchema.fields.forEach((i,index) => {
                         if (index == 0) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
@@ -70,41 +75,49 @@ module.exports = {
                     })
                     await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
                     await requestor_challenge.edit( { embeds: [newEmbed] } )
-                    if (response[0].score >= 80) {
-                        const leadership_potential_embed = new Discord.EmbedBuilder()
+
+                    const requestor_leadershipPotential_newEmbed = new Discord.EmbedBuilder()
                         .setTitle(`Leadership Potential`)
-                        .setDescription(`Discuss this Promotion Request and the applicant's leadership abilities`)
+                        .setDescription(`- Congradulations on completing the ${testTypes[data.promotion.testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)
                             // .setColor('#87FF2A') //bight green
                             // .setColor('#f20505') //bight red
                         .setColor('#f2ff00') //bight yellow
                         .setAuthor(oldEmbedSchema.author)
                         .setThumbnail(botIdent().activeBot.icon)
-                        .addFields(
-                            { name: "Non-constrained Topics:", value: "- Consider things such as: Communication on the battlefield\n- How their presence of leadership/past performance showing potential\n- Does this person show leadership qualities\n- For all intents and purposes, the requestor should only be held back if there are significant issues with their ability to communicate effectively.", inline: false },
-                            { name: "General Orders:", value: "Promotion should be an exciting thing, all members at all ranks reside at different parts of their AX Journey. Ensure discorse about members are evaluated carefuly;\n1. Are they capable of holding more than one (typically their own) point view.\n2. Are they willing to admit when they’re wrong, and that they don’t know everything.\n3. Have they demonstrate the ability to de-escalate (vs the opposite) in tense, controversial, or otherwise charged situations.\n4. Have they demonstrated a desire to put the interests of the community above their own.\n5. Are they recognized by others as someone to look up to, not just in terms of skill, but overall.\n6. Have they proven that they will “get their hands dirty” and/or 'take one for the team'.\n7. Have they proven they can be a excellent follower.", inline: false },
-                            { name: "Your Final Statement:", value: `Crucial step for certifying a promotion request. They provide a synapse of the current thinking on a member's leadership potential.\n**## Examples of what you could write ##**:\n- **!final** User is truely dedicated to XSF and exudes leadership at every facet of the XSF experience.\n- **!final** Member has taken their time to train eight members to be able to fight Hydra's solo.\n- **!final** Commander shows tactical and technical prowess during many of the Operation Orders in the recent past.\n- **!final** Lieutenant User communicates very effectively in voice communications.\n- **!final** Member contributed a week of their free time to developing a new strategy which we use daily; growing the Xeno Strike Force community.`, inline: false },
-                            { name: "Submitting your Final Statement:", value: "In the leadership channel, type the following:\n```!final Something that you wish to write as a final statement. You can submit multiple.```", inline: false },
-                            { name: "Final Statements:", value: "-", inline: false },
-                        )
-                        const leadershipPotential = await leadership_thread.send({embeds: [leadership_potential_embed]})
-                        try {
-                            const values = [leadershipPotential.id,response[0].userId]
-                            const sql = `UPDATE promotion SET potential_embedId = (?) WHERE userId = (?);`
-                            await database.query(sql, values)
-                            await requestor_thread.setLocked(false)
-                        }
-                        catch (err) {
-                            console.log(err)
-                            botLog(interaction.guild,new Discord.EmbedBuilder()
-                                .setDescription('```' + err.stack + '```')
-                                .setTitle(`⛔ Fatal error experienced`)
-                                ,2
-                                ,'error'
-                            )
-                        }
+                    const requestor_leadershipPotential = await requestor_thread.send({embeds: [requestor_leadershipPotential_newEmbed]})
 
+                    //!Show leadership potential
+                    const leadership_potential_embed = new Discord.EmbedBuilder()
+                    .setTitle(`Leadership Potential`)
+                    .setDescription(`Discuss this Promotion Request and the applicant's leadership abilities`)
+                        // .setColor('#87FF2A') //bight green
+                        // .setColor('#f20505') //bight red
+                    .setColor('#f2ff00') //bight yellow
+                    .setAuthor(oldEmbedSchema.author)
+                    .setThumbnail(botIdent().activeBot.icon)
+                    .addFields(
+                        { name: "Non-constrained Topics:", value: "- Consider things such as: Communication on the battlefield\n- How their presence of leadership/past performance showing potential\n- Does this person show leadership qualities\n- For all intents and purposes, the requestor should only be held back if there are significant issues with their ability to communicate effectively.", inline: false },
+                        { name: "General Orders:", value: "Promotion should be an exciting thing, all members at all ranks reside at different parts of their AX Journey. Ensure discorse about members are evaluated carefuly;\n1. Are they capable of holding more than one (typically their own) point view.\n2. Are they willing to admit when they’re wrong, and that they don’t know everything.\n3. Have they demonstrate the ability to de-escalate (vs the opposite) in tense, controversial, or otherwise charged situations.\n4. Have they demonstrated a desire to put the interests of the community above their own.\n5. Are they recognized by others as someone to look up to, not just in terms of skill, but overall.\n6. Have they proven that they will “get their hands dirty” and/or 'take one for the team'.\n7. Have they proven they can be a excellent follower.", inline: false },
+                        { name: "Your Final Statement:", value: `Crucial step for certifying a promotion request. They provide a synapse of the current thinking on a member's leadership potential.\n**## Examples of what you could write ##**:\n- **!final** User is truely dedicated to XSF and exudes leadership at every facet of the XSF experience.\n- **!final** Member has taken their time to train eight members to be able to fight Hydra's solo.\n- **!final** Commander shows tactical and technical prowess during many of the Operation Orders in the recent past.\n- **!final** Lieutenant User communicates very effectively in voice communications.\n- **!final** Member contributed a week of their free time to developing a new strategy which we use daily; growing the Xeno Strike Force community.`, inline: false },
+                        { name: "Submitting your Final Statement:", value: "In the leadership channel, type the following:\n```!final Something that you wish to write as a final statement. You can submit multiple.```", inline: false },
+                        { name: "Final Statements:", value: "-", inline: false },
+                    )
+                    const leadership_leadershipPotential = await leadership_thread.send({embeds: [leadership_potential_embed]})
+                    try {
+                        const values = [ leadership_leadershipPotential.id, requestor_leadershipPotential.id, response[0].userId]
+                        const sql = `UPDATE promotion SET leadership_potential_embedId = (?), requestor_potential_embedId = (?) WHERE userId = (?);`
+                        await database.query(sql, values)
+                        await requestor_thread.setLocked(false)
                     }
-                    await requestor_thread.setLocked(true)
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
                 }
             }
         }
@@ -174,7 +187,7 @@ module.exports = {
 
 
     },
-    AXIchallengeProof: async function (data) {
+    AXIchallengeProof: async function (data, interaction) {
         try {
             const values = [data.userId]
             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
@@ -210,7 +223,7 @@ module.exports = {
                         .setThumbnail(botIdent().activeBot.icon)
     
                     newEmbed.setColor(challenge_score_color)
-                    let rank_emoji = await getRankEmoji(interaction);
+                    let rank_emoji = await getRankEmoji(data.reviewer);
                     if (rank_emoji == null) { rank_emoji == "" }
                     oldEmbedSchema.fields.forEach((i,index) => {
                         if (index < 4) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
@@ -221,7 +234,30 @@ module.exports = {
                     await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
                     await requestor_challenge.edit( { embeds: [newEmbed] } )
                     await requestor_thread.setLocked(false)
-                    module.exports.showPromotionChallenge(response[0])
+                    const challengeInfo = {
+                        user: { 
+                            id: response[0].userId
+                        },
+                        promotion: response[0],
+                    }
+                    try {
+                        let values = [1, challengeInfo.user.id]
+                        let sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
+                        const d = await database.query(sql, values)
+                        if (d) {
+                            module.exports.showPromotionChallenge(challengeInfo)
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    
                 }
             }
         }
