@@ -201,9 +201,10 @@ module.exports = {
                 const leadership_challenge = await leadership_thread.messages.fetch(response[0].leadership_roleEmbedId)
 
                 const requestor_challenge = await requestor_thread.messages.fetch(response[0].requestor_roleEmbedId)
-                if (response[0].axiChallenge_state == 0) {
+                if (response[0].axiChallenge_state <= 0) {
                     try {
-                        let values = [-2, challengeInfo.user.id]
+                        console.log("rechange:",data)
+                        let values = [-2, data.user.id]
                         let sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
                         await database.query(sql, values)
                     }

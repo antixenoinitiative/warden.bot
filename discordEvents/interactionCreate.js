@@ -275,7 +275,7 @@ const exp = {
                             leadership_threadId: customId_array[4],
                             requestor_threadId: customId_array[5],
                         },
-                        reviewer: customId_array[2],
+                        userId: customId_array[2]
                     }
                     
                     let score = null
@@ -288,8 +288,8 @@ const exp = {
                         const sql = `UPDATE promotion SET axiChallenge_state = (?)  WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
-                            // console.log('saved')
-                            ! AXIchallengeProof(challengeInfo,interaction)
+                            console.log(challengeInfo)
+                            AXIchallengeProof(challengeInfo,interaction)
                         }
                     }
                     catch (err) {
@@ -310,11 +310,12 @@ const exp = {
                     const challengeInfo = {
                         state: customId_array[1],
                         userId: customId_array[2],
-                        reviewer: interaction.user.id
+                        reviewer: interaction.user.id,
+                        user: { id: customId_array[2] }
                     }
                     let score = 0
                     if (challengeInfo.state == 'approve') { score = 1 }
-                    if (challengeInfo.state == 'deny') { score = 0 }
+                    if (challengeInfo.state == 'deny') { score = -2 }
                    
                     //Update progress number and save to database.
                     try {

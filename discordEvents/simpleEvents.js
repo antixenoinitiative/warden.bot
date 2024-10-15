@@ -314,7 +314,8 @@ const exp = {
                     }
                 }
                 //leadership Channel thread
-                if (message.channel.name.startsWith("Promotion Request") && message.channel.messageCount >= 10) {
+                console.log(message.channel.messageCount)
+                if (message.channel.name.startsWith("Promotion Request") && message.channel.messageCount >= 9) {
                     let promotion = null
                     try { //Get DB info of thread
                         const values = [message.channel.id]
@@ -333,7 +334,7 @@ const exp = {
                             ,'error'
                         )
                     }
-                    if (response[0].axi_rolesCheck == -2) {
+                    if (promotion.axi_rolesCheck == -2) {
                         if (message.author.id != promotion.axiChallenge_reviewer) {
                             message.delete()
                         }
@@ -343,7 +344,7 @@ const exp = {
                             denyMsg.last().delete()
                         }
                          //Modify the embeds in both
-                         let rank_emoji = await getRankEmoji(message.author.id);
+                         let rank_emoji = await getRankEmoji(message.author.id)
                          if (rank_emoji == null) { rank_emoji == "" }
                          const challenge_score = promotion.axiChallenge_state == 1 ? "Approved" : "Denied"
                          const requestor_thread = await message.guild.channels.fetch(promotion.requestor_threadId)
@@ -364,18 +365,18 @@ const exp = {
                                  // .setColor('#f2ff00') //bight yellow
                              .setAuthor(requestor_oldEmbedSchema.author)
                              .setThumbnail(botIdent().activeBot.icon)
-                             requestor_oldEmbedSchema.fields.forEach((i,index) => {
-                                 if (index == 0) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
-                                 if (index == 1) { requestor_newEmbed.addFields({ name: "AXI Progression Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
-                                 if (index == 2) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
-                                 if (index == 3) { requestor_newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${message.author.id}>`, inline: i.inline}) }
-                             })
+                        requestor_oldEmbedSchema.fields.forEach((i,index) => {
+                            if (index == 0) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                            if (index == 1) { requestor_newEmbed.addFields({ name: "AXI Progression Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
+                            if (index == 2) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                            if (index == 3) { requestor_newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${message.author.id}>`, inline: i.inline}) }
+                        })
      
                          requestor_newEmbed.addFields(
                              { name: "Denial Reason:", value: '```'+denyMsg.first().content+'```', inline: false },
                          )
                          const requestor_components = new Discord.ActionRowBuilder()
-                             .addComponents(new Discord.ButtonBuilder().setCustomId(`axichallengeProofDenyConf-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Resubmit Updated Proof").setStyle(Discord.ButtonStyle.Success))
+                             .addComponents(new Discord.ButtonBuilder().setCustomId(`axichallengeProofDenyConf-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Submit New Proof").setStyle(Discord.ButtonStyle.Success))
                          
                          const leadership_challenge = await message.channel.messages.fetch(promotion.leadership_roleEmbedId)
                          const leadership_receivedEmbed = leadership_challenge.embeds[0]
@@ -396,7 +397,7 @@ const exp = {
                              .setThumbnail(botIdent().activeBot.icon)
                              leadership_oldEmbedSchema.fields.forEach((i,index) => {
                              if (index == 0) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
-                             if (index == 1) { leadership_newEmbed.addFields({ name: "Promotion Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
+                             if (index == 1) { leadership_newEmbed.addFields({ name: "AXI Progression Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
                              if (index == 2) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
                              if (index == 3) { leadership_newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${message.author.id}>`, inline: i.inline}) }
                          })
@@ -425,7 +426,7 @@ const exp = {
                              )
                          }
                     }
-                    if (promotion.grading_state == 3 && promotion.challenge_state >= 0) {
+                    if (!promotion.axiChallenge_state <= 0 && promotion.grading_state == 3 && promotion.challenge_state >= 0) {
                         //!If denial message statement is required, delete messages by anybody that is not the reviewer.
                         //todo Come up with a better system. Maybe try harder with modals even though they aren't compatable with deferedUpdates.
                         if (message.author.id != promotion.challenge_reviewer) {
