@@ -266,20 +266,21 @@ const exp = {
                     const customId_array = interaction.customId.split("-")
                     const challengeInfo = {
                         state: 'deny',
-                        user: { 
-                            id: interaction.user.id
+                        user: {
+                            id: customId_array[2]
                         },
                         promotion: {
-                            userId: interaction.user.id,
+                            userId: customId_array[2],
                             testType: customId_array[3],
                             leadership_threadId: customId_array[4],
                             requestor_threadId: customId_array[5],
                         },
                         reviewer: customId_array[2],
                     }
-                    let score = 0
+                    
+                    let score = null
                     if (challengeInfo.state == 'approve') { score = 1 }
-                    if (challengeInfo.state == 'deny') { score = 0 }
+                    if (challengeInfo.state == 'deny') { score = -3 }
                    
                     //Update progress number and save to database.
                     try {
@@ -288,7 +289,7 @@ const exp = {
                         const d = await database.query(sql, values)
                         if (d) {
                             // console.log('saved')
-                            showPromotionChallenge(challengeInfo,interaction)
+                            ! AXIchallengeProof(challengeInfo,interaction)
                         }
                     }
                     catch (err) {

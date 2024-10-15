@@ -41,22 +41,20 @@ const exp = {
                         const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
                         const response = await database.query(sql,values)
                         if (response.length == 0 && !message.author.bot) { message.delete(); return; }
+                        const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
+                        if (leadership_thread.id == message.channel.id) {
+                            //If chat is discovered in the leadership thread, abandon this script.
+                            return
+                        }
 
                         //For Role submission
-                        if (response[0].axi_rolesCheck <= -2) {
-                            //TODO FINISH CODING DENIAL REASON
-                            const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
-                            if (leadership_thread.id == message.channel.id) {
-                                //If chat is discovered in the leadership thread, abandon this script.
-                                return
-                            }
-                        }
+                       
                         if (response[0].axi_rolesCheck <= -3) {
-                            const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
-                            if (leadership_thread.id == message.channel.id) {
-                                //If chat is discovered in the leadership thread, abandon this script.
-                                return
-                            }
+                            // const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
+                            // if (leadership_thread.id == message.channel.id) {
+                            //     //If chat is discovered in the leadership thread, abandon this script.
+                            //     return
+                            // }
                             const leadership_challenge = await leadership_thread.messages.fetch(response[0].leadership_roleEmbedId)
                             const leadership_embed = leadership_challenge.embeds[0]
                             const leadership_oldEmbedSchema = {
@@ -168,11 +166,11 @@ const exp = {
                                 "master": "Colonel"
                             }
                             const grader_ident = graderTypes[response[0].testType]
-                            const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
-                            if (leadership_thread.id == message.channel.id) {
-                                //If chat is discovered in the leadership thread, abandon this script.
-                                return
-                            }
+                            // const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
+                            // if (leadership_thread.id == message.channel.id) {
+                            //     //If chat is discovered in the leadership thread, abandon this script.
+                            //     return
+                            // }
                             //use 1 embed and modify both leadership embed and requestor embed
                             const leadership_challenge = await leadership_thread.messages.fetch(response[0].challenge_leadership_embedId)
                             const leadership_embed = leadership_challenge.embeds[0]
@@ -334,6 +332,98 @@ const exp = {
                             ,2
                             ,'error'
                         )
+                    }
+                    if (response[0].axi_rolesCheck == -2) {
+                        if (message.author.id != promotion.axiChallenge_reviewer) {
+                            message.delete()
+                        }
+                        //Delete bot message telling you to explain why you denied.
+                        const denyMsg = await message.channel.messages.fetch({limit: 2})
+                        if (denyMsg.last().id != promotion.leadership_roleEmbedId) {
+                            denyMsg.last().delete()
+                        }
+                         //Modify the embeds in both
+                         let rank_emoji = await getRankEmoji(message.author.id);
+                         if (rank_emoji == null) { rank_emoji == "" }
+                         const challenge_score = promotion.axiChallenge_state == 1 ? "Approved" : "Denied"
+                         const requestor_thread = await message.guild.channels.fetch(promotion.requestor_threadId)
+                         const requestor_challenge = await requestor_thread.messages.fetch(promotion.requestor_roleEmbedId)
+                         const requestor_receivedEmbed = requestor_challenge.embeds[0]
+                         const requestor_oldEmbedSchema = {
+                             title: requestor_receivedEmbed.title,
+                             author: requestor_receivedEmbed.author,
+                             description: requestor_receivedEmbed.description,
+                             color: requestor_receivedEmbed.color,
+                             fields: requestor_receivedEmbed.fields
+                         }
+                         const requestor_newEmbed = new Discord.EmbedBuilder()
+                             .setTitle(requestor_oldEmbedSchema.title)
+                             .setDescription("Your submission was denied, you will have further opportunities to submit qualifying proof.")
+                                 // .setColor('#87FF2A') //bight green
+                             .setColor('#f20505') //bight red
+                                 // .setColor('#f2ff00') //bight yellow
+                             .setAuthor(requestor_oldEmbedSchema.author)
+                             .setThumbnail(botIdent().activeBot.icon)
+                             requestor_oldEmbedSchema.fields.forEach((i,index) => {
+                                 if (index == 0) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                                 if (index == 1) { requestor_newEmbed.addFields({ name: "AXI Progression Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
+                                 if (index == 2) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                                 if (index == 3) { requestor_newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${message.author.id}>`, inline: i.inline}) }
+                             })
+     
+                         requestor_newEmbed.addFields(
+                             { name: "Denial Reason:", value: '```'+denyMsg.first().content+'```', inline: false },
+                         )
+                         const requestor_components = new Discord.ActionRowBuilder()
+                             .addComponents(new Discord.ButtonBuilder().setCustomId(`axichallengeProofDenyConf-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Resubmit Updated Proof").setStyle(Discord.ButtonStyle.Success))
+                         
+                         const leadership_challenge = await message.channel.messages.fetch(promotion.leadership_roleEmbedId)
+                         const leadership_receivedEmbed = leadership_challenge.embeds[0]
+                         const leadership_oldEmbedSchema = {
+                             title: leadership_receivedEmbed.title,
+                             author: leadership_receivedEmbed.author,
+                             description: leadership_receivedEmbed.description,
+                             color: leadership_receivedEmbed.color,
+                             fields: leadership_receivedEmbed.fields
+                         }
+                         const leadership_newEmbed = new Discord.EmbedBuilder()
+                             .setTitle(leadership_oldEmbedSchema.title)
+                             .setDescription("Waiting on requestor to acknowledge AXI Progression Challenge Proof denial. User will be provided further opportunities to provide proof.")
+                                 // .setColor('#87FF2A') //bight green
+                             .setColor('#f20505') //bight red
+                                 // .setColor('#f2ff00') //bight yellow
+                             .setAuthor(leadership_oldEmbedSchema.author)
+                             .setThumbnail(botIdent().activeBot.icon)
+                             leadership_oldEmbedSchema.fields.forEach((i,index) => {
+                             if (index == 0) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                             if (index == 1) { leadership_newEmbed.addFields({ name: "Promotion Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
+                             if (index == 2) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                             if (index == 3) { leadership_newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${message.author.id}>`, inline: i.inline}) }
+                         })
+ 
+                         leadership_newEmbed.addFields(
+                             { name: "Denial Reason:", value: '```'+denyMsg.first().content+'```', inline: false }
+                         )
+                         await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [requestor_components] } )
+                         await leadership_challenge.edit( { embeds: [leadership_newEmbed] } )
+                         if (denyMsg.first().id != promotion.leadership_roleEmbedId) {
+                             denyMsg.first().delete()
+                         }
+                         try {
+                             const values = [promotion.userId]
+                             const sql = `UPDATE promotion SET axiChallenge_state = 1 WHERE userId = (?);`
+                             await database.query(sql, values)
+                             await requestor_thread.setLocked(false)
+                         }
+                         catch (err) {
+                             console.log(err)
+                             botLog(message.guild,new Discord.EmbedBuilder()
+                                 .setDescription('```' + err.stack + '```')
+                                 .setTitle(`⛔ Fatal error experienced`)
+                                 ,2
+                                 ,'error'
+                             )
+                         }
                     }
                     if (promotion.grading_state == 3 && promotion.challenge_state >= 0) {
                         //!If denial message statement is required, delete messages by anybody that is not the reviewer.

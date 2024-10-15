@@ -8,7 +8,6 @@ const database = require(`../${botIdent().activeBot.botName}/db/database`)
 
 
 const approvedServers = config.socketStuff.appoved_fromServer_GuildIds
-let dataFromPromotion = null
 
 socket.on('fromSocketServer', async (data) => {
     // console.log(`[SOCKET SERVER]`.blue, `${data.type}`.bgGreen, `${data.user.id}`.green, `${data.from_serverID}`.cyan)
@@ -33,7 +32,7 @@ socket.on('fromSocketServer', async (data) => {
                 user: { state: true, id: identifiedUser.id, roles: roles }
             }
             socket.emit('roles_return',rolesPackage)
-            if (data.promotion.commandAsk == "promotion") {
+            if (data.promotion.commandAsk == "promotion" && botIdent().activeBot.botName == "GuardianAI") {
                 try {
                     const values = [1, data.user.id]
                     const sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
@@ -57,7 +56,7 @@ socket.on('fromSocketServer', async (data) => {
                 user: { state: false, id: data.user.id, roles: ['unknown user'] }
             }
             socket.emit('roles_return',rolesPackage)
-            if (data.commandAsk == "promotion") { 
+            if (data.commandAsk == "promotion" && botIdent().activeBot.botName == "GuardianAI") {
                 try {
                     const values = [0, data.user.id]
                     const sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
@@ -88,7 +87,7 @@ socket.on('fromSocketServer', async (data) => {
             )
 
         if (approvedServers.includes(data.from_serverID)) {
-            if (data.commandAsk == "promotion") {
+            if (data.commandAsk == "promotion" && botIdent().activeBot.botName == "GuardianAI") {
                 const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
                 const axiRoles = data.user.roles
                 const testTypes = {
@@ -96,7 +95,6 @@ socket.on('fromSocketServer', async (data) => {
                     "advanced": "Serpent's Nemesis",
                     "master": "Collector",
                 }
-
                 //Unknown user
                 if (data.user.roles.includes("unknown user")) {
                     embed.setTitle('Anti Xeno Initiative Progression Challenge')
@@ -175,8 +173,6 @@ socket.on('fromSocketServer', async (data) => {
                     })
                     return
                 }
-                
-                
             }
             //from roles_request command
             if (data.commandAsk == "nopromotion") {
