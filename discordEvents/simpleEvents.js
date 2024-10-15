@@ -2,7 +2,7 @@ const { botLog, botIdent, getRankEmoji } = require('../functions')
 const Discord = require('discord.js')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
-const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
+
 const exp = { 
     messageCreate: async (message, bot) => {
         if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
@@ -72,9 +72,9 @@ const exp = {
                             const leadership_newEmbed = new Discord.EmbedBuilder()
                                 .setTitle(leadership_oldEmbedSchema.title)
                                 .setDescription(`Anti Xeno Initiative Progression Challenge`)
-                                .setColor('#87FF2A') //bight green
+                                // .setColor('#87FF2A') //bight green
                                     // .setColor('#f20505') //bight red
-                                    // .setColor('#f2ff00') //bight yellow
+                                    .setColor('#f2ff00') //bight yellow
                                 .setAuthor(leadership_oldEmbedSchema.author)
                                 .setThumbnail(botIdent().activeBot.icon)
                             leadership_oldEmbedSchema.fields.forEach((i,index) => {
@@ -83,15 +83,34 @@ const exp = {
                             const requestor_newEmbed = new Discord.EmbedBuilder()
                                 .setTitle(requestor_oldEmbedSchema.title)
                                 .setDescription(`Anti Xeno Initiative Progression Challenge`)
-                                .setColor('#87FF2A') //bight green
+                                // .setColor('#87FF2A') //bight green
                                     // .setColor('#f20505') //bight red
-                                    // .setColor('#f2ff00') //bight yellow
+                                    .setColor('#f2ff00') //bight yellow
                                 .setAuthor(requestor_oldEmbedSchema.author)
                                 .setThumbnail(botIdent().activeBot.icon)
                             requestor_oldEmbedSchema.fields.forEach((i,index) => {
                                 if (index < 3) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline }) }
                             })
-
+                            const row = new Discord.ActionRowBuilder()
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`axichallenge-approve-${message.author.id}-${response[0].testType}-${response[0].leadership_threadId}-${response[0].requestor_threadId}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success))
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`axichallenge-deny-${message.author.id}-${response[0].testType}-${response[0].leadership_threadId}-${response[0].requestor_threadId}`).setLabel('Deny').setStyle(Discord.ButtonStyle.Danger))
+                            if (message.attachments.size > 0) {
+                                message.attachments.forEach(async attachment => {
+                                    if (attachment.contentType && attachment.contentType.startsWith('image/')) {
+                                        requestor_newEmbed.addFields(
+                                            { name: "AXI Progression Challenge Proof", value: attachment.url, inline: false },
+                                            { name: "Follow On Instructions", value: `Please be patient while leadership reviews this AXI Progression Submission.`, inline: false }
+                                        )
+                                        leadership_newEmbed.addFields(
+                                            { name: "AXI Progression Challenge Proof", value: attachment.url, inline: false },
+                                            { name: "Follow On Instructions", value: `Approve or Deny the AXI Progression Challenge Submission.`, inline: false }
+                                        )
+                                    }
+                                })
+                                await leadership_challenge.edit( { embeds: [requestor_newEmbed], components: [row] } )
+                                await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
+                                return
+                            }
                             const denyMsg = await message.channel.messages.fetch({limit: 2})
                             if (denyMsg.last().id != response[0].requestor_roleEmbedId && denyMsg.last().content.startsWith("❌")) {
                                 denyMsg.last().delete()
@@ -106,26 +125,20 @@ const exp = {
                             if (urls != null && message.attachments.size == 0) {
                                 urls = urls.map(i => i + "\n")
                                 requestor_newEmbed.addFields(
-                                    { name: "AXI Progression Challenge Proof", value: `${urls}`, inline: false }
+                                    { name: "AXI Progression Challenge Proof", value: `${urls}`, inline: false },
+                                    { name: "Follow On Instructions", value: `Please be patient while leadership reviews this AXI Progression Submission.`, inline: false }
+                                    
                                 )
                                 leadership_newEmbed.addFields(
-                                    { name: "AXI Progression Challenge Proof", value: `${urls}`, inline: false }
+                                    { name: "AXI Progression Challenge Proof", value: `${urls}`, inline: false },
+                                    { name: "Follow On Instructions", value: `Approve or Deny the AXI Progression Challenge Submission.`, inline: false }
                                 )
                                 message.delete()
+                                await leadership_challenge.edit( { embeds: [leadership_newEmbed], components: [row] } )
+                                await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
+                                await requestor_thread.setLocked(true)
+                                return
                             }
-                            await requestor_thread.setLocked(true)
-                            const challengeInfo = {
-                                user: { 
-                                    id: interaction.user.id
-                                },
-                                promotion: {
-                                    userId: interaction.user.id,
-                                    testType: response[0].testType,
-                                    leadership_threadId: response[0].leadership_threadId,
-                                    requestor_threadId: response[0].requestor_threadId,
-                                }
-                            }
-                            showPromotionChallenge(challengeInfo)
                         }
                         //For promotion challenge proof
                         if (response[0].grading_state == 3 && response[0].challenge_state != 3) {

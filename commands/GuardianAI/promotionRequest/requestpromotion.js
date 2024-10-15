@@ -174,6 +174,67 @@ module.exports = {
 
 
     },
+    AXIchallengeProof: async function (data) {
+        try {
+            const values = [data.userId]
+            const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+            const response = await database.query(sql,values)
+            if (response.length > 0) {
+                const challenge_score = response[0].axiChallenge_state == 1 ? "Approved" : "Denied"
+                const challenge_score_color = response[0].axiChallenge_state == 1 ? '#87FF2A' : '#F20505'
+                const leadership_thread = await interaction.guild.channels.fetch(response[0].leadership_threadId)
+                const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
+                const requestor = await guild.members.fetch(data.userId)
+                const leadership_challenge = await leadership_thread.messages.fetch(response[0].leadership_roleEmbedId)
+
+                const requestor_challenge = await requestor_thread.messages.fetch(response[0].requestor_roleEmbedId)
+                if (response[0].axiChallenge_state == 0) {
+                    await leadership_thread.send("❌ Please use the Chatbox to explain the denial. The denial will not complete until this has been done.")
+                }
+                if (response[0].axiChallenge_state == 1) {
+                    const leadership_receivedEmbed = leadership_challenge.embeds[0]
+                    const oldEmbedSchema = {
+                        title: leadership_receivedEmbed.title,
+                        author: { name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) },
+                        description: leadership_receivedEmbed.description,
+                        color: leadership_receivedEmbed.color,
+                        fields: leadership_receivedEmbed.fields
+                    }
+                    const newEmbed = new Discord.EmbedBuilder()
+                        .setTitle(oldEmbedSchema.title)
+                        .setDescription(oldEmbedSchema.description)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                        .setAuthor(oldEmbedSchema.author)
+                        .setThumbnail(botIdent().activeBot.icon)
+    
+                    newEmbed.setColor(challenge_score_color)
+                    let rank_emoji = await getRankEmoji(interaction);
+                    if (rank_emoji == null) { rank_emoji == "" }
+                    oldEmbedSchema.fields.forEach((i,index) => {
+                        if (index < 4) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                        if (index == 4) { newEmbed.addFields({ name: "AXI Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
+                        if (index == 5) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                        if (index == 6) { newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${data.reviewer}>`, inline: i.inline}) }
+                    })
+                    await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
+                    await requestor_challenge.edit( { embeds: [newEmbed] } )
+                    await requestor_thread.setLocked(false)
+                    module.exports.showPromotionChallenge(response[0])
+                }
+            }
+        }
+        catch (err) {
+            console.log(err)
+            botLog(interaction.guild,new Discord.EmbedBuilder()
+                .setDescription('```' + err.stack + '```')
+                .setTitle(`⛔ Fatal error experienced`)
+                ,2
+                ,'error'
+            )
+        }
+    },
     showAXIroles: async function (userId,threadEmbeds,promotion) {
         let person_asking = userId
         const subject = guild.members.cache.get("206440307867385857")

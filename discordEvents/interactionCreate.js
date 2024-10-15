@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
+const { AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 // if (botIdent().activeBot.botName == 'Warden') {
 // }
@@ -260,6 +260,81 @@ const exp = {
                     }
                     return
                     // axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}
+                }
+                if (interaction.customId.startsWith("axichallengeProofDenyConf")) { //grade and update database
+                    interaction.deferUpdate()
+                    interaction.message.edit({ components: [] })
+                    const customId_array = interaction.customId.split("-")
+                    const challengeInfo = {
+                        state: 'deny',
+                        user: { 
+                            id: interaction.user.id
+                        },
+                        promotion: {
+                            userId: interaction.user.id,
+                            testType: customId_array[3],
+                            leadership_threadId: customId_array[4],
+                            requestor_threadId: customId_array[5],
+                        },
+                        reviewer: customId_array[2],
+                    }
+                    let score = 0
+                    if (challengeInfo.state == 'approve') { score = 1 }
+                    if (challengeInfo.state == 'deny') { score = 0 }
+                   
+                    //Update progress number and save to database.
+                    try {
+                        const values = [Number(score), interaction.user.id]
+                        const sql = `UPDATE promotion SET challenge_state = (?)  WHERE userId = (?);`
+                        const d = await database.query(sql, values)
+                        if (d) {
+                            // console.log('saved')
+                            showPromotionChallenge(challengeInfo,interaction)
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    return;
+                }
+                if (interaction.customId.startsWith("axichallenge")) { //grade and update database
+                    interaction.deferUpdate()
+                    interaction.message.edit({ components: [] })
+                    const customId_array = interaction.customId.split("-")
+                    const challengeInfo = {
+                        state: customId_array[1],
+                        userId: customId_array[2],
+                        reviewer: interaction.user.id
+                    }
+                    let score = 0
+                    if (challengeInfo.state == 'approve') { score = 1 }
+                    if (challengeInfo.state == 'deny') { score = 0 }
+                   
+                    //Update progress number and save to database.
+                    try {
+                        let values = [Number(score), interaction.user.id, challengeInfo.userId]
+                        let sql = `UPDATE promotion SET axiChallenge_state = (?), axiChallenge_reviewer = (?)  WHERE userId = (?);`
+                        const d = await database.query(sql, values)
+                        if (d) {
+                            AXIchallengeProof(challengeInfo, interaction)
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    return;
                 }
             }
         }
