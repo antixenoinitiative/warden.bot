@@ -86,60 +86,91 @@ socket.on('fromSocketServer', async (data) => {
                 {name: "Server", value: "```"+data.from_server+"```" },
                 {name: "Requestor", value: `<@${data.user.id}>` },
             )
-        // console.log(data)
+
         if (approvedServers.includes(data.from_serverID)) {
             if (data.commandAsk == "promotion") {
                 const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
-                const axiRoles = data.user.roles 
+                const axiRoles = data.user.roles
                 const testTypes = {
                     "basic": "Sole Survivor",
                     "advanced": "Serpent's Nemesis",
                     "master": "Collector",
                 }
+
+                //Unknown user
                 if (data.user.roles.includes("unknown user")) {
                     embed.setTitle('Anti Xeno Initiative Progression Challenge')
-                    embed.setColor("#87FF2A")
-                    embed.addFields({name: "Error:", value: "```User Not detected on Anti-Xeno Initiative Server:" +roles+ "```" })
-                    embed.addFields({name: "How to Rectify:", value: "```Drag and Drop image proof or try to request from AXI server again.```" })
+                        // .setColor('#87FF2A') //bight green
+                        // .setColor('#f20505') //bight red
+                    embed.setColor('#f2ff00') //bight yellow
+                    embed.addFields({name: "Role Requirement:", value: "```" +testTypes[data.promotion.testType]+ "```" })
+                    embed.addFields({name: "User Not Detected:", value: "```" +roles+ "```" })
                     const requestor_components = new Discord.ActionRowBuilder()
-                        .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
+                        .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.user.id}-${data.promotion.testType}-${data.promotion.leadership_threadId}-${data.promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
                     data.commandChan.forEach(async chan => {
                         if (data.promotion.requestor_threadId == chan) {
-                            embed.addFields({name: "XSF", value: "The AXI Progression Challenge proof can be submitted here. Drag and Drop an image into the chat. Ensure you follow the AXI rank requirements as they are the same here.", inline: false})
-                            embed.addFields({name: "AXI", value: "You have an opportunity to join Anti-Xeno Initiative and request the rank according to their procedures.", inline: false})
-                            await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
+                            const requestor_editedEmbed = Discord.EmbedBuilder.from(embed)
+                            requestor_editedEmbed.addFields({name: "How to Rectify:", value: "```Drag and Drop image proof or try to request from AXI server again.```" })
+                            requestor_editedEmbed.addFields({name: "Challenge Requirement", value: "AXI Progression Challenges are solo challenges that XSF utilizes as a standard for individual skill.", inline: false})
+                            await guild.channels.cache.get(chan).setLocked(false)
+                            const embedId = await guild.channels.cache.get(chan).send({ embeds: [requestor_editedEmbed], components: [requestor_components] })
+                            const values = [embedId.id,data.promotion.userId]
+                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
+                            await database.query(sql, values)
                         }
-                        else {
-                            embed.addFields({name: "How to Rectify:", value: "```Waiting on user to submit proof...```" })
-                            await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                        else if (data.promotion.leadership_threadId == chan) {
+                            const leadership_editedEmbed = Discord.EmbedBuilder.from(embed)
+                            leadership_editedEmbed.addFields({name: "Notification:", value: "```User not found on server, user must submit proof in Requestor Thread. Waiting on user to submit proof...```" })
+                            const embedId = await guild.channels.cache.get(chan).send({ embeds: [leadership_editedEmbed] })
+                            const values = [embedId.id,data.promotion.userId]
+                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
+                            await database.query(sql, values)
                         }
                     })
                     return
                 }
-
+                //Roles detected
                 const hasMatchingRole = testTypes[data.promotion.testType]
                 if (axiRoles.includes(hasMatchingRole)) {
                     embed.setTitle('Anti Xeno Initiative Progression Challenge')
                     embed.setColor("#87FF2A")
-                    embed.addFields({name: "Roles Found", value: "```Required AXI Roles detected: "+testTypes[data.promotion.testType]+"```" })
+                    embed.addFields({name: "Required AXI Roles detected:", value: "```"+testTypes[data.promotion.testType]+"```" })
                     data.commandChan.forEach(async chan => {
-                        await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                        if (data.promotion.requestor_threadId == chan) {
+                            const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                            const values = [embedId.id,data.promotion.userId]
+                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?) WHERE userId = (?);`
+                            await database.query(sql, values)
+                        }
+                        if (data.promotion.leadership_threadId == chan) {
+                            const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                            const values = [embedId.id,data.promotion.userId]
+                            const sql = `UPDATE promotion SET leadershi_roleEmbedId = (?) WHERE userId = (?);`
+                            await database.query(sql, values)
+                        }
                     })
                     showPromotionChallenge(data)
                 }
+                //Role not detected
                 else {
                     embed.setTitle('Anti Xeno Initiative Progression Challenge')
-                    embed.setColor('#FD0E35')
+                    embed.setColor('#f20505')
                     embed.addFields({name: "Awaiting Requestor:", value: `Once requestor completes the qualifying AXI Progression Challenge **${testTypes[data.promotion.testType]}** (https://antixenoinitiative.com/about-us/ranks/) with proof. Click 'Update from AXI' or drag qualifying image into the chat to progress Promotion Request.`, inline: false })
                     embed.addFields({name: "Roles Found", value: "```Required AXI Progression Challenge **NOT** detected: " +roles+ "```" })
                     const requestor_components = new Discord.ActionRowBuilder()
                         .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
                     data.commandChan.forEach(async chan => {
                         if (data.promotion.requestor_threadId == chan) {
-                            await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
+                            const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
+                            const values = [embedId.id,data.promotion.userId]
+                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
+                            await database.query(sql, values)
                         }
                         else {
-                            await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                            const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed] })
+                            const values = [embedId.id,data.promotion.userId]
+                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
+                            await database.query(sql, values)
                         }
                     })
                     return
@@ -147,6 +178,7 @@ socket.on('fromSocketServer', async (data) => {
                 
                 
             }
+            //from roles_request command
             if (data.commandAsk == "nopromotion") {
                 data.commandChan.forEach(async chan => {
                     embed.setTitle('Server Role Request')

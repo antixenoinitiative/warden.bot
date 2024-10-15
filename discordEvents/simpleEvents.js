@@ -2,38 +2,30 @@ const { botLog, botIdent, getRankEmoji } = require('../functions')
 const Discord = require('discord.js')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
-let graderRank = []
-let leadership_embedChannel = null
-let requestor_embedChannel = null
-let generalstaff = null
-let colonel = null
-let major = null
-let captain = null
-if (config[botIdent().activeBot.botName] == "GuardianAI") {
-    if (process.env.MODE != "PROD") {
-        leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.leadership_embedChannel
-        requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.requestor_embedChannel
-        console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
-        generalstaff = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'General Staff').id
-        colonel = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Colonel').id
-        major = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Major').id
-        captain = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Captain').id
-        graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
-    }
-    else { 
-        leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.leadership_embedChannel 
-        requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.requestor_embedChannel 
-        generalstaff = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'General Staff').id
-        colonel = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Colonel').id
-        major = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Major').id
-        captain = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Captain').id
-        graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
-            }
-}
+const { showPromotionChallenge } = require("../commands/GuardianAI/promotionRequest/requestpromotion")
 const exp = { 
     messageCreate: async (message, bot) => {
         if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
-            
+            let graderRank = []
+            if (process.env.MODE != "PROD") {
+                leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.leadership_embedChannel
+                requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.requestor_embedChannel
+                console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency.embedChannel. Using testServer input if available")
+                generalstaff = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'General Staff').id
+                colonel = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Colonel').id
+                major = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Major').id
+                captain = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Captain').id
+                graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
+            }
+            else { 
+                leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.leadership_embedChannel 
+                requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.requestor_embedChannel 
+                generalstaff = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'General Staff').id
+                colonel = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Colonel').id
+                major = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Major').id
+                captain = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Captain').id
+                graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
+            }
             let messageParent = message.channel.parentId
             if (messageParent == requestor_embedChannel || messageParent == leadership_embedChannel) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
@@ -49,6 +41,92 @@ const exp = {
                         const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
                         const response = await database.query(sql,values)
                         if (response.length == 0 && !message.author.bot) { message.delete(); return; }
+
+                        //For Role submission
+                        if (response[0].axi_rolesCheck <= -2) {
+                            const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
+                            if (leadership_thread.id == message.channel.id) {
+                                //If chat is discovered in the leadership thread, abandon this script.
+                                return
+                            }
+                            const leadership_challenge = await leadership_thread.messages.fetch(response[0].leadership_roleEmbedId)
+                            const leadership_embed = leadership_challenge.embeds[0]
+                            const leadership_oldEmbedSchema = {
+                                title: leadership_embed.title,
+                                author: { name: message.author.displayName, iconURL: message.author.displayAvatarURL({ dynamic: true }) },
+                                description: leadership_embed.description,
+                                color: leadership_embed.color,
+                                fields: leadership_embed.fields
+                            }
+                            const requestor_thread = await message.guild.channels.cache.get(response[0].requestor_threadId)
+                            const requestor_challenge = await requestor_thread.messages.fetch(response[0].requestor_roleEmbedId)
+                            const requestor_embed = requestor_challenge.embeds[0]
+                            const requestor_oldEmbedSchema = {
+                                title: requestor_embed.title,
+                                author: { name: message.author.displayName, iconURL: message.author.displayAvatarURL({ dynamic: true }) },
+                                description: requestor_embed.description,
+                                color: requestor_embed.color,
+                                fields: requestor_embed.fields
+                            }
+
+                            const leadership_newEmbed = new Discord.EmbedBuilder()
+                                .setTitle(leadership_oldEmbedSchema.title)
+                                .setDescription(`Anti Xeno Initiative Progression Challenge`)
+                                .setColor('#87FF2A') //bight green
+                                    // .setColor('#f20505') //bight red
+                                    // .setColor('#f2ff00') //bight yellow
+                                .setAuthor(leadership_oldEmbedSchema.author)
+                                .setThumbnail(botIdent().activeBot.icon)
+                            leadership_oldEmbedSchema.fields.forEach((i,index) => {
+                                if (index < 3) { leadership_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline }) }
+                            })
+                            const requestor_newEmbed = new Discord.EmbedBuilder()
+                                .setTitle(requestor_oldEmbedSchema.title)
+                                .setDescription(`Anti Xeno Initiative Progression Challenge`)
+                                .setColor('#87FF2A') //bight green
+                                    // .setColor('#f20505') //bight red
+                                    // .setColor('#f2ff00') //bight yellow
+                                .setAuthor(requestor_oldEmbedSchema.author)
+                                .setThumbnail(botIdent().activeBot.icon)
+                            requestor_oldEmbedSchema.fields.forEach((i,index) => {
+                                if (index < 3) { requestor_newEmbed.addFields({name: i.name, value: i.value, inline: i.inline }) }
+                            })
+
+                            const denyMsg = await message.channel.messages.fetch({limit: 2})
+                            if (denyMsg.last().id != response[0].requestor_roleEmbedId && denyMsg.last().content.startsWith("❌")) {
+                                denyMsg.last().delete()
+                            }
+                            const urlRegex = /(https:\/\/[^\s]+)/g
+                            let urls = message.content.match(urlRegex)
+                            if (urls == null && message.attachments.size == 0) {
+                                message.delete()
+                                message.channel.send('❌ Please enter a valid URL, eg: https://...')
+                                return
+                            }
+                            if (urls != null && message.attachments.size == 0) {
+                                urls = urls.map(i => i + "\n")
+                                requestor_newEmbed.addFields(
+                                    { name: "AXI Progression Challenge Proof", value: `${urls}`, inline: false }
+                                )
+                                leadership_newEmbed.addFields(
+                                    { name: "AXI Progression Challenge Proof", value: `${urls}`, inline: false }
+                                )
+                                message.delete()
+                            }
+                            await requestor_thread.setLocked(true)
+                            const challengeInfo = {
+                                user: { 
+                                    id: interaction.user.id
+                                },
+                                promotion: {
+                                    userId: interaction.user.id,
+                                    testType: response[0].testType,
+                                    leadership_threadId: response[0].leadership_threadId,
+                                    requestor_threadId: response[0].requestor_threadId,
+                                }
+                            }
+                            showPromotionChallenge(challengeInfo)
+                        }
                         //For promotion challenge proof
                         if (response[0].grading_state == 3 && response[0].challenge_state != 3) {
                             const rankTypes = {
