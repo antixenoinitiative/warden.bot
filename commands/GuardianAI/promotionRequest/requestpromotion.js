@@ -75,7 +75,6 @@ module.exports = {
                     })
                     await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
                     await requestor_challenge.edit( { embeds: [newEmbed] } )
-                    console.log(data)
                     const requestor_leadershipPotential_newEmbed = new Discord.EmbedBuilder()
                         .setTitle(`Leadership Potential`)
                         .setDescription(`- Congradulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)
