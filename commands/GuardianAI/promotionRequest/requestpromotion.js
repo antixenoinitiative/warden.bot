@@ -199,12 +199,52 @@ module.exports = {
                 const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
                 const requestor = await guild.members.fetch(data.userId)
                 const leadership_challenge = await leadership_thread.messages.fetch(response[0].leadership_roleEmbedId)
-
                 const requestor_challenge = await requestor_thread.messages.fetch(response[0].requestor_roleEmbedId)
-                if (response[0].axiChallenge_state <= 0) {
+
+                if (response[0].axiChallenge_state == -2) {
+                    console.log("resubmit new proof".yellow)
+                }
+                if (response[0].axiChallenge_state == -3) {
+                    // const requestor_receivedEmbed = requestor_challenge.embeds[0]
+                    // const requestor_oldEmbedSchema = {
+                    //     title: requestor_receivedEmbed.title,
+                    //     author: requestor_receivedEmbed.author,
+                    //     description: requestor_receivedEmbed.description,
+                    //     color: requestor_receivedEmbed.color,
+                    //     fields: requestor_receivedEmbed.fields
+                    // }
+                    // const requestor_newEmbed = new Discord.EmbedBuilder()
+                    //     .setTitle(requestor_oldEmbedSchema.title)
+                    //     .setDescription(requestor_oldEmbedSchema.description)
+                    //         // .setColor('#87FF2A') //bight green
+                    //     // .setColor('#f20505') //bight red
+                    //     .setColor('#f2ff00') //bight yellow
+                    //     .setAuthor(requestor_oldEmbedSchema.author)
+                    //     .setThumbnail(botIdent().activeBot.icon)
+
+                    // const leadership_receivedEmbed = leadership_challenge.embeds[0]
+                    // const leadership_oldEmbedSchema = {
+                    //     title: leadership_receivedEmbed.title,
+                    //     author: leadership_receivedEmbed.author,
+                    //     description: leadership_receivedEmbed.description,
+                    //     color: leadership_receivedEmbed.color,
+                    //     fields: leadership_receivedEmbed.fields
+                    // }
+                    // const leadership_newEmbed = new Discord.EmbedBuilder()
+                    //     .setTitle(leadership_oldEmbedSchema.title)
+                    //     .setDescription(leadership_oldEmbedSchema.description)
+                    //         // .setColor('#87FF2A') //bight green
+                    //     // .setColor('#f20505') //bight red
+                    //     .setColor('#f2ff00') //bight yellow
+                    //     .setAuthor(leadership_oldEmbedSchema.author)
+                    //     .setThumbnail(botIdent().activeBot.icon)
+
+                    // //!requestor_newEmbed
+                    // //!leadership_newEmbed
+
                     try {
-                        console.log("rechange:",data)
-                        let values = [-2, data.user.id]
+                        console.log("AXIchallengeProof -> Modify embeds:".red,data)
+                        let values = [-3, data.user.id]
                         let sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
                         await database.query(sql, values)
                     }

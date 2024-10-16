@@ -280,12 +280,12 @@ const exp = {
                     
                     let score = null
                     if (challengeInfo.state == 'approve') { score = 1 }
-                    if (challengeInfo.state == 'deny') { score = -3 }
+                    if (challengeInfo.state == 'deny') { score = -2 }
                    
                     //Update progress number and save to database.
                     try {
                         const values = [Number(score), interaction.user.id]
-                        const sql = `UPDATE promotion SET axiChallenge_state = (?)  WHERE userId = (?);`
+                        const sql = `UPDATE promotion SET axi_rolesCheck = -3, axiChallenge_state = (?)  WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
                             console.log(challengeInfo)
@@ -315,14 +315,15 @@ const exp = {
                     }
                     let score = 0
                     if (challengeInfo.state == 'approve') { score = 1 }
-                    if (challengeInfo.state == 'deny') { score = -2 }
+                    if (challengeInfo.state == 'deny') { score = -3 }
                    
-                    //Update progress number and save to database.
-                    try {
-                        let values = [Number(score), interaction.user.id, challengeInfo.userId]
-                        let sql = `UPDATE promotion SET axiChallenge_state = (?), axiChallenge_reviewer = (?)  WHERE userId = (?);`
+                    //Update progress number and save to database. 
+                    try { 
+                        let values = [Number(score), interaction.user.id, challengeInfo.userId] 
+                        let sql = `UPDATE promotion SET axi_rolesCheck = -3 ,axiChallenge_state = (?), axiChallenge_reviewer = (?)  WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
+                            console.log("AXIchallengeProof()".yellow,challengeInfo)
                             AXIchallengeProof(challengeInfo, interaction)
                         }
                     }

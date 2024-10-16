@@ -46,10 +46,8 @@ const exp = {
                             //If chat is discovered in the leadership thread, abandon this script.
                             return
                         }
-
                         //For Role submission
-                       
-                        if (response[0].axi_rolesCheck <= -3) {
+                        if (response[0].axi_rolesCheck == -2) {
                             // const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
                             // if (leadership_thread.id == message.channel.id) {
                             //     //If chat is discovered in the leadership thread, abandon this script.
@@ -314,8 +312,8 @@ const exp = {
                     }
                 }
                 //leadership Channel thread
-                console.log(message.channel.messageCount)
                 if (message.channel.name.startsWith("Promotion Request") && message.channel.messageCount >= 9) {
+                    console.log(message.channel.messageCount)
                     let promotion = null
                     try { //Get DB info of thread
                         const values = [message.channel.id]
@@ -334,9 +332,10 @@ const exp = {
                             ,'error'
                         )
                     }
-                    if (promotion.axi_rolesCheck == -2) {
+                    if (promotion.axi_rolesCheck == -3) {
                         if (message.author.id != promotion.axiChallenge_reviewer) {
                             message.delete()
+                            return
                         }
                         //Delete bot message telling you to explain why you denied.
                         const denyMsg = await message.channel.messages.fetch({limit: 2})
@@ -412,7 +411,7 @@ const exp = {
                          }
                          try {
                              const values = [promotion.userId]
-                             const sql = `UPDATE promotion SET axiChallenge_state = 1 WHERE userId = (?);`
+                             const sql = `UPDATE promotion SET axi_rolesCheck = -2, axiChallenge_state = -2 WHERE userId = (?);`
                              await database.query(sql, values)
                              await requestor_thread.setLocked(false)
                          }

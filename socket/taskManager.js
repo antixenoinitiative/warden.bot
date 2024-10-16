@@ -113,7 +113,7 @@ socket.on('fromSocketServer', async (data) => {
                             await guild.channels.cache.get(chan).setLocked(false)
                             const embedId = await guild.channels.cache.get(chan).send({ embeds: [requestor_editedEmbed], components: [requestor_components] })
                             const values = [embedId.id,data.promotion.userId]
-                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
+                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
                             await database.query(sql, values)
                         }
                         else if (data.promotion.leadership_threadId == chan) {
@@ -121,7 +121,7 @@ socket.on('fromSocketServer', async (data) => {
                             leadership_editedEmbed.addFields({name: "Notification:", value: "```User not found on server, user must submit proof in Requestor Thread. Waiting on user to submit proof...```" })
                             const embedId = await guild.channels.cache.get(chan).send({ embeds: [leadership_editedEmbed] })
                             const values = [embedId.id,data.promotion.userId]
-                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
+                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
                             await database.query(sql, values)
                         }
                     })
@@ -161,13 +161,13 @@ socket.on('fromSocketServer', async (data) => {
                         if (data.promotion.requestor_threadId == chan) {
                             const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
                             const values = [embedId.id,data.promotion.userId]
-                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
+                            const sql = `UPDATE promotion SET requestor_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
                             await database.query(sql, values)
                         }
                         else {
                             const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed] })
                             const values = [embedId.id,data.promotion.userId]
-                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -3 WHERE userId = (?);`
+                            const sql = `UPDATE promotion SET leadership_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
                             await database.query(sql, values)
                         }
                     })
