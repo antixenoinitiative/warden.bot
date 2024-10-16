@@ -352,8 +352,8 @@ module.exports = {
     },
     showAXIroles: async function (userId,threadEmbeds,promotion) {
         let person_asking = userId
-        const subject = guild.members.cache.get("206440307867385857")
-        // const subject = guild.members.cache.get(userId)
+        // const subject = guild.members.cache.get("206440307867385857")
+        const subject = guild.members.cache.get(userId)
         const member = guild.members.cache.get(userId)
         let roles = member.roles.cache.map(role=>role.name)
         roles = roles.filter(x=>x != '@everyone')
