@@ -313,7 +313,6 @@ const exp = {
                 }
                 //leadership Channel thread
                 if (message.channel.name.startsWith("Promotion Request") && message.channel.messageCount >= 9) {
-                    console.log(message.channel.messageCount)
                     let promotion = null
                     try { //Get DB info of thread
                         const values = [message.channel.id]
@@ -333,6 +332,7 @@ const exp = {
                         )
                     }
                     if (promotion.axi_rolesCheck == -3) {
+                        
                         if (message.author.id != promotion.axiChallenge_reviewer) {
                             message.delete()
                             return

@@ -75,10 +75,10 @@ module.exports = {
                     })
                     await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
                     await requestor_challenge.edit( { embeds: [newEmbed] } )
-
+                    console.log(data)
                     const requestor_leadershipPotential_newEmbed = new Discord.EmbedBuilder()
                         .setTitle(`Leadership Potential`)
-                        .setDescription(`- Congradulations on completing the ${testTypes[data.promotion.testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)
+                        .setDescription(`- Congradulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)
                             // .setColor('#87FF2A') //bight green
                             // .setColor('#f20505') //bight red
                         .setColor('#f2ff00') //bight yellow
@@ -202,48 +202,72 @@ module.exports = {
                 const requestor_challenge = await requestor_thread.messages.fetch(response[0].requestor_roleEmbedId)
 
                 if (response[0].axiChallenge_state == -2) {
-                    console.log("resubmit new proof".yellow)
+                    // console.log("resubmit new proof".yellow)
+                    const testTypes = {
+                        "basic": "Sole Survivor",
+                        "advanced": "Serpent's Nemesis",
+                        "master": "Collector",
+                    }
+                    const requestor_receivedEmbed = requestor_challenge.embeds[0]
+                    const requestor_oldEmbedSchema = {
+                        title: requestor_receivedEmbed.title,
+                        author: requestor_receivedEmbed.author,
+                        description: requestor_receivedEmbed.description,
+                        color: requestor_receivedEmbed.color,
+                        fields: requestor_receivedEmbed.fields
+                    }
+                    const leadership_receivedEmbed = leadership_challenge.embeds[0]
+                    const leadership_oldEmbedSchema = {
+                        title: leadership_receivedEmbed.title,
+                        author: leadership_receivedEmbed.author,
+                        description: leadership_receivedEmbed.description,
+                        color: leadership_receivedEmbed.color,
+                        fields: leadership_receivedEmbed.fields
+                    }
+                    const requestor_embed = new Discord.EmbedBuilder()
+                        .setTitle(requestor_oldEmbedSchema.title)
+                        .setDescription("Your submission was denied, however, you have the ability to submit new qualifying proof.")
+                        .setColor('#f2ff00')
+                        .setAuthor({name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({dynamic:true})})
+                        .setThumbnail(botIdent().activeBot.icon)
+                        .addFields(
+                            {name: "Server:", value: "```Anti Xeno Initiative```" },
+                            {name: "Requestor:", value: `<@${data.user.id}>` },
+                            {name: "Role Requirement:", value: "```"+`${testTypes[response[0].testType]}`+"```" },
+                            {name: "Instructions:", value: "```Drag and Drop image proof into chat```" },
+                        )
+                    const leadership_embed = new Discord.EmbedBuilder()
+                        .setTitle(leadership_oldEmbedSchema.title)
+                        .setDescription("Your submission was denied, however, you have the ability to submit new qualifying proof.")
+                        .setColor('#f2ff00')
+                        .setAuthor({name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({dynamic:true})})
+                        .setThumbnail(botIdent().activeBot.icon)
+                        .addFields(
+                            {name: "Server:", value: "```Anti Xeno Initiative```" },
+                            {name: "Requestor:", value: `<@${data.user.id}>` },
+                            {name: "Role Requirement:", value: "```"+`${testTypes[response[0].testType]}`+"```" },
+                            {name: "Instructions:", value: "```Waiting on AXI Progression Challenge Proof to be submitted.```" },
+                        )
+                    await requestor_challenge.send( { embeds: [requestor_embed], components: [] } )
+                    await leadership_challenge.send( { embeds: [leadership_embed] } )
+                    try {
+                        const values = [response[0].userId]
+                        const sql = `UPDATE promotion SET axi_rolesCheck = -2, axiChallenge_state = -2 WHERE userId = (?);`
+                        await database.query(sql, values)
+                        await requestor_thread.setLocked(true)
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(message.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
                 }
                 if (response[0].axiChallenge_state == -3) {
-                    // const requestor_receivedEmbed = requestor_challenge.embeds[0]
-                    // const requestor_oldEmbedSchema = {
-                    //     title: requestor_receivedEmbed.title,
-                    //     author: requestor_receivedEmbed.author,
-                    //     description: requestor_receivedEmbed.description,
-                    //     color: requestor_receivedEmbed.color,
-                    //     fields: requestor_receivedEmbed.fields
-                    // }
-                    // const requestor_newEmbed = new Discord.EmbedBuilder()
-                    //     .setTitle(requestor_oldEmbedSchema.title)
-                    //     .setDescription(requestor_oldEmbedSchema.description)
-                    //         // .setColor('#87FF2A') //bight green
-                    //     // .setColor('#f20505') //bight red
-                    //     .setColor('#f2ff00') //bight yellow
-                    //     .setAuthor(requestor_oldEmbedSchema.author)
-                    //     .setThumbnail(botIdent().activeBot.icon)
-
-                    // const leadership_receivedEmbed = leadership_challenge.embeds[0]
-                    // const leadership_oldEmbedSchema = {
-                    //     title: leadership_receivedEmbed.title,
-                    //     author: leadership_receivedEmbed.author,
-                    //     description: leadership_receivedEmbed.description,
-                    //     color: leadership_receivedEmbed.color,
-                    //     fields: leadership_receivedEmbed.fields
-                    // }
-                    // const leadership_newEmbed = new Discord.EmbedBuilder()
-                    //     .setTitle(leadership_oldEmbedSchema.title)
-                    //     .setDescription(leadership_oldEmbedSchema.description)
-                    //         // .setColor('#87FF2A') //bight green
-                    //     // .setColor('#f20505') //bight red
-                    //     .setColor('#f2ff00') //bight yellow
-                    //     .setAuthor(leadership_oldEmbedSchema.author)
-                    //     .setThumbnail(botIdent().activeBot.icon)
-
-                    // //!requestor_newEmbed
-                    // //!leadership_newEmbed
-
                     try {
-                        console.log("AXIchallengeProof -> Modify embeds:".red,data)
                         let values = [-3, data.user.id]
                         let sql = `UPDATE promotion SET axi_rolesCheck = (?)  WHERE userId = (?);`
                         await database.query(sql, values)
