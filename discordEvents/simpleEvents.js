@@ -23,7 +23,7 @@ if (process.env.MODE != "PROD") {
     graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
 }
 else { 
-    leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.leadership_embedChannel 
+    leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.leadership_embedChannel
     requestor_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.requestor_embedChannel
     knowledge_proficiency = Object.values(config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency).map(i=>i)
     generalstaff = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'General Staff').id
@@ -536,7 +536,7 @@ const exp = {
         }
     },
     messageDelete: async (message, bot) => {
-        if (!message.author.bot && !knowledge_proficiency.includes(message.channel.parentId)) {  
+        if (!message.author.bot && !knowledge_proficiency.includes(message.channel.parentId) != null) {  
             try {
                 botLog(bot,new Discord.EmbedBuilder().setDescription(`Message deleted by user: ${message.author}` + '```' + `${message.content}` + '```').setTitle(`Message Deleted 🗑️`),1)
             } 
