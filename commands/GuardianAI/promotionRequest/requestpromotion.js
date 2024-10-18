@@ -35,6 +35,7 @@ module.exports = {
             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
             const response = await database.query(sql,values)
             if (response.length > 0) {
+                // console.log(response[0])
                 const challenge_score = response[0].challenge_state == 1 ? "Approved" : "Denied"
                 const challenge_score_color = response[0].challenge_state == 1 ? '#87FF2A' : '#F20505'
                 const leadership_thread = await interaction.guild.channels.fetch(response[0].leadership_threadId)
@@ -106,7 +107,7 @@ module.exports = {
                         const values = [ leadership_leadershipPotential.id, requestor_leadershipPotential.id, response[0].userId]
                         const sql = `UPDATE promotion SET leadership_potential_embedId = (?), requestor_potential_embedId = (?) WHERE userId = (?);`
                         await database.query(sql, values)
-                        await requestor_thread.setLocked(false)
+                        await requestor_thread.setLocked(true)
                     }
                     catch (err) {
                         console.log(err)
@@ -168,9 +169,11 @@ module.exports = {
             await requestor_thread.setLocked(false)
             const leadership_embedId = await leadership_thread.send( { embeds: [leadership_newEmbed]} )
             const requestor_embedId = await requestor_thread.send( { embeds: [requestor_newEmbed]} )
+            await requestor_thread.send(`<@${data.promotion.userId}> Promotion Challenge Proof Submission Required`)
 
             try {
                 const values = [requestor_embedId.id,leadership_embedId.id,data.promotion.userId]
+                console.log("grading state 3".yellow)
                 const sql = `UPDATE promotion SET grading_state = 3, challenge_requestor_embedId = (?), challenge_leadership_embedId = (?) WHERE userId = (?);`
                 await database.query(sql, values)
             }
@@ -461,12 +464,14 @@ module.exports = {
         }
  
     },
-    nextGradingQuestion: async function(interaction) {
+    nextGradingQuestion: async function(userId,interaction) {
+
         let promotion = null
         //Get database stuff
         try {
-            const values = false
-            const sql = `SELECT * FROM promotion`
+            const values = [userId]
+            
+            const sql = `SELECT * FROM promotion WHERE userId = (?)`
             const response = await database.query(sql, values)
             if (response.length > 0) { promotion = response[0] }
             else {
@@ -557,10 +562,8 @@ module.exports = {
                 })
                 leadership_newEmbed.setColor(score_color)
                 if (final_score < 80) { 
-                    leadership_newEmbed.addFields({ name: "Test Retake Required", value: "Final score was less than 80%, test retake starting.", inline: false})
+                    leadership_newEmbed.addFields({ name: "Test Retake Required", value: "```Final score was less than 80%, test retake starting.```", inline: false})
                 }
-                
-
                 const requestor_originalMessage = await requestor_thread.messages.fetch(promotion.requestor_scoreEmbedId)
                 const requestor_receivedEmbed = requestor_originalMessage.embeds[0]
                 let requestor_oldEmbedSchema = {
@@ -788,6 +791,7 @@ module.exports = {
                 experienceCredits[`${rank.rank_name}`] = `${rank.experienceCredit}`
             })
         }
+        
         async function checkPromotable() {
             async function getName(inputArray,inputName) {
                 let ranks = []
@@ -843,7 +847,10 @@ module.exports = {
             const response = await database.query(sql)
 
             if (response.length > 0) {
-                const rank = await getName(response,promotion.requestor.id)
+                // const rank = await getName(response,promotion.requestor.id)
+                const rank = [
+                    { Lieutenant: 5 }
+                ]
                 const rankVALUE = Object.values(rank[0])[0]
                 const promoteValue = experienceCredits[Object.keys(rank[0])[0]] 
                 if (rankVALUE >= Number(promoteValue)) {
@@ -894,9 +901,9 @@ module.exports = {
                                         .setColor('#f20505') //bight red
                                         .setDescription(`*Read directions carefully.*`)
                                         .addFields(
-                                            { name: "Answer Entry", value: "Answers will be typed into the chat box", inline: false },
-                                            { name: "Answer Editing", value: "You may change your answer again, by typing into the chat box", inline: false },
-                                            { name: "Answer Submission", value: "Click the 'Next Question' button to submit the answer", inline: false },
+                                            { name: "Answer Entry", value: "Answers will be typed into the chat box.", inline: false },
+                                            { name: "Answer Editing", value: "You may change your answer indefinately, by typing into the chat box prior to clicking 'Next Question'.", inline: false },
+                                            { name: "Answer Submission", value: "Click the 'Next Question' button to submit the answer. Your answer will be saved at that point.", inline: false },
                                             { name: "Test Populating...", value: "The test will begin shortly, be paitient for it to populate.", inline: false }
                                     )
                                     if (sendEmbed) { await thread.send({ embeds: [embed] }) }
@@ -1096,6 +1103,8 @@ module.exports = {
                         let ind = promotable_db_info[0].ind
                         const quantities = quantity(section,testTypes)
                         let section_next = null
+
+                        
                         //Get next section 
                         const bos_keys = Object.keys(bos) 
                         for (const [index, key] of bos_keys.entries()) { 
@@ -1157,10 +1166,10 @@ module.exports = {
                                     { name: "Required Grading by:", value: `<@&${graderRank[0][grader_ident]}> or Higher`, inline: false }
                                 )
                                 const row = new Discord.ActionRowBuilder() 
-                                    .addComponents(new Discord.ButtonBuilder().setCustomId(`startgradingtest-${promotable_db_info[0].id}`).setLabel('Start Grading').setStyle(Discord.ButtonStyle.Success))
+                                    .addComponents(new Discord.ButtonBuilder().setCustomId(`startgradingtest-${promotable_db_info[0].userId}`).setLabel('Start Grading').setStyle(Discord.ButtonStyle.Success))
                                 // .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
                             const gradingEmbedId = await leadership_lastMessage.edit({ embeds: [leadership_embed], components: [row] })
-                            // await leadership_thread.send("Grading Required")
+                            await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Awaiting Grading`)
 
                             //Initiate the grading process
                             try {
@@ -1219,11 +1228,12 @@ module.exports = {
         const current_xsf_role = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => roles.includes(value))[0]
         const reject_roles = ['General Staff','Colonel','Major','Captain']
         if (!reject_roles.includes(current_xsf_role)) {
-            this.nextTestQuestion(interaction) 
+            this.nextTestQuestion(interaction)
         }
         else {
             return interaction.editReply({ content: `❌ Your rank (${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })
         }
+
         // try {
         //     const values = ['194001098539925504']
         //     const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'

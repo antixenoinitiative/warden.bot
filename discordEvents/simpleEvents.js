@@ -162,13 +162,6 @@ const exp = {
                                 "basic": "Aviator",
                                 "advanced": "Lieutenant",
                                 "master": "Captain",
-                                "master": "General Staff",
-                            }
-                            const testTypes = {
-                                "Aviator": "basic",
-                                "Lieutenant": "advanced",
-                                "Captain": "master",
-                                "General Staff": "master",
                             }
                             const graderTypes = {
                                 "basic": "Captain",
@@ -197,7 +190,7 @@ const exp = {
                             
                             const newEmbed = new Discord.EmbedBuilder()
                                 .setTitle(leadership_oldEmbedSchema.title)
-                                .setDescription(`Waiting on approval from Leadership.`)
+                                .setDescription(`Waiting on approval from Leadership. Typing in a new URL will update your submission.`)
                                 .setColor("#f2ff00")
                                     // .setColor('#87FF2A') //bight green
                                     // .setColor('#f20505') //bight red
@@ -221,6 +214,7 @@ const exp = {
                                     }
                                 })
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
+                                await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
                                 return
                             }
@@ -244,6 +238,7 @@ const exp = {
                                 message.delete()
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
+                                await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 await requestor_thread.setLocked(true)
                                 return
                             }
@@ -437,6 +432,7 @@ const exp = {
                              )
                          }
                     }
+
                     if (!promotion.axiChallenge_state <= 0 && promotion.grading_state == 3 && promotion.challenge_state >= 0) {
                         //!If denial message statement is required, delete messages by anybody that is not the reviewer.
                         //todo Come up with a better system. Maybe try harder with modals even though they aren't compatable with deferedUpdates.
@@ -522,6 +518,7 @@ const exp = {
                             const sql = `UPDATE promotion SET challenge_state = 3 WHERE userId = (?);`
                             await database.query(sql, values)
                             await requestor_thread.setLocked(false)
+                             await leadership_thread.send(`Awaiting Promotion Challenge Review`)
                         }
                         catch (err) {
                             console.log(err)

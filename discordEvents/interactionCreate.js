@@ -111,7 +111,9 @@ const exp = {
                 }
                 if (interaction.customId.startsWith("startgradingtest")) { //promotion request
                     interaction.deferUpdate()
-                    nextGradingQuestion(interaction)
+                    const customId_array = interaction.customId.split("-")
+                    const userId = customId_array[1]
+                    nextGradingQuestion(userId,interaction)
                     return;
                 }
                 if (interaction.customId.startsWith("grading")) { //grade and update database
@@ -134,7 +136,7 @@ const exp = {
                         const d = await database.query(sql, values)
                         if (d) {
                             // console.log('saved')
-                            nextGradingQuestion(interaction) 
+                            nextGradingQuestion(testInfo.userId,interaction) 
                         }
                     }
                     catch (err) {
@@ -167,14 +169,17 @@ const exp = {
                         let values = [Number(score), interaction.user.id, challengeInfo.userId]
                         let sql = null;
                         if (challengeInfo.state == 'approve') {
-                            sql = `UPDATE promotion SET challenge_state = (?), grading_state = 4, challenge_reviewer = (?)  WHERE userId = (?);`
+                            sql = `UPDATE promotion SET grading_state = 4, challenge_state = (?), challenge_reviewer = (?)  WHERE userId = (?);`
+                            console.log("4")
                         }
                         else {
+                            console.log('not4')
                             sql = `UPDATE promotion SET challenge_state = (?), challenge_reviewer = (?)  WHERE userId = (?);`
                         }
                         const d = await database.query(sql, values)
                         if (d) {
                             // console.log('saved')
+                            // console.log("promotionChallengeResult(challengeInfo,interaction)".yellow, score)
                             promotionChallengeResult(challengeInfo,interaction)
                         }
                     }

@@ -437,10 +437,10 @@ const thisBotFunctions = {
     },
     getRankEmoji: async function (userId) {
         const requestor = await guild.members.fetch(userId)
-        let roles = await requestor.guild.roles.cache.map(role=>role.name)
-        roles = roles.filter(x=>x != '@everyone')
+        let server_roles = await requestor.roles.cache.map(role=>role.name)
+        server_roles = server_roles.filter(x=>x != '@everyone')
         const rankObj = config[thisBotFunctions.botIdent().activeBot.botName].general_stuff.allRanks.find(rank => 
-            roles.includes(rank.rank_name)
+            server_roles.includes(rank.rank_name)
         )
         return rankObj.emoji
     },
