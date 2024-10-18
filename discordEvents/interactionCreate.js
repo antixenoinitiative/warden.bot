@@ -173,10 +173,10 @@ const exp = {
                         let sql = null;
                         if (challengeInfo.state == 'approve') {
                             sql = `UPDATE promotion SET grading_state = 4, challenge_state = (?), challenge_reviewer = (?)  WHERE userId = (?);`
-                            console.log("4")
+                            // console.log("4")
                         }
                         else {
-                            console.log('not4')
+                            // console.log('not4')
                             sql = `UPDATE promotion SET challenge_state = (?), challenge_reviewer = (?)  WHERE userId = (?);`
                         }
                         const d = await database.query(sql, values)

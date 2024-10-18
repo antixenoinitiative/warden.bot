@@ -13,7 +13,7 @@ const thisBotFunctions = {
             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
             const response = await database.query(sql,values)
             if (response.length > 0 ) {
-                console.log('Mass Bulk Delete'.cyan)
+                // console.log('Mass Bulk Delete'.cyan)
                 try {
                     const emptyArray = JSON.stringify([])
                     const values = [emptyArray,userId]
@@ -34,11 +34,11 @@ const thisBotFunctions = {
                 }
                 JSON.parse(response[0].bulkMessages).forEach(async msg => {
                     msg = JSON.parse(msg)
-                    console.log("DELETE BULK MSG ITEM:".yellow,msg)
+                    // console.log("DELETE BULK MSG ITEM:".yellow,msg)
                     const channelObj = await message.guild.channels.fetch(msg[0].thread)
                     const msgObj = await channelObj.messages.fetch(msg[0].message)
                     if (msgObj) {
-                        console.log("Deleting Msg:".yellow,msg[0].message)
+                        // console.log("Deleting Msg:".yellow,msg[0].message)
                         msgObj.delete()
                     }
                 })

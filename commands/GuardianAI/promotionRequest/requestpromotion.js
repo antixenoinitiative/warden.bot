@@ -178,7 +178,7 @@ module.exports = {
 
             try {
                 const values = [JSON.stringify(bulkMessages),requestor_embedId.id,leadership_embedId.id,data.promotion.userId]
-                console.log("grading state 3".yellow)
+                // console.log("grading state 3".yellow)
                 const sql = `UPDATE promotion SET 
                     bulkMessages = JSON_ARRAY_APPEND(bulkMessages, '$', ?),
                     grading_state = 3, challenge_requestor_embedId = (?), challenge_leadership_embedId = (?) WHERE userId = (?);`
@@ -857,10 +857,10 @@ module.exports = {
             const response = await database.query(sql)
 
             if (response.length > 0) {
-                // const rank = await getName(response,promotion.requestor.id)
-                const rank = [
-                    { Lieutenant: 5 }
-                ]
+                const rank = await getName(response,promotion.requestor.id)
+                // const rank = [
+                //     { Lieutenant: 5 }
+                // ]
                 const rankVALUE = Object.values(rank[0])[0]
                 const promoteValue = experienceCredits[Object.keys(rank[0])[0]] 
                 if (rankVALUE >= Number(promoteValue)) {
