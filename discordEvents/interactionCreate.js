@@ -1,6 +1,7 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
 const { AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
+const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 // if (botIdent().activeBot.botName == 'Warden') {
 // }
@@ -113,6 +114,7 @@ const exp = {
                     interaction.deferUpdate()
                     const customId_array = interaction.customId.split("-")
                     const userId = customId_array[1]
+                    removeBulkMessages(userId,interaction)
                     nextGradingQuestion(userId,interaction)
                     return;
                 }
@@ -136,6 +138,7 @@ const exp = {
                         const d = await database.query(sql, values)
                         if (d) {
                             // console.log('saved')
+                            
                             nextGradingQuestion(testInfo.userId,interaction) 
                         }
                     }
@@ -180,6 +183,7 @@ const exp = {
                         if (d) {
                             // console.log('saved')
                             // console.log("promotionChallengeResult(challengeInfo,interaction)".yellow, score)
+                            removeBulkMessages(challengeInfo.userId,interaction)
                             promotionChallengeResult(challengeInfo,interaction)
                         }
                     }

@@ -1,5 +1,7 @@
 const Discord = require("discord.js");
 const { botIdent, getRankEmoji, botLog } = require('../../../functions')
+
+const { saveBulkMessages, removeBulkMessages } = require('../promotionRequest/prFunctions')
 const { requestInfo } = require('../../../socket/taskManager')
 const config = require('../../../config.json')
 let bos = null;
@@ -22,6 +24,7 @@ function getPercentage(part, whole) {
     if (whole === 0) return 0 // Avoid division by zero
     return ((part / whole) * 100).toFixed(2)
 }
+
 //206440307867385857  Absence of Gravitas
 module.exports = {
     promotionChallengeResult: async function (data,interaction) {
@@ -132,6 +135,7 @@ module.exports = {
         }
     },
     showPromotionChallenge: async function (data) {
+        let bulkMessages = []
         const testTypes = {
             "basic": "Aviator",
             "advanced": "Lieutenant",
@@ -169,12 +173,15 @@ module.exports = {
             await requestor_thread.setLocked(false)
             const leadership_embedId = await leadership_thread.send( { embeds: [leadership_newEmbed]} )
             const requestor_embedId = await requestor_thread.send( { embeds: [requestor_newEmbed]} )
-            await requestor_thread.send(`<@${data.promotion.userId}> Promotion Challenge Proof Submission Required`)
+            const blkMsg = await requestor_thread.send(`<@${data.promotion.userId}> Promotion Challenge Proof Submission Required`)
+            bulkMessages.push({ message: blkMsg.id, thread: data.promotion.requestor_threadId })
 
             try {
-                const values = [requestor_embedId.id,leadership_embedId.id,data.promotion.userId]
+                const values = [JSON.stringify(bulkMessages),requestor_embedId.id,leadership_embedId.id,data.promotion.userId]
                 console.log("grading state 3".yellow)
-                const sql = `UPDATE promotion SET grading_state = 3, challenge_requestor_embedId = (?), challenge_leadership_embedId = (?) WHERE userId = (?);`
+                const sql = `UPDATE promotion SET 
+                    bulkMessages = JSON_ARRAY_APPEND(bulkMessages, '$', ?),
+                    grading_state = 3, challenge_requestor_embedId = (?), challenge_leadership_embedId = (?) WHERE userId = (?);`
                 await database.query(sql, values)
             }
             catch (err) {
@@ -465,7 +472,7 @@ module.exports = {
  
     },
     nextGradingQuestion: async function(userId,interaction) {
-
+        let bulkMessages = []
         let promotion = null
         //Get database stuff
         try {
@@ -553,7 +560,7 @@ module.exports = {
                     .setTitle(`${capitalizeWords(promotion.testType)} Knowledge Proficiency Test`)
                     .setDescription("The test has been graded and scored")
                         // .setColor('#87FF2A') //bight green
-                        // .setColor('#f20505') //bight red
+                        // .setColor('#f20505') //bight red 
                         // .setColor('#f2ff00') //bight yellow
                     .setThumbnail(botIdent().activeBot.icon)
                     leadership_oldEmbedSchema.fields.forEach((i,index) => {
@@ -561,7 +568,7 @@ module.exports = {
                     if (index == 2) { leadership_newEmbed.addFields({ name: "Score:", value: "```"+final_score+"%```", inline: false }) }
                 })
                 leadership_newEmbed.setColor(score_color)
-                if (final_score < 80) { 
+                if (final_score < 80) {  
                     leadership_newEmbed.addFields({ name: "Test Retake Required", value: "```Final score was less than 80%, test retake starting.```", inline: false})
                 }
                 const requestor_originalMessage = await requestor_thread.messages.fetch(promotion.requestor_scoreEmbedId)
@@ -596,6 +603,7 @@ module.exports = {
                         const values = [final_score,promotion.userId]
                         const sql = `UPDATE promotion SET score = (?), grading_state = 2 WHERE userId = (?);`
                         await database.query(sql, values)
+                        
                         await module.exports.viewExperienceCredit(promotion.userId,threadEmbeds,interaction,promotion)
                     }
                     catch (err) {
@@ -611,18 +619,20 @@ module.exports = {
                 if (final_score < 80) {
                     //todo force user to retake the test. 
                     try {
-                        
                         const leadership_editedEmbed = Discord.EmbedBuilder.from(leadership_newEmbed)
                         await leadership_originalMessage.edit({ embeds: [leadership_editedEmbed], components: [] })
                         const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
                         await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
-                        const values = [final_score,promotion.userId]
+                        const blkMsg = await leadership_thread.send(`User failed the test, retake inprogress...`)
+                        const values = [final_score,promotion.userId] 
                         const sql = `UPDATE promotion SET score = (?), requestor_embedId = '[]', section = 'researchability', ind = 0, grading_embedId = NULL, grading_state = 0, question_num = 0, grading_number = 0, grading_progress = -1 WHERE userId = (?);`
                         const d = await database.query(sql, values)
-                        if (d) { 
+                        if (d) {
                             module.exports.nextTestQuestion(interaction)
                             await requestor_thread.setLocked(false)
-                            console.log("retake test")
+                            console.log("retake test".cyan)
+                            bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                            saveBulkMessages(userId,bulkMessages)
                         }
                     }
                     catch (err) {
@@ -938,10 +948,10 @@ module.exports = {
                                 const emptyArray = JSON.stringify([])
                                 const leadershipSubmissionThread = await createThread(leadership_embedChannel,leadership_info,1)
                                 const requestorSubmissionThread = await createThread(requestor_embedChannel,requestor_info,1)
-                                const values2 = [userId,leadershipSubmissionThread,requestorSubmissionThread,testTypes[promotion.requestor_nextRank],emptyArray]
+                                const values2 = [userId,leadershipSubmissionThread,requestorSubmissionThread,testTypes[promotion.requestor_nextRank],emptyArray,emptyArray]
                                 const sql2 = `
-                                    INSERT INTO promotion (userId, leadership_threadId, requestor_threadId, testType, requestor_embedId) 
-                                    VALUES (?,?,?,?,?)
+                                    INSERT INTO promotion (userId, leadership_threadId, requestor_threadId, testType, requestor_embedId, bulkMessages) 
+                                    VALUES (?,?,?,?,?,?)
                                 `
                                 await database.query(sql2, values2)
                                 response.push({question_num: 0, promotable: 1, leadership_threadId: leadershipSubmissionThread, requestor_threadId: requestorSubmissionThread})
@@ -1096,6 +1106,7 @@ module.exports = {
                 if (promotable_db_info[0].promotable == 1 && promotable_db_info[0].grading_state != 1) {
                     //todo resume test
                     if (promotable_db_info[0].question_num >= 1) {
+                        let bulkMessages = []
                         const leadership_thread = await interaction.guild.channels.fetch(promotable_db_info[0].leadership_threadId)
                         const requestor_thread = await interaction.guild.channels.fetch(promotable_db_info[0].requestor_threadId)
                         let section = promotable_db_info[0].section
@@ -1169,8 +1180,10 @@ module.exports = {
                                     .addComponents(new Discord.ButtonBuilder().setCustomId(`startgradingtest-${promotable_db_info[0].userId}`).setLabel('Start Grading').setStyle(Discord.ButtonStyle.Success))
                                 // .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
                             const gradingEmbedId = await leadership_lastMessage.edit({ embeds: [leadership_embed], components: [row] })
-                            await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Awaiting Grading`)
+                            const blkMsg = await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Awaiting Grading`)
 
+                            bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                            saveBulkMessages(promotable_db_info[0].userId,bulkMessages)
                             //Initiate the grading process
                             try {
                                 const values = [1,gradingEmbedId.id,requestor_scoreEmbedId.id,promotion.requestor.id]

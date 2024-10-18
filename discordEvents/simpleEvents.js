@@ -1,5 +1,6 @@
 const { botLog, botIdent, getRankEmoji } = require('../functions')
 const Discord = require('discord.js')
+
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
 
@@ -11,7 +12,10 @@ let major = null
 let captain = null
 let knowledge_proficiency = []
 let graderRank = []
+let saveBulkMessages
+let removeBulkMessages
 if (botIdent().activeBot.botName == "GuardianAI") {
+    ({ saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions'))
     if (process.env.MODE != "PROD") {
         console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.knowledge_proficiency. Using testServer input if available")
         leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.leadership_embedChannel
@@ -35,9 +39,11 @@ if (botIdent().activeBot.botName == "GuardianAI") {
     }
 }
 
+
 const exp = { 
     messageCreate: async (message, bot) => {
         if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
+            
             let messageParent = message.channel.parentId
             if (messageParent == requestor_embedChannel || messageParent == leadership_embedChannel) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
@@ -47,7 +53,7 @@ const exp = {
                     // .setColor('#87FF2A') //bight green
                     // .setColor('#f20505') //bight red
                     // .setColor('#f2ff00') //bight yellow
-                    
+                    let bulkMessages = []
                     try {
                         const values = [message.author.id]
                         const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
@@ -158,6 +164,7 @@ const exp = {
                         }
                         //For promotion challenge proof
                         if (response[0].grading_state == 3 && response[0].challenge_state != 3) {
+                            removeBulkMessages(response[0].userId, message)
                             const rankTypes = {
                                 "basic": "Aviator",
                                 "advanced": "Lieutenant",
@@ -214,8 +221,10 @@ const exp = {
                                     }
                                 })
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
-                                await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
+                                const blkMsg = await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
+                                bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                                saveBulkMessages(message.author.id,bulkMessages)
                                 return
                             }
                             const denyMsg = await message.channel.messages.fetch({limit: 2})
@@ -235,12 +244,14 @@ const exp = {
                                     { name: "Promotion Challenge Proof", value: `${urls}`, inline: false },
                                     { name: "Required Approval by:", value: `<@&${graderRank[0][grader_ident]}> or Higher`, inline: false }
                                 )
-                                message.delete()
+                                // message.delete()
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
-                                await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
+                                const blkMsg = await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
+                                bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                                saveBulkMessages(message.author.id,bulkMessages)
                                 await requestor_thread.setLocked(true)
-                                return
+                                
                             }
                         }
                         if (response.length > 0 && response[0].grading_state <= 0) {
@@ -307,6 +318,7 @@ const exp = {
                         else {
                             message.delete()
                         }
+                        bulkMessages = []
                     } 
                     catch (err) {
                         console.log(err)
@@ -317,9 +329,11 @@ const exp = {
                             ,'error'
                         )
                     }
+                
                 }
                 //leadership Channel thread
                 if (message.channel.name.startsWith("Promotion Request") && message.channel.messageCount >= 9) {
+                    let bulkMessages = []
                     let promotion = null
                     try { //Get DB info of thread
                         const values = [message.channel.id]
@@ -518,7 +532,8 @@ const exp = {
                             const sql = `UPDATE promotion SET challenge_state = 3 WHERE userId = (?);`
                             await database.query(sql, values)
                             await requestor_thread.setLocked(false)
-                             await leadership_thread.send(`Awaiting Promotion Challenge Review`)
+                            const blkMsg = await leadership_thread.send(`Awaiting Promotion Challenge Review`)
+                            bulkMessages.push(blkMsg)
                         }
                         catch (err) {
                             console.log(err)
