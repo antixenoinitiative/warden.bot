@@ -352,6 +352,67 @@ const exp = {
                             ,'error'
                         )
                     }
+                    if (promotion.grading_state == 4 && (message.content.startsWith("!final") || message.content.startsWith("!Final"))) { 
+                        const leadership_thread = await message.guild.channels.fetch(promotion.leadership_threadId)
+                        const leadership_potential = await leadership_thread.messages.fetch(promotion.leadership_potential_embedId)
+                        const leadership_embed = leadership_potential.embeds[0]
+                        const leadership_oldEmbedSchema = {
+                            title: leadership_embed.title,
+                            author: { name: message.author.displayName, iconURL: message.author.displayAvatarURL({ dynamic: true }) },
+                            description: leadership_embed.description,
+                            color: leadership_embed.color,
+                            fields: leadership_embed.fields
+                        }
+                        const leadership_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(leadership_oldEmbedSchema.title)
+                            .setDescription(`Anti Xeno Initiative Progression Challenge`)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(leadership_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(leadership_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+
+                            let messageContent = message.content.replace('!final', '').trim()
+                            let replacedField = false
+                            let userFieldFound = false
+                            leadership_oldEmbedSchema.fields.forEach((i) => {
+                                if (i.value === "-" && !replacedField) {
+                                    leadership_newEmbed.addFields({
+                                        name: `${message.author.displayName}`,
+                                        value: `- ${messageContent}`,
+                                        inline: i.inline
+                                    });
+                                    replacedField = true
+                                    userFieldFound = true
+                                } else if (i.name === message.author.displayName) {
+                                    leadership_newEmbed.addFields({
+                                        name: i.name,
+                                        value: `${i.value}\n- ${messageContent}`,
+                                        inline: i.inline
+                                    });
+                                    userFieldFound = true
+                                } 
+                                else {
+                                    leadership_newEmbed.addFields({
+                                        name: i.name,
+                                        value: i.value,
+                                        inline: i.inline
+                                    })
+                                }
+                            })
+                            if (!userFieldFound) {
+                                leadership_newEmbed.addFields({
+                                    name: `${message.author.displayName}`,
+                                    value: `${messageContent}`,
+                                    inline: false
+                                })
+                            }
+                        
+                        await leadership_potential.edit( { embeds: [leadership_newEmbed] } )
+                    
+                    
+                    }
                     if (promotion.axi_rolesCheck == -3) {
                         
                         if (message.author.id != promotion.axiChallenge_reviewer) {

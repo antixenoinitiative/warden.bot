@@ -623,14 +623,14 @@ module.exports = {
                         await leadership_originalMessage.edit({ embeds: [leadership_editedEmbed], components: [] })
                         const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
                         await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
-                        const blkMsg = await leadership_thread.send(`User failed the test, retake inprogress...`)
+                        const blkMsg = await leadership_thread.send(`❌ User failed the test, retake inprogress...`)
                         const values = [final_score,promotion.userId] 
                         const sql = `UPDATE promotion SET score = (?), requestor_embedId = '[]', section = 'researchability', ind = 0, grading_embedId = NULL, grading_state = 0, question_num = 0, grading_number = 0, grading_progress = -1 WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
                             module.exports.nextTestQuestion(interaction)
                             await requestor_thread.setLocked(false)
-                            console.log("retake test".cyan)
+                            // console.log("retake test".cyan)
                             bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                             saveBulkMessages(userId,bulkMessages)
                         }
