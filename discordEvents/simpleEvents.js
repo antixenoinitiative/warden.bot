@@ -14,6 +14,9 @@ let knowledge_proficiency = []
 let graderRank = []
 let saveBulkMessages
 let removeBulkMessages
+let promoter_rank
+let final_comments_required = 2
+let allRanks = null
 if (botIdent().activeBot.botName == "GuardianAI") {
     ({ saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions'))
     if (process.env.MODE != "PROD") {
@@ -26,6 +29,9 @@ if (botIdent().activeBot.botName == "GuardianAI") {
         major = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Major').id
         captain = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.find(r=>r.rank_name === 'Captain').id
         graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
+        final_comments_required = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.final_comments_required
+        promoter_rank = config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.promoter_rank
+        allRanks = config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.map(i => i.rank_name)
     }
     else { 
         leadership_embedChannel = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.leadership_embedChannel
@@ -36,6 +42,9 @@ if (botIdent().activeBot.botName == "GuardianAI") {
         major = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Major').id
         captain = config[botIdent().activeBot.botName].general_stuff.allRanks.find(r=>r.rank_name === 'Captain').id
         graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
+        final_comments_required = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.final_comments_required
+        promoter_rank = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.promoter_rank
+        allRanks = config[botIdent().activeBot.botName].allRanks.map(i => i.rank_name)
     }
 }
 
@@ -351,6 +360,7 @@ const exp = {
                         )
                     }
                     if (promotion.grading_state == 4 && (message.content.startsWith("!final") || message.content.startsWith("!Final"))) { 
+                        removeBulkMessages(promotion.userId, message)
                         const leadership_thread = await message.guild.channels.fetch(promotion.leadership_threadId)
                         const requestor = await guild.members.fetch(promotion.userId)
                         const leadership_potential = await leadership_thread.messages.fetch(promotion.leadership_potential_embedId)
@@ -364,7 +374,7 @@ const exp = {
                         }
                         const leadership_newEmbed = new Discord.EmbedBuilder()
                             .setTitle(leadership_oldEmbedSchema.title)
-                            .setDescription(`Anti Xeno Initiative Progression Challenge`)
+                            .setDescription(`Promotion Potential Discussion`)
                             // .setColor('#87FF2A') //bight green
                             // .setColor('#f20505') //bight red
                             // .setColor('#f2ff00') //bight yellow
@@ -372,22 +382,55 @@ const exp = {
                             .setAuthor(leadership_oldEmbedSchema.author)
                             .setThumbnail(botIdent().activeBot.icon)
 
-                        let messageContent = message.content.replace('!final', '').trim()
+                        const MAX_FIELD_VALUE_LENGTH = 1024
+                        let messageContent = message.content.trim()
+                        if (messageContent.slice(0, 6).toLowerCase() === '!final') {
+                            messageContent = messageContent.slice(6).trim()
+                        }
                         let replacedField = false
                         let userFieldFound = false
-                        let totalFields = 0;
-                        leadership_oldEmbedSchema.fields.forEach((i,index) => {
+                        let totalFields = 0
+                        let messageDeleted = false
+                        let sentError = false
+                        const exceedsFieldLimit = (existingValue, newValue) => {
+                            return (existingValue.length + newValue.length + 3) > MAX_FIELD_VALUE_LENGTH
+                        }
+                        leadership_oldEmbedSchema.fields.forEach(async (i, index) => {
                             if (i.value === "-" && !replacedField) {
+                                if (messageContent.length > MAX_FIELD_VALUE_LENGTH) {
+                                    if (!sentError) {
+                                        sentError = true
+                                        const blkMsg = await leadership_thread.send(`⛔ <@${message.author.id}> your message exceeds the 1024 character limit.`);
+                                        bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                                        saveBulkMessages(message.author.id,bulkMessages)
+                                    }
+                                    if (!messageDeleted) {
+                                        try { 
+                                            message.delete()
+                                            messageDeleted = true
+                                        } catch (e) { console.error(e) }
+                                    }
+                                    return
+                                }
                                 leadership_newEmbed.addFields({
                                     name: `${message.author.displayName}`,
                                     value: `- ${messageContent}`,
                                     inline: i.inline
-                                });
+                                })
                                 replacedField = true
                                 userFieldFound = true
                                 totalFields++
                             } 
                             else if (i.name === message.author.displayName) {
+                                if (exceedsFieldLimit(i.value, messageContent)) {
+                                    if (!messageDeleted) {
+                                        try { 
+                                            message.delete()
+                                            messageDeleted = true
+                                        } catch (e) { console.error(e) }
+                                    }
+                                    return
+                                }
                                 leadership_newEmbed.addFields({
                                     name: i.name,
                                     value: `${i.value}\n- ${messageContent}`,
@@ -400,28 +443,58 @@ const exp = {
                                     name: i.name,
                                     value: i.value,
                                     inline: i.inline
-                                })
+                                });
                                 totalFields++
                             }
                         })
                         if (!userFieldFound) {
+                            if (messageContent.length > MAX_FIELD_VALUE_LENGTH) {
+                                console.log("!userFieldFound")
+                                if (!sentError) {
+                                    sentError = true
+                                    const blkMsg = await leadership_thread.send(`⛔ <@${message.author.id}> your message exceeds the 1024 character limit.`)
+                                    bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                                    saveBulkMessages(message.author.id,bulkMessages)
+                                }
+                                if (!messageDeleted) {
+                                    try { 
+                                        await message.delete()
+                                        messageDeleted = true
+                                    } catch (e) { console.error(e) }
+                                }
+                                return
+                            }
                             leadership_newEmbed.addFields({
                                 name: `${message.author.displayName}`,
                                 value: `- ${messageContent}`,
                                 inline: false
-                            })
+                            });
                             totalFields++
                         }
-                        if (totalFields >= 5) {
+                        if (totalFields >= (Number(final_comments_required) + 2)) {
                             const requestor_components = new Discord.ActionRowBuilder()
-                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotion-approve-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("General Staff Approval").setStyle(Discord.ButtonStyle.Success))
-                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotion-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("General Staff Promotion").setStyle(Discord.ButtonStyle.Danger))
-                            await leadership_potential.edit( { embeds: [leadership_newEmbed], components: [requestor_components] } )
-                        }
+                                .addComponents(
+                                    new Discord.ButtonBuilder()
+                                        .setCustomId(`promotion-approve-${promotion.userId}-${promoter_rank}`)
+                                        .setLabel("General Staff Approval")
+                                        .setStyle(Discord.ButtonStyle.Success)
+                                )
+                                .addComponents(
+                                    new Discord.ButtonBuilder()
+                                        .setCustomId(`promotion-deny-${promotion.userId}-${promoter_rank}`)
+                                        .setLabel("General Staff Denial")
+                                        .setStyle(Discord.ButtonStyle.Danger)
+                                )
+                            await leadership_potential.edit({ embeds: [leadership_newEmbed], components: [requestor_components] })
+                        } 
                         else {
-                            await leadership_potential.edit( { embeds: [leadership_newEmbed] } )
+                            await leadership_potential.edit({ embeds: [leadership_newEmbed] })
                         }
-                        message.delete()
+                        if (!messageDeleted) {
+                            try {
+                                await message.delete()
+                            } catch (e) { console.error(e) }
+                        }
                     }
                     if (promotion.axi_rolesCheck == -3) {
                         

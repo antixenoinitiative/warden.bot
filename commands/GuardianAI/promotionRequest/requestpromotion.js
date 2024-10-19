@@ -79,6 +79,76 @@ module.exports = {
                     })
                     await leadership_challenge.edit( { embeds: [newEmbed], components: [] } )
                     await requestor_challenge.edit( { embeds: [newEmbed] } )
+
+
+                    //! IF USER IS NEXT RANK AVIATOR STOP
+
+
+                    const info = {
+                        nextRank: testTypes[response[0].testType],    
+                        promoter_rank: function() {
+                            if (process.env.MODE != "PROD") {
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.knowledge_proficiency.promoter_rank
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.promoter_rank
+                            }
+                        }
+                    }
+                    if (info.nextRank == "Aviator") { 
+                        const requestor_aviator_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(`Promotion Request`)
+                            .setDescription(`- Congradulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the the review is conducted by leadership...`)
+                                // .setColor('#87FF2A') //bight green
+                                // .setColor('#f20505') //bight red
+                            .setColor('#f2ff00') //bight yellow
+                            .setAuthor({ name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) })
+                            .setThumbnail(botIdent().activeBot.icon)
+                        const leadership_aviator_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(`Promotion Request`)
+                            .setDescription(`- User has completed all requirements\n- General Staff decision to promote. `)
+                                // .setColor('#87FF2A') //bight green
+                                // .setColor('#f20505') //bight red
+                            .setColor('#f2ff00') //bight yellow
+                            .setAuthor({ name: requestor.displayName, iconURL: requestor.user.displayAvatarURL({ dynamic: true }) })
+                            .setThumbnail(botIdent().activeBot.icon)
+
+                        const promotion_components = new Discord.ActionRowBuilder()
+                            .addComponents(
+                                new Discord.ButtonBuilder()
+                                    .setCustomId(`promotion-approve-${response[0].userId}-${info.promoter_rank()}`)
+                                    .setLabel("General Staff Approval")
+                                    .setStyle(Discord.ButtonStyle.Success)
+                            )
+                            .addComponents(
+                                new Discord.ButtonBuilder()
+                                    .setCustomId(`promotion-deny-${response[0].userId}-${info.promoter_rank()}`)
+                                    .setLabel("General Staff Denial")
+                                    .setStyle(Discord.ButtonStyle.Danger)
+                            )
+                        const requestor_aviatorPromotion = await requestor_thread.send( { embeds: [requestor_aviator_newEmbed], components: [] } )
+                        const leadership_aviatorPromotion = await leadership_thread.send( { embeds: [leadership_aviator_newEmbed], components: [promotion_components] } )
+                        try {
+                            const values = [ leadership_aviatorPromotion.id, requestor_aviatorPromotion.id, response[0].userId]
+                            const sql = `UPDATE promotion SET leadership_potential_embedId = (?), requestor_potential_embedId = (?) WHERE userId = (?);`
+                            await database.query(sql, values)
+                            await requestor_thread.setLocked(true)
+                        }
+                        catch (err) {
+                            console.log(err)
+                            botLog(interaction.guild,new Discord.EmbedBuilder()
+                                .setDescription('```' + err.stack + '```')
+                                .setTitle(`⛔ Fatal error experienced`)
+                                ,2
+                                ,'error'
+                            )
+                        }
+                       
+                        return;
+                    }
+                    
+                    //! IS LIEUTENANT+ NEXT RANK
+
                     const requestor_leadershipPotential_newEmbed = new Discord.EmbedBuilder()
                         .setTitle(`Leadership Potential`)
                         .setDescription(`- Congradulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)

@@ -3,8 +3,8 @@ const { leaderboardInteraction } = require('../commands/Warden/leaderboards/lead
 const { AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
-// if (botIdent().activeBot.botName == 'Warden') {
-// }
+const config = require('../config.json')
+
 const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
@@ -344,6 +344,223 @@ const exp = {
                         )
                     }
                     return;
+                }
+                if (interaction.customId.startsWith("promotion")) {
+                    async function notGeneralStaff(requestor,promotion,info) {
+                        let bulkMessages = []
+                        const leadership_thread = await interaction.guild.channels.fetch(promotion.leadership_threadId)
+                        const leadership_potential = await leadership_thread.messages.fetch(promotion.leadership_potential_embedId)
+                        const promotion_potential_embed = leadership_potential.embeds[0]
+                        const leadership_oldEmbedSchema = {
+                            title: promotion_potential_embed.title,
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                            description: promotion_potential_embed.description,
+                            color: promotion_potential_embed.color,
+                            fields: promotion_potential_embed.fields
+                        }
+                        const leadership_potential_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(leadership_oldEmbedSchema.title)
+                            .setDescription(leadership_oldEmbedSchema.description)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(leadership_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(leadership_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+                        leadership_oldEmbedSchema.fields.forEach(async (i, index) => {
+                            leadership_potential_newEmbed.addFields({
+                                name: i.name,
+                                value: i.value,
+                                inline: i.inline
+                            })
+                        })
+                        
+                        const promotion_components = new Discord.ActionRowBuilder()
+                            .addComponents(
+                                new Discord.ButtonBuilder()
+                                    .setCustomId(`promotion-approve-${promotion.userId}-${info.promoter_rank}`)
+                                    .setLabel("General Staff Approval")
+                                    .setStyle(Discord.ButtonStyle.Success)
+                            )
+                            .addComponents(
+                                new Discord.ButtonBuilder()
+                                    .setCustomId(`promotion-deny-${promotion.userId}-${info.promoter_rank}`)
+                                    .setLabel("General Staff Promotion")
+                                    .setStyle(Discord.ButtonStyle.Danger)
+                            )
+                        
+                        await leadership_potential.edit({ embeds: [leadership_potential_newEmbed], components: [promotion_components] })
+                        const blkMsg = await leadership_thread.send(`⛔ <@${interaction.user.id}> Promotion Approval/Denial can only be conducted by: ${JSON.stringify(info.promoter_rank)} `);
+                        bulkMessages.push({ message: blkMsg.id, thread: promotion.leadership_threadId })
+                        saveBulkMessages(promotion.userId,bulkMessages)
+                        return
+                    }
+                    async function adjustEmbed(requestor,promotion,promotionType,nextRank) {
+                        const leadership_thread = await interaction.guild.channels.fetch(promotion.leadership_threadId)
+                        const requestor_thread = await interaction.guild.channels.fetch(promotion.requestor_threadId)
+                        const leadership_potential = await leadership_thread.messages.fetch(promotion.leadership_potential_embedId)
+                        const requestor_potential = await requestor_thread.messages.fetch(promotion.requestor_potential_embedId)
+                        const leadership_promotion_potential_embed = leadership_potential.embeds[0]
+                        const requestor_promotion_potential_embed = requestor_potential.embeds[0]
+                        const leadership_oldEmbedSchema = {
+                            title: leadership_promotion_potential_embed.title,
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                            description: leadership_promotion_potential_embed.description,
+                            color: leadership_promotion_potential_embed.color,
+                            fields: leadership_promotion_potential_embed.fields
+                        }
+                        const requestor_oldEmbedSchema = {
+                            title: requestor_promotion_potential_embed.title,
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                            description: requestor_promotion_potential_embed.description,
+                            color: requestor_promotion_potential_embed.color,
+                            fields: requestor_promotion_potential_embed.fields
+                        }
+                        const leadership_potential_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(leadership_oldEmbedSchema.title)
+                            .setDescription(leadership_oldEmbedSchema.description)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(leadership_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(leadership_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+                        leadership_oldEmbedSchema.fields.forEach(async (i, index) => {
+                            if (index == 2) { leadership_potential_newEmbed.addFields({ name: "Promotion Discussion:", value: "All final statements have been recorded. See below", inline: i.inline }) }
+                            if (index > 2) { leadership_potential_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline }) }
+                        })
+                        const requestor_potential_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(requestor_oldEmbedSchema.title)
+                            .setDescription(`Congradulations on completing the ${nextRank} Promotion Request!`)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(requestor_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(requestor_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+                            
+                        if (promotionType) { 
+                            leadership_potential_newEmbed
+                                .setColor('#87FF2A')
+                                .addFields(
+                                    { name: "General Officer Promotion Decision", value: "```Approved```", inline: false}
+                                )
+                            requestor_potential_newEmbed
+                                .setColor('#87FF2A')
+                                .addFields(
+                                    { name: "Promotion Request:", value: "```Approved```", inline: true },
+                                    { name: "Rank Awarded:", value: "```"+nextRank+"```", inline: true },
+                                    { name: "Application Status:", value: "```Completed```", inline: true },
+                                    { name: "Broadcasting Promotion...", value: "```Completed```", inline: true }
+                                )
+                        }
+                        else { 
+                            leadership_potential_newEmbed
+                                .setColor('#f20505')
+                                .addFields(
+                                    { name: "General Officer Promotion Decision", value: "```Denied```", inline: false}
+                                )
+                            requestor_potential_newEmbed
+                                .setColor('#f20505')
+                                .addFields(
+                                    { name: "Promotion Request:", value: "```Denied```", inline: false },
+                                    { name: "Reason:", value: "``` Please Await for Contact from General Staff```", inline: false }
+                                )
+                        }
+                        
+                        await leadership_potential.edit({ embeds: [leadership_potential_newEmbed], components: [] })
+                        await requestor_potential.edit({ embeds: [requestor_potential_newEmbed], components: [] })
+                        await leadership_thread.setLocked(true)
+                        //Thread already locked
+                        // await requestor_thread.setLocked(true)
+                        try {
+                            const values = [promotion.userId]
+                            const sql = `UPDATE promotion SET grading_state = 5 WHERE userId = (?);`
+                            await database.query(sql, values) 
+                        }
+                        catch (err) {
+                            console.log(err)
+                            botLog(interaction.guild,new Discord.EmbedBuilder()
+                                .setDescription('```' + err.stack + '```')
+                                .setTitle(`⛔ Fatal error experienced`)
+                                ,2
+                                ,'error'
+                            )
+                        }
+                        return
+                    }
+                    interaction.deferUpdate()
+                    interaction.message.edit({ components: [] })
+                    const rankTypes = {
+                        "basic": "Aviator",
+                        "advanced": "Lieutenant",
+                        "master": "Captain",
+                    }
+                    const customId_array = interaction.customId.split("-")
+                    const info = {
+                        promoter: interaction.user.id,
+                        state: customId_array[1],
+                        userId: customId_array[2],
+                        promoter_rank: customId_array[3],
+                        allRanks: function() {
+                            if (process.env.MODE != "PROD") {
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.map(i => i.rank_name)
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].allRanks.map(i => i.rank_name)
+                            }
+                        }
+                    }
+                    let promotion = null
+                    try { //Get DB info of thread
+                        const values = [info.userId]
+                        const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+                        const response = await database.query(sql,values)
+                        if (response.length > 0) {
+                            promotion = response[0]
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    removeBulkMessages(promotion.userId, interaction)
+                    const requestor = await guild.members.fetch(info.userId)
+                    let requestor_roles = requestor.roles.cache.map(role=>role.name)
+                    requestor_roles = requestor_roles.filter(x=>x != '@everyone')
+                    const requestor_currentRank = requestor_roles.find(rank => info.allRanks().includes(rank))
+
+
+                    const promoter = await guild.members.fetch(info.promoter)
+                    let promoter_roles = promoter.roles.cache.map(role=>role.name)
+                    promoter_roles = promoter_roles.filter(x=>x != '@everyone')
+                    const approved_promoter = promoter_roles.some(rank => info.promoter_rank.includes(rank))
+                    if (approved_promoter && info.state == 'deny') {
+                        const nextRank = false
+                        const promotionType = false
+                        adjustEmbed(requestor,promotion,promotionType,nextRank)
+                        return
+                    }
+                    if (approved_promoter && info.state == 'approve') {
+                        const promotionRole = interaction.guild.roles.cache.find(r => r.name === rankTypes[promotion.testType])
+                        const demotionRole = interaction.guild.roles.cache.find(r => r.name === requestor_currentRank)
+                        await requestor.roles.add(promotionRole)
+                        await requestor.roles.remove(demotionRole)
+                        const nextRank = rankTypes[promotion.testType]
+                        const promotionType = true
+                        adjustEmbed(requestor,promotion,promotionType,nextRank)
+                        return
+                    }
+                    if (!approved_promoter) {
+                        notGeneralStaff(requestor,promotion,info)
+                        return
+                    }
+
                 }
             }
         }
