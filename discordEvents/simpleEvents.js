@@ -43,12 +43,10 @@ if (botIdent().activeBot.botName == "GuardianAI") {
 const exp = { 
     messageCreate: async (message, bot) => {
         if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
-            
             let messageParent = message.channel.parentId
             if (messageParent == requestor_embedChannel || messageParent == leadership_embedChannel) {
                 // const embedChannelObj = await message.guild.channels.fetch(applyForRanks_guardianai)
                 if (message.channel.name.includes("Submission")) {
-                    
                     // console.log("submitting")
                     // .setColor('#87FF2A') //bight green
                     // .setColor('#f20505') //bight red
@@ -354,11 +352,12 @@ const exp = {
                     }
                     if (promotion.grading_state == 4 && (message.content.startsWith("!final") || message.content.startsWith("!Final"))) { 
                         const leadership_thread = await message.guild.channels.fetch(promotion.leadership_threadId)
+                        const requestor = await guild.members.fetch(promotion.userId)
                         const leadership_potential = await leadership_thread.messages.fetch(promotion.leadership_potential_embedId)
                         const leadership_embed = leadership_potential.embeds[0]
                         const leadership_oldEmbedSchema = {
                             title: leadership_embed.title,
-                            author: { name: message.author.displayName, iconURL: message.author.displayAvatarURL({ dynamic: true }) },
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
                             description: leadership_embed.description,
                             color: leadership_embed.color,
                             fields: leadership_embed.fields
@@ -373,45 +372,56 @@ const exp = {
                             .setAuthor(leadership_oldEmbedSchema.author)
                             .setThumbnail(botIdent().activeBot.icon)
 
-                            let messageContent = message.content.replace('!final', '').trim()
-                            let replacedField = false
-                            let userFieldFound = false
-                            leadership_oldEmbedSchema.fields.forEach((i) => {
-                                if (i.value === "-" && !replacedField) {
-                                    leadership_newEmbed.addFields({
-                                        name: `${message.author.displayName}`,
-                                        value: `- ${messageContent}`,
-                                        inline: i.inline
-                                    });
-                                    replacedField = true
-                                    userFieldFound = true
-                                } else if (i.name === message.author.displayName) {
-                                    leadership_newEmbed.addFields({
-                                        name: i.name,
-                                        value: `${i.value}\n- ${messageContent}`,
-                                        inline: i.inline
-                                    });
-                                    userFieldFound = true
-                                } 
-                                else {
-                                    leadership_newEmbed.addFields({
-                                        name: i.name,
-                                        value: i.value,
-                                        inline: i.inline
-                                    })
-                                }
-                            })
-                            if (!userFieldFound) {
+                        let messageContent = message.content.replace('!final', '').trim()
+                        let replacedField = false
+                        let userFieldFound = false
+                        let totalFields = 0;
+                        leadership_oldEmbedSchema.fields.forEach((i,index) => {
+                            if (i.value === "-" && !replacedField) {
                                 leadership_newEmbed.addFields({
                                     name: `${message.author.displayName}`,
-                                    value: `${messageContent}`,
-                                    inline: false
-                                })
+                                    value: `- ${messageContent}`,
+                                    inline: i.inline
+                                });
+                                replacedField = true
+                                userFieldFound = true
+                                totalFields++
+                            } 
+                            else if (i.name === message.author.displayName) {
+                                leadership_newEmbed.addFields({
+                                    name: i.name,
+                                    value: `${i.value}\n- ${messageContent}`,
+                                    inline: i.inline
+                                });
+                                userFieldFound = true
                             }
-                        
-                        await leadership_potential.edit( { embeds: [leadership_newEmbed] } )
-                    
-                    
+                            else {
+                                leadership_newEmbed.addFields({
+                                    name: i.name,
+                                    value: i.value,
+                                    inline: i.inline
+                                })
+                                totalFields++
+                            }
+                        })
+                        if (!userFieldFound) {
+                            leadership_newEmbed.addFields({
+                                name: `${message.author.displayName}`,
+                                value: `- ${messageContent}`,
+                                inline: false
+                            })
+                            totalFields++
+                        }
+                        if (totalFields >= 5) {
+                            const requestor_components = new Discord.ActionRowBuilder()
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotion-approve-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("General Staff Approval").setStyle(Discord.ButtonStyle.Success))
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotion-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("General Staff Promotion").setStyle(Discord.ButtonStyle.Danger))
+                            await leadership_potential.edit( { embeds: [leadership_newEmbed], components: [requestor_components] } )
+                        }
+                        else {
+                            await leadership_potential.edit( { embeds: [leadership_newEmbed] } )
+                        }
+                        message.delete()
                     }
                     if (promotion.axi_rolesCheck == -3) {
                         
@@ -507,7 +517,6 @@ const exp = {
                              )
                          }
                     }
-
                     if (!promotion.axiChallenge_state <= 0 && promotion.grading_state == 3 && promotion.challenge_state >= 0) {
                         //!If denial message statement is required, delete messages by anybody that is not the reviewer.
                         //todo Come up with a better system. Maybe try harder with modals even though they aren't compatable with deferedUpdates.
