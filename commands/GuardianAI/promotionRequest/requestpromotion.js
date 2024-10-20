@@ -24,7 +24,7 @@ function getPercentage(part, whole) {
     if (whole === 0) return 0 // Avoid division by zero
     return ((part / whole) * 100).toFixed(2)
 }
-
+axiSelection = null
 //206440307867385857  Absence of Gravitas
 module.exports = {
     promotionChallengeResult: async function (data,interaction) {
@@ -117,13 +117,13 @@ module.exports = {
                             .addComponents(
                                 new Discord.ButtonBuilder()
                                     .setCustomId(`promotion-approve-${response[0].userId}-${info.promoter_rank()}`)
-                                    .setLabel("General Staff Approval")
+                                    .setLabel("Approve Promotion")
                                     .setStyle(Discord.ButtonStyle.Success)
                             )
                             .addComponents(
                                 new Discord.ButtonBuilder()
                                     .setCustomId(`promotion-deny-${response[0].userId}-${info.promoter_rank()}`)
-                                    .setLabel("General Staff Denial")
+                                    .setLabel("Deny Promotion")
                                     .setStyle(Discord.ButtonStyle.Danger)
                             )
                         const requestor_aviatorPromotion = await requestor_thread.send( { embeds: [requestor_aviator_newEmbed], components: [] } )
@@ -430,8 +430,13 @@ module.exports = {
     },
     showAXIroles: async function (userId,threadEmbeds,promotion) {
         let person_asking = userId
-        // const subject = guild.members.cache.get("206440307867385857")
-        const subject = guild.members.cache.get(userId)
+        let subject = null
+        if (axiSelection == "no") { 
+            subject = guild.members.cache.get("206440307867385857")
+        }
+        else {
+            subject = guild.members.cache.get(userId)
+        }
         const member = guild.members.cache.get(userId)
         let roles = member.roles.cache.map(role=>role.name)
         roles = roles.filter(x=>x != '@everyone')
@@ -669,10 +674,13 @@ module.exports = {
                         const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
                         await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
                         const threadEmbeds = {requestor: requestor_originalMessage, leadership: leadership_originalMessage}
+                        JSON.parse(promotion.requestor_embedId).forEach(async msg => {
+                            const delMsg = await requestor_thread.messages.fetch(msg)
+                            await delMsg.delete()
+                        })
                         const values = [final_score,promotion.userId]
-                        const sql = `UPDATE promotion SET score = (?), grading_state = 2 WHERE userId = (?);`
+                        const sql = `UPDATE promotion SET score = (?), grading_state = 2, requestor_embedId = '[]' WHERE userId = (?);`
                         await database.query(sql, values)
-                        
                         await module.exports.viewExperienceCredit(promotion.userId,threadEmbeds,interaction,promotion)
                     }
                     catch (err) {
@@ -694,14 +702,23 @@ module.exports = {
                         await requestor_originalMessage.edit({ embeds: [requestor_editedEmbed], components: [] })
                         const blkMsg = await leadership_thread.send(`❌ User failed the test, retake inprogress...`)
                         const values = [final_score,promotion.userId] 
-                        const sql = `UPDATE promotion SET score = (?), requestor_embedId = '[]', section = 'researchability', ind = 0, grading_embedId = NULL, grading_state = 0, question_num = 0, grading_number = 0, grading_progress = -1 WHERE userId = (?);`
+                        const sql = `UPDATE promotion SET 
+                        score = (?), 
+                        requestor_embedId = '[]', 
+                        section = 'researchability', 
+                        ind = 0, 
+                        grading_embedId = NULL, 
+                        grading_state = 0, 
+                        question_num = 0, 
+                        grading_number = 0, 
+                        grading_progress = -1 
+                        WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
-                            module.exports.nextTestQuestion(interaction)
                             await requestor_thread.setLocked(false)
-                            // console.log("retake test".cyan)
                             bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                             saveBulkMessages(userId,bulkMessages)
+                            module.exports.nextTestQuestion(interaction)
                         }
                     }
                     catch (err) {
@@ -926,10 +943,10 @@ module.exports = {
             const response = await database.query(sql)
 
             if (response.length > 0) {
-                const rank = await getName(response,promotion.requestor.id)
-                // const rank = [
-                //     { Lieutenant: 5 }
-                // ]
+                // const rank = await getName(response,promotion.requestor.id)
+                const rank = [
+                    { [`${promotion.requestor_currentRank}`]: 5 }
+                ]
                 const rankVALUE = Object.values(rank[0])[0]
                 const promoteValue = experienceCredits[Object.keys(rank[0])[0]] 
                 if (rankVALUE >= Number(promoteValue)) {
@@ -1250,7 +1267,7 @@ module.exports = {
                                 // .addComponents(new Discord.ButtonBuilder().setCustomId(`submission-deny-${submissionId}`).setLabel('Delete').setStyle(Discord.ButtonStyle.Danger),)
                             const gradingEmbedId = await leadership_lastMessage.edit({ embeds: [leadership_embed], components: [row] })
                             const blkMsg = await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Awaiting Grading`)
-
+                            
                             bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                             saveBulkMessages(promotable_db_info[0].userId,bulkMessages)
                             //Initiate the grading process
@@ -1303,9 +1320,17 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
         .setName('requestpromotion') 
         .setDescription('Select a promotion request category')
+        .addStringOption(option =>
+            option.setName('axi')
+                .setDescription('Choose Yes or No for user IN AXI server')
+                .setRequired(true)
+                .addChoices({ name: "Yes", value: "yes"})
+                .addChoices({ name: "No", value: "no"})
+        )
     ,
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: true })
+        axiSelection = interaction.options.data.find(arg => arg.name === 'axi').value
         const roles = interaction.member.roles.cache.map(r=>r.name)
         const current_xsf_role = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => roles.includes(value))[0]
         const reject_roles = ['General Staff','Colonel','Major','Captain']

@@ -9,7 +9,6 @@ const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
 const { default: test } = require('node:test')
-
 const exp = {
     interactionCreate: async (interaction,bot) => {
         //!isModalSubmit() is not 100% required, you can gather any modal replies from within the codebase your working from.
@@ -73,6 +72,16 @@ const exp = {
                 }
             }
             if (botIdent().activeBot.botName == 'GuardianAI') {
+                const rankTypes = {
+                    "basic": "Aviator",
+                    "advanced": "Lieutenant",
+                    "master": "Captain",
+                }
+                const graderTypes = {
+                    "basic": ["Captain","Major","Colonel", "General Staff"],
+                    "advanced": ["Major","Colonel", "General Staff"],
+                    "master": ["Colonel", "General Staff"]
+                }
                 if (interaction.customId.startsWith("answerquestion")) { //promotion request
                     interaction.deferUpdate();
                     interaction.message.edit({ components: [] })
@@ -111,9 +120,96 @@ const exp = {
                     return;
                 }
                 if (interaction.customId.startsWith("startgradingtest")) { //promotion request
+                    async function adjustEmbed(requestor,promotion,rank_info) {
+                        const leadership_thread = await interaction.guild.channels.fetch(promotion.leadership_threadId)
+                        const leadership_embedOld_msg = await leadership_thread.messages.fetch(promotion.leadership_embedId)
+                        const leadership_embedOld = leadership_embedOld_msg.embeds[0]
+                        const leadership_oldEmbedSchema = {
+                            title: leadership_embedOld.title,
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                            description: leadership_embedOld.description,
+                            color: leadership_embedOld.color,
+                            fields: leadership_embedOld.fields
+                        }
+
+                        const leadership_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(leadership_oldEmbedSchema.title)
+                            .setDescription(leadership_oldEmbedSchema.description)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(leadership_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(leadership_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+                        leadership_oldEmbedSchema.fields.forEach(async (i, index) => {
+                            leadership_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline })
+                        })
+                        const row = new Discord.ActionRowBuilder() 
+                            .addComponents(new Discord.ButtonBuilder()
+                                .setCustomId(`startgradingtest-${requestor.id}`)
+                                .setLabel('Start Grading')
+                                .setStyle(Discord.ButtonStyle.Success))
+                        
+                        await leadership_embedOld_msg.edit({ embeds: [leadership_newEmbed], components: [row] })
+                        const blkMsg = await leadership_thread.send(`⛔<@${interaction.user.id}> rank (${Object.keys(rank_info.graderRank[0])}) is required.`)
+
+                        bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                        saveBulkMessages(requestor.user.id,bulkMessages)
+                        
+                        return 
+                    }
+
                     interaction.deferUpdate()
+                    let bulkMessages = []
                     const customId_array = interaction.customId.split("-")
                     const userId = customId_array[1]
+                    let promotion = null
+                    try { //Get DB info of thread
+                        const values = [userId]
+                        const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+                        const response = await database.query(sql,values)
+                        if (response.length > 0) {
+                            promotion = response[0]
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    const rank_info = {
+                        nextRank: rankTypes[promotion.testType],
+                        xsf_ranks: function () {
+                            if (process.env.MODE != "PROD") {
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].general_stuff.allRanks
+                            }
+                        },
+                        pushIds: function(getRanks) {
+                            getRanks.forEach(getRank => {
+                                const requested_rank = this.xsf_ranks().find(x => x.rank_name === getRank)
+                                return this.graderRank.push({[`${getRank}`]: requested_rank.id})
+                            })
+                        },
+                        graderRank: []
+                    }
+                    rank_info.pushIds(graderTypes[promotion.testType])
+                    const requestor = await guild.members.fetch(userId)
+                    const grader = await guild.members.fetch(interaction.user.id)
+                    let grader_roles = grader.roles.cache.map(role=>role.name)
+                    grader_roles = grader_roles.filter(x=>x != '@everyone')
+                    const approved_grader = grader_roles.some(role => rank_info.graderRank.some(grader => Object.keys(grader).includes(role))) 
+                    if (!approved_grader) { 
+                        adjustEmbed(requestor,promotion,rank_info)
+                        return
+                    }
+                    
                     removeBulkMessages(userId,interaction)
                     nextGradingQuestion(userId,interaction)
                     return;
@@ -131,6 +227,89 @@ const exp = {
                     if (testInfo.answer == 'w') { score = 0 }
                     if (testInfo.answer == 'wc') { score = 1 }
                     if (testInfo.answer == 'nc') { score = 0 }
+                    async function adjustEmbed(requestor,promotion,rank_info) {
+                        const leadership_thread = await interaction.guild.channels.fetch(promotion.leadership_threadId)
+                        const leadership_embedOld_msg = await leadership_thread.messages.fetch(promotion.leadership_embedId)
+                        const leadership_embedOld = leadership_embedOld_msg.embeds[0]
+                        const leadership_oldEmbedSchema = {
+                            title: leadership_embedOld.title,
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                            description: leadership_embedOld.description,
+                            color: leadership_embedOld.color,
+                            fields: leadership_embedOld.fields
+                        }
+
+                        const leadership_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(leadership_oldEmbedSchema.title)
+                            .setDescription(leadership_oldEmbedSchema.description)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(leadership_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(leadership_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+                        leadership_oldEmbedSchema.fields.forEach(async (i, index) => {
+                            leadership_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline })
+                        })
+                        const row = new Discord.ActionRowBuilder()
+                            .addComponents(new Discord.ButtonBuilder().setCustomId(`grading-${promotion.userId}-c`).setLabel('Correct').setStyle(Discord.ButtonStyle.Success))
+                            .addComponents(new Discord.ButtonBuilder().setCustomId(`grading-${promotion.userId}-w`).setLabel('Wrong').setStyle(Discord.ButtonStyle.Danger))
+                        
+                        await leadership_embedOld_msg.edit({ embeds: [leadership_newEmbed], components: [row] })
+                        const blkMsg = await leadership_thread.send(`⛔<@${interaction.user.id}> rank (${Object.keys(rank_info.graderRank[0])}) is required.`)
+
+                        bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                        saveBulkMessages(requestor.user.id,bulkMessages)
+                        
+                        return 
+                    }
+                    let promotion = null
+                    try { //Get DB info of thread
+                        const values = [testInfo.userId]
+                        const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+                        const response = await database.query(sql,values)
+                        if (response.length > 0) {
+                            promotion = response[0]
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    const rank_info = {
+                        nextRank: rankTypes[promotion.testType],
+                        xsf_ranks: function () {
+                            if (process.env.MODE != "PROD") {
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].general_stuff.allRanks
+                            }
+                        },
+                        pushIds: function(getRanks) {
+                            getRanks.forEach(getRank => {
+                                const requested_rank = this.xsf_ranks().find(x => x.rank_name === getRank)
+                                return this.graderRank.push({[`${getRank}`]: requested_rank.id})
+                            })
+                        },
+                        graderRank: []
+                    }
+                    let bulkMessages = []
+                    rank_info.pushIds(graderTypes[promotion.testType])
+                    const requestor = await guild.members.fetch(testInfo.userId)
+                    const grader = await guild.members.fetch(interaction.user.id)
+                    let grader_roles = grader.roles.cache.map(role=>role.name)
+                    grader_roles = grader_roles.filter(x=>x != '@everyone')
+                    const approved_grader = grader_roles.some(role => rank_info.graderRank.some(grader => Object.keys(grader).includes(role)))
+                    if (!approved_grader) { 
+                        adjustEmbed(requestor,promotion,rank_info)
+                        return
+                    }
                     //Update progress number and save to database.
                     try {
                         const values = [Number(score), testInfo.userId]
@@ -138,7 +317,7 @@ const exp = {
                         const d = await database.query(sql, values)
                         if (d) {
                             // console.log('saved')
-                            
+                            removeBulkMessages(testInfo.userId,interaction)
                             nextGradingQuestion(testInfo.userId,interaction) 
                         }
                     }
@@ -166,7 +345,88 @@ const exp = {
                     let score = 0
                     if (challengeInfo.state == 'approve') { score = 1 }
                     if (challengeInfo.state == 'deny') { score = 0 }
-                   
+                    async function adjustEmbed(requestor,promotion,rank_info) {
+                        const leadership_thread = await interaction.guild.channels.fetch(promotion.leadership_threadId)
+                        const leadership_embedOld_msg = await leadership_thread.messages.fetch(promotion.challenge_leadership_embedId)
+                        const leadership_embedOld = leadership_embedOld_msg.embeds[0]
+                        const leadership_oldEmbedSchema = {
+                            title: leadership_embedOld.title,
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                            description: leadership_embedOld.description,
+                            color: leadership_embedOld.color,
+                            fields: leadership_embedOld.fields
+                        }
+
+                        const leadership_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(leadership_oldEmbedSchema.title)
+                            .setDescription(leadership_oldEmbedSchema.description)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(leadership_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(leadership_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+                        leadership_oldEmbedSchema.fields.forEach(async (i, index) => {
+                            leadership_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline })
+                        })
+                        const row = new Discord.ActionRowBuilder()
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotionchallenge-approve-${requestor.user.id}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success))
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`promotionchallenge-deny-${requestor.user.id}`).setLabel('Deny').setStyle(Discord.ButtonStyle.Danger))
+                        
+                        await leadership_embedOld_msg.edit({ embeds: [leadership_newEmbed], components: [row] })
+                        const blkMsg = await leadership_thread.send(`⛔<@${interaction.user.id}> rank (${Object.keys(rank_info.graderRank[0])}) is required.`)
+                        bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                        saveBulkMessages(requestor.user.id,bulkMessages)
+                        
+                        return 
+                    }
+                    let promotion = null
+                    try { //Get DB info of thread
+                        const values = [challengeInfo.userId]
+                        const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+                        const response = await database.query(sql,values)
+                        if (response.length > 0) {
+                            promotion = response[0]
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    const rank_info = {
+                        nextRank: rankTypes[promotion.testType],
+                        xsf_ranks: function () {
+                            if (process.env.MODE != "PROD") {
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].general_stuff.allRanks
+                            }
+                        },
+                        pushIds: function(getRanks) {
+                            getRanks.forEach(getRank => {
+                                const requested_rank = this.xsf_ranks().find(x => x.rank_name === getRank)
+                                return this.graderRank.push({[`${getRank}`]: requested_rank.id})
+                            })
+                        },
+                        graderRank: []
+                    }
+                    let bulkMessages = []
+                    rank_info.pushIds(graderTypes[promotion.testType])
+                    const requestor = await guild.members.fetch(challengeInfo.userId)
+                    const grader = await guild.members.fetch(interaction.user.id)
+                    let grader_roles = grader.roles.cache.map(role=>role.name)
+                    grader_roles = grader_roles.filter(x=>x != '@everyone')
+                    const approved_grader = grader_roles.some(role => rank_info.graderRank.some(grader => Object.keys(grader).includes(role)))
+                    if (!approved_grader) { 
+                        adjustEmbed(requestor,promotion,rank_info)
+                        return
+                    }
                     //Update progress number and save to database.
                     try {
                         let values = [Number(score), interaction.user.id, challengeInfo.userId]
@@ -324,7 +584,96 @@ const exp = {
                     let score = 0
                     if (challengeInfo.state == 'approve') { score = 1 }
                     if (challengeInfo.state == 'deny') { score = -3 }
-                   
+                    async function adjustEmbed(requestor,promotion,rank_info) {
+                        const leadership_thread = await interaction.guild.channels.fetch(promotion.leadership_threadId)
+                        const leadership_embedOld_msg = await leadership_thread.messages.fetch(promotion.leadership_roleEmbedId)
+                        const leadership_embedOld = leadership_embedOld_msg.embeds[0]
+                        const leadership_oldEmbedSchema = {
+                            title: leadership_embedOld.title,
+                            author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                            description: leadership_embedOld.description,
+                            color: leadership_embedOld.color,
+                            fields: leadership_embedOld.fields
+                        }
+
+                        const leadership_newEmbed = new Discord.EmbedBuilder()
+                            .setTitle(leadership_oldEmbedSchema.title)
+                            .setDescription(leadership_oldEmbedSchema.description)
+                            // .setColor('#87FF2A') //bight green
+                            // .setColor('#f20505') //bight red
+                            // .setColor('#f2ff00') //bight yellow
+                            .setColor(leadership_oldEmbedSchema.color) //bight yellow
+                            .setAuthor(leadership_oldEmbedSchema.author)
+                            .setThumbnail(botIdent().activeBot.icon)
+                        leadership_oldEmbedSchema.fields.forEach(async (i, index) => {
+                            leadership_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline })
+                        })
+                        const row = new Discord.ActionRowBuilder()
+                            .addComponents(
+                                new Discord.ButtonBuilder()
+                                    .setCustomId(`axichallenge-approve-${requestor.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`)
+                                    .setLabel('Approve')
+                                    .setStyle(Discord.ButtonStyle.Success),
+                                new Discord.ButtonBuilder()
+                                    .setCustomId(`axichallenge-deny-${requestor.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`)
+                                    .setLabel('Deny')
+                                    .setStyle(Discord.ButtonStyle.Danger)
+                            )
+                        
+                        await leadership_embedOld_msg.edit({ embeds: [leadership_newEmbed], components: [row] })
+                        const blkMsg = await leadership_thread.send(`⛔<@${interaction.user.id}> rank (${Object.keys(rank_info.graderRank[0])}) is required.`)
+                        bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                        saveBulkMessages(requestor.user.id,bulkMessages)
+                        
+                        return 
+                    }
+                    let promotion = null
+                    try { //Get DB info of thread
+                        const values = [challengeInfo.userId]
+                        const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+                        const response = await database.query(sql,values)
+                        if (response.length > 0) {
+                            promotion = response[0]
+                        }
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                    }
+                    const rank_info = {
+                        nextRank: rankTypes[promotion.testType],
+                        xsf_ranks: function () {
+                            if (process.env.MODE != "PROD") {
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].general_stuff.allRanks
+                            }
+                        },
+                        pushIds: function(getRanks) {
+                            getRanks.forEach(getRank => {
+                                const requested_rank = this.xsf_ranks().find(x => x.rank_name === getRank)
+                                return this.graderRank.push({[`${getRank}`]: requested_rank.id})
+                            })
+                        },
+                        graderRank: []
+                    }
+                    let bulkMessages = []
+                    rank_info.pushIds(graderTypes[promotion.testType])
+                    const requestor = await guild.members.fetch(challengeInfo.userId)
+                    const grader = await guild.members.fetch(interaction.user.id)
+                    let grader_roles = grader.roles.cache.map(role=>role.name)
+                    grader_roles = grader_roles.filter(x=>x != '@everyone')
+                    const approved_grader = grader_roles.some(role => rank_info.graderRank.some(grader => Object.keys(grader).includes(role)))
+                    if (!approved_grader) { 
+                        adjustEmbed(requestor,promotion,rank_info)
+                        return
+                    }
                     //Update progress number and save to database. 
                     try { 
                         let values = [Number(score), interaction.user.id, challengeInfo.userId] 
@@ -379,13 +728,13 @@ const exp = {
                             .addComponents(
                                 new Discord.ButtonBuilder()
                                     .setCustomId(`promotion-approve-${promotion.userId}-${info.promoter_rank}`)
-                                    .setLabel("General Staff Approval")
+                                    .setLabel("Approve Promotion")
                                     .setStyle(Discord.ButtonStyle.Success)
                             )
                             .addComponents(
                                 new Discord.ButtonBuilder()
                                     .setCustomId(`promotion-deny-${promotion.userId}-${info.promoter_rank}`)
-                                    .setLabel("General Staff Promotion")
+                                    .setLabel("Deny Promotion")
                                     .setStyle(Discord.ButtonStyle.Danger)
                             )
                         
@@ -443,7 +792,7 @@ const exp = {
                             leadership_potential_newEmbed
                                 .setColor('#87FF2A')
                                 .addFields(
-                                    { name: "General Officer Promotion Decision", value: "```Approved```", inline: false}
+                                    { name: "Staff Promotion Decision", value: "```Approved```", inline: false}
                                 )
                             requestor_potential_newEmbed
                                 .setColor('#87FF2A')
@@ -458,7 +807,7 @@ const exp = {
                             leadership_potential_newEmbed
                                 .setColor('#f20505')
                                 .addFields(
-                                    { name: "General Officer Promotion Decision", value: "```Denied```", inline: false}
+                                    { name: "Staff Promotion Decision", value: "```Denied```", inline: false}
                                 )
                             requestor_potential_newEmbed
                                 .setColor('#f20505')
@@ -491,11 +840,7 @@ const exp = {
                     }
                     interaction.deferUpdate()
                     interaction.message.edit({ components: [] })
-                    const rankTypes = {
-                        "basic": "Aviator",
-                        "advanced": "Lieutenant",
-                        "master": "Captain",
-                    }
+
                     const customId_array = interaction.customId.split("-")
                     const info = {
                         promoter: interaction.user.id,
@@ -535,11 +880,14 @@ const exp = {
                     requestor_roles = requestor_roles.filter(x=>x != '@everyone')
                     const requestor_currentRank = requestor_roles.find(rank => info.allRanks().includes(rank))
 
-
                     const promoter = await guild.members.fetch(info.promoter)
                     let promoter_roles = promoter.roles.cache.map(role=>role.name)
                     promoter_roles = promoter_roles.filter(x=>x != '@everyone')
                     const approved_promoter = promoter_roles.some(rank => info.promoter_rank.includes(rank))
+                    if (!approved_promoter) {
+                        notGeneralStaff(requestor,promotion,info)
+                        return
+                    }
                     if (approved_promoter && info.state == 'deny') {
                         const nextRank = false
                         const promotionType = false
@@ -556,11 +904,6 @@ const exp = {
                         adjustEmbed(requestor,promotion,promotionType,nextRank)
                         return
                     }
-                    if (!approved_promoter) {
-                        notGeneralStaff(requestor,promotion,info)
-                        return
-                    }
-
                 }
             }
         }

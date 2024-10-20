@@ -123,6 +123,12 @@ const exp = {
                             const row = new Discord.ActionRowBuilder()
                                 .addComponents(new Discord.ButtonBuilder().setCustomId(`axichallenge-approve-${message.author.id}-${response[0].testType}-${response[0].leadership_threadId}-${response[0].requestor_threadId}`).setLabel('Approve').setStyle(Discord.ButtonStyle.Success))
                                 .addComponents(new Discord.ButtonBuilder().setCustomId(`axichallenge-deny-${message.author.id}-${response[0].testType}-${response[0].leadership_threadId}-${response[0].requestor_threadId}`).setLabel('Deny').setStyle(Discord.ButtonStyle.Danger))
+                            const graderTypes = {
+                                "basic": "Captain",
+                                "advanced": "Major",
+                                "master": "Colonel"
+                            }
+                            const grader_ident = graderTypes[response[0].testType]
                             if (message.attachments.size > 0) {
                                 message.attachments.forEach(async attachment => {
                                     if (attachment.contentType && attachment.contentType.startsWith('image/')) {
@@ -138,6 +144,10 @@ const exp = {
                                 })
                                 await leadership_challenge.edit( { embeds: [requestor_newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
+                                await requestor_thread.setLocked(true)
+                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> AXI Progression Challenge Proof Review Required`)
+                                bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                                saveBulkMessages(message.author.id,bulkMessages)
                                 return
                             }
                             const denyMsg = await message.channel.messages.fetch({limit: 2})
@@ -166,6 +176,9 @@ const exp = {
                                 await leadership_challenge.edit( { embeds: [leadership_newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
                                 await requestor_thread.setLocked(true)
+                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> AXI Progression Challenge Proof Review Required`)
+                                bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
+                                saveBulkMessages(message.author.id,bulkMessages)
                                 return
                             }
                         }
@@ -228,8 +241,8 @@ const exp = {
                                     }
                                 })
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
-                                const blkMsg = await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
+                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                 saveBulkMessages(message.author.id,bulkMessages)
                                 return
@@ -254,7 +267,7 @@ const exp = {
                                 // message.delete()
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
-                                const blkMsg = await leadership_thread.send(`<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
+                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                 saveBulkMessages(message.author.id,bulkMessages)
                                 await requestor_thread.setLocked(true)
@@ -325,7 +338,7 @@ const exp = {
                         else {
                             message.delete()
                         }
-                        bulkMessages = []
+                        
                     } 
                     catch (err) {
                         console.log(err)
@@ -471,18 +484,18 @@ const exp = {
                             });
                             totalFields++
                         }
-                        if (totalFields >= (Number(final_comments_required) + 2)) {
+                        if (totalFields >= (Number(final_comments_required) + 3)) {
                             const requestor_components = new Discord.ActionRowBuilder()
                                 .addComponents(
                                     new Discord.ButtonBuilder()
                                         .setCustomId(`promotion-approve-${promotion.userId}-${promoter_rank}`)
-                                        .setLabel("General Staff Approval")
+                                        .setLabel("Approve Promotion")
                                         .setStyle(Discord.ButtonStyle.Success)
                                 )
                                 .addComponents(
                                     new Discord.ButtonBuilder()
                                         .setCustomId(`promotion-deny-${promotion.userId}-${promoter_rank}`)
-                                        .setLabel("General Staff Denial")
+                                        .setLabel("Dney Promotion")
                                         .setStyle(Discord.ButtonStyle.Danger)
                                 )
                             await leadership_potential.edit({ embeds: [leadership_newEmbed], components: [requestor_components] })

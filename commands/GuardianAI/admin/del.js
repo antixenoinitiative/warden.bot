@@ -26,10 +26,18 @@ if (botIdent().activeBot.botName == "GuardianAI") {
         data: new Discord.SlashCommandBuilder()
             .setName('del')
             .setDescription('delete test stuff')
+            .addStringOption(option =>
+                option.setName('thread')
+                    .setDescription('Choose mine or all')
+                    .setRequired(true)
+                    .addChoices({ name: "Mine", value: "mine"})
+                    .addChoices({ name: "All", value: "all"})
+            )
+            .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
         ,
         async execute(interaction) {
-            await interaction.deferReply({ ephemeral: true })
-            async function deleteAllThreads(channel) {
+            await interaction.deferReply({ ephemeral: false })
+            async function deleteAllThreads(channel,promotion,selection) {
                 try {
                     // console.log(channel.type,Discord.ChannelType.GuildForum,)
                     if (channel.isTextBased() && channel.type !== Discord.ChannelType.GuildForum) {
@@ -41,7 +49,14 @@ if (botIdent().activeBot.botName == "GuardianAI") {
             
                         for (const thread of allThreads) {
                             try {
-                                await thread.delete();
+                                if (selection == 'mine') {
+                                    if (thread.id == promotion.requestor_threadId) { 
+                                        await thread.delete();
+                                    }
+                                }
+                                else {
+                                    await thread.delete()
+                                }
                                 // console.log(`Deleted thread: ${thread.name}`);
                             } catch (err) {
                                 // console.error(`Failed to delete thread: ${thread.name}`, err);
@@ -54,7 +69,15 @@ if (botIdent().activeBot.botName == "GuardianAI") {
                         
                         for (const thread of forumPosts.threads.values()) {
                             try {
-                                await thread.delete();
+                                if (selection == 'mine') {
+                                    if (thread.id == promotion.leadership_threadId) { 
+                                        await thread.delete();
+                                    }
+                                }
+                                else {
+                                    await thread.delete()
+                                }
+                                
                                 // console.log(`Deleted forum post (thread): ${thread.name}`);
                             } catch (err) {
                                 // console.error(`Failed to delete forum post (thread): ${thread.name}`, err);
@@ -65,12 +88,49 @@ if (botIdent().activeBot.botName == "GuardianAI") {
                     console.error(`Error fetching threads for channel: ${channel.id}`, err);
                 }
             }
+            const selection = interaction.options.data.find(arg => arg.name === 'thread').value
+            let promotion = null
+            if (selection == "mine") { 
+
+                try { //Get DB info of thread
+                    const values = selection == "mine" ? interaction.user.id : false
+                    const sql = selection == "mine" ? 'SELECT * FROM `promotion` WHERE userId = (?)' : 'SELECT * FROM `promotion`'
+                    const response = await database.query(sql,values)
+                    if (response.length > 0) {
+                        promotion = response[0]
+                    }
+                }
+                catch (err) {
+                    console.log(err)
+                    botLog(interaction.guild,new Discord.EmbedBuilder()
+                    .setDescription('```' + err.stack + '```')
+                    .setTitle(`⛔ Fatal error experienced`)
+                    ,2
+                    ,'error'
+                )
+                }
+            }
             const applyforranks = await interaction.guild.channels.fetch("1285754040419876914");
-            const leadership_thread = await interaction.guild.channels.fetch(leadership_embedChannel);
-            const requestor_thread = await interaction.guild.channels.fetch(requestor_embedChannel);
+            leadership_thread = await interaction.guild.channels.fetch(leadership_embedChannel)
+            requestor_thread = await interaction.guild.channels.fetch(requestor_embedChannel)
+            // const leadership_thread = selection == "mine" ? await interaction.guild.channels.fetch(promotion.leadership_threadId) : await interaction.guild.channels.fetch(leadership_embedChannel)
+            // const requestor_thread = selection == "mine" ? await interaction.guild.channels.fetch(promotion.requestor_threadId) : await interaction.guild.channels.fetch(requestor_embedChannel)
+
+            
+            
+            // Delete all threads in leadership and requestor channels
+            if (leadership_thread) {
+                await deleteAllThreads(leadership_thread,promotion,selection);
+            }
+            
+            if (requestor_thread) {
+                await deleteAllThreads(requestor_thread,promotion,selection);
+            }
+            
             try {
-                const sql = `DELETE FROM promotion;`
-                await database.query(sql, false)
+                const values = selection == "mine" ? interaction.user.id : false
+                const sql = selection == "all" ? `DELETE FROM promotion WHERE userId = (?);` : `DELETE FROM promotion;` 
+                await database.query(sql, values)
             }
             catch (err) {
                 console.log(err)
@@ -81,19 +141,13 @@ if (botIdent().activeBot.botName == "GuardianAI") {
                     ,'error'
                 )
             }
-    
-            
-            // Delete all threads in leadership and requestor channels
-            if (leadership_thread) {
-                await deleteAllThreads(leadership_thread);
+            // await applyforranks.send({ content: `Cleared all threads and database entries`, ephemeral: true });
+            if (selection == "mine") { 
+                await interaction.editReply({ content: `Cleared **${interaction.user.displayName}** threads and database entries` });
             }
-    
-            if (requestor_thread) {
-                await deleteAllThreads(requestor_thread);
+            else {
+                await interaction.editReply({ content: `Cleared **ALL** threads and database entries` });
             }
-            
-            await applyforranks.send({ content: `Cleared all threads and database entries`, ephemeral: true });
-            // await interaction.editReply({ content: `Cleared all threads and database entries`, ephemeral: true });
     
         }
     }
