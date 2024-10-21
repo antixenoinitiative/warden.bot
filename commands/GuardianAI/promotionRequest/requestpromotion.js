@@ -25,7 +25,7 @@ function getPercentage(part, whole) {
     return ((part / whole) * 100).toFixed(2)
 }
 axiSelection = null
-//206440307867385857  Absence of Gravitas
+
 module.exports = {
     cleanup: async function(requestor,nextRank,decision,leadership_thread) { 
         if (module.exports.rejectStart.users.includes(requestor.id)) {
