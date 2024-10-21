@@ -1,5 +1,5 @@
 const Discord = require("discord.js");
-const { botIdent, getRankEmoji, botLog } = require('../../../functions')
+const { botIdent, getRankEmoji, botLog, variableCheck } = require('../../../functions')
 
 const { saveBulkMessages, removeBulkMessages } = require('../promotionRequest/prFunctions')
 const { requestInfo } = require('../../../socket/taskManager')
@@ -98,7 +98,7 @@ module.exports = {
                     if (info.nextRank == "Aviator") { 
                         const requestor_aviator_newEmbed = new Discord.EmbedBuilder()
                             .setTitle(`Promotion Request`)
-                            .setDescription(`- Congradulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the the review is conducted by leadership...`)
+                            .setDescription(`- Congratulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the review is conducted by leadership...`)
                                 // .setColor('#87FF2A') //bight green
                                 // .setColor('#f20505') //bight red
                             .setColor('#f2ff00') //bight yellow
@@ -151,7 +151,7 @@ module.exports = {
 
                     const requestor_leadershipPotential_newEmbed = new Discord.EmbedBuilder()
                         .setTitle(`Leadership Potential`)
-                        .setDescription(`- Congradulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)
+                        .setDescription(`- Congratulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)
                             // .setColor('#87FF2A') //bight green
                             // .setColor('#f20505') //bight red
                         .setColor('#f2ff00') //bight yellow
@@ -171,7 +171,7 @@ module.exports = {
                     .addFields(
                         { name: "General Orders:", value: "Promotion should be an exciting thing, all members at all ranks reside at different parts of their AX Journey. Ensure discorse about members are evaluated carefuly;\n1. Are they capable of holding more than one (typically their own) point view.\n2. Are they willing to admit when they’re wrong, and that they don’t know everything.\n3. Have they demonstrate the ability to de-escalate (vs the opposite) in tense, controversial, or otherwise charged situations.\n4. Have they demonstrated a desire to put the interests of the community above their own.\n5. Are they recognized by others as someone to look up to, not just in terms of skill, but overall.\n6. Have they proven that they will “get their hands dirty” and/or 'take one for the team'.\n7. Have they proven they can be a excellent follower.", inline: false },
                         { name: "Your Final Statement:", value: `Crucial step for certifying a promotion request. They provide a synapse of the current thinking on a member's leadership potential.\n**## Examples of what you could write ##**:\n- **!final** User is truely dedicated to XSF and exudes leadership at every facet of the XSF experience.\n- **!final** Member has taken their time to train eight members to be able to fight Hydra's solo.\n- **!final** Commander shows tactical and technical prowess during many of the Operation Orders in the recent past.\n- **!final** Lieutenant User communicates very effectively in voice communications.\n- **!final** Member contributed a week of their free time to developing a new strategy which we use daily; growing the Xeno Strike Force community.`, inline: false },
-                        { name: "Submitting your Final Statement:", value: "In the leadership channel, type the following:\n```!final Something that you wish to write as a final statement. You can submit multiple.```", inline: false },
+                        { name: "Submitting your Final Statement:", value: "In the leadership channel, type the following:\n```!final Something that you wish to write as a final statement. You can submit multiple. Statements from TWO leaders will populate approval/denial promotion buttons.```", inline: false },
                         { name: "Final Statements:", value: "-", inline: false },
                     )
                     const leadership_leadershipPotential = await leadership_thread.send({embeds: [leadership_potential_embed]})
@@ -212,7 +212,7 @@ module.exports = {
         }
         const requestor = await guild.members.fetch(data.user.id)
         const leadership_newEmbed = new Discord.EmbedBuilder()
-            .setTitle(`Promotion Challenege Proof`)
+            .setTitle(`Promotion Challenge Proof`)
             .setDescription(`Waiting on requestor to submit Promotion Challenge Proof.`)
             .setColor("#f2ff00")
                 // .setColor('#87FF2A') //bight green
@@ -225,7 +225,7 @@ module.exports = {
                 { name: "Promotion Challenge Status", value: "```" + 'Pending....' + "```", inline: true },
             )
         const requestor_newEmbed = new Discord.EmbedBuilder()
-            .setTitle(`Promotion Challenege Proof`)
+            .setTitle(`Promotion Challenge Proof`)
             .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox. Example: https://www.youtube.com`)
             .setColor("#f2ff00")
                 // .setColor('#87FF2A') //bight green
@@ -545,7 +545,7 @@ module.exports = {
         }
  
     },
-    nextGradingQuestion: async function(userId,interaction) {
+    nextGradingQuestion: async function(userId,interaction,grader) {
         let bulkMessages = []
         let promotion = null
         //Get database stuff
@@ -663,9 +663,7 @@ module.exports = {
                         if (index == 1) { requestor_newEmbed.addFields({ name: "Score:", value: "```"+final_score+"%```", inline: false }) }
                     })
                 requestor_newEmbed.setColor(score_color)
-                if (final_score < 80) { 
-                    requestor_newEmbed.addFields({ name: "Test Retake Required", value: "Final score was less than 80%, test retake starting.", inline: false})
-                }
+
                 
                 if (final_score >= 80) {
                     try {
@@ -696,6 +694,7 @@ module.exports = {
                 if (final_score < 80) {
                     //todo force user to retake the test. 
                     try {
+                        requestor_newEmbed.addFields({ name: "Test Retake Required", value: "Final score was less than 80%, test retake starting.", inline: false})
                         const leadership_editedEmbed = Discord.EmbedBuilder.from(leadership_newEmbed)
                         await leadership_originalMessage.edit({ embeds: [leadership_editedEmbed], components: [] })
                         const requestor_editedEmbed = Discord.EmbedBuilder.from(requestor_newEmbed)
@@ -703,22 +702,33 @@ module.exports = {
                         const blkMsg = await leadership_thread.send(`❌ User failed the test, retake inprogress...`)
                         const values = [final_score,promotion.userId] 
                         const sql = `UPDATE promotion SET 
-                        score = (?), 
-                        requestor_embedId = '[]', 
-                        section = 'researchability', 
-                        ind = 0, 
-                        grading_embedId = NULL, 
-                        grading_state = 0, 
-                        question_num = 0, 
-                        grading_number = 0, 
-                        grading_progress = -1 
-                        WHERE userId = (?);`
+                            score = (?), 
+                            requestor_embedId = '[]', 
+                            section = 'researchability', 
+                            ind = 0, 
+                            grading_embedId = NULL, 
+                            grading_state = 0, 
+                            question_num = 0, 
+                            grading_number = 0, 
+                            grading_progress = -1 
+                            WHERE userId = (?);
+                        `
                         const d = await database.query(sql, values)
                         if (d) {
                             await requestor_thread.setLocked(false)
                             bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
-                            saveBulkMessages(userId,bulkMessages)
-                            module.exports.nextTestQuestion(interaction)
+                            saveBulkMessages(promotion.userId,bulkMessages)
+                            const requestor = await guild.members.fetch(promotion.userId)
+                            const rankTypes = {
+                                "basic": "Aviator",
+                                "advanced": "Lieutenant",
+                                "master": "Captain",
+                            }
+                            const rank_info = {
+                                current: promotion.currentRank,
+                                next: rankTypes[promotion.testType]
+                            }
+                            module.exports.nextTestQuestion(interaction,requestor,rank_info)
                         }
                     }
                     catch (err) {
@@ -744,6 +754,7 @@ module.exports = {
         }
         //Continue grading
         else {
+            // console.log("continue grading".yellow)
             try {
             //Start cycling through the embeds and allowing the grader to work through them
                 const question_embedIds = JSON.parse(promotion.requestor_embedId)
@@ -832,16 +843,22 @@ module.exports = {
         }
         
     },
-    nextTestQuestion: function(interaction) {
+    nextTestQuestion: function(interaction,requestor,rank_info) {
         let promotion = {
-            requestor: interaction.member,
-            requestor_roles: interaction.member.roles.cache.map(r=>r.name),
+            requestor: requestor,
+            requestor_roles: requestor.roles.cache.map(r=>r.name),
             xsf_ranks: config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name),
             xsf_ranksWithID: config[botIdent().activeBot.botName].general_stuff.allRanks,
         }
-        promotion.requestor_currentRank = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => promotion.requestor_roles.includes(value))[0]
-        promotion.requestor_nextRank = promotion.xsf_ranks[promotion.xsf_ranks.indexOf(promotion.requestor_currentRank)-1]
-
+        if (rank_info) { 
+            promotion.requestor_currentRank = rank_info.current
+            promotion.requestor_nextRank = rank_info.next
+        }
+        else {
+            promotion.requestor_currentRank = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => promotion.requestor_roles.includes(value))[0]
+            promotion.requestor_nextRank = promotion.xsf_ranks[promotion.xsf_ranks.indexOf(promotion.requestor_currentRank)-1]
+        }
+        
         const testTypes = {
             "Aviator": "basic",
             "Lieutenant": "advanced",
@@ -943,10 +960,15 @@ module.exports = {
             const response = await database.query(sql)
 
             if (response.length > 0) {
-                // const rank = await getName(response,promotion.requestor.id)
-                const rank = [
-                    { [`${promotion.requestor_currentRank}`]: 5 }
-                ]
+                rank = null;
+                if (process.env.MODE == "PROD") { 
+                    rank = await getName(response,promotion.requestor.id)
+                }
+                else {
+                    rank = [
+                        { [`${promotion.requestor_currentRank}`]: 5 }
+                    ]
+                }
                 const rankVALUE = Object.values(rank[0])[0]
                 const promoteValue = experienceCredits[Object.keys(rank[0])[0]] 
                 if (rankVALUE >= Number(promoteValue)) {
@@ -989,7 +1011,7 @@ module.exports = {
                                         await thread.send(i)
                                     }
                                     let embed = new Discord.EmbedBuilder()
-                                        .setTitle(`Knowledge Proficiency Test`)
+                                        .setTitle(`${promotion.requestor_nextRank} Knowledge Proficiency Test`)
                                         .setAuthor({ name: interaction.member.displayName, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
                                         .setThumbnail(botIdent().activeBot.icon)
                                         // .setColor('#87FF2A') //bight green
@@ -997,8 +1019,9 @@ module.exports = {
                                         .setColor('#f20505') //bight red
                                         .setDescription(`*Read directions carefully.*`)
                                         .addFields(
+                                            { name: "Reference Material", value: "All questions will come from the Book of Sentinel https://xenostrikeforce.com/?page_id=437", inline: false },
                                             { name: "Answer Entry", value: "Answers will be typed into the chat box.", inline: false },
-                                            { name: "Answer Editing", value: "You may change your answer indefinately, by typing into the chat box prior to clicking 'Next Question'.", inline: false },
+                                            { name: "Answer Editing", value: "You may change your answer indefinitely, by typing into the chat box prior to clicking 'Next Question'.", inline: false },
                                             { name: "Answer Submission", value: "Click the 'Next Question' button to submit the answer. Your answer will be saved at that point.", inline: false },
                                             { name: "Test Populating...", value: "The test will begin shortly, be paitient for it to populate.", inline: false }
                                     )
@@ -1024,7 +1047,7 @@ module.exports = {
                             if (response.length > 0) {
                                 if (response[0].grading_progress == '-1') {
                                     const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
-                                    await interaction.editReply({ content: `**${promotion.requestor_nextRank}** request is inprogress here -> ${requestor_thread.url}` })
+                                    await requestor_thread.send(`**${promotion.requestor_nextRank}** request is inprogress here -> ${requestor_thread.url}`)
                                 }   
                                 response.push({"promotable":1})
                                 response = [{ ...response[0], ...response[1] }]
@@ -1034,14 +1057,14 @@ module.exports = {
                                 const emptyArray = JSON.stringify([])
                                 const leadershipSubmissionThread = await createThread(leadership_embedChannel,leadership_info,1)
                                 const requestorSubmissionThread = await createThread(requestor_embedChannel,requestor_info,1)
-                                const values2 = [userId,leadershipSubmissionThread,requestorSubmissionThread,testTypes[promotion.requestor_nextRank],emptyArray,emptyArray]
+                                const values2 = [promotion.requestor_currentRank,userId,leadershipSubmissionThread,requestorSubmissionThread,testTypes[promotion.requestor_nextRank],emptyArray,emptyArray]
                                 const sql2 = `
-                                    INSERT INTO promotion (userId, leadership_threadId, requestor_threadId, testType, requestor_embedId, bulkMessages) 
-                                    VALUES (?,?,?,?,?,?)
+                                    INSERT INTO promotion (currentRank,userId, leadership_threadId, requestor_threadId, testType, requestor_embedId, bulkMessages) 
+                                    VALUES (?,?,?,?,?,?,?)
                                 `
                                 await database.query(sql2, values2)
                                 response.push({question_num: 0, promotable: 1, leadership_threadId: leadershipSubmissionThread, requestor_threadId: requestorSubmissionThread})
-                                // console.log('didnt exist')
+                                
                                 return response
                             }
                         }
@@ -1187,6 +1210,7 @@ module.exports = {
         async function takeTheTest() {
             try {
                 let promotable_db_info = await checkPromotable()
+                // console.log("promotable_db_info:".red,promotable_db_info[0])
                 if (promotable_db_info[0].grading_state > 1) { return await interaction.editReply({ content: `Promotion request is in progress already. Check your Promotion Request thread.` }) }
                 if (promotable_db_info[0].grading_state == 1) { return await interaction.editReply({ content: `Grading is inprogress. Please wait for grading completion...` }) }
                 if (promotable_db_info[0].promotable == 1 && promotable_db_info[0].grading_state != 1) {
@@ -1300,6 +1324,8 @@ module.exports = {
                         // console.log("start test")
                         const section = "researchability"
                         const testType = testTypes[promotion.requestor_nextRank]
+                        // console.log("testType:".bgRed,testType)
+                        // variableCheck("testType:",testType)
                         const ind = 0
                         const question_position = bos[section][testType][ind]
                         testFunc(section,promotable_db_info,question_position,ind)
@@ -1329,66 +1355,22 @@ module.exports = {
         )
     ,
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true })
+        if (process.env.MODE != "PROD") {
+            await interaction.deferReply({ content: "TEST SERVER ONLY MSG. This will be available to only the requestor in production:", ephemeral: false })
+        }
+        else {
+            await interaction.deferReply({ ephemeral: true })
+        }
         axiSelection = interaction.options.data.find(arg => arg.name === 'axi').value
         const roles = interaction.member.roles.cache.map(r=>r.name)
         const current_xsf_role = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => roles.includes(value))[0]
         const reject_roles = ['General Staff','Colonel','Major','Captain']
         if (!reject_roles.includes(current_xsf_role)) {
-            this.nextTestQuestion(interaction)
+            const requestor = await guild.members.fetch(interaction.user.id)
+            this.nextTestQuestion(interaction,requestor)
         }
         else {
             return interaction.editReply({ content: `❌ Your rank (${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })
         }
-
-        // try {
-        //     const values = ['194001098539925504']
-        //     const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
-        //     const response = await database.query(sql,values)
-        //     if (response.length > 0) {
-        //         if (response[0].challenge_state == 0) {
-        //             //todo Create code for a Modal when Challenge Proof is Denied.
-        //             const fields = {
-        //                 reason: new Discord.TextInputBuilder()
-        //                     .setCustomId(`denied`)
-        //                     .setLabel(`Input the reason for Denial`)
-        //                     .setStyle(Discord.TextInputStyle.Paragraph)
-        //                     .setRequired(true)
-        //                     .setPlaceholder(`Be descriptive of why you are denying this.`)
-        //             }
-    
-        //             const modal = new Discord.ModalBuilder()
-        //                 .setCustomId(`challengeProofModal-deny-${values}`)
-        //                 .setTitle('Reason for Denial')
-        //                 .addComponents(
-        //                     new Discord.ActionRowBuilder().addComponents(fields.reason),
-        //                 )
-        //             await interaction.showModal(modal);
-        //             const submitted = await interaction.awaitModalSubmit({
-        //                 time: 1800000,
-        //             }).catch(error => {
-        //                 console.error(error)
-        //                 return null
-        //             })
-        //             if (submitted) {
-        //                 const [reason] = submitted.fields.fields.map(i => i.value)
-        //                 console.log(submitted,reason)
-        //                 return [submitted, reason]
-    
-        //             }
-        //         }
-        //     }
-        // }
-        // catch(e) {
-        //     console.log(e)
-        // }
-
-        // const threadEmbeds = {
-        //     requestor: "1285754040419876914",
-        //     leadership: "1285754040419876914"
-        // }
-
-        // module.exports.showAXIroles("194001098539925504",threadEmbeds)
-        
     }
 }

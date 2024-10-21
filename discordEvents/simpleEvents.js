@@ -49,7 +49,30 @@ if (botIdent().activeBot.botName == "GuardianAI") {
 }
 
 
-const exp = { 
+const exp = {
+    guildMemberAdd: async (interaction, bot) => {
+        if (process.env.MODE == 'testServer') {
+             // The role IDs or names you want to assign
+            const rolesToAssign = ['test person', 'Learner']; // Replace with the actual role IDs or names
+
+            // Try to fetch both roles
+            const roles = rolesToAssign.map(roleNameOrId => 
+                member.guild.roles.cache.find(r => r.id === roleNameOrId || r.name === roleNameOrId)
+            ).filter(role => role); // Filter out any roles that are not found
+
+            if (roles.length > 0) {
+                try {
+                    // Add the roles to the new member
+                    await member.roles.add(roles);
+                    console.log(`Roles [${roles.map(role => role.name).join(', ')}] assigned to ${member.user.tag}`);
+                } catch (error) {
+                    console.error(`Failed to assign roles: ${error}`);
+                }
+            } else {
+                console.error(`Roles not found: ${rolesToAssign}`);
+            }
+        }
+    },
     messageCreate: async (message, bot) => {
         if (botIdent().activeBot.botName == 'GuardianAI' && !message.author.bot) {
             let messageParent = message.channel.parentId
@@ -298,9 +321,13 @@ const exp = {
                                 if (index < 5) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline }) }
                                 if (index == 4) { newEmbed.addFields({ name: "Answer:", value: "```"+message.content+"```", inline: i.inline }) }
                             })
-
+                            const rankTypes = {
+                                "basic": "Aviator",
+                                "advanced": "Lieutenant",
+                                "master": "Captain",
+                            }
                             const row = new Discord.ActionRowBuilder()
-                                .addComponents(new Discord.ButtonBuilder().setCustomId(`answerquestion-${message.author.id}`).setLabel('Next Question').setStyle(Discord.ButtonStyle.Success))
+                                .addComponents(new Discord.ButtonBuilder().setCustomId(`answerquestion-${message.author.id}-${response[0].currentRank}-${rankTypes[response[0].testType]}`).setLabel('Next Question').setStyle(Discord.ButtonStyle.Success))
                             const editedEmbed = Discord.EmbedBuilder.from(newEmbed)
                             await previousMessageWithEmbed.edit({ embeds: [editedEmbed], components: [row] })
 
@@ -724,15 +751,15 @@ const exp = {
 
     },
     messageUpdate: async (oldMessage, newMessage, bot) => {
-        if (oldMessage != newMessage && oldMessage.author.id != process.env.CLIENTID) {
+        if (oldMessage.content !== newMessage.content && !newMessage.author.bot) {
             //Field values max char limit 1024
             //Description max char 4096 
             botLog(bot,new Discord.EmbedBuilder()
-            .setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```')
-            .setTitle(`Original Message 📝`),1)
+                .setDescription(`Message updated by user: ${oldMessage.author}` + '```' + `${oldMessage}` + '```')
+                .setTitle(`Original Message 📝`),1)
             botLog(bot,new Discord.EmbedBuilder()
-            .setDescription('```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`)
-            .setTitle(`Updated Message📝`),1)
+                .setDescription('```' + `${newMessage}` + '```' + `Message Link: ${oldMessage.url}`)
+                .setTitle(`Updated Message📝`),1)
         }
     },
     guildMemberRemove: async (member, bot) => { 

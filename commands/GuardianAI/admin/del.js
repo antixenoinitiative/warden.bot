@@ -33,7 +33,7 @@ if (botIdent().activeBot.botName == "GuardianAI") {
                     .addChoices({ name: "Mine", value: "mine"})
                     .addChoices({ name: "All", value: "all"})
             )
-            .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
+            // .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
         ,
         async execute(interaction) {
             await interaction.deferReply({ ephemeral: false })
@@ -129,7 +129,7 @@ if (botIdent().activeBot.botName == "GuardianAI") {
             
             try {
                 const values = selection == "mine" ? interaction.user.id : false
-                const sql = selection == "all" ? `DELETE FROM promotion WHERE userId = (?);` : `DELETE FROM promotion;` 
+                const sql = selection == "mine" ? `DELETE FROM promotion WHERE userId = (?);` : `DELETE FROM promotion;` 
                 await database.query(sql, values)
             }
             catch (err) {
@@ -143,10 +143,10 @@ if (botIdent().activeBot.botName == "GuardianAI") {
             }
             // await applyforranks.send({ content: `Cleared all threads and database entries`, ephemeral: true });
             if (selection == "mine") { 
-                await interaction.editReply({ content: `Cleared **${interaction.user.displayName}** threads and database entries` });
+                await interaction.editReply({ content: `- Cleared **${interaction.user.displayName}** threads and database entries` });
             }
             else {
-                await interaction.editReply({ content: `Cleared **ALL** threads and database entries` });
+                await interaction.editReply({ content: `- Cleared **ALL** threads and database entries` });
             }
     
         }

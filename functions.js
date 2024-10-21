@@ -2,6 +2,7 @@ let config = require('./config.json')
 const fs = require("fs")
 const path = require("path")
 const glob = require('glob')
+const Discord = require('discord.js')
 //This functions.js file serves as a global functions context for all bots that may reuse the same code.
 /**
  * @author (testfax) Medi0cr3 @testfax
@@ -443,6 +444,14 @@ const thisBotFunctions = {
             server_roles.includes(rank.rank_name)
         )
         return rankObj.emoji
+    },
+    variableCheck: async function(variable,item) {
+        return thisBotFunctions.botLog(guild,new Discord.EmbedBuilder()
+            .setTitle(`⛔ VARIABLE CHECK:`)   
+            .setDescription(`${variable}`+'```'+item+'```')
+            ,2
+            ,'error'
+        )
     },
     /**
      * Log a discord bot event in the Log Channel

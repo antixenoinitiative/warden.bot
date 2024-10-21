@@ -85,6 +85,12 @@ const exp = {
                 if (interaction.customId.startsWith("answerquestion")) { //promotion request
                     interaction.deferUpdate();
                     interaction.message.edit({ components: [] })
+                    const customId_array = interaction.customId.split("-")
+                    const info = {
+                        requestor: await guild.members.fetch(customId_array[1]),
+                        currentRank: customId_array[2],
+                        nextRank: customId_array[3]
+                    }
                     try {
                         const messages = await interaction.channel.messages.fetch({ limit: 1 });
                         const previousMessageWithEmbed = messages.last();
@@ -116,7 +122,12 @@ const exp = {
                             ,'error'
                         )
                     }
-                    nextTestQuestion(interaction);
+                    const requestor = info.requestor
+                    const rank_info = {
+                        current: info.currentRank,
+                        next: info.nextRank
+                    }
+                    nextTestQuestion(interaction,requestor,rank_info);
                     return;
                 }
                 if (interaction.customId.startsWith("startgradingtest")) { //promotion request
@@ -225,8 +236,6 @@ const exp = {
                     let score = 0
                     if (testInfo.answer == 'c') { score = 1 }
                     if (testInfo.answer == 'w') { score = 0 }
-                    if (testInfo.answer == 'wc') { score = 1 }
-                    if (testInfo.answer == 'nc') { score = 0 }
                     async function adjustEmbed(requestor,promotion,rank_info) {
                         const leadership_thread = await interaction.guild.channels.fetch(promotion.leadership_threadId)
                         const leadership_embedOld_msg = await leadership_thread.messages.fetch(promotion.leadership_embedId)
@@ -311,6 +320,7 @@ const exp = {
                         return
                     }
                     //Update progress number and save to database.
+                    // console.log("continued".cyan)
                     try {
                         const values = [Number(score), testInfo.userId]
                         const sql = `UPDATE promotion SET score = score + (?), grading_number = grading_number + 1  WHERE userId = (?);`
@@ -780,7 +790,7 @@ const exp = {
                         })
                         const requestor_potential_newEmbed = new Discord.EmbedBuilder()
                             .setTitle(requestor_oldEmbedSchema.title)
-                            .setDescription(`Congradulations on completing the ${nextRank} Promotion Request!`)
+                            .setDescription(`Congratulations on completing the ${nextRank} Promotion Request!`)
                             // .setColor('#87FF2A') //bight green
                             // .setColor('#f20505') //bight red
                             // .setColor('#f2ff00') //bight yellow
@@ -813,7 +823,7 @@ const exp = {
                                 .setColor('#f20505')
                                 .addFields(
                                     { name: "Promotion Request:", value: "```Denied```", inline: false },
-                                    { name: "Reason:", value: "``` Please Await for Contact from General Staff```", inline: false }
+                                    { name: "Reason:", value: "```Please wait to be contacted by General Staff```", inline: false }
                                 )
                         }
                         

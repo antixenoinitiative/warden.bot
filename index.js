@@ -365,7 +365,11 @@ function mainOperation(){
 	process.on('uncaughtException', function (err) {
 		const dateTime = botFunc.generateDateTime();
 		console.log('[ERROR]'.red,`${dateTime} ⛔ Unhandled Exception:`)
-		console.error(err);
-		bot.channels.cache.get(process.env.ERRORCHANNEL).send({ content: `⛔ Unhandled Exception:\n ${err.stack}` })
+		botFunc.botLog(guild,new Discord.EmbedBuilder()
+			.setDescription('```' + err.stack + '```')
+			.setTitle(`⛔ Fatal error experienced`)
+			,2
+			,'error'
+		)
 	})
 }
