@@ -44,7 +44,7 @@ if (botIdent().activeBot.botName == "GuardianAI") {
         graderRank.push({"General Staff":generalstaff,"Colonel":colonel,"Major":major,"Captain":captain})
         final_comments_required = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.final_comments_required
         promoter_rank = config[botIdent().activeBot.botName].general_stuff.knowledge_proficiency.promoter_rank
-        allRanks = config[botIdent().activeBot.botName].allRanks.map(i => i.rank_name)
+        allRanks = config[botIdent().activeBot.botName].general_stuff.allRanks.map(i => i.rank_name)
     }
 }
 
