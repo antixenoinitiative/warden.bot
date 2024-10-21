@@ -14,9 +14,9 @@ module.exports = {
         .setDescription(`Briefly describes Guardian Weapons`)
         .addFields(
             {name: 'Purchased with Credits'            ,value: 'Guardian Plasma, Guardian Shard, Guardian Gauss', inline: false},
-            {name: 'Available at'                      ,value: 'Any Guardian Tech Broker', inline: true},
+            {name: 'Available at'                      ,value: 'Any Guardian tech broker', inline: true},
             {name: 'Purchase per Module with Materials',value: 'Modified Plasma, Modified Shard, Modified Gauss', inline: false},
-            {name: 'Available at'                      ,value: 'Prospects Deep in the Mbooni System', inline: true},
+            {name: 'Available at'                      ,value: 'Prospects Deep in the Mbooni system', inline: true},
             {name: 'Blueprint Unlocks'                 ,value: 'Guardian weapons require **weapon blueprints** to unlock, https://wiki.antixenoinitiative.com/en/guardianunlocks', inline: false},
             {name: 'Blueprint Materials'               ,value: 'Modified Guardian weapons require **weapon blueprints** with purchase', inline: false},
             {name: 'Gauss'                             ,value: 'Deal high armor piercing damage and kill hearts quickly. Used in sizes small and medium', inline: false},
