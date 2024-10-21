@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
+const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
@@ -126,6 +126,7 @@ const exp = {
                     const rank_info = {
                         current: info.currentRank,
                         next: info.nextRank
+
                     }
                     nextTestQuestion(interaction,requestor,rank_info);
                     return;
@@ -169,7 +170,6 @@ const exp = {
                         
                         return 
                     }
-
                     interaction.deferUpdate()
                     let bulkMessages = []
                     const customId_array = interaction.customId.split("-")
@@ -826,10 +826,11 @@ const exp = {
                                     { name: "Reason:", value: "```Please wait to be contacted by General Staff```", inline: false }
                                 )
                         }
-                        
+
                         await leadership_potential.edit({ embeds: [leadership_potential_newEmbed], components: [] })
                         await requestor_potential.edit({ embeds: [requestor_potential_newEmbed], components: [] })
                         await leadership_thread.setLocked(true)
+                        cleanup(requestor,nextRank,promotionType,leadership_thread)
                         //Thread already locked
                         // await requestor_thread.setLocked(true)
                         try {
@@ -894,6 +895,7 @@ const exp = {
                     let promoter_roles = promoter.roles.cache.map(role=>role.name)
                     promoter_roles = promoter_roles.filter(x=>x != '@everyone')
                     const approved_promoter = promoter_roles.some(rank => info.promoter_rank.includes(rank))
+                    
                     if (!approved_promoter) {
                         notGeneralStaff(requestor,promotion,info)
                         return

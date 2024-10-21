@@ -173,6 +173,7 @@
             { "rank_name": "Captain", "id": "1176734589742481549"}
         ],
         "general_stuff": {
+            "promotion_request_system_state": true,
             "knowledge_proficiency": {
                 "promoter_rank": ["General Staff"],
                 "final_comments_required": "2",

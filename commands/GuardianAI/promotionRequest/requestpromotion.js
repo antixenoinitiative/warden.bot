@@ -27,6 +27,129 @@ function getPercentage(part, whole) {
 axiSelection = null
 //206440307867385857  Absence of Gravitas
 module.exports = {
+    cleanup: async function(requestor,nextRank,decision,leadership_thread) { 
+        if (module.exports.rejectStart.users.includes(requestor.id)) {
+            module.exports.rejectStart.users = module.exports.rejectStart.users.filter(i => i != requestor.id)
+        }
+        const rankTypes = {
+            "basic": "Aviator",
+            "advanced": "Lieutenant",
+            "master": "Captain",
+        }
+        let promotion = null
+        let bulkMessages = []
+        try { //Get DB info of thread
+            const values = [info.userId]
+            const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
+            const response = await database.query(sql,values)
+            if (response.length > 0) {
+                promotion = response[0]
+            }
+        }
+        catch (err) {
+            console.log(err)
+            botLog(interaction.guild,new Discord.EmbedBuilder()
+                .setDescription('```' + err.stack + '```')
+                .setTitle(`⛔ Fatal error experienced`)
+                ,2
+                ,'error'
+            )
+        }
+        // const blkMsg = await leadership_thread.send(`⛔ <@${interaction.user.id}> Promotion Approval/Denial can only be conducted by: ${JSON.stringify(info.promoter_rank)} `);
+        // bulkMessages.push({ message: blkMsg.id, thread: promotion.leadership_threadId })
+        // saveBulkMessages(promotion.userId,bulkMessages)
+        //todo start embed builder
+        const final_embedId_objs = {
+            knowledge_proficiency: promotion.grading_embedId,
+            experience: promotion.experience_embedId,
+            axiRank: promotion.leadership_roleEmbedId,
+            promotion_challenge: promotion.challenge_leadership_embedId,
+            leadership_potential: promotion.leadership_potential_embedId
+        }
+        const fetch_promises = Object.entries(final_embedId_objs).map(([key, id]) => 
+            id !== null ? leadership_thread.messages.fetch(id) : null
+        )
+        const [
+            knowledge_proficiency, 
+            experience, 
+            axiRank, 
+            promotion_challenge, 
+            leadership_potential
+        ] = await Promise.all(fetch_promises)
+        const knowledge_proficiency_embed = knowledge_proficiency.embeds[0]
+        const experience_embed = experience.embeds[0]
+        const axiRank_embed = axiRank.embeds[0]
+        const promotion_challenge_embed = promotion_challenge.embeds[0]
+        const leadership_potential_embed = leadership_potential.embeds[0]
+
+        function assignOldEmbedSchema(data) {
+            return {
+                title: data.title,
+                author: { name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) },
+                description: data.description,
+                color: data.color,
+                fields: data.fields
+            }
+        }
+        const knowledge_proficiency_oldEmbedSchema = assignOldEmbedSchema(knowledge_proficiency_embed)
+        const experience_oldEmbedSchema = assignOldEmbedSchema(experience_embed)
+        const axiRank_oldEmbedSchema = assignOldEmbedSchema(axiRank_embed)
+        const promotion_challenge_oldEmbedSchema = assignOldEmbedSchema(promotion_challenge_embed)
+        const leadership_potential_oldEmbedSchema = assignOldEmbedSchema(leadership_potential_embed)
+
+
+
+        const final_newEmbed = new Discord.EmbedBuilder()
+            .setTitle(`${requestor.user.displayName} ${nextRank} Promotion Request`)
+            .setDescription(`Request Completed`)
+            // .setColor('#87FF2A') //bight green
+            // .setColor('#f20505') //bight red
+            // .setColor('#f2ff00') //bight yellow
+            .setAuthor({ name: requestor.displayName, iconURL: requestor.displayAvatarURL({ dynamic: true }) })
+            .setThumbnail(botIdent().activeBot.icon)
+        const embed_color = decision == true ? '#87FF2A' : '#f20505'
+        final_newEmbed.setColor(embed_color)
+        //test score
+        knowledge_proficiency_oldEmbedSchema.fields.forEach(async (i, index) => {
+            if (index == 1) { final_newEmbed.addFields({ name: `${knowledge_proficiency_oldEmbedSchema.title} Score:`, value: i.value, inline: i.inline }) }
+        })
+        //experience credit
+        final_newEmbed.addFields({ name: "Experience Credit:", value: `<@${requestor.id}>`, inline: false })
+        experience_oldEmbedSchema.fields.forEach(async (i, index) => {
+            final_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline })
+        })
+        //axi challenge
+        axiRank_oldEmbedSchema.fields.forEach(async (i, index) => {
+            if (index == 2) { final_newEmbed.addFields({ name: `${axiRank_oldEmbedSchema.title}`, value: i.value, inline: i.inline }) }
+        })
+        //xsf promotion challenge
+        promotion_challenge_oldEmbedSchema.forEach(async (i, index) => {
+            if (index == 2) { final_newEmbed.addFields({ name: `${promotion_challenge_oldEmbedSchema.title}`, value: i.value, inline: i.inline }) }
+            if (index == 3) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline }) }
+        })
+        //leadership potential
+        // if (decision) {
+        //     final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" demonstrated the technical and tactical prowess to be promoted.```", inline: false })
+        // }
+        // else {
+        //     final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" had a problem with their application and will not be promoted at this time.```", inline: false })
+        // }
+        if (rankTypes[promotion.testType] != "Aviator") {
+            leadership_potential_oldEmbedSchema.forEach(async (i, index) => {
+                if (index == 2) { final_newEmbed.addFields({ name: `${leadership_potential_oldEmbedSchema.title}`, value: "Leadership has conviened and decided on the following aspects of Leadership Potential", inline: false }) }
+                if (index > 3) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: false }) }
+            })
+        }
+        else {
+            if (decision) {
+                final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" demonstrated the technical and tactical prowess to be promoted.```", inline: false })
+            }
+            else {
+                final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" had a problem with their application and will not be promoted at this time.```", inline: false })
+            }
+        }
+        
+    },
     promotionChallengeResult: async function (data,interaction) {
         try {
             const testTypes = {
@@ -530,7 +653,21 @@ module.exports = {
                     })
                 })
                 await threadEmbeds.requestor.channel.send({embeds: [embed]})
-                await threadEmbeds.leadership.channel.send({embeds: [embed]})
+                const experience = await threadEmbeds.leadership.channel.send({embeds: [embed]})
+                try {
+                    const values = [userId,experience.id]
+                    const sql = `UPDATE promotion SET experience_embedId = (?) WHERE userId = (?);`
+                    await database.query(sql, values) 
+                }
+                catch (err) {
+                    console.log(err)
+                    botLog(interaction.guild,new Discord.EmbedBuilder()
+                        .setDescription('```' + err.stack + '```')
+                        .setTitle(`⛔ Fatal error experienced`)
+                        ,2
+                        ,'error'
+                    )
+                }
                 module.exports.showAXIroles(userId,threadEmbeds,promotion)
             }
         }
@@ -1045,11 +1182,11 @@ module.exports = {
                             const sql = 'SELECT * FROM `promotion` WHERE userId = (?)';
                             let response = await database.query(sql, values)
                             if (response.length > 0) {
-                                if (response[0].grading_progress == '-1') {
-                                    const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId)
-                                    await requestor_thread.send(`**${promotion.requestor_nextRank}** request is inprogress here -> ${requestor_thread.url}`)
-                                }   
-                                response.push({"promotable":1})
+                                const requestor_thread = await interaction.guild.channels.fetch(response[0].requestor_threadId) 
+                                response.push({
+                                        promotable:1,
+                                        rejectStart: { requestor_thread: requestor_thread.id }     
+                                    })
                                 response = [{ ...response[0], ...response[1] }]
                                 return response
                             }
@@ -1063,7 +1200,7 @@ module.exports = {
                                     VALUES (?,?,?,?,?,?,?)
                                 `
                                 await database.query(sql2, values2)
-                                response.push({question_num: 0, promotable: 1, leadership_threadId: leadershipSubmissionThread, requestor_threadId: requestorSubmissionThread})
+                                response.push({question_num: 0, promotable: 1, rejectStart: { requestor_thread: requestorSubmissionThread },leadership_threadId: leadershipSubmissionThread, requestor_threadId: requestorSubmissionThread})
                                 
                                 return response
                             }
@@ -1211,14 +1348,19 @@ module.exports = {
             try {
                 let promotable_db_info = await checkPromotable()
                 // console.log("promotable_db_info:".red,promotable_db_info[0])
+                // if (promotable_db_info[0].rejectStart.state) { 
+                    //     return await interaction.editReply(
+                        //         { content: `❌ Promotion request is in progress already. Check your Promotion Request thread ${requestor_thread.url}` }
+                        //     )
+                        // }
                 if (promotable_db_info[0].grading_state > 1) { return await interaction.editReply({ content: `Promotion request is in progress already. Check your Promotion Request thread.` }) }
                 if (promotable_db_info[0].grading_state == 1) { return await interaction.editReply({ content: `Grading is inprogress. Please wait for grading completion...` }) }
                 if (promotable_db_info[0].promotable == 1 && promotable_db_info[0].grading_state != 1) {
                     //todo resume test
                     if (promotable_db_info[0].question_num >= 1) {
                         let bulkMessages = []
-                        const leadership_thread = await interaction.guild.channels.fetch(promotable_db_info[0].leadership_threadId)
                         const requestor_thread = await interaction.guild.channels.fetch(promotable_db_info[0].requestor_threadId)
+                        const leadership_thread = await interaction.guild.channels.fetch(promotable_db_info[0].leadership_threadId)
                         let section = promotable_db_info[0].section
                         let testType = promotable_db_info[0].testType
                         let ind = promotable_db_info[0].ind
@@ -1343,6 +1485,9 @@ module.exports = {
             }
         }
     },
+    rejectStart: {
+        users: []
+    },
     data: new Discord.SlashCommandBuilder()
         .setName('requestpromotion') 
         .setDescription('Select a promotion request category')
@@ -1365,9 +1510,19 @@ module.exports = {
         const roles = interaction.member.roles.cache.map(r=>r.name)
         const current_xsf_role = config[botIdent().activeBot.botName].general_stuff.allRanks.map(r=>r.rank_name).filter(value => roles.includes(value))[0]
         const reject_roles = ['General Staff','Colonel','Major','Captain']
+
         if (!reject_roles.includes(current_xsf_role)) {
             const requestor = await guild.members.fetch(interaction.user.id)
-            this.nextTestQuestion(interaction,requestor)
+            if (config[botIdent().activeBot.botName].general_stuff.promotion_request_system_state == false) {
+                return interaction.editReply({ content: `❌ Promotion Request System currently **disabled**.` })
+            }
+            if (module.exports.rejectStart.users.includes(requestor.id)) {
+                return interaction.editReply({ content: `❌ Promotion request is in progress already. Check your Promotion Request thread.` })
+            }
+            else {
+                module.exports.rejectStart.users.push(requestor.id)
+                this.nextTestQuestion(interaction,requestor)
+            }
         }
         else {
             return interaction.editReply({ content: `❌ Your rank (${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })
