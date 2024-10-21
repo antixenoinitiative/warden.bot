@@ -181,7 +181,7 @@ const exp = {
                             let urls = message.content.match(urlRegex)
                             if (urls == null && message.attachments.size == 0) {
                                 message.delete()
-                                message.channel.send('❌ Please enter a valid URL, eg: https://...')
+                                message.channel.send('❌ Drag and Drop an Image or Please enter a valid URL, eg: https://...')
                                 return
                             }
                             if (urls != null && message.attachments.size == 0) {
@@ -278,7 +278,7 @@ const exp = {
                             let urls = message.content.match(urlRegex)
                             if (urls == null && message.attachments.size == 0) {
                                 message.delete()
-                                message.channel.send('❌ Please enter a valid URL, eg: https://...')
+                                message.channel.send('❌ Drag and Drop an Image or Please enter a valid URL, eg: https://...')
                                 return
                             }
                             if (urls != null && message.attachments.size == 0) {
@@ -630,6 +630,9 @@ const exp = {
                              )
                          }
                     }
+                    //challengeproof denial
+
+                    
                     if (!promotion.axiChallenge_state <= 0 && promotion.grading_state == 3 && promotion.challenge_state >= 0) {
                         //!If denial message statement is required, delete messages by anybody that is not the reviewer.
                         //todo Come up with a better system. Maybe try harder with modals even though they aren't compatable with deferedUpdates.
@@ -715,7 +718,7 @@ const exp = {
                             const sql = `UPDATE promotion SET challenge_state = 3 WHERE userId = (?);`
                             await database.query(sql, values)
                             await requestor_thread.setLocked(false)
-                            const blkMsg = await leadership_thread.send(`Awaiting Promotion Challenge Review`)
+                            const blkMsg = await requestor_thread.send(`<@${promotion.userId}> Resubmit another valid Promotion Challenge proof.`)
                             bulkMessages.push(blkMsg)
                         }
                         catch (err) {

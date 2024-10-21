@@ -390,7 +390,7 @@ const exp = {
                         
                         return 
                     }
-                    let promotion = null
+                    let promotion = null 
                     try { //Get DB info of thread
                         const values = [challengeInfo.userId]
                         const sql = 'SELECT * FROM `promotion` WHERE userId = (?)'
@@ -433,6 +433,7 @@ const exp = {
                     let grader_roles = grader.roles.cache.map(role=>role.name)
                     grader_roles = grader_roles.filter(x=>x != '@everyone')
                     const approved_grader = grader_roles.some(role => rank_info.graderRank.some(grader => Object.keys(grader).includes(role)))
+                    console.log("promotion challenge approved_grader:",approved_grader, grader.displayName)
                     if (!approved_grader) { 
                         adjustEmbed(requestor,promotion,rank_info)
                         return

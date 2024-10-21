@@ -220,7 +220,7 @@
             "testServer": {
                 "knowledge_proficiency": { 
                     "promoter_rank": ["General Staff"],
-                    "final_comments_required": "2",
+                    "final_comments_required": "1",
                     "leadership_embedChannel": "1295226832290844755",
                     "requestor_embedChannel": "1285754040419876914"
                 },
