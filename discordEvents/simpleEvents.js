@@ -96,6 +96,7 @@ const exp = {
                         }
                         //For Role submission
                         if (response[0].axi_rolesCheck == -2) {
+                            removeBulkMessages(response[0].userId, message)
                             // const leadership_thread = await message.guild.channels.fetch(response[0].leadership_threadId)
                             // if (leadership_thread.id == message.channel.id) {
                             //     //If chat is discovered in the leadership thread, abandon this script.
@@ -380,6 +381,7 @@ const exp = {
                 }
                 //leadership Channel thread
                 if (message.channel.name.startsWith("Promotion Request") && message.channel.messageCount >= 9) {
+                    
                     let bulkMessages = []
                     let promotion = null
                     try { //Get DB info of thread
@@ -522,7 +524,7 @@ const exp = {
                                 .addComponents(
                                     new Discord.ButtonBuilder()
                                         .setCustomId(`promotion-deny-${promotion.userId}-${promoter_rank}`)
-                                        .setLabel("Dney Promotion")
+                                        .setLabel("Deny Promotion")
                                         .setStyle(Discord.ButtonStyle.Danger)
                                 )
                             await leadership_potential.edit({ embeds: [leadership_newEmbed], components: [requestor_components] })
@@ -609,8 +611,12 @@ const exp = {
                          leadership_newEmbed.addFields(
                              { name: "Denial Reason:", value: '```'+denyMsg.first().content+'```', inline: false }
                          )
-                         await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [requestor_components] } )
+                        //  await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [requestor_components] } )
+                         await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
                          await leadership_challenge.edit( { embeds: [leadership_newEmbed] } )
+                         const blkMsg = await requestor_thread.send(`⛔ <@${promotion.userId}> Resubmit new proof by url or Drag and Drop`)
+                         bulkMessages.push({ message: blkMsg.id, thread: requestor_thread.id })
+                         saveBulkMessages(promotion.userId,bulkMessages)
                          if (denyMsg.first().id != promotion.leadership_roleEmbedId) {
                              denyMsg.first().delete()
                          }
@@ -631,9 +637,8 @@ const exp = {
                          }
                     }
                     //challengeproof denial
-
-                    
                     if (!promotion.axiChallenge_state <= 0 && promotion.grading_state == 3 && promotion.challenge_state >= 0) {
+                        removeBulkMessages(promotion.userId, message)
                         //!If denial message statement is required, delete messages by anybody that is not the reviewer.
                         //todo Come up with a better system. Maybe try harder with modals even though they aren't compatable with deferedUpdates.
                         if (message.author.id != promotion.challenge_reviewer) {
@@ -679,7 +684,7 @@ const exp = {
                             { name: "Denial Reason:", value: '```'+denyMsg.first().content+'```', inline: false },
                         )
                         const requestor_components = new Discord.ActionRowBuilder()
-                            .addComponents(new Discord.ButtonBuilder().setCustomId(`challProofDenyConf-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Resubmit Updated Proof").setStyle(Discord.ButtonStyle.Success))
+                            .addComponents(new Discord.ButtonBuilder().setCustomId(`challProofDenyConf-deny-${message.author.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Click to Continue").setStyle(Discord.ButtonStyle.Success))
                         
                         const leadership_challenge = await message.channel.messages.fetch(promotion.challenge_leadership_embedId)
                         const leadership_receivedEmbed = leadership_challenge.embeds[0]
@@ -718,7 +723,7 @@ const exp = {
                             const sql = `UPDATE promotion SET challenge_state = 3 WHERE userId = (?);`
                             await database.query(sql, values)
                             await requestor_thread.setLocked(false)
-                            const blkMsg = await requestor_thread.send(`<@${promotion.userId}> Resubmit another valid Promotion Challenge proof.`)
+                            const blkMsg = await requestor_thread.send(`<@${promotion.userId}> Click to Continue to resubmit another valid Promotion Challenge proof.`)
                             bulkMessages.push(blkMsg)
                         }
                         catch (err) {

@@ -568,6 +568,7 @@ const exp = {
                         const sql = `UPDATE promotion SET axi_rolesCheck = -2, axiChallenge_state = (?)  WHERE userId = (?);`
                         const d = await database.query(sql, values)
                         if (d) {
+                            removeBulkMessages(challengeInfo.userId, interaction)
                             AXIchallengeProof(challengeInfo,interaction)
                         }
                     }
