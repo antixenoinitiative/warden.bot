@@ -156,7 +156,7 @@ if (process.env.SOCKET_TOKEN) {
                         embed.addFields({name: "Awaiting Requestor:", value: `Once requestor completes the qualifying AXI Progression Challenge **${testTypes[data.promotion.testType]}** (https://antixenoinitiative.com/about-us/ranks/) with proof. Click 'Update from AXI' or drag qualifying image into the chat to progress Promotion Request.`, inline: false })
                         embed.addFields({name: "Roles Found", value: "```Required AXI Progression Challenge **NOT** detected: " +roles+ "```" })
                         const requestor_components = new Discord.ActionRowBuilder()
-                            .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.user.id}-${promotion.testType}-${promotion.leadership_threadId}-${promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
+                            .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.promotion.useId}-${data.promotion.testType}-${data.promotion.leadership_threadId}-${data.promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
                         data.commandChan.forEach(async chan => {
                             if (data.promotion.requestor_threadId == chan) {
                                 const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })

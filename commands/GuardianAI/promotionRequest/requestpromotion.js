@@ -578,6 +578,9 @@ module.exports = {
     showAXIroles: async function (userId,threadEmbeds,promotion) {
         let person_asking = userId
         let subject = null
+        if (axiSelection == "nextranknotfound") { 
+            subject = guild.members.cache.get("418756893784145920")
+        }
         if (axiSelection == "no") { 
             subject = guild.members.cache.get("206440307867385857")
         }
@@ -1525,6 +1528,7 @@ module.exports = {
                 .setRequired(true)
                 .addChoices({ name: "Yes", value: "yes"})
                 .addChoices({ name: "No", value: "no"})
+                .addChoices({ name: "Next Rank Not Found", value: "nextranknotfound"})
         )
     ,
     async execute(interaction) {
