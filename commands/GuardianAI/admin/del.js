@@ -171,7 +171,7 @@ module.exports = {
                 ,'error'
             )
         }
-        await applyforranks.send({ content: `Cleared all threads and database entries`, ephemeral: true });
+        // await applyforranks.send({ content: `Cleared all threads and database entries`, ephemeral: true });
         if (selection == "mine") { 
             await interaction.editReply({ content: `- Cleared **${interaction.user.displayName}** threads and database entries` });
         }
