@@ -27,13 +27,13 @@ function getPercentage(part, whole) {
 axiSelection = null
 
 module.exports = {
-    cleanup: async function(requestor,nextRank,decision,leadership_thread) { 
+    cleanup: async function(requestor,nextRank,decision,leadership_thread,requestor_potential) { 
         if (module.exports.rejectStart.users.includes(requestor.id)) {
             module.exports.rejectStart.users = module.exports.rejectStart.users.filter(i => {
                 // console.log("Comparing with:".yellow, i)
                 return String(i) !== String(requestor.id)
             })
-            console.log(module.exports.rejectStart)
+            // console.log(module.exports.rejectStart)
             // module.exports.rejectStart.users = module.exports.rejectStart.users.filter(i => i != requestor.id)
         }
         const rankTypes = {
@@ -114,7 +114,6 @@ module.exports = {
         const leadership_potential_oldEmbedSchema = assignOldEmbedSchema(leadership_potential_embed)
 
         const final_newEmbed = new Discord.EmbedBuilder()
-            .setTitle(`${requestor.user.displayName} ${nextRank} Promotion Request`)
             .setDescription(`Request Completed`)
             // .setColor('#87FF2A') //bight green
             // .setColor('#f20505') //bight red
@@ -141,30 +140,39 @@ module.exports = {
             if (index == 2) { final_newEmbed.addFields({ name: `${promotion_challenge_oldEmbedSchema.title}`, value: i.value, inline: i.inline }) }
             if (index == 3) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline }) }
         })
-        //leadership potential
-        // if (decision) {
-        //     final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" demonstrated the technical and tactical prowess to be promoted.```", inline: false })
-        // }
-        // else {
-        //     final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" had a problem with their application and will not be promoted at this time.```", inline: false })
-        // }
+        //Leadership potential
+        const applyforranks = await guild.channels.fetch(info.applyForRanks())
         if (rankTypes[promotion.testType] != "Aviator") {
-            leadership_potential_oldEmbedSchema.fields.forEach(async (i, index) => {
-                if (index == 0) { final_newEmbed.addFields({ name: `${leadership_potential_oldEmbedSchema.title}`, value: "- *Leadership has conviened and decided on the following aspects of Leadership Potential*", inline: false }) }
-                if (index > 0) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: false }) }
-            })
-        }
-        else {
             if (decision) {
-                final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" demonstrated the technical and tactical prowess to be promoted.```", inline: false })
+                final_newEmbed.setTitle(`${requestor.user.displayName} ${await getRankEmoji(requestor.id)} ${nextRank} Promotion Request`)
+                leadership_potential_oldEmbedSchema.fields.forEach(async (i, index) => {
+                    if (index == 0) { final_newEmbed.addFields({ name: `${leadership_potential_oldEmbedSchema.title}`, value: "- *Leadership has conviened and decided on the following aspects of Leadership Potential*", inline: false }) }
+                    if (index > 0) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: false }) }
+                })
+                final_newEmbed.addFields({ name: "Promoted To:", value: `Congratulations on your Promotion ${await getRankEmoji(requestor.id)}<@${requestor.id}> !`, inline: false })
+                await applyforranks.send({ embeds: [final_newEmbed], components: [] })
             }
             else {
-                final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" had a problem with their application and will not be promoted at this time.```", inline: false })
+                final_newEmbed.setTitle(`${requestor.user.displayName} ${nextRank} Promotion Request`)
+                final_newEmbed.addFields({ name: "Final Assessment:", value: "```Please wait for contact from General Staff.```", inline: false })
+                await requestor_potential.edit({ embeds: [final_newEmbed]})
             }
         }
-        const applyforranks = await guild.channels.fetch(info.applyForRanks())
-        await applyforranks.send({ embeds: [final_newEmbed], components: [] })
-
+        else { //For Aviator promotion
+            if (decision) {
+                final_newEmbed.setTitle(`${requestor.user.displayName} ${await getRankEmoji(requestor.id)} ${nextRank} Promotion Request`)
+                final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" demonstrated the technical and tactical prowess to be promoted.```", inline: false })
+                final_newEmbed.addFields({ name: "Promoted To:", value: `Congratulations on your Promotion ${await getRankEmoji(requestor.id)}<@${requestor.id}> !`, inline: false })
+                await applyforranks.send({ embeds: [final_newEmbed], components: [] })
+                return
+            }
+            else {
+                final_newEmbed.setTitle(`${requestor.user.displayName} ${nextRank} Promotion Request`)
+                final_newEmbed.addFields({ name: "Final Assessment:", value: "```Please wait for contact from General Staff.```", inline: false })
+                await requestor_potential.edit({ embeds: [final_newEmbed]})
+                return
+            }
+        }
     },
     promotionChallengeResult: async function (data,interaction) {
         try {
@@ -1534,7 +1542,7 @@ module.exports = {
         // const requestor = await guild.members.fetch(interaction.user.id)
         // const leadership_thread = await interaction.guild.channels.fetch("1297813438864818237")
         // module.exports.cleanup(requestor,false,false,leadership_thread)
-        console.log("Current:".cyan,module.exports.rejectStart)
+        // console.log("Current:".cyan,module.exports.rejectStart)
         if (!reject_roles.includes(current_xsf_role)) {
             const requestor = await guild.members.fetch(interaction.user.id)
             if (config[botIdent().activeBot.botName].general_stuff.promotion_request_system_state == false) {
@@ -1546,8 +1554,8 @@ module.exports = {
             else {
                 module.exports.rejectStart.users.push(requestor.id)
                 this.nextTestQuestion(interaction,requestor)
-                console.log("Added:".cyan,module.exports.rejectStart)
-                await interaction.editReply({ content: `- Added: ${JSON.stringify(module.exports.rejectStart)}` })
+                // console.log("Added:".cyan,module.exports.rejectStart)
+                // await interaction.editReply({ content: `- Added: ${JSON.stringify(module.exports.rejectStart)}` })
             }
         }
         else {

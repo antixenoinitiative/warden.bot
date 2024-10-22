@@ -433,7 +433,7 @@ const exp = {
                     let grader_roles = grader.roles.cache.map(role=>role.name)
                     grader_roles = grader_roles.filter(x=>x != '@everyone')
                     const approved_grader = grader_roles.some(role => rank_info.graderRank.some(grader => Object.keys(grader).includes(role)))
-                    console.log("promotion challenge approved_grader:",approved_grader, grader.displayName)
+                    // console.log("promotion challenge approved_grader:",approved_grader, grader.displayName)
                     if (!approved_grader) { 
                         adjustEmbed(requestor,promotion,rank_info)
                         return
@@ -819,8 +819,12 @@ const exp = {
                             leadership_potential_newEmbed
                                 .setColor('#f20505')
                                 .addFields(
-                                    { name: "Staff Promotion Decision", value: "```Denied```", inline: false}
+                                    { name: "Staff Promotion Decision", value: "```Denied```", inline: false},
+                                    { name: "Requestor Notified of Staff Promotion Decision", value: "```Notified```", inline: false},
+                                    { name: "General Staff Recommendation", value: "``` Ensure Communication is conducted with requestor on Non-Promote decision```", inline: false},
                                 )
+                            
+                           
                             requestor_potential_newEmbed
                                 .setColor('#f20505')
                                 .addFields(
@@ -828,11 +832,11 @@ const exp = {
                                     { name: "Reason:", value: "```Please wait to be contacted by General Staff```", inline: false }
                                 )
                         }
-
+   
                         await leadership_potential.edit({ embeds: [leadership_potential_newEmbed], components: [] })
                         await requestor_potential.edit({ embeds: [requestor_potential_newEmbed], components: [] })
                         await leadership_thread.setLocked(true)
-                        cleanup(requestor,nextRank,promotionType,leadership_thread)
+                        cleanup(requestor,nextRank,promotionType,leadership_thread,requestor_potential)
                         //Thread already locked
                         // await requestor_thread.setLocked(true)
                         try {
@@ -867,6 +871,14 @@ const exp = {
                             else {
                                 return config[botIdent().activeBot.botName].allRanks.map(i => i.rank_name)
                             }
+                        },
+                        allRanksIds: function(rank) {
+                            if (process.env.MODE != "PROD") {
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.allRanks_testServer.map(i => i)
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].allRanks.map(i => i)
+                            }
                         }
                     }
                     let promotion = null
@@ -897,13 +909,13 @@ const exp = {
                     let promoter_roles = promoter.roles.cache.map(role=>role.name)
                     promoter_roles = promoter_roles.filter(x=>x != '@everyone')
                     const approved_promoter = promoter_roles.some(rank => info.promoter_rank.includes(rank))
+                    const nextRank = rankTypes[promotion.testType]
                     
                     if (!approved_promoter) {
                         notGeneralStaff(requestor,promotion,info)
                         return
                     }
                     if (approved_promoter && info.state == 'deny') {
-                        const nextRank = false
                         const promotionType = false
                         adjustEmbed(requestor,promotion,promotionType,nextRank)
                         return
@@ -913,7 +925,6 @@ const exp = {
                         const demotionRole = interaction.guild.roles.cache.find(r => r.name === requestor_currentRank)
                         await requestor.roles.add(promotionRole)
                         await requestor.roles.remove(demotionRole)
-                        const nextRank = rankTypes[promotion.testType]
                         const promotionType = true
                         adjustEmbed(requestor,promotion,promotionType,nextRank)
                         return

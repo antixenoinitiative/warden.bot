@@ -100,7 +100,7 @@ module.exports = {
         const selection = interaction.options.data.find(arg => arg.name === 'thread').value
         let promotion = null
         if (selection == "test") {
-            console.log("test:".yellow,rejectStart)
+            // console.log("test:".yellow,rejectStart)
             await interaction.editReply({ content: `- Test shows: ${JSON.stringify(rejectStart)}` });
             return
         }
@@ -108,20 +108,20 @@ module.exports = {
             const val = { users:[] }
             setRejectStart(val)
             rejectStart = { users: [] }
-            console.log("all".red,rejectStart)
-            await interaction.editReply({ content: `- Del ALL shows: ${JSON.stringify(rejectStart)}` });
+            // console.log("all".red,rejectStart)
+            // await interaction.editReply({ content: `- Del ALL shows: ${JSON.stringify(rejectStart)}` });
         }
         if (selection == "mine") {
             // console.log("mine:".yellow,rejectStart)
             // console.log("User ID to remove:".yellow, interaction.user.id)
             rejectStart.users = rejectStart.users.filter(i => {
-                console.log("Comparing with:".yellow, i)
+                // console.log("Comparing with:".yellow, i)
                 return String(i) !== String(interaction.user.id)
             })
             // console.log("Filtered users array:".yellow, rejectStart.users)
             setRejectStart(rejectStart)
             // console.log("rejectStart:".yellow,rejectStart) 
-            await interaction.editReply({ content: `- Del MINE shows: ${JSON.stringify(rejectStart)}` });
+            // await interaction.editReply({ content: `- Del MINE shows: ${JSON.stringify(rejectStart)}` });
             try { //Get DB info of thread
                 const values = selection == "mine" ? interaction.user.id : false
                 const sql = selection == "mine" ? 'SELECT * FROM `promotion` WHERE userId = (?)' : 'SELECT * FROM `promotion`'
@@ -171,13 +171,13 @@ module.exports = {
                 ,'error'
             )
         }
-        // await applyforranks.send({ content: `Cleared all threads and database entries`, ephemeral: true });
-        // if (selection == "mine") { 
-        //     await interaction.editReply({ content: `- Cleared **${interaction.user.displayName}** threads and database entries` });
-        // }
-        // else {
-        //     await interaction.editReply({ content: `- Cleared **ALL** threads and database entries` });
-        // }
+        await applyforranks.send({ content: `Cleared all threads and database entries`, ephemeral: true });
+        if (selection == "mine") { 
+            await interaction.editReply({ content: `- Cleared **${interaction.user.displayName}** threads and database entries` });
+        }
+        else {
+            await interaction.editReply({ content: `- Cleared **ALL** threads and database entries` });
+        }
 
     }
 }
