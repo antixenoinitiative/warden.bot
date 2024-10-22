@@ -137,16 +137,17 @@ module.exports = {
         })
         //xsf promotion challenge
         promotion_challenge_oldEmbedSchema.fields.forEach(async (i, index) => {
-            if (index == 2) { final_newEmbed.addFields({ name: `${promotion_challenge_oldEmbedSchema.title}`, value: i.value, inline: i.inline }) }
-            if (index == 3) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: i.inline }) }
+            if (index == 2) { final_newEmbed.addFields({ name: `${promotion_challenge_oldEmbedSchema.title}`, value: i.value, inline: true }) }
+            if (index == 3) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: true }) }
         })
         //Leadership potential
         const applyforranks = await guild.channels.fetch(info.applyForRanks())
-        if (rankTypes[promotion.testType] != "Aviator") {
+        // if (rankTypes[promotion.testType] != "Aviator") {}
+        if ("Derp" == "DerpAviator") {
             if (decision) {
                 final_newEmbed.setTitle(`${requestor.user.displayName} ${await getRankEmoji(requestor.id)} ${nextRank} Promotion Request`)
                 leadership_potential_oldEmbedSchema.fields.forEach(async (i, index) => {
-                    if (index == 0) { final_newEmbed.addFields({ name: `${leadership_potential_oldEmbedSchema.title}`, value: "- *Leadership has conviened and decided on the following aspects of Leadership Potential*", inline: false }) }
+                    if (index == 0) { final_newEmbed.addFields({ name: `${leadership_potential_oldEmbedSchema.title}`, value: "- *Comments from Leadership*", inline: false }) }
                     if (index > 0) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: false }) }
                 })
                 final_newEmbed.addFields({ name: "Promoted To:", value: `Congratulations on your Promotion ${await getRankEmoji(requestor.id)}<@${requestor.id}> !`, inline: false })
@@ -359,7 +360,7 @@ module.exports = {
         }
         const requestor = await guild.members.fetch(data.user.id)
         const leadership_newEmbed = new Discord.EmbedBuilder()
-            .setTitle(`Promotion Challenge Proof`)
+            .setTitle(`Xeno Strike Force Promotion Challenge Proof`)
             .setDescription(`Waiting on requestor to submit Promotion Challenge Proof.`)
             .setColor("#f2ff00")
                 // .setColor('#87FF2A') //bight green
@@ -372,7 +373,7 @@ module.exports = {
                 { name: "Promotion Challenge Status", value: "```" + 'Pending....' + "```", inline: true },
             )
         const requestor_newEmbed = new Discord.EmbedBuilder()
-            .setTitle(`Promotion Challenge Proof`)
+            .setTitle(`Xeno Strike Force Promotion Challenge Proof`)
             .setDescription(`Submit the link for the Promotion Challenge. Type into the chatbox. Example: https://www.youtube.com`)
             .setColor("#f2ff00")
                 // .setColor('#87FF2A') //bight green
@@ -530,7 +531,13 @@ module.exports = {
                     let rank_emoji = await getRankEmoji(data.reviewer);
                     if (rank_emoji == null) { rank_emoji == "" }
                     oldEmbedSchema.fields.forEach((i,index) => {
-                        if (index < 4) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                        if (index == 2 && i.name.includes("Awaiting Requestor:")) { 
+                            if (index < 2) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                            if (index >= 3) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                        }
+                        else {
+                            if (index < 4) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
+                        }
                         if (index == 4) { newEmbed.addFields({ name: "AXI Challenge Status", value: "```" + challenge_score + "```", inline: true }) }
                         if (index == 5) { newEmbed.addFields({name: i.name, value: i.value, inline: i.inline}) }
                         if (index == 6) { newEmbed.addFields({name: "Reviewed By", value: `${rank_emoji}<@${data.reviewer}>`, inline: i.inline}) }
@@ -584,7 +591,10 @@ module.exports = {
         if (axiSelection == "no") { 
             subject = guild.members.cache.get("206440307867385857")
         }
-        else {
+        if (axiSelection == "yes") {
+            subject = guild.members.cache.get(userId)
+        }
+        if (!axiSelection)  {
             subject = guild.members.cache.get(userId)
         }
         const member = guild.members.cache.get(userId)

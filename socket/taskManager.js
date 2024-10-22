@@ -153,13 +153,16 @@ if (process.env.SOCKET_TOKEN) {
                     else {
                         embed.setTitle('Anti Xeno Initiative Progression Challenge')
                         embed.setColor('#f20505')
-                        embed.addFields({name: "Awaiting Requestor:", value: `Once requestor completes the qualifying AXI Progression Challenge **${testTypes[data.promotion.testType]}** (https://antixenoinitiative.com/about-us/ranks/) with proof. Click 'Update from AXI' or drag qualifying image into the chat to progress Promotion Request.`, inline: false })
-                        embed.addFields({name: "Roles Found", value: "```Required AXI Progression Challenge **NOT** detected: " +roles+ "```" })
+                        embed.addFields({name: "Awaiting Requestor:", value: `Once requestor completes the qualifying AXI Progression Challenge **${testTypes[data.promotion.testType]}** (https://antixenoinitiative.com/about-us/ranks/) with proof. Click 'Update from AXI' or drag qualifying image or URL into the chat to progress Promotion Request.`, inline: false })
+                        embed.addFields({name: "Required Progression Challenge NOT Found:", value: "```" +testTypes[data.promotion.testType]+ "```" })
                         const requestor_components = new Discord.ActionRowBuilder()
                             .addComponents(new Discord.ButtonBuilder().setCustomId(`axiRankRetry-${data.promotion.useId}-${data.promotion.testType}-${data.promotion.leadership_threadId}-${data.promotion.requestor_threadId}`).setLabel("Click to Update From AXI").setStyle(Discord.ButtonStyle.Success))
-                        data.commandChan.forEach(async chan => {
+
+                            data.commandChan.forEach(async chan => {
                             if (data.promotion.requestor_threadId == chan) {
-                                const embedId = await guild.channels.cache.get(chan).send({ embeds: [embed], components: [requestor_components] })
+                                const chanObj = await guild.channels.cache.get(chan)
+                                await chanObj.setLocked(false)
+                                const embedId = await chanObj.send({ embeds: [embed], components: [requestor_components] })
                                 const values = [embedId.id,data.promotion.userId]
                                 const sql = `UPDATE promotion SET axiChallenge_state = 0, requestor_roleEmbedId = (?), axi_rolesCheck = -2 WHERE userId = (?);`
                                 await database.query(sql, values)
