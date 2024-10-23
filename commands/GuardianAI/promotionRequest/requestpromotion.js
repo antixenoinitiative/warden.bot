@@ -1531,7 +1531,7 @@ module.exports = {
     },
     data: new Discord.SlashCommandBuilder()
         .setName('requestpromotion') 
-        .setDescription('Select a promotion request category')
+        .setDescription('Start your Promotion Request')
         .addStringOption(option =>
             option.setName('axi')
                 .setDescription('Choose Yes or No for user IN AXI server')
