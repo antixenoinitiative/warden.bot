@@ -1573,7 +1573,7 @@ module.exports = {
             }
         }
         else {
-            return interaction.editReply({ content: `❌ Your rank (${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })
+            return interaction.editReply({ content: `❌ Your rank (${await getRankEmoji(interaction.user.id)} ${current_xsf_role}) is to high to start a promotion test. Tests are for Learners, Aviators, and Lieutenants.` })
         }
     }
 }
