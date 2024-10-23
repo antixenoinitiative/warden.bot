@@ -23,7 +23,6 @@ module.exports = {
             {name: 'Modified Shards'                   ,value: 'Deal high alpha damage to hull and shields, have 5 round clip, have higher armor piercing. Only used in size medium', inline: false},
             {name: 'Modified Plasma'                   ,value: 'Deal high alpha damage to hull and shields, have 20 round clip, are less favorable for heart due to lower armor piercing. Primarily used in size medium, though smalls are worse, but still viable.', inline: false},       
         )
-        .setFooter({ text: 'Module Reinforcement Package', iconURL: botIdent().activeBot.icon });
         interaction.reply({embeds: [returnEmbed]})
     }
 }
