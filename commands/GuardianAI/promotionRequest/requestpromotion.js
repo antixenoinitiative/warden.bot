@@ -159,7 +159,7 @@ module.exports = {
                 await requestor_potential.edit({ embeds: [final_newEmbed]})
             }
         }
-        else { //For Aviator promotion
+        else { //For All promotion if above is disabled, Aviator if enabled
             if (decision) {
                 final_newEmbed.setTitle(`${requestor.user.displayName} ${await getRankEmoji(requestor.id)} ${nextRank} Promotion Request`)
                 final_newEmbed.addFields({ name: "Final Assessment:", value: "```"+requestor.user.displayName+" demonstrated the technical and tactical prowess to be promoted.```", inline: false })
