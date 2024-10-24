@@ -275,7 +275,7 @@ function mainOperation(){
 	// General error handling
 	process.on('uncaughtException', function (err) {
 		const dateTime = botFunc.generateDateTime();
-		console.log('[ERROR]'.red,`${dateTime} ⛔ Unhandled Exception:`)
+		console.log('[ERROR]'.red,`${dateTime} ⛔ Unhandled Exception:`,stack.err)
 		botFunc.botLog(guild,new Discord.EmbedBuilder()
 			.setDescription('```' + err.stack + '```')
 			.setTitle(`⛔ Fatal error experienced`)
