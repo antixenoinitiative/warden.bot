@@ -41,6 +41,7 @@ module.exports = {
                     .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
                     .setTitle(`/${interaction.commandName}`)
                     ,2
+                    ,'info'
                 )
                 await interaction.editReply({ content: `You do not have the roles to do this command, Contact ${approvalRanks_string}`, ephemeral: true });
                 return

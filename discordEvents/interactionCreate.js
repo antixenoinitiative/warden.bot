@@ -21,6 +21,10 @@ const exp = {
                     console.log(interaction)
                     return;
                 }
+                if (interaction.customId.startsWith("challengeProofModal")) {
+                    
+                    return
+                }
                 // const command = interaction.client.commands.get(interaction.commandName);
     
                 // if (!command) return;

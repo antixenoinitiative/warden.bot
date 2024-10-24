@@ -173,6 +173,11 @@
             { "rank_name": "Captain", "id": "1176734589742481549"}
         ],
         "general_stuff": {
+            "active_duty_mention_authorization": [
+                { "rank_name": "General Staff", "id": "1173407686797303928", "emoji": "<:XSF_General:1232022156393709668>" },
+                { "rank_name": "Colonel", "id": "1176734917263102063", "emoji": "<:XSF_Colonel:1232022138576441364>" },
+                { "rank_name": "Major", "id": "1176734800103608461", "emoji": "<:XSF_Major:1232022119731302440>" }
+            ],
             "promotion_request_system_state": true,
             "knowledge_proficiency": {
                 "promoter_rank": ["General Staff"],
@@ -218,6 +223,11 @@
             ],
             "carrier_jump_room": "ready-room",
             "testServer": {
+                "active_duty_mention_authorization": [
+                    { "rank_name": "General Staff", "id": "961718365603393576" },
+                    { "rank_name": "Colonel", "id": "961718368270958692" },
+                    { "rank_name": "Major", "id": "961718369118216273"}
+                ],
                 "knowledge_proficiency": { 
                     "promoter_rank": ["General Staff"],
                     "final_comments_required": "1",

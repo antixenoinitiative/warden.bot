@@ -32,6 +32,7 @@ module.exports = {
             .setDescription(`${interaction.member.displayName} does not have access. Requires ${approvalRanks_string}`)
             .setTitle(`/roles_req ${interaction.options.getSubcommand()}`)
             ,2
+            ,'info'
             )
             await interaction.editReply({ content: `You do not have the roles to add to the participation tracker. Contact ${approvalRanks_string}`, ephemeral: true });
             return

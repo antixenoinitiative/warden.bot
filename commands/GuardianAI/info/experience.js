@@ -71,6 +71,7 @@ module.exports = {
                 .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}. User was redirected to view their own experience history.`)
                 .setTitle(`/experience ${interaction.options.getSubcommand()}`)
                 ,2
+                ,'info'
                 )
                 const inputs = interaction.options._hoistedOptions
                 //! names

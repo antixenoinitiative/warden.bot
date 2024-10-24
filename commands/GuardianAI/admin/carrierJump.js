@@ -56,6 +56,7 @@ module.exports = {
             .setDescription(`${interaction.member.nickname} does not have access. Requires ${approvalRanks_string}`)
             .setTitle(`/${inputValues[0].name}`)
             ,2
+            ,'info'
             )
             await interaction.editReply({ content: `You do not have the roles to perform this operation.`, ephemeral: true });
             return
