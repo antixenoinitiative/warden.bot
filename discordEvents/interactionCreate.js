@@ -80,7 +80,7 @@ const exp = {
                         .setThumbnail(botIdent().activeBot.icon)
                         // .setFooter({ text: `Notificiation from ${interaction.user.displayName}`, iconURL: interaction.user.displayAvatarURL({ dynamic: false })})
        
-                        const channelObj = await interaction.guild.channels.fetch(`${args.channel}`)
+                        // const channelObj = await interaction.guild.channels.fetch(`${args.channel}`)
                         const activeDutyId = () => {
                             if (process.env.MODE != "PROD") {
                                 console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.active_duty_mention_authorization. Using testServer input if available")
@@ -92,10 +92,10 @@ const exp = {
                             }
                         }
                         if (args.verbose == "yes") {
-                            await channelObj.send(`<@&${activeDutyId()}>`)
+                            await interaction.channel.send(`<@&${activeDutyId()}>`)
                         }
-                        await channelObj.send({ embeds: [embed] })
-                        await interaction.editReply({ content: `Message sent to ${channelObj.url}`, ephemeral: true });
+                        await interaction.channel.send({ embeds: [embed] })
+                        await interaction.editReply({ content: `Message sent to ${interaction.channel.url}`, ephemeral: true });
                         args = {}
                     return
                 }

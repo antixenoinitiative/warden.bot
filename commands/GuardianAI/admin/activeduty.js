@@ -11,12 +11,6 @@ module.exports = {
     data: new Discord.SlashCommandBuilder()
         .setName('active_duty')
         .setDescription('Enter a message for mentioning active duty ')
-        .addChannelOption(option => 
-            option
-                .setName('channel')
-                .setDescription('Pick the channel')
-                .setRequired(true)
-        )
         .addStringOption(option =>
             option.setName('verbose')
                 .setDescription('Choose to Notify Active Duty role.')
