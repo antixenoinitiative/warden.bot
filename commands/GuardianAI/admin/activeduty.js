@@ -17,6 +17,15 @@ module.exports = {
                 .setDescription('Pick the channel')
                 .setRequired(true)
         )
+        .addStringOption(option =>
+            option.setName('verbose')
+                .setDescription('Choose to Notify Active Duty role.')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Notify', value: 'yes' },
+                    { name: 'Silent', value: 'no' },
+                )
+        )
     ,
     permissions: 0,
     async execute(interaction) {

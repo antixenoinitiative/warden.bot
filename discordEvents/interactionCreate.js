@@ -91,7 +91,9 @@ const exp = {
                                 return config[botIdent().activeBot.botName].general_stuff.active_duty_mention_roleId
                             }
                         }
-                        await channelObj.send(`<@&${activeDutyId()}>`)
+                        if (args.verbose == "yes") {
+                            await channelObj.send(`<@&${activeDutyId()}>`)
+                        }
                         await channelObj.send({ embeds: [embed] })
                         await interaction.editReply({ content: `Message sent to ${channelObj.url}`, ephemeral: true });
                         args = {}
