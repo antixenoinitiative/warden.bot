@@ -169,7 +169,7 @@ const exp = {
                                 await leadership_challenge.edit( { embeds: [requestor_newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
                                 await requestor_thread.setLocked(true)
-                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> AXI Progression Challenge Proof Review Required`)
+                                const blkMsg = await leadership_thread.send(`🕗<@&${graderRank[0][grader_ident]}> AXI Progression Challenge Proof Review Required`)
                                 bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                 saveBulkMessages(message.author.id,bulkMessages)
                                 return
@@ -200,7 +200,7 @@ const exp = {
                                 await leadership_challenge.edit( { embeds: [leadership_newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
                                 await requestor_thread.setLocked(true)
-                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> AXI Progression Challenge Proof Review Required`)
+                                const blkMsg = await leadership_thread.send(`🕗<@&${graderRank[0][grader_ident]}> AXI Progression Challenge Proof Review Required`)
                                 bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                 saveBulkMessages(message.author.id,bulkMessages)
                                 return
@@ -266,7 +266,7 @@ const exp = {
                                 })
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
-                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
+                                const blkMsg = await leadership_thread.send(`🕗<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                 saveBulkMessages(message.author.id,bulkMessages)
                                 return
@@ -291,7 +291,7 @@ const exp = {
                                 // message.delete()
                                 await leadership_challenge.edit( { embeds: [newEmbed], components: [row] } )
                                 await requestor_challenge.edit( { embeds: [newEmbed] } )
-                                const blkMsg = await leadership_thread.send(`⛔<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
+                                const blkMsg = await leadership_thread.send(`🕗<@&${graderRank[0][grader_ident]}> Promotion Challenge Proof Review Required`)
                                 bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                 saveBulkMessages(message.author.id,bulkMessages)
                                 await requestor_thread.setLocked(true)
@@ -442,7 +442,7 @@ const exp = {
                                 if (messageContent.length > MAX_FIELD_VALUE_LENGTH) {
                                     if (!sentError) {
                                         sentError = true
-                                        const blkMsg = await leadership_thread.send(`⛔ <@${message.author.id}> your message exceeds the 1024 character limit.`);
+                                        const blkMsg = await leadership_thread.send(`🕗 <@${message.author.id}> your message exceeds the 1024 character limit.`);
                                         bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                         saveBulkMessages(message.author.id,bulkMessages)
                                     }
@@ -494,7 +494,7 @@ const exp = {
                                 console.log("!userFieldFound")
                                 if (!sentError) {
                                     sentError = true
-                                    const blkMsg = await leadership_thread.send(`⛔ <@${message.author.id}> your message exceeds the 1024 character limit.`)
+                                    const blkMsg = await leadership_thread.send(`🕗 <@${message.author.id}> your message exceeds the 1024 character limit.`)
                                     bulkMessages.push({ message: blkMsg.id, thread: leadership_thread.id })
                                     saveBulkMessages(message.author.id,bulkMessages)
                                 }
@@ -614,7 +614,7 @@ const exp = {
                         //  await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [requestor_components] } )
                          await requestor_challenge.edit( { embeds: [requestor_newEmbed], components: [] } )
                          await leadership_challenge.edit( { embeds: [leadership_newEmbed] } )
-                         const blkMsg = await requestor_thread.send(`⛔ <@${promotion.userId}> Resubmit new proof by url or Drag and Drop`)
+                         const blkMsg = await requestor_thread.send(`🕗 <@${promotion.userId}> Resubmit new proof by url or Drag and Drop`)
                          bulkMessages.push({ message: blkMsg.id, thread: requestor_thread.id })
                          saveBulkMessages(promotion.userId,bulkMessages)
                          if (denyMsg.first().id != promotion.leadership_roleEmbedId) {

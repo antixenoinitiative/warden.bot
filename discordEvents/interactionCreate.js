@@ -9,6 +9,50 @@ const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
 const { default: test } = require('node:test')
+let args = {}
+function postArgs(interaction) {
+    for (let key of interaction.options.data) {
+        args[key.name] = key.value
+    }
+    return args
+}
+async function modalStuff(i) {
+    const fields = {
+        title: new Discord.TextInputBuilder()
+            .setCustomId(`title`)
+            .setLabel(`Input a Title`)
+            .setStyle(Discord.TextInputStyle.Short)
+            .setRequired(true),
+            // .setPlaceholder(`Notification`),
+        message: new Discord.TextInputBuilder()
+            .setCustomId(`message`)
+            .setLabel(`Enter your notification message:`)
+            .setStyle(Discord.TextInputStyle.Paragraph)
+            .setRequired(true)
+            // .setPlaceholder(`1200`)
+    }
+    const modal = new Discord.ModalBuilder()
+        .setCustomId('activeDuty')
+        .setTitle('Enter the Notification Inputs')
+        .addComponents(
+            new Discord.ActionRowBuilder().addComponents(fields.title),
+            new Discord.ActionRowBuilder().addComponents(fields.message),
+        )
+    await i.showModal(modal);
+    const submitted = await i.awaitModalSubmit({
+        time: 300000,
+    }).catch(error => {
+
+        console.error(error)
+        return null
+    })
+
+    if (submitted) {
+        const [title,message] = submitted.fields.fields.map(i => i.value)
+        return [submitted, title, message]
+
+    }
+}
 const exp = {
     interactionCreate: async (interaction,bot) => {
         //!isModalSubmit() is not 100% required, you can gather any modal replies from within the codebase your working from.
@@ -21,8 +65,36 @@ const exp = {
                     console.log(interaction)
                     return;
                 }
-                if (interaction.customId.startsWith("challengeProofModal")) {
-                    
+                if (interaction.customId.startsWith("activeDuty")) {
+                    await interaction.deferReply({ ephemeral: true });
+                    const title = interaction.fields.getTextInputValue('title')
+                    const description = interaction.fields.getTextInputValue('message')
+
+                    const embed = new Discord.EmbedBuilder()
+                        .setTitle(`${title}`)
+                        .setDescription(`${description}`)
+                        .setColor('#87FF2A') //bight green
+                        // .setColor('#f20505') //bight red 
+                        // .setColor('#f2ff00') //bight yellow
+                        .setAuthor({ name: interaction.member.displayName, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+                        .setThumbnail(botIdent().activeBot.icon)
+                        // .setFooter({ text: `Notificiation from ${interaction.user.displayName}`, iconURL: interaction.user.displayAvatarURL({ dynamic: false })})
+       
+                        const channelObj = await interaction.guild.channels.fetch(`${args.channel}`)
+                        const activeDutyId = () => {
+                            if (process.env.MODE != "PROD") {
+                                console.log("[CAUTION]".bgYellow, "knowledge proficiency embed channel required. Check config.json file. guardianai.general_stuff.active_duty_mention_authorization. Using testServer input if available")
+
+                                return config[botIdent().activeBot.botName].general_stuff.testServer.active_duty_mention_roleId
+                            }
+                            else {
+                                return config[botIdent().activeBot.botName].general_stuff.active_duty_mention_roleId
+                            }
+                        }
+                        await channelObj.send(`<@&${activeDutyId()}>`)
+                        await channelObj.send({ embeds: [embed] })
+                        await interaction.editReply({ content: `Message sent to ${channelObj.url}`, ephemeral: true });
+                        args = {}
                     return
                 }
                 // const command = interaction.client.commands.get(interaction.commandName);
@@ -54,7 +126,10 @@ const exp = {
         if (interaction.isCommand()) {
             const command = bot.commands.get(interaction.commandName);
             if (!command) return;
-
+            if (interaction.commandName === 'active_duty') {
+                postArgs(interaction)
+                modalStuff(interaction)
+            }
             try {
                 await command.execute(interaction);
             } catch (error) {
