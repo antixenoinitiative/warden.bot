@@ -142,12 +142,12 @@ module.exports = {
         })
         //Leadership potential
         const applyforranks = await guild.channels.fetch(info.applyForRanks())
-        // if (rankTypes[promotion.testType] != "Aviator") {}
-        if ("Derp" == "DerpAviator") {
+        // if ("Derp" == "DerpAviator") {
+        if (rankTypes[promotion.testType] != "Aviator") {
             if (decision) {
                 final_newEmbed.setTitle(`${requestor.user.displayName} ${await getRankEmoji(requestor.id)} ${nextRank} Promotion Request`)
                 leadership_potential_oldEmbedSchema.fields.forEach(async (i, index) => {
-                    if (index == 0) { final_newEmbed.addFields({ name: `${leadership_potential_oldEmbedSchema.title}`, value: "- *Comments from Leadership*", inline: false }) }
+                    if (index == 0) { final_newEmbed.addFields({ name: `Comments from Leadership`, value: "\u200b", inline: false }) }
                     if (index > 0) { final_newEmbed.addFields({ name: i.name, value: i.value, inline: false }) }
                 })
                 final_newEmbed.addFields({ name: "Promoted To:", value: `Congratulations on your Promotion ${await getRankEmoji(requestor.id)}<@${requestor.id}> !`, inline: false })
@@ -298,8 +298,8 @@ module.exports = {
                     //! IS LIEUTENANT+ NEXT RANK
 
                     const requestor_leadershipPotential_newEmbed = new Discord.EmbedBuilder()
-                        .setTitle(`Leadership Potential`)
-                        .setDescription(`- Congratulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the Leadership Potential is discussed...`)
+                        .setTitle(`Final Disposition`)
+                        .setDescription(`- Congratulations on completing the ${testTypes[response[0].testType]} Promotion Request!\n- Please wait patiently while the Final Disposition is discussed...`)
                             // .setColor('#87FF2A') //bight green
                             // .setColor('#f20505') //bight red
                         .setColor('#f2ff00') //bight yellow
@@ -309,8 +309,8 @@ module.exports = {
 
                     //!Show leadership potential
                     const leadership_potential_embed = new Discord.EmbedBuilder()
-                    .setTitle(`Leadership Potential`)
-                    .setDescription(`Discuss this Promotion Request and the applicant's leadership abilities`)
+                    .setTitle(`Final Disposition`)
+                    .setDescription(`Discuss the final disposition of this Promotion Request`)
                         // .setColor('#87FF2A') //bight green
                         // .setColor('#f20505') //bight red
                     .setColor('#f2ff00') //bight yellow
@@ -318,7 +318,7 @@ module.exports = {
                     .setThumbnail(botIdent().activeBot.icon)
                     .addFields(
                         { name: "General Orders:", value: "Promotion should be an exciting thing, all members at all ranks reside at different parts of their AX Journey. Ensure discorse about members are evaluated carefuly;\n1. Are they capable of holding more than one (typically their own) point view.\n2. Are they willing to admit when they’re wrong, and that they don’t know everything.\n3. Have they demonstrate the ability to de-escalate (vs the opposite) in tense, controversial, or otherwise charged situations.\n4. Have they demonstrated a desire to put the interests of the community above their own.\n5. Are they recognized by others as someone to look up to, not just in terms of skill, but overall.\n6. Have they proven that they will “get their hands dirty” and/or 'take one for the team'.\n7. Have they proven they can be a excellent follower.", inline: false },
-                        { name: "Your Final Statement:", value: `Crucial step for certifying a promotion request. They provide a synapse of the current thinking on a member's leadership potential.\n**## Examples of what you could write ##**:\n- **!final** User is truely dedicated to XSF and exudes leadership at every facet of the XSF experience.\n- **!final** Member has taken their time to train eight members to be able to fight Hydra's solo.\n- **!final** Commander shows tactical and technical prowess during many of the Operation Orders in the recent past.\n- **!final** Lieutenant User communicates very effectively in voice communications.\n- **!final** Member contributed a week of their free time to developing a new strategy which we use daily; growing the Xeno Strike Force community.`, inline: false },
+                        { name: "Your Final Statement:", value: `Crucial step for certifying a promotion request. They provide a synapse of the current thinking on a Final Disposition.\n**## Examples of what you could write ##**:\n- **!final** User is truely dedicated to XSF and exudes leadership at every facet of the XSF experience.\n- **!final** Member has taken their time to train eight members to be able to fight Hydra's solo.\n- **!final** Commander shows tactical and technical prowess during many of the Operation Orders in the recent past.\n- **!final** Lieutenant User communicates very effectively in voice communications.\n- **!final** Member contributed a week of their free time to developing a new strategy which we use daily; growing the Xeno Strike Force community.`, inline: false },
                         { name: "Submitting your Final Statement:", value: "In the leadership channel, type the following:\n```!final Something that you wish to write as a final statement. You can submit multiple. Statements from TWO leaders will populate approval/denial promotion buttons.```", inline: false },
                         { name: "Final Statements:", value: "-", inline: false },
                     )
@@ -1155,8 +1155,8 @@ module.exports = {
                             messages: [
                                 "This thread will populate with the requirements of the promotion request after the requesting member completes the Knowledge Proficiency Test.",
                                 "The promotion request system will not allow a test to be taken if the requestor has less than the minimum Experience Credits requried.",
-                                "Once everything has been posted, use this thread to discuss Leadership Potential",
-                                "- Knowledge Proficiencies\n- Experience\n- AXI Rank\n- Promotion Challenge\n- Leadership Potential",
+                                "Once everything has been posted, use this thread to discuss final disposition",
+                                "- Knowledge Proficiencies\n- Experience\n- AXI Rank\n- Promotion Challenge",
                             ]
                         }
                         const requestor_info = {
