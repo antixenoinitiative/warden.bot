@@ -143,17 +143,26 @@ const thisBotFunctions = {
 							if (!ignoreCommands.includes(filePathSplit) && useGlobalCommands == 0) {
 								loadCommandsFromFolder(filePath,commands); // Recursively go into subdirectories
 							}
-						} else if (file.endsWith('.js') || file.endsWith('.cjs')) {
+						} else if (file.endsWith(".js") || file.endsWith(".cjs")) {
 							const command = require(filePath);
 							const folderName = path.basename(folderPath);
 							command.category = folderName;
+							
 							if (command.data === undefined) {
-								commandsColl.set(command.name, command); // For non-slash commands
+								// For non-slash commands
+								commandsColl.set(command.name, command);
 							} else {
-								commandsColl.set(command.data.name, command); // For slash commands
-							}
-							if (command.data !== undefined) {
-								commands.push(command.data.toJSON());
+								if (Array.isArray(command.data)) {
+									// For multiple slash commands in one file
+									for (const cmd of command.data) {
+										commandsColl.set(cmd.name, command);
+										commands.push(cmd.toJSON());
+									}
+								} else {
+									// For a single slash command
+									commandsColl.set(command.data.name, command);
+									commands.push(command.data.toJSON());
+								}
 							}
 						}
 					}
