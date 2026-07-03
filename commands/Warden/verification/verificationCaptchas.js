@@ -21,7 +21,9 @@ function getCaptcha(captchaId) {
 
 function getActiveCaptcha(config) {
     const captchaId = config?.verification?.captchaId
+        ?? config?.verification?.activeCaptchaId
         ?? config?.captchaId
+        ?? config?.activeCaptchaId
         ?? 'placeholder';
 
     return getCaptcha(captchaId) ?? getCaptcha('placeholder');

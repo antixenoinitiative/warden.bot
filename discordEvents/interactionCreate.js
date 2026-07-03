@@ -4,6 +4,7 @@ const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showP
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
+const { getActiveCaptcha, validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
 
 const Discord = require('discord.js')
 const fs = require('fs')
@@ -16,6 +17,85 @@ function postArgs(interaction) {
     }
     return args
 }
+
+function buildWardenVerificationEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
+    let description = embedConfig?.description ?? fallbackDescription;
+
+    for (const [key, value] of Object.entries(replacements)) {
+        description = description.replaceAll(`{${key}}`, value);
+    }
+
+    return new Discord.EmbedBuilder()
+        .setColor(embedConfig?.color ?? '#3498DB')
+        .setTitle(embedConfig?.title ?? fallbackTitle)
+        .setDescription(description);
+}
+
+async function handleWardenVerificationStart(interaction) {
+    const verificationConfig = config.Warden?.verification;
+
+    if (!verificationConfig?.enabled) {
+        await interaction.reply({ content: 'Verification is not enabled right now.', flags: Discord.MessageFlags.Ephemeral });
+        return;
+    }
+
+    const captcha = getActiveCaptcha(verificationConfig);
+    const challengeEmbed = buildWardenVerificationEmbed(
+        verificationConfig.challengeEmbed,
+        'Verification Challenge',
+        'Answer this challenge to verify: {challenge}',
+        { challenge: captcha.prompt },
+    );
+    const row = new Discord.ActionRowBuilder()
+        .addComponents(
+            new Discord.ButtonBuilder()
+                .setCustomId(`wardenVerify-answer-${captcha.id}`)
+                .setLabel(captcha.answers[0].toUpperCase())
+                .setStyle(Discord.ButtonStyle.Success),
+        );
+
+    await interaction.reply({ embeds: [challengeEmbed], components: [row], flags: Discord.MessageFlags.Ephemeral });
+}
+
+async function handleWardenVerificationAnswer(interaction) {
+    const verificationConfig = config.Warden?.verification;
+
+    if (!verificationConfig?.enabled) {
+        await interaction.reply({ content: 'Verification is not enabled right now.', flags: Discord.MessageFlags.Ephemeral });
+        return;
+    }
+
+    const customIdArray = interaction.customId.split('-');
+    const captchaId = customIdArray[2] ?? getActiveCaptcha(verificationConfig).id;
+    const captcha = getActiveCaptcha(verificationConfig);
+    const answer = captcha.answers[0];
+    const validation = validateAnswer(captchaId, answer);
+
+    if (!validation.ok) {
+        const failureEmbed = buildWardenVerificationEmbed(
+            verificationConfig.failureEmbed,
+            'Verification Failed',
+            'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
+            { cooldownSeconds: String(verificationConfig.cooldownSeconds ?? 60) },
+        );
+        await interaction.update({ embeds: [failureEmbed], components: [] });
+        return;
+    }
+
+    const unverifiedRoleId = verificationConfig.unverifiedRoleId;
+    if (unverifiedRoleId && interaction.member?.roles?.cache?.has(unverifiedRoleId)) {
+        await interaction.member.roles.remove(unverifiedRoleId);
+    }
+
+    const successEmbed = buildWardenVerificationEmbed(
+        verificationConfig.successEmbed,
+        'Verification Complete',
+        'You have been verified successfully.',
+    );
+
+    await interaction.update({ embeds: [successEmbed], components: [] });
+}
+
 async function activeDutyModal(i) {
     const fields = {
         title: new Discord.TextInputBuilder()
@@ -221,6 +301,42 @@ const exp = {
             //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
             // }
             if (botIdent().activeBot.botName == 'Warden') {
+                if (interaction.customId.startsWith("wardenVerify-start")) {
+                    try {
+                        await handleWardenVerificationStart(interaction);
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: 'Verification could not be started. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
+                        }
+                    }
+                    return;
+                }
+                if (interaction.customId.startsWith("wardenVerify-answer")) {
+                    try {
+                        await handleWardenVerificationAnswer(interaction);
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: 'Verification could not be completed. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
+                        }
+                    }
+                    return;
+                }
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)
