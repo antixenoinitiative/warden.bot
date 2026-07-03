@@ -2,9 +2,9 @@
     "Warden": {
         "prefix": "-",
         "verification": {
-            "enabled": false,
+            "enabled": true,
             "channelId": "000000000000000000",
-            "unverifiedRoleId": "000000000000000000",
+            "unverifiedRoleId": "1522625096139673652",
             "cooldownSeconds": 60,
             "welcomeEmbed": {
                 "title": "Welcome to the server",
