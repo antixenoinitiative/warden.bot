@@ -3,6 +3,7 @@ const { leaderboardInteraction } = require('../commands/Warden/leaderboards/lead
 const { validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
+const { getActiveCaptcha, validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
 const { getActiveCaptcha, validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
@@ -26,6 +27,76 @@ function buildWardenVerificationEmbed(embedConfig, fallbackTitle, fallbackDescri
 }
 
 let args = {}
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+function buildConfiguredEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
+    let description = embedConfig?.description ?? fallbackDescription;
+    for (const [key, value] of Object.entries(replacements)) {
+        description = description.replaceAll(`{${key}}`, String(value));
+    }
+
+    return new Discord.EmbedBuilder()
+        .setTitle(embedConfig?.title ?? fallbackTitle)
+        .setDescription(description)
+        .setColor(embedConfig?.color ?? '#3498DB');
+}
+
+async function removeUnverifiedRoleAfterVerification(interaction, unverifiedRoleId) {
+    let member = interaction.member;
+
+    if (!member?.roles?.cache) {
+        member = await interaction.guild.members.fetch(interaction.user.id);
+    }
+
+    if (!member.roles.cache.has(unverifiedRoleId)) {
+        return false;
+    }
+
+    await delay(1000);
+    await member.roles.remove(unverifiedRoleId);
+    return true;
+}
+
+async function handleWardenVerificationSuccess(interaction, verificationConfig) {
+    const unverifiedRoleId = verificationConfig.unverifiedRoleId;
+
+    if (!unverifiedRoleId) {
+        return;
+    }
+
+    try {
+        const removedRole = await removeUnverifiedRoleAfterVerification(interaction, unverifiedRoleId);
+
+        if (removedRole) {
+            const successEmbed = new Discord.EmbedBuilder()
+                .setTitle('✅ Verification role removed')
+                .setDescription(`Removed unverified role from <@${interaction.user.id}>.`)
+                .addFields(
+                    { name: 'User ID', value: interaction.user.id, inline: true },
+                    { name: 'Role ID', value: unverifiedRoleId, inline: true },
+                )
+                .setColor('#57F287');
+
+            botLog(interaction.guild, successEmbed, 0, 'info');
+        }
+    }
+    catch (err) {
+        console.error(err);
+
+        const errorEmbed = new Discord.EmbedBuilder()
+            .setTitle('⛔ Verification role removal failed')
+            .setDescription(`Failed to remove the unverified role after verification.`)
+            .addFields(
+                { name: 'User ID', value: interaction.user.id, inline: true },
+                { name: 'Role ID', value: unverifiedRoleId, inline: true },
+                { name: 'Error Stack', value: `\`\`\`js\n${String(err.stack ?? err).slice(0, 1000)}\n\`\`\`` },
+            )
+            .setColor('#ED4245');
+
+        botLog(interaction.guild, errorEmbed, 2, 'error');
+    }
+}
+
 function postArgs(interaction) {
     for (let key of interaction.options.data) {
         args[key.name] = key.value
