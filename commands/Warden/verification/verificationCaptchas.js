@@ -20,7 +20,9 @@ function getCaptcha(captchaId) {
 }
 
 function getActiveCaptcha(config) {
-    const captchaId = config?.verification?.captchaId
+    const captchaId = config?.verification?.activeCaptchaId
+        ?? config?.verification?.captchaId
+        ?? config?.activeCaptchaId
         ?? config?.captchaId
         ?? 'placeholder';
 

@@ -2,6 +2,13 @@ const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
 
+function userErrorEmbed(message) {
+    return new Discord.EmbedBuilder()
+        .setColor('#E74C3C')
+        .setTitle('Verification Error')
+        .setDescription(message);
+}
+
 function buildWelcomeEmbed(verificationConfig) {
     const welcomeEmbedConfig = verificationConfig.welcomeEmbed ?? {};
     const embed = new Discord.EmbedBuilder()
@@ -47,7 +54,7 @@ module.exports = {
             const verificationConfig = config.Warden?.verification;
 
             if (!verificationConfig?.enabled) {
-                return interaction.editReply({ content: 'Verification is not enabled in the Warden configuration.' });
+                return interaction.editReply({ embeds: [userErrorEmbed('Verification is not enabled in the Warden configuration.')] });
             }
 
             const configuredChannelId = verificationConfig.channelId;
@@ -55,13 +62,13 @@ module.exports = {
             const targetChannelId = optionChannel?.id ?? configuredChannelId;
 
             if (!targetChannelId) {
-                return interaction.editReply({ content: 'No verification channel is configured. Please provide a channel option.' });
+                return interaction.editReply({ embeds: [userErrorEmbed('No verification channel is configured. Please provide a channel option.')] });
             }
 
-            const targetChannel = optionChannel ?? await interaction.guild.channels.fetch(targetChannelId).catch(() => null);
+            const targetChannel = optionChannel ?? await interaction.guild.channels.fetch(targetChannelId);
 
             if (!targetChannel || !targetChannel.isTextBased()) {
-                return interaction.editReply({ content: 'The verification channel could not be found or is not a text channel.' });
+                return interaction.editReply({ embeds: [userErrorEmbed('The verification channel could not be found or is not a text channel.')] });
             }
 
             const welcomeEmbed = buildWelcomeEmbed(verificationConfig);
@@ -78,14 +85,14 @@ module.exports = {
             return interaction.editReply({ content: `Verification message posted successfully in ${targetChannel}. ${message.url}` });
         }
         catch (err) {
-            console.error(err);
+            console.log(err);
             botLog(interaction.guild, new Discord.EmbedBuilder()
                 .setTitle('⛔ Verification post failed')
-                .setDescription(`\`\`\`js\n${err.stack ?? err}\n\`\`\``)
+                .setDescription('```' + err.stack + '```')
                 , 2, 'error'
             );
 
-            return interaction.editReply({ content: `Failed to post the verification message: ${err.message ?? err}` });
+            return interaction.editReply({ embeds: [userErrorEmbed('Failed to post the verification message. Please try again later.')] });
         }
     },
 };

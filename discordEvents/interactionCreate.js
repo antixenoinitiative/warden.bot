@@ -4,11 +4,140 @@ const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showP
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
+const { getActiveCaptcha, validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
 
 const Discord = require('discord.js')
 const fs = require('fs')
 const path = require('path')
 // const { default: test } = require('node:test')
+
+function verificationErrorEmbed(message) {
+    return new Discord.EmbedBuilder()
+        .setColor('#E74C3C')
+        .setTitle('Verification Error')
+        .setDescription(message)
+}
+
+async function logVerificationError(interaction, err, title = '⛔ Verification handler failed') {
+    console.log(err)
+    return botLog(interaction.guild, new Discord.EmbedBuilder()
+        .setTitle(title)
+        .setDescription('```' + err.stack + '```')
+        , 2, 'error'
+    )
+}
+
+async function replyVerificationError(interaction, message) {
+    try {
+        if (interaction.deferred || interaction.replied) {
+            return interaction.editReply({ embeds: [verificationErrorEmbed(message)] })
+        }
+
+        return interaction.reply({ embeds: [verificationErrorEmbed(message)], ephemeral: true })
+    }
+    catch (err) {
+        console.log(err)
+        return botLog(interaction.guild, new Discord.EmbedBuilder()
+            .setTitle('⛔ Verification interaction response failed')
+            .setDescription('```' + err.stack + '```')
+            , 2, 'error'
+        )
+    }
+}
+
+function buildVerificationEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
+    let description = embedConfig?.description ?? fallbackDescription
+
+    for (const [key, value] of Object.entries(replacements)) {
+        description = description.replaceAll(`{${key}}`, value)
+    }
+
+    return new Discord.EmbedBuilder()
+        .setColor(embedConfig?.color ?? '#3498DB')
+        .setTitle(embedConfig?.title ?? fallbackTitle)
+        .setDescription(description)
+}
+
+async function handleWardenVerificationStart(interaction) {
+    try {
+        const verificationConfig = config.Warden?.verification
+
+        if (!verificationConfig?.enabled) {
+            return replyVerificationError(interaction, 'Verification is currently unavailable.')
+        }
+
+        const captcha = getActiveCaptcha(verificationConfig)
+        if (!captcha) {
+            return replyVerificationError(interaction, 'Verification is currently unavailable.')
+        }
+
+        const modal = new Discord.ModalBuilder()
+            .setCustomId(`wardenVerify-submit-${captcha.id}`)
+            .setTitle('Verification Challenge')
+            .addComponents(
+                new Discord.ActionRowBuilder().addComponents(
+                    new Discord.TextInputBuilder()
+                        .setCustomId('captchaAnswer')
+                        .setLabel(captcha.prompt.slice(0, 45))
+                        .setStyle(Discord.TextInputStyle.Short)
+                        .setRequired(true)
+                )
+            )
+
+        return interaction.showModal(modal)
+    }
+    catch (err) {
+        await logVerificationError(interaction, err)
+        return replyVerificationError(interaction, 'Could not open verification. Please try again later.')
+    }
+}
+
+async function handleWardenVerificationSubmit(interaction) {
+    try {
+        await interaction.deferReply({ ephemeral: true })
+
+        const verificationConfig = config.Warden?.verification
+        if (!verificationConfig?.enabled) {
+            return replyVerificationError(interaction, 'Verification is currently unavailable.')
+        }
+
+        const captchaId = interaction.customId.split('-')[2] ?? verificationConfig.activeCaptchaId
+        const answer = interaction.fields.getTextInputValue('captchaAnswer')
+        const validation = validateAnswer(captchaId, answer)
+
+        if (!validation.ok) {
+            const cooldownSeconds = verificationConfig.cooldownSeconds ?? 60
+            const failureEmbed = buildVerificationEmbed(
+                verificationConfig.failureEmbed,
+                'Verification Failed',
+                'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
+                { cooldownSeconds: String(cooldownSeconds) }
+            )
+            return interaction.editReply({ embeds: [failureEmbed] })
+        }
+
+        const unverifiedRoleId = verificationConfig.unverifiedRoleId
+        if (unverifiedRoleId) {
+            const unverifiedRole = interaction.guild.roles.cache.get(unverifiedRoleId)
+            if (unverifiedRole) {
+                const member = await interaction.guild.members.fetch(interaction.user.id)
+                await member.roles.remove(unverifiedRole)
+            }
+        }
+
+        const successEmbed = buildVerificationEmbed(
+            verificationConfig.successEmbed,
+            'Verification Complete',
+            'You have been verified successfully.'
+        )
+        return interaction.editReply({ embeds: [successEmbed] })
+    }
+    catch (err) {
+        await logVerificationError(interaction, err)
+        return replyVerificationError(interaction, 'Could not complete verification. Please try again later.')
+    }
+}
+
 let args = {}
 function postArgs(interaction) {
     for (let key of interaction.options.data) {
@@ -93,6 +222,9 @@ async function opordInterestedModal(i) {
 const exp = {
     interactionCreate: async (interaction,bot) => {
         if (interaction.isModalSubmit()) {
+            if (botIdent().activeBot.botName == 'Warden' && interaction.customId.startsWith('wardenVerify-submit')) {
+                return handleWardenVerificationSubmit(interaction)
+            }
             if (botIdent().activeBot.botName == 'GuardianAI') {
                 if (interaction.customId.startsWith("interestedOpord")) {
                     await interaction.deferReply({ ephemeral: true });
@@ -221,6 +353,9 @@ const exp = {
             //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
             // }
             if (botIdent().activeBot.botName == 'Warden') {
+                if (interaction.customId.startsWith('wardenVerify-start')) {
+                    return handleWardenVerificationStart(interaction)
+                }
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)
