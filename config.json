@@ -34,7 +34,7 @@
                 "description": "That answer was incorrect. Please try again in {cooldownSeconds} seconds.",
                 "color": 15548997
             },
-            "activeCaptchaId": ""
+            "activeCaptchaId": "placeholder"
         },
         "slashCommandAuthorization": {
             "listRole": [
