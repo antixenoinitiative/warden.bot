@@ -1,6 +1,27 @@
+/**
+ * Warden verification captcha registry.
+ *
+ * How to add a new captcha for future admin selection:
+ * 1. Add a stable ID as a new key in `captchas` (for example: `eliteDangerousBasics`).
+ * 2. Add the user-facing `prompt` that should be shown in the verification challenge.
+ * 3. Add every accepted answer to `answers`; answers are normalized with `normalizeAnswer`
+ *    unless the captcha defines a custom `normalizer`.
+ * 4. Update `config.Warden.verification.activeCaptchaId` in `config.json` to the new ID.
+ *
+ * Reserved future admin command names:
+ * - /verification captcha list
+ * - /verification captcha set <id>
+ * - /verification captcha disable
+ *
+ * Do not add persistent dynamic mutation here until Warden verification settings have a
+ * chosen persistence layer. For now, `config.Warden.verification.activeCaptchaId` is the
+ * single source of truth for the active captcha source.
+ */
+const DEFAULT_CAPTCHA_ID = 'placeholder';
+
 const captchas = {
-    placeholder: {
-        id: 'placeholder',
+    [DEFAULT_CAPTCHA_ID]: {
+        id: DEFAULT_CAPTCHA_ID,
         prompt: 'Type "AXI" to verify.',
         answers: ['axi'],
     },
@@ -26,7 +47,7 @@ function getActiveCaptcha(config) {
         ?? config?.activeCaptchaId
         ?? 'placeholder';
 
-    return getCaptcha(captchaId) ?? getCaptcha('placeholder');
+    return getCaptcha(captchaId) ?? getCaptcha(DEFAULT_CAPTCHA_ID);
 }
 
 function validateAnswer(captchaId, answer) {
@@ -48,6 +69,7 @@ function validateAnswer(captchaId, answer) {
 }
 
 module.exports = {
+    DEFAULT_CAPTCHA_ID,
     captchas,
     getCaptcha,
     getActiveCaptcha,
