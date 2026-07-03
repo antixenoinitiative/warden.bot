@@ -352,18 +352,18 @@
             "botName": "Warden",
             "icon": "https://axicloud.blob.core.windows.net/public/images/AXI_Insignia_Hypen_512.png",
             "communityName": "Anti-Xeno Initiative",
-            "guildId": "380246809076826112",
+            "guildId": "1522547074950889543",
             "inaraAppName":"AXIWarden",
             "useGlobalCommands": [],
             "ignoreCommands": ["sheriff","reminder"],
             "socketRoom": {
                 "id":"AXI-guardianAI"
             },
-            "messagesChannel": "470640516430823445",
-            "logsChannel": "470640516430823445",
-            "errorChannel": "1238077227002761256",
-            "staffChannel": "719320766176428033",
-            "bansChannel": "470640516430823445"
+            "messagesChannel": "1522547877577232434",
+            "logsChannel": "1522547877577232434",
+            "errorChannel": "1522547819964141690",
+            "staffChannel": "1522548556211294321",
+            "bansChannel": "1522547877577232434"
         },
         {
             "env": "GuardianAI.env",
