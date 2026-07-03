@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
-const { captchas, getActiveCaptcha } = require('../verification/verificationCaptchas');
+const { getActiveCaptcha, validateAnswer } = require('../verification/verificationCaptchas');
 
 function buildWelcomeEmbed(verificationConfig) {
     const welcomeEmbedConfig = verificationConfig.welcomeEmbed ?? {};
@@ -21,7 +21,90 @@ function buildWelcomeEmbed(verificationConfig) {
     return embed;
 }
 
+function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
+    let description = embedConfig?.description ?? fallbackDescription;
+
+    for (const [key, value] of Object.entries(replacements)) {
+        description = description.replaceAll(`{${key}}`, String(value));
+    }
+
+    return new Discord.EmbedBuilder()
+        .setColor(embedConfig?.color ?? '#3498DB')
+        .setTitle(embedConfig?.title ?? fallbackTitle)
+        .setDescription(description);
+}
+
+function resolveCaptchaId(verificationConfig, captcha) {
+    return verificationConfig.activeCaptchaId
+        || verificationConfig.captchaId
+        || captcha.id;
+}
+
+async function handleVerifyStart(interaction) {
+    const verificationConfig = config.Warden?.verification;
+
+    if (!verificationConfig?.enabled) {
+        return interaction.reply({ content: 'Verification is not enabled.', ephemeral: true });
+    }
+
+    const captcha = getActiveCaptcha({ verification: { captchaId: verificationConfig.activeCaptchaId || verificationConfig.captchaId } });
+    const captchaId = resolveCaptchaId(verificationConfig, captcha);
+    const answerInput = new Discord.TextInputBuilder()
+        .setCustomId('answer')
+        .setLabel('Verification answer')
+        .setPlaceholder(captcha.prompt.slice(0, 100))
+        .setStyle(Discord.TextInputStyle.Short)
+        .setRequired(true);
+    const modal = new Discord.ModalBuilder()
+        .setCustomId(`wardenVerify-submit-${captchaId}`)
+        .setTitle('Verify')
+        .addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
+
+    return interaction.showModal(modal);
+}
+
+async function handleVerifySubmit(interaction) {
+    const verificationConfig = config.Warden?.verification;
+
+    if (!verificationConfig?.enabled) {
+        return interaction.reply({ content: 'Verification is not enabled.', ephemeral: true });
+    }
+
+    const captchaId = interaction.customId.replace('wardenVerify-submit-', '');
+    const answer = interaction.fields.getTextInputValue('answer');
+    const result = validateAnswer(captchaId, answer);
+
+    if (!result.ok) {
+        return interaction.reply({
+            embeds: [buildResultEmbed(
+                verificationConfig.failureEmbed,
+                'Verification Failed',
+                'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
+                { cooldownSeconds: verificationConfig.cooldownSeconds ?? 60 },
+            )],
+            ephemeral: true,
+        });
+    }
+
+    const unverifiedRoleId = verificationConfig.unverifiedRoleId;
+
+    if (unverifiedRoleId && interaction.member?.roles?.cache?.has(unverifiedRoleId)) {
+        await interaction.member.roles.remove(unverifiedRoleId);
+    }
+
+    return interaction.reply({
+        embeds: [buildResultEmbed(
+            verificationConfig.successEmbed,
+            'Verification Complete',
+            'You have been verified successfully.',
+        )],
+        ephemeral: true,
+    });
+}
+
 module.exports = {
+    handleVerifyStart,
+    handleVerifySubmit,
     data: new Discord.SlashCommandBuilder()
         .setName('verification')
         .setDescription('Manage Warden verification')

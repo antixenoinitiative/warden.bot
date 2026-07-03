@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
+const { handleVerifyStart, handleVerifySubmit } = require('../commands/Warden/admin/verification')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const { getActiveCaptcha, validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
