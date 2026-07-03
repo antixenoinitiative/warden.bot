@@ -40,8 +40,12 @@ function getCaptcha(captchaId) {
     return captchas[captchaId];
 }
 
-function getActiveCaptcha(wardenConfig) {
-    const captchaId = wardenConfig?.verification?.activeCaptchaId;
+function getActiveCaptcha(config) {
+    const captchaId = config?.verification?.captchaId
+        ?? config?.verification?.activeCaptchaId
+        ?? config?.captchaId
+        ?? config?.activeCaptchaId
+        ?? 'placeholder';
 
     return getCaptcha(captchaId) ?? getCaptcha(DEFAULT_CAPTCHA_ID);
 }
