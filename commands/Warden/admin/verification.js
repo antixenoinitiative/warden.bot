@@ -1,7 +1,8 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
-const { getActiveCaptcha, validateAnswer } = require('../verification/verificationCaptchas');
+const { captchas, getActiveCaptcha, validateAnswer } = require('../verification/verificationCaptchas');
+const { setChallenge, getChallenge, clearChallenge, setCooldown, getCooldownRemaining, clearCooldown } = require('../verification/verificationState');
 
 function userErrorEmbed(message) {
     return new Discord.EmbedBuilder()
@@ -54,8 +55,15 @@ async function handleVerifyStart(interaction) {
         return interaction.reply({ content: 'Verification is not enabled.', ephemeral: true });
     }
 
+    const cooldownRemaining = getCooldownRemaining(interaction.user.id);
+    if (cooldownRemaining > 0) {
+        const retryAt = Math.ceil((Date.now() + cooldownRemaining) / 1000);
+        return interaction.reply({ content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, ephemeral: true });
+    }
+
     const captcha = getActiveCaptcha({ verification: { captchaId: verificationConfig.activeCaptchaId || verificationConfig.captchaId } });
     const captchaId = resolveCaptchaId(verificationConfig, captcha);
+    setChallenge(interaction.user.id, { captchaId });
     const answerInput = new Discord.TextInputBuilder()
         .setCustomId('answer')
         .setLabel('Verification answer')
@@ -77,21 +85,41 @@ async function handleVerifySubmit(interaction) {
         return interaction.reply({ content: 'Verification is not enabled.', ephemeral: true });
     }
 
-    const captchaId = interaction.customId.replace('wardenVerify-submit-', '');
+    const activeChallenge = getChallenge(interaction.user.id);
+    if (!activeChallenge) {
+        return interaction.reply({
+            embeds: [buildResultEmbed(
+                verificationConfig.expiredChallengeEmbed,
+                'Verification Challenge Expired',
+                'Your verification challenge has expired. Please start verification again.',
+            )],
+            ephemeral: true,
+        });
+    }
+
+    const captchaId = activeChallenge.captchaId || interaction.customId.replace('wardenVerify-submit-', '');
     const answer = interaction.fields.getTextInputValue('answer');
     const result = validateAnswer(captchaId, answer);
 
     if (!result.ok) {
+        const cooldownSeconds = Number(verificationConfig.cooldownSeconds ?? 60);
+        const retryAt = Date.now() + (cooldownSeconds * 1000);
+        clearChallenge(interaction.user.id);
+        setCooldown(interaction.user.id, retryAt);
+
         return interaction.reply({
             embeds: [buildResultEmbed(
                 verificationConfig.failureEmbed,
                 'Verification Failed',
                 'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
-                { cooldownSeconds: verificationConfig.cooldownSeconds ?? 60 },
+                { cooldownSeconds, retryTime: `<t:${Math.floor(retryAt / 1000)}:R>` },
             )],
             ephemeral: true,
         });
     }
+
+    clearChallenge(interaction.user.id);
+    clearCooldown(interaction.user.id);
 
     const unverifiedRoleId = verificationConfig.unverifiedRoleId;
 
