@@ -1,6 +1,7 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
+const { captchas, getActiveCaptcha } = require('../verification/verificationCaptchas');
 
 function buildWelcomeEmbed(verificationConfig) {
     const welcomeEmbedConfig = verificationConfig.welcomeEmbed ?? {};
@@ -39,12 +40,61 @@ module.exports = {
                         )
                         .setRequired(false)
                 )
+        )
+        .addSubcommandGroup(group =>
+            group
+                .setName('captcha')
+                .setDescription('Inspect reserved Warden verification captcha settings')
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('list')
+                        .setDescription('List configured captcha IDs')
+                )
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('set')
+                        .setDescription('Reserved: select a captcha after settings persistence is chosen')
+                        .addStringOption(option =>
+                            option
+                                .setName('id')
+                                .setDescription('Captcha ID to select later')
+                                .setRequired(true)
+                        )
+                )
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('disable')
+                        .setDescription('Reserved: disable captchas after settings persistence is chosen')
+                )
         ),
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: true });
 
         try {
             const verificationConfig = config.Warden?.verification;
+            const subcommandGroup = interaction.options.getSubcommandGroup(false);
+            const subcommand = interaction.options.getSubcommand();
+
+            if (subcommandGroup === 'captcha') {
+                const activeCaptcha = getActiveCaptcha(config.Warden);
+
+                if (subcommand === 'list') {
+                    const captchaList = Object.values(captchas)
+                        .map(captcha => `${captcha.id === activeCaptcha.id ? '**' : ''}${captcha.id}${captcha.id === activeCaptcha.id ? '** (active)' : ''}`)
+                        .join('\n');
+
+                    return interaction.editReply({ content: `Configured captcha IDs:\n${captchaList}` });
+                }
+
+                if (subcommand === 'set') {
+                    const captchaId = interaction.options.getString('id', true);
+                    return interaction.editReply({ content: `Captcha selection is reserved for a future persistent settings command. To select this captcha now, set \`config.Warden.verification.activeCaptchaId\` to \`${captchaId}\` in \`config.json\`.` });
+                }
+
+                if (subcommand === 'disable') {
+                    return interaction.editReply({ content: 'Captcha disabling is reserved for a future persistent settings command. No configuration was changed.' });
+                }
+            }
 
             if (!verificationConfig?.enabled) {
                 return interaction.editReply({ content: 'Verification is not enabled in the Warden configuration.' });
