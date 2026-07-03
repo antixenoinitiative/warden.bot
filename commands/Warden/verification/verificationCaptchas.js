@@ -41,8 +41,9 @@ function getCaptcha(captchaId) {
 }
 
 function getActiveCaptcha(config) {
-    const captchaId = config?.verification?.captchaId
-        ?? config?.verification?.activeCaptchaId
+    const captchaId = config?.verification?.activeCaptchaId
+        ?? config?.verification?.captchaId
+        ?? config?.activeCaptchaId
         ?? config?.captchaId
         ?? config?.activeCaptchaId
         ?? 'placeholder';
