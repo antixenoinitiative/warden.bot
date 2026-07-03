@@ -1,5 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
+const { handleVerifyStart, handleVerifySubmit } = require('../commands/Warden/admin/verification')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
@@ -93,6 +94,12 @@ async function opordInterestedModal(i) {
 const exp = {
     interactionCreate: async (interaction,bot) => {
         if (interaction.isModalSubmit()) {
+            if (botIdent().activeBot.botName == 'Warden') {
+                if (interaction.customId.startsWith('wardenVerify-submit-')) {
+                    await handleVerifySubmit(interaction)
+                    return
+                }
+            }
             if (botIdent().activeBot.botName == 'GuardianAI') {
                 if (interaction.customId.startsWith("interestedOpord")) {
                     await interaction.deferReply({ ephemeral: true });
@@ -221,6 +228,10 @@ const exp = {
             //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
             // }
             if (botIdent().activeBot.botName == 'Warden') {
+                if (interaction.customId === 'wardenVerify-start') {
+                    await handleVerifyStart(interaction)
+                    return
+                }
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)
