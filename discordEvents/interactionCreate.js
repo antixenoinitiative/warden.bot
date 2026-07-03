@@ -2,6 +2,7 @@ const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
+const { getActiveCaptcha, validateAnswer } = require('../commands/Warden/verification/verificationCaptchas')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
 
@@ -10,6 +11,76 @@ const fs = require('fs')
 const path = require('path')
 // const { default: test } = require('node:test')
 let args = {}
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+function buildConfiguredEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
+    let description = embedConfig?.description ?? fallbackDescription;
+    for (const [key, value] of Object.entries(replacements)) {
+        description = description.replaceAll(`{${key}}`, String(value));
+    }
+
+    return new Discord.EmbedBuilder()
+        .setTitle(embedConfig?.title ?? fallbackTitle)
+        .setDescription(description)
+        .setColor(embedConfig?.color ?? '#3498DB');
+}
+
+async function removeUnverifiedRoleAfterVerification(interaction, unverifiedRoleId) {
+    let member = interaction.member;
+
+    if (!member?.roles?.cache) {
+        member = await interaction.guild.members.fetch(interaction.user.id);
+    }
+
+    if (!member.roles.cache.has(unverifiedRoleId)) {
+        return false;
+    }
+
+    await delay(1000);
+    await member.roles.remove(unverifiedRoleId);
+    return true;
+}
+
+async function handleWardenVerificationSuccess(interaction, verificationConfig) {
+    const unverifiedRoleId = verificationConfig.unverifiedRoleId;
+
+    if (!unverifiedRoleId) {
+        return;
+    }
+
+    try {
+        const removedRole = await removeUnverifiedRoleAfterVerification(interaction, unverifiedRoleId);
+
+        if (removedRole) {
+            const successEmbed = new Discord.EmbedBuilder()
+                .setTitle('✅ Verification role removed')
+                .setDescription(`Removed unverified role from <@${interaction.user.id}>.`)
+                .addFields(
+                    { name: 'User ID', value: interaction.user.id, inline: true },
+                    { name: 'Role ID', value: unverifiedRoleId, inline: true },
+                )
+                .setColor('#57F287');
+
+            botLog(interaction.guild, successEmbed, 0, 'info');
+        }
+    }
+    catch (err) {
+        console.error(err);
+
+        const errorEmbed = new Discord.EmbedBuilder()
+            .setTitle('⛔ Verification role removal failed')
+            .setDescription(`Failed to remove the unverified role after verification.`)
+            .addFields(
+                { name: 'User ID', value: interaction.user.id, inline: true },
+                { name: 'Role ID', value: unverifiedRoleId, inline: true },
+                { name: 'Error Stack', value: `\`\`\`js\n${String(err.stack ?? err).slice(0, 1000)}\n\`\`\`` },
+            )
+            .setColor('#ED4245');
+
+        botLog(interaction.guild, errorEmbed, 2, 'error');
+    }
+}
+
 function postArgs(interaction) {
     for (let key of interaction.options.data) {
         args[key.name] = key.value
@@ -93,6 +164,38 @@ async function opordInterestedModal(i) {
 const exp = {
     interactionCreate: async (interaction,bot) => {
         if (interaction.isModalSubmit()) {
+            if (botIdent().activeBot.botName == 'Warden' && interaction.customId === 'wardenVerify-submit') {
+                const verificationConfig = config.Warden?.verification;
+
+                if (!verificationConfig?.enabled) {
+                    return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
+                }
+
+                const captcha = getActiveCaptcha(verificationConfig);
+                const answer = interaction.fields.getTextInputValue('captchaAnswer');
+                const result = validateAnswer(captcha.id, answer);
+
+                if (!result.ok) {
+                    const failureEmbed = buildConfiguredEmbed(
+                        verificationConfig.failureEmbed,
+                        'Verification Failed',
+                        'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
+                        { cooldownSeconds: verificationConfig.cooldownSeconds ?? 60 },
+                    );
+
+                    return interaction.reply({ embeds: [failureEmbed], ephemeral: true });
+                }
+
+                const successEmbed = buildConfiguredEmbed(
+                    verificationConfig.successEmbed,
+                    'Verification Complete',
+                    'You have been verified successfully.',
+                );
+
+                await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+                await handleWardenVerificationSuccess(interaction, verificationConfig);
+                return;
+            }
             if (botIdent().activeBot.botName == 'GuardianAI') {
                 if (interaction.customId.startsWith("interestedOpord")) {
                     await interaction.deferReply({ ephemeral: true });
@@ -221,6 +324,31 @@ const exp = {
             //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
             // }
             if (botIdent().activeBot.botName == 'Warden') {
+                if (interaction.customId === 'wardenVerify-start') {
+                    const verificationConfig = config.Warden?.verification;
+
+                    if (!verificationConfig?.enabled) {
+                        return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
+                    }
+
+                    const captcha = getActiveCaptcha(verificationConfig);
+                    const challengeDescription = verificationConfig.challengeEmbed?.description ?? 'Answer this challenge to verify: {challenge}';
+                    const modal = new Discord.ModalBuilder()
+                        .setCustomId('wardenVerify-submit')
+                        .setTitle(verificationConfig.challengeEmbed?.title ?? 'Verification Challenge')
+                        .addComponents(
+                            new Discord.ActionRowBuilder().addComponents(
+                                new Discord.TextInputBuilder()
+                                    .setCustomId('captchaAnswer')
+                                    .setLabel(challengeDescription.replace('{challenge}', captcha.prompt).slice(0, 45))
+                                    .setStyle(Discord.TextInputStyle.Short)
+                                    .setRequired(true),
+                            ),
+                        );
+
+                    await interaction.showModal(modal);
+                    return;
+                }
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)
