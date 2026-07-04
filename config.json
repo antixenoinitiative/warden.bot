@@ -7,16 +7,16 @@
             "unverifiedRoleId": "1522625096139673652",
             "cooldownSeconds": 60,
             "welcomeEmbed": {
-                "title": "Welcome to the server",
+                "title": "# Welcome to the Anti-Xeno Initiative",
                 "description": "Please verify to access the server.",
-                "color": 3447003,
+                "color": "#ff7100",
                 "thumbnail": {
                     "enabled": false,
                     "url": ""
                 },
                 "icon": {
-                    "enabled": false,
-                    "url": ""
+                    "enabled": true,
+                    "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
                 }
             },
             "challengeEmbed": {
