@@ -1,6 +1,7 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
+const verificationEmbedConfig = require('../verification/verificationEmbedConfig.json');
 const { captchas, getActiveCaptcha, getCaptchaStep, hasNextCaptchaStep, validateAnswer } = require('../verification/verificationCaptchas');
 const { setChallenge, getChallenge, clearChallenge, setCooldown, getCooldownRemaining, clearCooldown } = require('../verification/verificationState');
 
@@ -11,8 +12,8 @@ function userErrorEmbed(message) {
         .setDescription(message);
 }
 
-function buildWelcomeEmbed(verificationConfig) {
-    const welcomeEmbedConfig = verificationConfig.welcomeEmbed ?? {};
+function buildWelcomeEmbed() {
+    const welcomeEmbedConfig = verificationEmbedConfig.welcomeEmbed ?? {};
     const embed = new Discord.EmbedBuilder()
         .setColor(welcomeEmbedConfig.color ?? '#3498DB')
         .setTitle(welcomeEmbedConfig.title ?? 'Welcome to the server')
@@ -43,9 +44,9 @@ function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, repla
 }
 
 
-function buildChallengeEmbed(verificationConfig, captcha, stepIndex = 0) {
+function buildChallengeEmbed(captcha, stepIndex = 0) {
     const step = getCaptchaStep(captcha.id, stepIndex);
-    const embedConfig = verificationConfig.challengeEmbed ?? {};
+    const embedConfig = verificationEmbedConfig.challengeEmbed ?? {};
     const totalSteps = Array.isArray(captcha.steps) && captcha.steps.length > 0 ? captcha.steps.length : 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
     const prompt = step?.prompt ?? captcha.prompt ?? 'Please answer the verification challenge.';
@@ -141,7 +142,7 @@ async function handleVerifyStart(interaction) {
     setChallenge(interaction.user.id, { captchaId, stepIndex });
 
     return interaction.reply({
-        embeds: [buildChallengeEmbed(verificationConfig, captcha, stepIndex)],
+        embeds: [buildChallengeEmbed(captcha, stepIndex)],
         components: [buildGiveAnswerRow(captchaId, stepIndex)],
         ephemeral: true,
     });
@@ -158,7 +159,7 @@ async function handleVerifyAnswer(interaction) {
     if (!activeChallenge) {
         return interaction.reply({
             embeds: [buildResultEmbed(
-                verificationConfig.expiredChallengeEmbed,
+                verificationEmbedConfig.expiredChallengeEmbed,
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
@@ -180,7 +181,7 @@ async function handleVerifySubmit(interaction) {
     if (!activeChallenge) {
         return interaction.reply({
             embeds: [buildResultEmbed(
-                verificationConfig.expiredChallengeEmbed,
+                verificationEmbedConfig.expiredChallengeEmbed,
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
@@ -197,7 +198,7 @@ async function handleVerifySubmit(interaction) {
         || submittedChallenge.stepIndex !== stepIndex) {
         return interaction.reply({
             embeds: [buildResultEmbed(
-                verificationConfig.expiredChallengeEmbed,
+                verificationEmbedConfig.expiredChallengeEmbed,
                 'Verification Challenge Expired',
                 'This answer modal is no longer current. Please use the latest verification challenge message.',
             )],
@@ -216,7 +217,7 @@ async function handleVerifySubmit(interaction) {
 
         return interaction.reply({
             embeds: [buildResultEmbed(
-                verificationConfig.failureEmbed,
+                verificationEmbedConfig.failureEmbed,
                 'Verification Failed',
                 'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
                 { cooldownSeconds, retryTime: `<t:${Math.floor(retryAt / 1000)}:R>` },
@@ -231,7 +232,7 @@ async function handleVerifySubmit(interaction) {
         setChallenge(interaction.user.id, { captchaId, stepIndex: nextStepIndex });
 
         return interaction.reply({
-            embeds: [buildChallengeEmbed(verificationConfig, captcha, nextStepIndex)],
+            embeds: [buildChallengeEmbed(captcha, nextStepIndex)],
             components: [buildGiveAnswerRow(captchaId, nextStepIndex)],
             ephemeral: true,
         });
@@ -248,7 +249,7 @@ async function handleVerifySubmit(interaction) {
 
     return interaction.reply({
         embeds: [buildResultEmbed(
-            verificationConfig.successEmbed,
+            verificationEmbedConfig.successEmbed,
             'Verification Complete',
             'You have been verified successfully.',
         )],
@@ -352,7 +353,7 @@ module.exports = {
                 return interaction.editReply({ embeds: [userErrorEmbed('The verification channel could not be found or is not a text channel.')] });
             }
 
-            const welcomeEmbed = buildWelcomeEmbed(verificationConfig);
+            const welcomeEmbed = buildWelcomeEmbed();
             const row = new Discord.ActionRowBuilder()
                 .addComponents(
                     new Discord.ButtonBuilder()
