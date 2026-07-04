@@ -5,9 +5,17 @@ const verificationEmbedConfig = require('../verification/verificationEmbedConfig
 const { captchas, getActiveCaptcha, getCaptchaStep, hasNextCaptchaStep, validateAnswer } = require('../verification/verificationCaptchas');
 const { setChallenge, getChallenge, clearChallenge, setCooldown, getCooldownRemaining, clearCooldown } = require('../verification/verificationState');
 
+function resolveEmbedColor(color, fallbackColor = '#3498DB') {
+    if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
+        return `#${color.slice(1).split('').map((char) => char + char).join('')}`;
+    }
+
+    return color ?? fallbackColor;
+}
+
 function userErrorEmbed(message) {
     return new Discord.EmbedBuilder()
-        .setColor('#E74C3C')
+        .setColor(resolveEmbedColor('#E74C3C'))
         .setTitle('Verification Error')
         .setDescription(message);
 }
@@ -15,7 +23,7 @@ function userErrorEmbed(message) {
 function buildWelcomeEmbed() {
     const welcomeEmbedConfig = verificationEmbedConfig.welcomeEmbed ?? {};
     const embed = new Discord.EmbedBuilder()
-        .setColor(welcomeEmbedConfig.color ?? '#3498DB')
+        .setColor(resolveEmbedColor(welcomeEmbedConfig.color))
         .setTitle(welcomeEmbedConfig.title ?? 'Welcome to the server')
         .setDescription(welcomeEmbedConfig.description ?? 'Please verify to access the server.');
 
@@ -38,7 +46,7 @@ function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, repla
     }
 
     return new Discord.EmbedBuilder()
-        .setColor(embedConfig?.color ?? '#3498DB')
+        .setColor(resolveEmbedColor(embedConfig?.color))
         .setTitle(embedConfig?.title ?? fallbackTitle)
         .setDescription(description);
 }
@@ -58,7 +66,7 @@ function buildChallengeEmbed(captcha, stepIndex = 0) {
         .replaceAll('{totalSteps}', String(totalSteps));
 
     const embed = new Discord.EmbedBuilder()
-        .setColor(embedConfig.color ?? '#3498DB')
+        .setColor(resolveEmbedColor(embedConfig.color))
         .setTitle(step?.title ?? embedConfig.title ?? 'Verification Challenge')
         .setDescription(`${description}${stepLabel}`);
 
