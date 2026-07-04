@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { handleVerifyStart, handleVerifySubmit } = require('../commands/Warden/admin/verification')
+const { handleVerifyStart, handleVerifyAnswer, handleVerifySubmit } = require('../commands/Warden/admin/verification')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
@@ -243,6 +243,24 @@ const exp = {
                         )
                         if (!interaction.replied && !interaction.deferred) {
                             await interaction.reply({ content: 'Verification could not be started. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
+                        }
+                    }
+                    return;
+                }
+                if (interaction.customId.startsWith("wardenVerify-answer")) {
+                    try {
+                        await handleVerifyAnswer(interaction);
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: 'Verification answer modal could not be opened. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
                         }
                     }
                     return;
