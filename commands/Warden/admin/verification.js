@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
-const { captchas, getActiveCaptcha, validateAnswer } = require('../verification/verificationCaptchas');
+const { captchas, getActiveCaptcha, getCaptchaStep, hasNextCaptchaStep, validateAnswer } = require('../verification/verificationCaptchas');
 const { setChallenge, getChallenge, clearChallenge, setCooldown, getCooldownRemaining, clearCooldown } = require('../verification/verificationState');
 
 function userErrorEmbed(message) {
@@ -42,10 +42,84 @@ function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, repla
         .setDescription(description);
 }
 
-function resolveCaptchaId(verificationConfig, captcha) {
-    return verificationConfig.activeCaptchaId
-        || verificationConfig.captchaId
-        || captcha.id;
+
+function buildChallengeEmbed(verificationConfig, captcha, stepIndex = 0) {
+    const step = getCaptchaStep(captcha.id, stepIndex);
+    const embedConfig = verificationConfig.challengeEmbed ?? {};
+    const totalSteps = Array.isArray(captcha.steps) && captcha.steps.length > 0 ? captcha.steps.length : 1;
+    const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
+    const prompt = step?.prompt ?? captcha.prompt ?? 'Please answer the verification challenge.';
+    let description = embedConfig.description ?? '{challenge}';
+
+    description = description
+        .replaceAll('{challenge}', prompt)
+        .replaceAll('{step}', String(stepIndex + 1))
+        .replaceAll('{totalSteps}', String(totalSteps));
+
+    const embed = new Discord.EmbedBuilder()
+        .setColor(embedConfig.color ?? '#3498DB')
+        .setTitle(step?.title ?? embedConfig.title ?? 'Verification Challenge')
+        .setDescription(`${description}${stepLabel}`);
+
+    const imageUrl = step?.imageUrl ?? captcha.imageUrl;
+    const thumbnailUrl = step?.thumbnailUrl ?? captcha.thumbnailUrl;
+
+    if (imageUrl) {
+        embed.setImage(imageUrl);
+    }
+
+    if (thumbnailUrl) {
+        embed.setThumbnail(thumbnailUrl);
+    }
+
+    return embed;
+}
+
+function buildGiveAnswerRow(captchaId, stepIndex = 0) {
+    return new Discord.ActionRowBuilder()
+        .addComponents(
+            new Discord.ButtonBuilder()
+                .setCustomId(`wardenVerify-answer-${captchaId}-${stepIndex}`)
+                .setLabel('Give Answer')
+                .setStyle(Discord.ButtonStyle.Primary),
+        );
+}
+
+function buildAnswerModal(captchaId, stepIndex = 0) {
+    const answerInput = new Discord.TextInputBuilder()
+        .setCustomId('answer')
+        .setLabel('Verification answer')
+        .setPlaceholder('Enter your Answer here')
+        .setStyle(Discord.TextInputStyle.Short)
+        .setRequired(true);
+
+    return new Discord.ModalBuilder()
+        .setCustomId(`wardenVerify-submit-${captchaId}-${stepIndex}`)
+        .setTitle('Verify')
+        .addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
+}
+
+
+function parseSubmitCustomId(customId) {
+    const prefix = 'wardenVerify-submit-';
+
+    if (!customId.startsWith(prefix)) return undefined;
+
+    const payload = customId.slice(prefix.length);
+    const stepSeparatorIndex = payload.lastIndexOf('-');
+
+    if (stepSeparatorIndex < 1) return undefined;
+
+    const captchaId = payload.slice(0, stepSeparatorIndex);
+    const stepIndex = Number(payload.slice(stepSeparatorIndex + 1));
+
+    if (!Number.isInteger(stepIndex) || stepIndex < 0) return undefined;
+
+    return { captchaId, stepIndex };
+}
+
+function resolveCaptchaId(captcha) {
+    return captcha.id;
 }
 
 async function handleVerifyStart(interaction) {
@@ -62,20 +136,37 @@ async function handleVerifyStart(interaction) {
     }
 
     const captcha = getActiveCaptcha({ verification: { captchaId: verificationConfig.activeCaptchaId || verificationConfig.captchaId } });
-    const captchaId = resolveCaptchaId(verificationConfig, captcha);
-    setChallenge(interaction.user.id, { captchaId });
-    const answerInput = new Discord.TextInputBuilder()
-        .setCustomId('answer')
-        .setLabel('Verification answer')
-        .setPlaceholder(captcha.prompt.slice(0, 100))
-        .setStyle(Discord.TextInputStyle.Short)
-        .setRequired(true);
-    const modal = new Discord.ModalBuilder()
-        .setCustomId(`wardenVerify-submit-${captchaId}`)
-        .setTitle('Verify')
-        .addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
+    const captchaId = resolveCaptchaId(captcha);
+    const stepIndex = 0;
+    setChallenge(interaction.user.id, { captchaId, stepIndex });
 
-    return interaction.showModal(modal);
+    return interaction.reply({
+        embeds: [buildChallengeEmbed(verificationConfig, captcha, stepIndex)],
+        components: [buildGiveAnswerRow(captchaId, stepIndex)],
+        ephemeral: true,
+    });
+}
+
+async function handleVerifyAnswer(interaction) {
+    const verificationConfig = config.Warden?.verification;
+
+    if (!verificationConfig?.enabled) {
+        return interaction.reply({ content: 'Verification is not enabled.', ephemeral: true });
+    }
+
+    const activeChallenge = getChallenge(interaction.user.id);
+    if (!activeChallenge) {
+        return interaction.reply({
+            embeds: [buildResultEmbed(
+                verificationConfig.expiredChallengeEmbed,
+                'Verification Challenge Expired',
+                'Your verification challenge has expired. Please start verification again.',
+            )],
+            ephemeral: true,
+        });
+    }
+
+    return interaction.showModal(buildAnswerModal(activeChallenge.captchaId, activeChallenge.stepIndex ?? 0));
 }
 
 async function handleVerifySubmit(interaction) {
@@ -97,9 +188,25 @@ async function handleVerifySubmit(interaction) {
         });
     }
 
-    const captchaId = activeChallenge.captchaId || interaction.customId.replace('wardenVerify-submit-', '');
+    const submittedChallenge = parseSubmitCustomId(interaction.customId);
+    const captchaId = activeChallenge.captchaId;
+    const stepIndex = activeChallenge.stepIndex ?? 0;
+
+    if (!submittedChallenge
+        || submittedChallenge.captchaId !== captchaId
+        || submittedChallenge.stepIndex !== stepIndex) {
+        return interaction.reply({
+            embeds: [buildResultEmbed(
+                verificationConfig.expiredChallengeEmbed,
+                'Verification Challenge Expired',
+                'This answer modal is no longer current. Please use the latest verification challenge message.',
+            )],
+            ephemeral: true,
+        });
+    }
+
     const answer = interaction.fields.getTextInputValue('answer');
-    const result = validateAnswer(captchaId, answer);
+    const result = validateAnswer(captchaId, answer, stepIndex);
 
     if (!result.ok) {
         const cooldownSeconds = Number(verificationConfig.cooldownSeconds ?? 60);
@@ -114,6 +221,18 @@ async function handleVerifySubmit(interaction) {
                 'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
                 { cooldownSeconds, retryTime: `<t:${Math.floor(retryAt / 1000)}:R>` },
             )],
+            ephemeral: true,
+        });
+    }
+
+    if (hasNextCaptchaStep(captchaId, stepIndex)) {
+        const nextStepIndex = stepIndex + 1;
+        const captcha = getActiveCaptcha({ verification: { captchaId } });
+        setChallenge(interaction.user.id, { captchaId, stepIndex: nextStepIndex });
+
+        return interaction.reply({
+            embeds: [buildChallengeEmbed(verificationConfig, captcha, nextStepIndex)],
+            components: [buildGiveAnswerRow(captchaId, nextStepIndex)],
             ephemeral: true,
         });
     }
@@ -139,6 +258,7 @@ async function handleVerifySubmit(interaction) {
 
 module.exports = {
     handleVerifyStart,
+    handleVerifyAnswer,
     handleVerifySubmit,
     data: new Discord.SlashCommandBuilder()
         .setName('verification')
