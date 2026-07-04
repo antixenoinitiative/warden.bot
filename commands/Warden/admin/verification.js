@@ -99,10 +99,8 @@ function buildAnswerModal(captchaId, stepIndex = 0) {
         .addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
 }
 
-function resolveCaptchaId(verificationConfig, captcha) {
-    return verificationConfig.activeCaptchaId
-        || verificationConfig.captchaId
-        || captcha.id;
+function resolveCaptchaId(captcha) {
+    return captcha.id;
 }
 
 async function handleVerifyStart(interaction) {
@@ -119,7 +117,7 @@ async function handleVerifyStart(interaction) {
     }
 
     const captcha = getActiveCaptcha({ verification: { captchaId: verificationConfig.activeCaptchaId || verificationConfig.captchaId } });
-    const captchaId = resolveCaptchaId(verificationConfig, captcha);
+    const captchaId = resolveCaptchaId(captcha);
     const stepIndex = 0;
     setChallenge(interaction.user.id, { captchaId, stepIndex });
 
