@@ -2,7 +2,7 @@
     "welcomeEmbed": {
         "title": "Welcome to the server",
         "description": "Please verify to access the server.",
-        "color": 3447003,
+        "color": "#ff7100",
         "thumbnail": {
             "enabled": false,
             "url": ""
@@ -15,7 +15,7 @@
     "challengeEmbed": {
         "title": "Verification Challenge",
         "description": "Answer this challenge to verify: {challenge}",
-        "color": 3447003
+        "color": "#fff"
     },
     "successEmbed": {
         "title": "Verification Complete",
@@ -30,6 +30,6 @@
     "expiredChallengeEmbed": {
         "title": "Verification Challenge Expired",
         "description": "Your verification challenge has expired. Please start verification again.",
-        "color": 15548997
+        "color": "#ccc"
     }
 }
