@@ -20,12 +20,12 @@
     "successEmbed": {
         "title": "Verification Complete",
         "description": "You have been verified successfully.",
-        "color": 5763719
+        "color": "#57F287"
     },
     "failureEmbed": {
         "title": "Verification Failed",
         "description": "That answer was incorrect. Please try again in {cooldownSeconds} seconds.",
-        "color": 15548997
+        "color": "#E74C3C"
     },
     "expiredChallengeEmbed": {
         "title": "Verification Challenge Expired",
