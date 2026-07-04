@@ -101,9 +101,7 @@ function buildAnswerModal(captchaId, stepIndex = 0) {
 }
 
 
-function parseSubmitCustomId(customId) {
-    const prefix = 'wardenVerify-submit-';
-
+function parseChallengeComponentCustomId(customId, prefix) {
     if (!customId.startsWith(prefix)) return undefined;
 
     const payload = customId.slice(prefix.length);
@@ -117,6 +115,14 @@ function parseSubmitCustomId(customId) {
     if (!Number.isInteger(stepIndex) || stepIndex < 0) return undefined;
 
     return { captchaId, stepIndex };
+}
+
+function parseAnswerCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-answer-');
+}
+
+function parseSubmitCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-submit-');
 }
 
 function resolveCaptchaId(captcha) {
@@ -167,7 +173,24 @@ async function handleVerifyAnswer(interaction) {
         });
     }
 
-    return interaction.showModal(buildAnswerModal(activeChallenge.captchaId, activeChallenge.stepIndex ?? 0));
+    const clickedChallenge = parseAnswerCustomId(interaction.customId);
+    const captchaId = activeChallenge.captchaId;
+    const stepIndex = activeChallenge.stepIndex ?? 0;
+
+    if (!clickedChallenge
+        || clickedChallenge.captchaId !== captchaId
+        || clickedChallenge.stepIndex !== stepIndex) {
+        return interaction.reply({
+            embeds: [buildResultEmbed(
+                verificationEmbedConfig.expiredChallengeEmbed,
+                'Verification Challenge Expired',
+                'This challenge button is no longer current. Please use the latest verification challenge message.',
+            )],
+            ephemeral: true,
+        });
+    }
+
+    return interaction.showModal(buildAnswerModal(captchaId, stepIndex));
 }
 
 async function handleVerifySubmit(interaction) {
