@@ -604,11 +604,23 @@ function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, ex
 
 async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
     const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState, expiresAt);
-    await interaction.reply(buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage, expiresAt));
+    await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage, expiresAt));
 
     for (const page of followUpPages) {
         await interaction.followUp({ embeds: page, ephemeral: true });
     }
+}
+
+async function sendInitialInteractionResponse(interaction, options) {
+    if (interaction.deferred) {
+        return interaction.editReply(options);
+    }
+
+    if (interaction.replied) {
+        return interaction.followUp(options);
+    }
+
+    return interaction.reply(options);
 }
 
 async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
@@ -616,7 +628,7 @@ async function replyWithChallenge(interaction, challenge, stepIndex = 0, gallery
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
 
     try {
-        await interaction.reply(buildChallengeReplyOptions(challenge, stepIndex, galleryState, expiresAt));
+        await sendInitialInteractionResponse(interaction, buildChallengeReplyOptions(challenge, stepIndex, galleryState, expiresAt));
     }
     catch (err) {
         if (!isGalleryChallenge) {
@@ -764,6 +776,11 @@ async function handleVerifyStart(interaction) {
     const challengeId = challenge.id;
     const stepIndex = 0;
     const step = getVerificationChallengeStep(challengeId, stepIndex);
+
+    if (isComponentsV2GalleryChallenge(challenge, step) && !interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: true });
+    }
+
     const galleryState = isComponentsV2GalleryChallenge(challenge, step)
         ? await createGalleryStateWithOverlays(challenge, stepIndex)
         : undefined;
@@ -947,6 +964,11 @@ async function handleVerifySubmit(interaction) {
     if (hasNextVerificationChallengeStep(challengeId, stepIndex)) {
         const nextStepIndex = stepIndex + 1;
         const nextStep = getVerificationChallengeStep(challengeId, nextStepIndex);
+
+        if (isComponentsV2GalleryChallenge(challenge, nextStep) && !interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ ephemeral: true });
+        }
+
         const nextGalleryState = isComponentsV2GalleryChallenge(challenge, nextStep)
             ? await createGalleryStateWithOverlays(challenge, nextStepIndex)
             : undefined;
