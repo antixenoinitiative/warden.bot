@@ -91,7 +91,7 @@ function parseSettingsRow(row) {
 
 async function ensureVerificationSettingsColumn(columnName, definition) {
     const rows = await getDatabase().query(
-        `SELECT COLUMN_NAME
+        `SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE
          FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE()
            AND TABLE_NAME = 'verification_settings'
@@ -102,6 +102,12 @@ async function ensureVerificationSettingsColumn(columnName, definition) {
 
     if (rows.length < 1) {
         await getDatabase().query(`ALTER TABLE verification_settings ADD COLUMN ${definition}`);
+        return;
+    }
+
+    const [column] = rows;
+    if (column.IS_NULLABLE !== 'YES' || column.COLUMN_DEFAULT !== null || column.DATA_TYPE !== 'int') {
+        await getDatabase().query(`ALTER TABLE verification_settings MODIFY COLUMN ${definition}`);
     }
 }
 

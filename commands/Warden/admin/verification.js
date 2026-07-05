@@ -882,13 +882,14 @@ async function handleVerifyStart(interaction) {
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
+    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    }
+
     const galleryState = isGalleryChallenge
         ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
         : undefined;
 
-    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    }
     setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, resolveChallengeExpiryMs(verificationSettings));
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
@@ -1071,13 +1072,14 @@ async function handleVerifySubmit(interaction) {
         const nextStep = getVerificationChallengeStep(challengeId, nextStepIndex);
 
         const isNextGalleryChallenge = isComponentsV2GalleryChallenge(challenge, nextStep);
+        if (isNextGalleryChallenge && !interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+        }
+
         const nextGalleryState = isNextGalleryChallenge
             ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex))
             : undefined;
 
-        if (isNextGalleryChallenge && !interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-        }
         setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: nextGalleryState }, resolveChallengeExpiryMs(verificationSettings));
         const nextActiveChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
