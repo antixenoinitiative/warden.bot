@@ -2,11 +2,11 @@
     "Warden": {
         "prefix": "-",
         "verification": {
-            "enabled": true,
             "channelId": "000000000000000000",
             "unverifiedRoleId": "1522625096139673652",
             "cooldownSeconds": 60,
-            "activeCaptchaId": "placeholder"
+            "mode": "enabled",
+            "activeChallengeIds": ["placeholder"]
         },
         "slashCommandAuthorization": {
             "listRole": [

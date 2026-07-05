@@ -1,0 +1,186 @@
+/**
+ * Warden verification challenge registry.
+ *
+ * Verification challenges can be single-step or multi-step. Single-step challenges may define
+ * `prompt`/`answers` directly. Multi-step challenges should define `steps`, where each step can
+ * contain:
+ * - `prompt`: user-facing question, riddle, or challenge text.
+ * - `description`: optional description text used before the prompt.
+ * - `answers`: accepted answers for that step.
+ * - `title`: optional embed title for the step.
+ * - `imageUrl`: optional primary image shown on the challenge embed.
+ * - `thumbnailUrl`: optional thumbnail shown on the challenge embed.
+ * - `fields`: optional content blocks. Each field can define `title`/`name`, `content`/`value`,
+ *   `inline`, and/or `imageUrl`. Fields without a title use a blank Discord field name.
+ * - `embeds`: optional extra embed blocks for additional images/descriptions.
+ *
+ * How to add a new verification challenge for future admin selection:
+ * 1. Add a stable ID as a new key in `verificationChallenges`.
+ * 2. Add either a single-step `prompt`/`answers` pair or a multi-step `steps` array.
+ * 3. Add every accepted answer to `answers`; answers are normalized with `normalizeAnswer`
+ *    unless the challenge defines a custom `normalizer`.
+ * 4. Enable the challenge with `/verification challenge enable <id>` or add it to `config.Warden.verification.activeChallengeIds` as a boot fallback.
+ */
+const DEFAULT_CHALLENGE_ID = 'placeholder';
+
+const verificationChallenges = {
+    [DEFAULT_CHALLENGE_ID]: {
+        id: DEFAULT_CHALLENGE_ID,
+        enabled: true,
+        steps: [
+            {
+                title: 'AXI Verification Challenge',
+                prompt: 'Type "AXI" to verify.',
+                answers: ['axi'],
+                fields: [
+                    {
+                        title: 'Answer format',
+                        content: 'Enter the three letters shown in the prompt.',
+                        inline: false,
+                    },
+                ],
+            },
+        ],
+    },
+    multiFieldExample: {
+        id: 'multiFieldExample',
+        enabled: false,
+        steps: [
+            {
+                title: 'Multi-field Verification Challenge',
+                description: 'Review the information below, then answer the prompt.',
+                prompt: 'What three-letter group is this server for?',
+                answers: ['axi', 'anti-xeno initiative', 'antixenoinitiative'],
+                thumbnailUrl: 'https://www.antixenoinitiative.com/favicon.ico',
+                fields: [
+                    {
+                        title: 'Hint',
+                        content: 'The answer is visible in the Anti-Xeno Initiative name.',
+                        inline: false,
+                    },
+                    {
+                        content: 'This field intentionally has no visible title, only content.',
+                        inline: false,
+                    },
+                    {
+                        title: 'Reference image',
+                        imageUrl: 'https://www.antixenoinitiative.com/favicon.ico',
+                    },
+                ],
+                embeds: [
+                    {
+                        title: 'Additional image example',
+                        description: 'Optional extra embeds can carry more pictures for multi-picture challenges.',
+                        imageUrl: 'https://www.antixenoinitiative.com/favicon.ico',
+                    },
+                ],
+            },
+        ],
+    },
+};
+
+function normalizeAnswer(answer) {
+    return String(answer ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+}
+
+function getVerificationChallenge(challengeId) {
+    if (!challengeId) return undefined;
+
+    return verificationChallenges[challengeId];
+}
+
+function getVerificationChallengeSteps(challenge) {
+    if (!challenge) return [];
+
+    if (Array.isArray(challenge.steps) && challenge.steps.length > 0) {
+        return challenge.steps;
+    }
+
+    return [
+        {
+            prompt: challenge.prompt,
+            description: challenge.description,
+            answers: challenge.answers ?? [],
+            title: challenge.title,
+            imageUrl: challenge.imageUrl,
+            thumbnailUrl: challenge.thumbnailUrl,
+            fields: challenge.fields ?? [],
+            embeds: challenge.embeds ?? [],
+        },
+    ];
+}
+
+function getVerificationChallengeStep(challengeId, stepIndex = 0) {
+    const challenge = getVerificationChallenge(challengeId);
+    const steps = getVerificationChallengeSteps(challenge);
+
+    return steps[stepIndex];
+}
+
+function hasNextVerificationChallengeStep(challengeId, stepIndex = 0) {
+    const challenge = getVerificationChallenge(challengeId);
+    const steps = getVerificationChallengeSteps(challenge);
+
+    return stepIndex + 1 < steps.length;
+}
+
+function getEnabledVerificationChallenges(config) {
+    const configuredChallengeIds = config?.verification?.activeChallengeIds
+        ?? config?.activeChallengeIds;
+
+    if (Array.isArray(configuredChallengeIds) && configuredChallengeIds.length > 0) {
+        return configuredChallengeIds
+            .map((challengeId) => getVerificationChallenge(challengeId))
+            .filter(Boolean);
+    }
+
+    const legacyChallengeId = config?.verification?.activeChallengeId
+        ?? config?.verification?.challengeId
+        ?? config?.activeChallengeId
+        ?? config?.challengeId;
+
+    if (legacyChallengeId) {
+        return [getVerificationChallenge(legacyChallengeId) ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID)];
+    }
+
+    return Object.values(verificationChallenges).filter((challenge) => challenge.enabled);
+}
+
+function getActiveVerificationChallenge(config) {
+    return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
+}
+
+function validateAnswer(challengeId, answer, stepIndex = 0) {
+    const challenge = getVerificationChallenge(challengeId);
+    const step = getVerificationChallengeStep(challengeId, stepIndex);
+
+    if (!challenge || !step) {
+        return { ok: false, reason: 'not_found' };
+    }
+
+    const normalizer = step.normalizer ?? challenge.normalizer ?? normalizeAnswer;
+    const normalizedAnswer = normalizer(answer);
+    const validAnswers = (step.answers ?? []).map((validAnswer) => normalizer(validAnswer));
+
+    if (validAnswers.includes(normalizedAnswer)) {
+        return { ok: true };
+    }
+
+    return { ok: false, reason: 'incorrect' };
+}
+
+module.exports = {
+    DEFAULT_CHALLENGE_ID,
+    verificationChallenges,
+    getVerificationChallenge,
+    getVerificationChallengeStep,
+    getVerificationChallengeSteps,
+    getEnabledVerificationChallenges,
+    getActiveVerificationChallenge,
+    hasNextVerificationChallengeStep,
+    normalizeAnswer,
+    validateAnswer,
+};
