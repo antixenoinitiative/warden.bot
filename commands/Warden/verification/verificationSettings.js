@@ -10,7 +10,17 @@ function getDatabase() {
 }
 
 const DEFAULT_GUILD_ID = 'global';
-const VALID_VERIFICATION_MODES = ['enabled', 'disabled', 'skip'];
+const VERIFICATION_MODES = {
+    block: 'block',
+    challenge: 'challenge',
+    skipChallenge: 'skip_challenge',
+};
+const VALID_VERIFICATION_MODES = Object.values(VERIFICATION_MODES);
+const LEGACY_VERIFICATION_MODE_ALIASES = {
+    disabled: VERIFICATION_MODES.block,
+    enabled: VERIFICATION_MODES.challenge,
+    skip: VERIFICATION_MODES.skipChallenge,
+};
 const DEFAULT_CHALLENGE_EXPIRY_SECONDS = 10 * 60;
 const DEFAULT_COOLDOWN_SECONDS = 60;
 const settingsCache = new Map();
@@ -22,10 +32,8 @@ function normalizeGuildId(guildId) {
 
 function defaultVerificationSettings() {
     const verificationConfig = config.Warden?.verification ?? {};
-    const configuredMode = verificationConfig.mode;
-    const mode = VALID_VERIFICATION_MODES.includes(configuredMode)
-        ? configuredMode
-        : verificationConfig.enabled === false ? 'disabled' : 'enabled';
+    const fallbackMode = verificationConfig.enabled === false ? VERIFICATION_MODES.block : VERIFICATION_MODES.challenge;
+    const mode = normalizeVerificationMode(verificationConfig.mode, fallbackMode);
     const activeChallengeIds = Array.isArray(verificationConfig.activeChallengeIds)
         ? verificationConfig.activeChallengeIds
         : [
@@ -52,6 +60,14 @@ function normalizeChallengeIds(challengeIds) {
     return [...new Set(normalizedChallengeIds)];
 }
 
+function normalizeVerificationMode(mode, fallback) {
+    if (VALID_VERIFICATION_MODES.includes(mode)) {
+        return mode;
+    }
+
+    return LEGACY_VERIFICATION_MODE_ALIASES[mode] ?? fallback;
+}
+
 function normalizeTimerSeconds(value, fallback) {
     const seconds = Math.floor(Number(value));
     return Number.isFinite(seconds) && seconds > 0 ? seconds : fallback;
@@ -59,7 +75,7 @@ function normalizeTimerSeconds(value, fallback) {
 
 function normalizeSettings(settings) {
     const defaults = defaultVerificationSettings();
-    const mode = VALID_VERIFICATION_MODES.includes(settings?.mode) ? settings.mode : defaults.mode;
+    const mode = normalizeVerificationMode(settings?.mode, defaults.mode);
     const activeChallengeIds = normalizeChallengeIds(settings?.activeChallengeIds ?? defaults.activeChallengeIds);
 
     return {
@@ -91,7 +107,7 @@ function parseSettingsRow(row) {
 
 async function ensureVerificationSettingsColumn(columnName, definition) {
     const rows = await getDatabase().query(
-        `SELECT COLUMN_NAME
+        `SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE
          FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE()
            AND TABLE_NAME = 'verification_settings'
@@ -102,7 +118,27 @@ async function ensureVerificationSettingsColumn(columnName, definition) {
 
     if (rows.length < 1) {
         await getDatabase().query(`ALTER TABLE verification_settings ADD COLUMN ${definition}`);
+        return;
     }
+
+    const [column] = rows;
+    if (column.IS_NULLABLE !== 'YES' || column.COLUMN_DEFAULT !== null || column.DATA_TYPE !== 'int') {
+        await getDatabase().query(`ALTER TABLE verification_settings MODIFY COLUMN ${definition}`);
+    }
+}
+
+async function migrateVerificationModeNames() {
+    await getDatabase().query(
+        `UPDATE verification_settings
+         SET mode = CASE mode
+            WHEN 'disabled' THEN ?
+            WHEN 'enabled' THEN ?
+            WHEN 'skip' THEN ?
+            ELSE mode
+         END
+         WHERE mode IN ('disabled', 'enabled', 'skip')`,
+        [VERIFICATION_MODES.block, VERIFICATION_MODES.challenge, VERIFICATION_MODES.skipChallenge],
+    );
 }
 
 async function ensureVerificationSettingsTable() {
@@ -110,7 +146,7 @@ async function ensureVerificationSettingsTable() {
         tableReady = getDatabase().query(`
             CREATE TABLE IF NOT EXISTS verification_settings (
                 guild_id VARCHAR(32) NOT NULL PRIMARY KEY,
-                mode VARCHAR(16) NOT NULL DEFAULT 'enabled',
+                mode VARCHAR(16) NOT NULL DEFAULT 'challenge',
                 active_challenge_ids TEXT NOT NULL,
                 challenge_expiry_seconds INT NULL DEFAULT NULL,
                 cooldown_seconds INT NULL DEFAULT NULL,
@@ -121,6 +157,7 @@ async function ensureVerificationSettingsTable() {
             .then(async () => {
                 await ensureVerificationSettingsColumn('challenge_expiry_seconds', 'challenge_expiry_seconds INT NULL DEFAULT NULL');
                 await ensureVerificationSettingsColumn('cooldown_seconds', 'cooldown_seconds INT NULL DEFAULT NULL');
+                await migrateVerificationModeNames();
             })
             .catch((err) => {
                 tableReady = undefined;
