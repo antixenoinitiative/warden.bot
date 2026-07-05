@@ -112,15 +112,15 @@ async function ensureVerificationSettingsTable() {
                 guild_id VARCHAR(32) NOT NULL PRIMARY KEY,
                 mode VARCHAR(16) NOT NULL DEFAULT 'enabled',
                 active_challenge_ids TEXT NOT NULL,
-                challenge_expiry_seconds INT NOT NULL DEFAULT 600,
-                cooldown_seconds INT NOT NULL DEFAULT 60,
+                challenge_expiry_seconds INT NULL DEFAULT NULL,
+                cooldown_seconds INT NULL DEFAULT NULL,
                 updated_by VARCHAR(32) NULL,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
         `)
             .then(async () => {
-                await ensureVerificationSettingsColumn('challenge_expiry_seconds', 'challenge_expiry_seconds INT NOT NULL DEFAULT 600');
-                await ensureVerificationSettingsColumn('cooldown_seconds', 'cooldown_seconds INT NOT NULL DEFAULT 60');
+                await ensureVerificationSettingsColumn('challenge_expiry_seconds', 'challenge_expiry_seconds INT NULL DEFAULT NULL');
+                await ensureVerificationSettingsColumn('cooldown_seconds', 'cooldown_seconds INT NULL DEFAULT NULL');
             })
             .catch((err) => {
                 tableReady = undefined;

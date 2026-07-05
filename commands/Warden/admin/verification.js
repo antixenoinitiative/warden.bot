@@ -1,4 +1,6 @@
 const Discord = require('discord.js');
+const crypto = require('crypto');
+const fetch = require('node-fetch');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
 const verificationEmbedConfig = require('../verification/verificationEmbedConfig.json');
@@ -33,6 +35,7 @@ const COMPONENTS_V2_RENDER_MODE = 'componentsV2Gallery';
 const DEFAULT_GALLERY_SIZE = 6;
 const LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT = 9;
 const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
+const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -58,6 +61,72 @@ function resolveComponentAccentColor(color, fallbackColor = '#3498DB') {
 
 function isComponentsV2GalleryChallenge(challenge, step) {
     return challenge?.renderMode === COMPONENTS_V2_RENDER_MODE || step?.renderMode === COMPONENTS_V2_RENDER_MODE;
+}
+
+function createGalleryImageNonce() {
+    return crypto.randomBytes(12).toString('hex');
+}
+
+function getGalleryImageExtension(imageUrl, contentType) {
+    const contentTypeExtensions = new Map([
+        ['image/jpeg', 'jpg'],
+        ['image/jpg', 'jpg'],
+        ['image/png', 'png'],
+        ['image/gif', 'gif'],
+        ['image/webp', 'webp'],
+    ]);
+
+    const normalizedContentType = String(contentType ?? '').split(';')[0].trim().toLowerCase();
+    if (contentTypeExtensions.has(normalizedContentType)) {
+        return contentTypeExtensions.get(normalizedContentType);
+    }
+
+    try {
+        const pathname = new URL(imageUrl).pathname;
+        const extensionMatch = pathname.match(/\.([a-zA-Z0-9]{1,8})$/);
+        if (extensionMatch) {
+            return extensionMatch[1].toLowerCase();
+        }
+    }
+    catch (err) {
+        // Fall back to png below when the configured image URL is not parseable.
+    }
+
+    return 'png';
+}
+
+function buildGalleryAttachmentName(image, extension) {
+    return `${GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX}-${createGalleryImageNonce()}-${image.position}.${extension}`;
+}
+
+async function fetchGalleryImageAttachment(image) {
+    const response = await fetch(image.url);
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch verification gallery image for position ${image.position}: ${response.status} ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    const extension = getGalleryImageExtension(image.url, contentType);
+    const name = buildGalleryAttachmentName(image, extension);
+    const buffer = await response.buffer();
+
+    return {
+        ...image,
+        displayUrl: `attachment://${name}`,
+        attachment: new Discord.AttachmentBuilder(buffer, { name }),
+    };
+}
+
+async function prepareGalleryImageAttachments(galleryState) {
+    if (!galleryState?.selectedImages?.length) {
+        return galleryState;
+    }
+
+    return {
+        ...galleryState,
+        selectedImages: await Promise.all(galleryState.selectedImages.map(fetchGalleryImageAttachment)),
+    };
 }
 
 function createGalleryToken() {
@@ -434,33 +503,14 @@ function markdownHeading(text) {
     return `# ${text}`;
 }
 
-function getDuplicateGalleryImageUrls(selectedImages) {
-    const urlCounts = new Map();
-
-    for (const image of selectedImages) {
-        urlCounts.set(image.url, (urlCounts.get(image.url) ?? 0) + 1);
-    }
-
-    return new Set([...urlCounts.entries()]
-        .filter(([, count]) => count > 1)
-        .map(([url]) => url));
+function getGalleryImageAttachments(selectedImages = []) {
+    return selectedImages
+        .map((image) => image.attachment)
+        .filter(Boolean);
 }
 
-function buildGalleryDisplayUrl(image, galleryToken, duplicateImageUrls) {
-    if (!duplicateImageUrls.has(image.url)) {
-        return image.url;
-    }
-
-    try {
-        const displayUrl = new URL(image.url);
-        displayUrl.searchParams.set('warden_gallery_token', String(galleryToken ?? 'gallery'));
-        displayUrl.searchParams.set('warden_gallery_position', String(image.position));
-        return displayUrl.toString();
-    }
-    catch (err) {
-        const separator = image.url.includes('?') ? '&' : '?';
-        return `${image.url}${separator}warden_gallery_token=${encodeURIComponent(String(galleryToken ?? 'gallery'))}&warden_gallery_position=${encodeURIComponent(String(image.position))}`;
-    }
+function getGalleryDisplayUrl(image) {
+    return image.displayUrl ?? image.url;
 }
 
 function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expiresAt) {
@@ -475,7 +525,6 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const selectedImages = galleryState?.selectedImages ?? [];
-    const duplicateImageUrls = getDuplicateGalleryImageUrls(selectedImages);
     const expiryLine = buildExpiryLine(expiresAt);
 
     if (selectedImages.length < 1) {
@@ -517,7 +566,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     container.addMediaGalleryComponents(
         new Discord.MediaGalleryBuilder().addItems(
             selectedImages.map((image) => new Discord.MediaGalleryItemBuilder()
-                .setURL(buildGalleryDisplayUrl(image, galleryState?.token, duplicateImageUrls))
+                .setURL(getGalleryDisplayUrl(image))
                 .setDescription(`Position ${image.position}`)),
         ),
     );
@@ -543,6 +592,7 @@ function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState, expi
     if (isComponentsV2GalleryChallenge(challenge, step)) {
         return {
             components: buildChallengeComponentsV2(challenge, stepIndex, galleryState, expiresAt),
+            files: getGalleryImageAttachments(galleryState?.selectedImages),
             flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
         };
     }
@@ -603,15 +653,16 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expire
         return new Discord.EmbedBuilder()
             .setColor(resolveEmbedColor(step?.color ?? embedConfig.color))
             .setTitle(`Position ${image.position}`)
-            .setImage(image.url);
+            .setImage(getGalleryDisplayUrl(image));
     });
 
     return [challengeEmbed, ...imageEmbeds];
 }
 
-function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds, expiresAt) {
+function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds, expiresAt, files) {
     return {
         embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt),
+        files: files ?? getGalleryImageAttachments(galleryState?.selectedImages),
         components: [buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token)],
         flags: Discord.MessageFlags.Ephemeral,
     };
@@ -621,23 +672,30 @@ function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, ex
     const embeds = buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt);
     const challengeEmbed = embeds[0];
     const imageEmbeds = embeds.slice(1);
+    const selectedImages = galleryState?.selectedImages ?? [];
     const pages = [
-        [challengeEmbed, ...imageEmbeds.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)].filter(Boolean),
+        {
+            embeds: [challengeEmbed, ...imageEmbeds.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)].filter(Boolean),
+            files: getGalleryImageAttachments(selectedImages.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)),
+        },
     ];
 
     for (let index = LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT; index < imageEmbeds.length; index += LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT) {
-        pages.push(imageEmbeds.slice(index, index + LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT));
+        pages.push({
+            embeds: imageEmbeds.slice(index, index + LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT),
+            files: getGalleryImageAttachments(selectedImages.slice(index, index + LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT)),
+        });
     }
 
-    return pages.filter((page) => page.length > 0);
+    return pages.filter((page) => page.embeds.length > 0);
 }
 
 async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
     const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState, expiresAt);
-    await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage, expiresAt));
+    await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage.embeds, expiresAt, firstPage.files));
 
     for (const page of followUpPages) {
-        await interaction.followUp({ embeds: page, flags: Discord.MessageFlags.Ephemeral });
+        await interaction.followUp({ embeds: page.embeds, files: page.files, flags: Discord.MessageFlags.Ephemeral });
     }
 }
 
@@ -823,13 +881,14 @@ async function handleVerifyStart(interaction) {
     const stepIndex = 0;
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
-    if (isComponentsV2GalleryChallenge(challenge, step) && !interaction.deferred && !interaction.replied) {
+    const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
+    const galleryState = isGalleryChallenge
+        ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
+        : undefined;
+
+    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     }
-
-    const galleryState = isComponentsV2GalleryChallenge(challenge, step)
-        ? createGalleryState(challenge, stepIndex)
-        : undefined;
     setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, resolveChallengeExpiryMs(verificationSettings));
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
@@ -1011,13 +1070,14 @@ async function handleVerifySubmit(interaction) {
         const nextStepIndex = stepIndex + 1;
         const nextStep = getVerificationChallengeStep(challengeId, nextStepIndex);
 
-        if (isComponentsV2GalleryChallenge(challenge, nextStep) && !interaction.deferred && !interaction.replied) {
+        const isNextGalleryChallenge = isComponentsV2GalleryChallenge(challenge, nextStep);
+        const nextGalleryState = isNextGalleryChallenge
+            ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex))
+            : undefined;
+
+        if (isNextGalleryChallenge && !interaction.deferred && !interaction.replied) {
             await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
         }
-
-        const nextGalleryState = isComponentsV2GalleryChallenge(challenge, nextStep)
-            ? createGalleryState(challenge, nextStepIndex)
-            : undefined;
         setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: nextGalleryState }, resolveChallengeExpiryMs(verificationSettings));
         const nextActiveChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
