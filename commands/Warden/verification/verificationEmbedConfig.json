@@ -30,6 +30,6 @@
     "expiredChallengeEmbed": {
         "title": "Verification Challenge Expired",
         "description": "Your verification challenge has expired. Please start verification again.",
-        "color": "#CCCCCC"
+        "color": "#000000"
     }
 }
