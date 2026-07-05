@@ -127,7 +127,17 @@ function getGalleryOverlayFiles(galleryState) {
     return Array.isArray(galleryState?.overlayFiles) ? galleryState.overlayFiles : undefined;
 }
 
+function withoutGalleryOverlayFiles(galleryState) {
+    if (!galleryState?.overlayFiles) {
+        return galleryState;
+    }
+
+    const { overlayFiles, ...stateWithoutOverlayFiles } = galleryState;
+    return stateWithoutOverlayFiles;
+}
+
 module.exports = {
     prepareGalleryImageOverlays,
     getGalleryOverlayFiles,
+    withoutGalleryOverlayFiles,
 };

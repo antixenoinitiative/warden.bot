@@ -25,6 +25,7 @@ const {
 const {
     getGalleryOverlayFiles,
     prepareGalleryImageOverlays,
+    withoutGalleryOverlayFiles,
 } = require('../verification/verificationGalleryOverlays');
 
 const VERIFICATION_MODES = {
@@ -613,7 +614,7 @@ async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, gal
 
 async function sendInitialInteractionResponse(interaction, options) {
     if (interaction.deferred) {
-        return interaction.editReply(options);
+        return interaction.editReply(removeInitialOnlyResponseOptions(options));
     }
 
     if (interaction.replied) {
@@ -621,6 +622,22 @@ async function sendInitialInteractionResponse(interaction, options) {
     }
 
     return interaction.reply(options);
+}
+
+function removeInitialOnlyResponseOptions(options) {
+    const editOptions = { ...options };
+
+    delete editOptions.ephemeral;
+
+    if (typeof editOptions.flags === 'number') {
+        editOptions.flags &= ~Discord.MessageFlags.Ephemeral;
+
+        if (editOptions.flags === 0) {
+            delete editOptions.flags;
+        }
+    }
+
+    return editOptions;
 }
 
 async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
@@ -784,7 +801,7 @@ async function handleVerifyStart(interaction) {
     const galleryState = isComponentsV2GalleryChallenge(challenge, step)
         ? await createGalleryStateWithOverlays(challenge, stepIndex)
         : undefined;
-    setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, resolveChallengeExpiryMs(verificationSettings));
+    setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: withoutGalleryOverlayFiles(galleryState) }, resolveChallengeExpiryMs(verificationSettings));
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
     return replyWithChallenge(interaction, challenge, stepIndex, galleryState, activeChallenge?.expiresAt);
@@ -972,7 +989,7 @@ async function handleVerifySubmit(interaction) {
         const nextGalleryState = isComponentsV2GalleryChallenge(challenge, nextStep)
             ? await createGalleryStateWithOverlays(challenge, nextStepIndex)
             : undefined;
-        setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: nextGalleryState }, resolveChallengeExpiryMs(verificationSettings));
+        setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: withoutGalleryOverlayFiles(nextGalleryState) }, resolveChallengeExpiryMs(verificationSettings));
         const nextActiveChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
         return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState, nextActiveChallenge?.expiresAt);
