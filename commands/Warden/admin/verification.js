@@ -255,6 +255,10 @@ function buildExpiryLine(expiresAt) {
     return `-# This prompt will expire in <t:${Math.floor(expiresAt / 1000)}:R>.`;
 }
 
+function buildGalleryOrderLine() {
+    return '-# Click the gallery to view image order; positions start top-left, left-to-right by row.';
+}
+
 function parseDurationSeconds(input) {
     const value = String(input ?? '').trim().toLowerCase();
     if (!value) return undefined;
@@ -518,6 +522,10 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
         ),
     );
 
+    container.addTextDisplayComponents(
+        new Discord.TextDisplayBuilder().setContent(buildGalleryOrderLine()),
+    );
+
     if (expiryLine) {
         container.addTextDisplayComponents(
             new Discord.TextDisplayBuilder().setContent(expiryLine),
@@ -542,7 +550,7 @@ function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState, expi
     return {
         embeds: buildChallengeEmbeds(challenge, stepIndex, expiresAt),
         components: [buildGiveAnswerRow(challenge.id, stepIndex)],
-        ephemeral: true,
+        flags: Discord.MessageFlags.Ephemeral,
     };
 }
 
@@ -565,7 +573,7 @@ function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState, expi
                 .setDescription(['If you cannot see the Verification Challenge please update your client, or click the Old Version button below.', buildExpiryLine(expiresAt)].filter(Boolean).join('\n\n')),
         ],
         components: [buildOldVersionRow(challenge.id, stepIndex, galleryState?.token)],
-        ephemeral: true,
+        flags: Discord.MessageFlags.Ephemeral,
     };
 }
 
@@ -605,7 +613,7 @@ function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, 
     return {
         embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt),
         components: [buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token)],
-        ephemeral: true,
+        flags: Discord.MessageFlags.Ephemeral,
     };
 }
 
@@ -629,7 +637,7 @@ async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, gal
     await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage, expiresAt));
 
     for (const page of followUpPages) {
-        await interaction.followUp({ embeds: page, ephemeral: true });
+        await interaction.followUp({ embeds: page, flags: Discord.MessageFlags.Ephemeral });
     }
 }
 
@@ -788,7 +796,7 @@ async function completeVerification(interaction) {
             'Verification Complete',
             'You have been verified successfully.',
         )],
-        ephemeral: true,
+        flags: Discord.MessageFlags.Ephemeral,
     });
 }
 
@@ -797,7 +805,7 @@ async function handleVerifyStart(interaction) {
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
+        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
     }
 
     if (verificationMode === VERIFICATION_MODES.skip) {
@@ -807,7 +815,7 @@ async function handleVerifyStart(interaction) {
     const cooldownRemaining = getCooldownRemaining(interaction.user.id);
     if (cooldownRemaining > 0) {
         const retryAt = Math.ceil((Date.now() + cooldownRemaining) / 1000);
-        return interaction.reply({ content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, ephemeral: true });
+        return interaction.reply({ content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, flags: Discord.MessageFlags.Ephemeral });
     }
 
     const challenge = selectVerificationChallenge(verificationSettings);
@@ -816,7 +824,7 @@ async function handleVerifyStart(interaction) {
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
     if (isComponentsV2GalleryChallenge(challenge, step) && !interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     }
 
     const galleryState = isComponentsV2GalleryChallenge(challenge, step)
@@ -833,7 +841,7 @@ async function handleVerifyAnswer(interaction) {
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
+        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
     }
 
     if (verificationMode === VERIFICATION_MODES.skip) {
@@ -848,7 +856,7 @@ async function handleVerifyAnswer(interaction) {
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -866,7 +874,7 @@ async function handleVerifyAnswer(interaction) {
                 'Verification Challenge Expired',
                 'This challenge button is no longer current. Please use the latest verification challenge message.',
             )],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -878,7 +886,7 @@ async function handleVerifyOldVersion(interaction) {
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
+        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
     }
 
     if (verificationMode === VERIFICATION_MODES.skip) {
@@ -893,7 +901,7 @@ async function handleVerifyOldVersion(interaction) {
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -911,7 +919,7 @@ async function handleVerifyOldVersion(interaction) {
                 'Verification Challenge Expired',
                 'This old version button is no longer current. Please use the latest verification challenge message.',
             )],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -921,7 +929,7 @@ async function handleVerifyOldVersion(interaction) {
     if (!isComponentsV2GalleryChallenge(challenge, step)) {
         return interaction.reply({
             embeds: [userErrorEmbed('This verification challenge does not have an old version fallback.')],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -933,7 +941,7 @@ async function handleVerifySubmit(interaction) {
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
+        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
     }
 
     if (verificationMode === VERIFICATION_MODES.skip) {
@@ -948,7 +956,7 @@ async function handleVerifySubmit(interaction) {
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -966,7 +974,7 @@ async function handleVerifySubmit(interaction) {
                 'Verification Challenge Expired',
                 'This answer modal is no longer current. Please use the latest verification challenge message.',
             )],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -995,7 +1003,7 @@ async function handleVerifySubmit(interaction) {
                 'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
                 { cooldownSeconds, retryTime: `<t:${Math.floor(retryAt / 1000)}:R>` },
             )],
-            ephemeral: true,
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -1004,7 +1012,7 @@ async function handleVerifySubmit(interaction) {
         const nextStep = getVerificationChallengeStep(challengeId, nextStepIndex);
 
         if (isComponentsV2GalleryChallenge(challenge, nextStep) && !interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
         }
 
         const nextGalleryState = isComponentsV2GalleryChallenge(challenge, nextStep)
@@ -1092,7 +1100,7 @@ module.exports = {
                 )
         ),
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
         try {
             const verificationConfig = config.Warden?.verification;
