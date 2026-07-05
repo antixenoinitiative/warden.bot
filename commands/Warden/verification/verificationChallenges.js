@@ -13,6 +13,13 @@
  * - `fields`: optional content blocks. Each field can define `title`/`name`, `content`/`value`,
  *   `inline`, and/or `imageUrl`. Fields without a title use a blank Discord field name.
  * - `embeds`: optional extra embed blocks for additional images/descriptions.
+ * - `renderMode`: optional renderer. Use `componentsV2Gallery` for a Components V2 media gallery.
+ * - `imagePoolId`: optional reusable image pool ID for gallery challenges.
+ * - `gallerySize`: optional number of images to show for gallery challenges.
+ * - `solutionImageCount`: optional `{ min, max }` range for solution image slots. Solution
+ *   images may repeat if the requested slot count is larger than the number of solution URLs.
+ * - `controlImageCount`: optional `{ min, max }` range for control images.
+ * - `maxControlImageRepeats`: optional maximum number of times the same control image can appear.
  *
  * How to add a new verification challenge for future admin selection:
  * 1. Add a stable ID as a new key in `verificationChallenges`.
@@ -74,6 +81,29 @@ const verificationChallenges = {
                         imageUrl: 'https://www.antixenoinitiative.com/favicon.ico',
                     },
                 ],
+            },
+        ],
+    },
+    eliteStarterShipGallery: {
+        id: 'eliteStarterShipGallery',
+        enabled: false,
+        renderMode: 'componentsV2Gallery',
+        imagePoolId: 'eliteStarterShips',
+        gallerySize: 6,
+        solutionImageCount: {
+            min: 1,
+            max: 1,
+        },
+        maxControlImageRepeats: 2,
+        steps: [
+            {
+                title: 'Verification Challenge',
+                description: 'Answer both questions below.',
+                prompt: 'What is the starter ship in Elite Dangerous?',
+                galleryPrompt: 'Which of these images is the starter ship? Remember their position in the order.',
+                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki'],
+                positionInputLabel: 'Image position(s)',
+                positionInputPlaceholder: 'If multiple, seperate position numbers by commas or spaces',
             },
         ],
     },
