@@ -430,6 +430,35 @@ function markdownHeading(text) {
     return `# ${text}`;
 }
 
+function getDuplicateGalleryImageUrls(selectedImages) {
+    const urlCounts = new Map();
+
+    for (const image of selectedImages) {
+        urlCounts.set(image.url, (urlCounts.get(image.url) ?? 0) + 1);
+    }
+
+    return new Set([...urlCounts.entries()]
+        .filter(([, count]) => count > 1)
+        .map(([url]) => url));
+}
+
+function buildGalleryDisplayUrl(image, galleryToken, duplicateImageUrls) {
+    if (!duplicateImageUrls.has(image.url)) {
+        return image.url;
+    }
+
+    try {
+        const displayUrl = new URL(image.url);
+        displayUrl.searchParams.set('warden_gallery_token', String(galleryToken ?? 'gallery'));
+        displayUrl.searchParams.set('warden_gallery_position', String(image.position));
+        return displayUrl.toString();
+    }
+    catch (err) {
+        const separator = image.url.includes('?') ? '&' : '?';
+        return `${image.url}${separator}warden_gallery_token=${encodeURIComponent(String(galleryToken ?? 'gallery'))}&warden_gallery_position=${encodeURIComponent(String(image.position))}`;
+    }
+}
+
 function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expiresAt) {
     assertComponentsV2Support();
 
@@ -442,6 +471,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const selectedImages = galleryState?.selectedImages ?? [];
+    const duplicateImageUrls = getDuplicateGalleryImageUrls(selectedImages);
     const expiryLine = buildExpiryLine(expiresAt);
 
     if (selectedImages.length < 1) {
@@ -483,7 +513,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     container.addMediaGalleryComponents(
         new Discord.MediaGalleryBuilder().addItems(
             selectedImages.map((image) => new Discord.MediaGalleryItemBuilder()
-                .setURL(image.url)
+                .setURL(buildGalleryDisplayUrl(image, galleryState?.token, duplicateImageUrls))
                 .setDescription(`Position ${image.position}`)),
         ),
     );
