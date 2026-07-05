@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { handleVerifyStart, handleVerifyAnswer, handleVerifySubmit } = require('../commands/Warden/admin/verification')
+const { handleVerifyStart, handleVerifyAnswer, handleVerifyOldVersion, handleVerifySubmit } = require('../commands/Warden/admin/verification')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
@@ -98,7 +98,21 @@ const exp = {
     interactionCreate: async (interaction,bot) => {
         if (interaction.isModalSubmit()) {
             if (botIdent().activeBot.botName == 'Warden' && interaction.customId.startsWith('wardenVerify-submit-')) {
-                await handleVerifySubmit(interaction)
+                try {
+                    await handleVerifySubmit(interaction)
+                }
+                catch (err) {
+                    console.log(err)
+                    botLog(interaction.guild,new Discord.EmbedBuilder()
+                        .setDescription('```' + err.stack + '```')
+                        .setTitle(`⛔ Verification submission error`)
+                        ,2
+                        ,'error'
+                    )
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: 'Verification could not be submitted. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
+                    }
+                }
                 return
             }
             if (botIdent().activeBot.botName == 'GuardianAI') {
@@ -268,6 +282,24 @@ const exp = {
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)
+                    return;
+                }
+                if (interaction.customId.startsWith("wardenVerify-oldVersion")) {
+                    try {
+                        await handleVerifyOldVersion(interaction);
+                    }
+                    catch (err) {
+                        console.log(err)
+                        botLog(interaction.guild,new Discord.EmbedBuilder()
+                            .setDescription('```' + err.stack + '```')
+                            .setTitle(`⛔ Fatal error experienced`)
+                            ,2
+                            ,'error'
+                        )
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: 'Verification old version could not be shown. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
+                        }
+                    }
                     return;
                 }
             }
