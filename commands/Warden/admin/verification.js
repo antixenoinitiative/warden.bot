@@ -29,6 +29,8 @@ const VERIFICATION_MODES = {
 
 const COMPONENTS_V2_RENDER_MODE = 'componentsV2Gallery';
 const DEFAULT_GALLERY_SIZE = 6;
+const LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT = 9;
+const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -56,6 +58,10 @@ function isComponentsV2GalleryChallenge(challenge, step) {
     return challenge?.renderMode === COMPONENTS_V2_RENDER_MODE || step?.renderMode === COMPONENTS_V2_RENDER_MODE;
 }
 
+function createGalleryToken() {
+    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function shuffleArray(items) {
     const shuffled = [...items];
 
@@ -73,6 +79,30 @@ function pickRandomItems(items, count, itemRole) {
     }
 
     return shuffleArray(items).slice(0, count);
+}
+
+function pickRandomItemsWithRepeatLimit(items, count, maxRepeats, itemRole) {
+    const normalizedMaxRepeats = Math.floor(Number(maxRepeats ?? 1));
+
+    if (!Number.isInteger(normalizedMaxRepeats) || normalizedMaxRepeats < 1) {
+        throw new Error(`Invalid ${itemRole} image repeat limit: ${maxRepeats}`);
+    }
+
+    if (items.length * normalizedMaxRepeats < count) {
+        throw new Error(`Verification image pool does not contain enough ${itemRole} image capacity. Required ${count}, capacity ${items.length * normalizedMaxRepeats}.`);
+    }
+
+    const selectedItems = [];
+    const selectedCounts = new Map();
+
+    while (selectedItems.length < count) {
+        const availableItems = items.filter((item) => (selectedCounts.get(item.id) ?? 0) < normalizedMaxRepeats);
+        const selectedItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+        selectedCounts.set(selectedItem.id, (selectedCounts.get(selectedItem.id) ?? 0) + 1);
+        selectedItems.push(selectedItem);
+    }
+
+    return selectedItems;
 }
 
 function resolveGalleryImageCounts(challenge, step) {
@@ -120,15 +150,17 @@ function createGalleryState(challenge, stepIndex = 0) {
     const { solutionCount, controlCount } = resolveGalleryImageCounts(challenge, step);
     const solutionImages = imagePool.images.filter((image) => image.role === 'solution');
     const controlImages = imagePool.images.filter((image) => image.role === 'control');
+    const maxControlImageRepeats = step?.maxControlImageRepeats ?? challenge.maxControlImageRepeats ?? 1;
     const selectedImages = shuffleArray([
         ...pickRandomItems(solutionImages, solutionCount, 'solution'),
-        ...pickRandomItems(controlImages, controlCount, 'control'),
+        ...pickRandomItemsWithRepeatLimit(controlImages, controlCount, maxControlImageRepeats, 'control'),
     ]).map((image, index) => ({
         ...image,
         position: index + 1,
     }));
 
     return {
+        token: createGalleryToken(),
         imagePoolId,
         selectedImages,
         solutionPositions: selectedImages
@@ -391,7 +423,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState) {
         ),
     );
 
-    container.addActionRowComponents(buildGiveAnswerRow(challenge.id, stepIndex));
+    container.addActionRowComponents(buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token));
 
     return [container];
 }
@@ -413,17 +445,17 @@ function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState) {
     };
 }
 
-function buildOldVersionRow(challengeId, stepIndex = 0) {
+function buildOldVersionRow(challengeId, stepIndex = 0, token) {
     return new Discord.ActionRowBuilder()
         .addComponents(
             new Discord.ButtonBuilder()
-                .setCustomId(`wardenVerify-oldVersion-${challengeId}-${stepIndex}`)
+                .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', challengeId, stepIndex, token))
                 .setLabel('Old Version')
                 .setStyle(Discord.ButtonStyle.Secondary),
         );
 }
 
-function buildGalleryFallbackPrompt(challenge, stepIndex = 0) {
+function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState) {
     return {
         embeds: [
             new Discord.EmbedBuilder()
@@ -431,7 +463,7 @@ function buildGalleryFallbackPrompt(challenge, stepIndex = 0) {
                 .setTitle('Not working?')
                 .setDescription('If you cannot see the Verification Challenge please update your client, or click the Old Version button below.'),
         ],
-        components: [buildOldVersionRow(challenge.id, stepIndex)],
+        components: [buildOldVersionRow(challenge.id, stepIndex, galleryState?.token)],
         ephemeral: true,
     };
 }
@@ -464,15 +496,39 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState) {
             .setImage(image.url);
     });
 
-    return [challengeEmbed, ...imageEmbeds].slice(0, 10);
+    return [challengeEmbed, ...imageEmbeds];
 }
 
-function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState) {
+function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds) {
     return {
-        embeds: buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState),
-        components: [buildGiveAnswerRow(challenge.id, stepIndex)],
+        embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState),
+        components: [buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token)],
         ephemeral: true,
     };
+}
+
+function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState) {
+    const embeds = buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState);
+    const challengeEmbed = embeds[0];
+    const imageEmbeds = embeds.slice(1);
+    const pages = [
+        [challengeEmbed, ...imageEmbeds.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)].filter(Boolean),
+    ];
+
+    for (let index = LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT; index < imageEmbeds.length; index += LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT) {
+        pages.push(imageEmbeds.slice(index, index + LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT));
+    }
+
+    return pages.filter((page) => page.length > 0);
+}
+
+async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState) {
+    const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState);
+    await interaction.reply(buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage));
+
+    for (const page of followUpPages) {
+        await interaction.followUp({ embeds: page, ephemeral: true });
+    }
 }
 
 async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState) {
@@ -488,21 +544,25 @@ async function replyWithChallenge(interaction, challenge, stepIndex = 0, gallery
         }
 
         console.error('Failed to send Components V2 verification challenge. Falling back to legacy embeds:', err);
-        return interaction.reply(buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState));
+        return replyWithLegacyGallery(interaction, challenge, stepIndex, galleryState);
     }
 
     if (isGalleryChallenge) {
-        await interaction.followUp(buildGalleryFallbackPrompt(challenge, stepIndex)).catch((err) => {
+        await interaction.followUp(buildGalleryFallbackPrompt(challenge, stepIndex, galleryState)).catch((err) => {
             console.error('Failed to send Components V2 verification fallback prompt:', err);
         });
     }
 }
 
-function buildGiveAnswerRow(challengeId, stepIndex = 0) {
+function buildChallengeComponentCustomId(prefix, challengeId, stepIndex = 0, token) {
+    return `${prefix}${challengeId}-${stepIndex}${token ? `-${token}` : ''}`;
+}
+
+function buildGiveAnswerRow(challengeId, stepIndex = 0, token) {
     return new Discord.ActionRowBuilder()
         .addComponents(
             new Discord.ButtonBuilder()
-                .setCustomId(`wardenVerify-answer-${challengeId}-${stepIndex}`)
+                .setCustomId(buildChallengeComponentCustomId('wardenVerify-answer-', challengeId, stepIndex, token))
                 .setLabel('Give Answer')
                 .setStyle(Discord.ButtonStyle.Primary),
         );
@@ -518,7 +578,7 @@ function buildAnswerModal(challengeId, stepIndex = 0, activeChallenge) {
         .setStyle(Discord.TextInputStyle.Short)
         .setRequired(true);
     const modal = new Discord.ModalBuilder()
-        .setCustomId(`wardenVerify-submit-${challengeId}-${stepIndex}`)
+        .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', challengeId, stepIndex, activeChallenge?.gallery?.token))
         .setTitle('Verify')
         .addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
 
@@ -544,12 +604,23 @@ function parseChallengeComponentCustomId(customId, prefix) {
 
     if (stepSeparatorIndex < 1) return undefined;
 
-    const challengeId = payload.slice(0, stepSeparatorIndex);
-    const stepIndex = Number(payload.slice(stepSeparatorIndex + 1));
+    let challengePayload = payload.slice(0, stepSeparatorIndex);
+    let stepIndex = Number(payload.slice(stepSeparatorIndex + 1));
+    let token;
+
+    if (!Number.isInteger(stepIndex) || stepIndex < 0) {
+        token = payload.slice(stepSeparatorIndex + 1);
+        const tokenSeparatorIndex = challengePayload.lastIndexOf('-');
+
+        if (tokenSeparatorIndex < 1) return undefined;
+
+        stepIndex = Number(challengePayload.slice(tokenSeparatorIndex + 1));
+        challengePayload = challengePayload.slice(0, tokenSeparatorIndex);
+    }
 
     if (!Number.isInteger(stepIndex) || stepIndex < 0) return undefined;
 
-    return { challengeId, stepIndex };
+    return { challengeId: challengePayload, stepIndex, token };
 }
 
 function parseAnswerCustomId(customId) {
@@ -562,6 +633,12 @@ function parseSubmitCustomId(customId) {
 
 function parseOldVersionCustomId(customId) {
     return parseChallengeComponentCustomId(customId, 'wardenVerify-oldVersion-');
+}
+
+function isStaleGalleryComponent(parsedChallenge, activeChallenge) {
+    if (!activeChallenge?.gallery?.token) return false;
+
+    return parsedChallenge?.token !== activeChallenge.gallery.token;
 }
 
 async function completeVerification(interaction) {
@@ -645,7 +722,8 @@ async function handleVerifyAnswer(interaction) {
 
     if (!clickedChallenge
         || clickedChallenge.challengeId !== challengeId
-        || clickedChallenge.stepIndex !== stepIndex) {
+        || clickedChallenge.stepIndex !== stepIndex
+        || isStaleGalleryComponent(clickedChallenge, activeChallenge)) {
         return interaction.reply({
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.expiredChallengeEmbed,
@@ -689,7 +767,8 @@ async function handleVerifyOldVersion(interaction) {
 
     if (!clickedChallenge
         || clickedChallenge.challengeId !== challengeId
-        || clickedChallenge.stepIndex !== stepIndex) {
+        || clickedChallenge.stepIndex !== stepIndex
+        || isStaleGalleryComponent(clickedChallenge, activeChallenge)) {
         return interaction.reply({
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.expiredChallengeEmbed,
@@ -710,7 +789,7 @@ async function handleVerifyOldVersion(interaction) {
         });
     }
 
-    return interaction.reply(buildLegacyGalleryReplyOptions(challenge, stepIndex, activeChallenge.gallery));
+    return replyWithLegacyGallery(interaction, challenge, stepIndex, activeChallenge.gallery);
 }
 
 async function handleVerifySubmit(interaction) {
@@ -743,7 +822,8 @@ async function handleVerifySubmit(interaction) {
 
     if (!submittedChallenge
         || submittedChallenge.challengeId !== challengeId
-        || submittedChallenge.stepIndex !== stepIndex) {
+        || submittedChallenge.stepIndex !== stepIndex
+        || isStaleGalleryComponent(submittedChallenge, activeChallenge)) {
         return interaction.reply({
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.expiredChallengeEmbed,

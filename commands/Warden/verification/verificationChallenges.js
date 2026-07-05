@@ -18,6 +18,7 @@
  * - `gallerySize`: optional number of images to show for gallery challenges.
  * - `solutionImageCount`: optional `{ min, max }` range for solution images.
  * - `controlImageCount`: optional `{ min, max }` range for control images.
+ * - `maxControlImageRepeats`: optional maximum number of times the same control image can appear.
  *
  * How to add a new verification challenge for future admin selection:
  * 1. Add a stable ID as a new key in `verificationChallenges`.
@@ -92,10 +93,7 @@ const verificationChallenges = {
             min: 1,
             max: 1,
         },
-        controlImageCount: {
-            min: 5,
-            max: 5,
-        },
+        maxControlImageRepeats: 2,
         steps: [
             {
                 title: 'Verification Challenge',
