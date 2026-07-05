@@ -15,7 +15,7 @@
     "challengeEmbed": {
         "title": "Verification Challenge",
         "description": "Answer this challenge to verify: {challenge}",
-        "color": "#FFFFFF"
+        "color": "#1F1F1F"
     },
     "successEmbed": {
         "title": "Verification Complete",
@@ -30,6 +30,6 @@
     "expiredChallengeEmbed": {
         "title": "Verification Challenge Expired",
         "description": "Your verification challenge has expired. Please start verification again.",
-        "color": "#CCCCCC"
+        "color": "#000000"
     }
 }
