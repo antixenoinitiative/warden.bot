@@ -5,7 +5,7 @@
             "channelId": "000000000000000000",
             "unverifiedRoleId": "1522625096139673652",
             "cooldownSeconds": 60,
-            "mode": "enabled",
+            "mode": "challenge",
             "activeChallengeIds": ["placeholder"]
         },
         "slashCommandAuthorization": {

@@ -26,9 +26,14 @@ const {
 } = require('../verification/verificationSettings');
 
 const VERIFICATION_MODES = {
-    enabled: 'enabled',
-    disabled: 'disabled',
-    skip: 'skip',
+    block: 'block',
+    challenge: 'challenge',
+    skipChallenge: 'skip_challenge',
+};
+const LEGACY_VERIFICATION_MODE_ALIASES = {
+    disabled: VERIFICATION_MODES.block,
+    enabled: VERIFICATION_MODES.challenge,
+    skip: VERIFICATION_MODES.skipChallenge,
 };
 
 const COMPONENTS_V2_RENDER_MODE = 'componentsV2Gallery';
@@ -299,9 +304,13 @@ function resolveVerificationMode(verificationSettings = config.Warden?.verificat
         return configuredMode;
     }
 
-    if (verificationSettings?.enabled === false) return VERIFICATION_MODES.disabled;
+    if (LEGACY_VERIFICATION_MODE_ALIASES[configuredMode]) {
+        return LEGACY_VERIFICATION_MODE_ALIASES[configuredMode];
+    }
 
-    return VERIFICATION_MODES.enabled;
+    if (verificationSettings?.enabled === false) return VERIFICATION_MODES.block;
+
+    return VERIFICATION_MODES.challenge;
 }
 
 function userErrorEmbed(message) {
@@ -862,11 +871,11 @@ async function handleVerifyStart(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -900,11 +909,11 @@ async function handleVerifyAnswer(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -945,11 +954,11 @@ async function handleVerifyOldVersion(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -1000,11 +1009,11 @@ async function handleVerifySubmit(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -1124,9 +1133,9 @@ module.exports = {
                         .setDescription('Verification mode to use')
                         .setRequired(true)
                         .addChoices(
-                            { name: 'Enabled', value: VERIFICATION_MODES.enabled },
-                            { name: 'Disabled', value: VERIFICATION_MODES.disabled },
-                            { name: 'Skip', value: VERIFICATION_MODES.skip },
+                            { name: 'Challenge', value: VERIFICATION_MODES.challenge },
+                            { name: 'Block', value: VERIFICATION_MODES.block },
+                            { name: 'Skip Challenge', value: VERIFICATION_MODES.skipChallenge },
                         )
                 )
         )
@@ -1230,7 +1239,7 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
 
                 if (action === 'disable') {
                     if (enabledChallengeIds.length === 1 && enabledChallengeIds.includes(challengeId)) {
-                        return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode disabled` or `/verification mode skip` if you do not want challenge verification.')] });
+                        return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode block` or `/verification mode skip_challenge` if you do not want challenge verification.')] });
                     }
 
                     const updatedSettings = await disableChallengeId(guildId, challengeId, interaction.user.id);
@@ -1240,8 +1249,8 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
 
 
             const verificationSettings = await getVerificationSettings(guildId);
-            if (resolveVerificationMode(verificationSettings) === VERIFICATION_MODES.disabled) {
-                return interaction.editReply({ embeds: [userErrorEmbed('Verification is disabled in the Warden settings.')] });
+            if (resolveVerificationMode(verificationSettings) === VERIFICATION_MODES.block) {
+                return interaction.editReply({ embeds: [userErrorEmbed('Verification is blocked in the Warden settings.')] });
             }
 
             const configuredChannelId = verificationConfig?.channelId;
