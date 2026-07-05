@@ -89,7 +89,7 @@ const verificationChallenges = {
         enabled: false,
         renderMode: 'componentsV2Gallery',
         imagePoolId: 'eliteStarterShips',
-        gallerySize: 6,
+        gallerySize: 9,
         solutionImageCount: {
             min: 1,
             max: 2,
