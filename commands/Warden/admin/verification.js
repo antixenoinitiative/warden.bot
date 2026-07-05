@@ -19,6 +19,8 @@ const {
     setActiveChallengeIds,
     enableChallengeId,
     disableChallengeId,
+    setChallengeExpirySeconds,
+    setCooldownSeconds,
 } = require('../verification/verificationSettings');
 
 const VERIFICATION_MODES = {
@@ -192,6 +194,7 @@ function createGalleryState(challenge, stepIndex = 0) {
     };
 }
 
+
 function parsePositionAnswer(positionAnswer) {
     const normalizedInput = String(positionAnswer ?? '').trim();
     if (!normalizedInput) return [];
@@ -237,6 +240,44 @@ function userErrorEmbed(message) {
         .setColor(resolveEmbedColor('#E74C3C'))
         .setTitle('Verification Error')
         .setDescription(message);
+}
+
+function resolveChallengeExpiryMs(verificationSettings) {
+    return Number(verificationSettings?.challengeExpirySeconds ?? config.Warden?.verification?.challengeExpirySeconds ?? config.Warden?.verification?.expirySeconds ?? 600) * 1000;
+}
+
+function resolveCooldownSeconds(verificationSettings) {
+    return Number(verificationSettings?.cooldownSeconds ?? config.Warden?.verification?.cooldownSeconds ?? 60);
+}
+
+function buildExpiryLine(expiresAt) {
+    if (!expiresAt) return undefined;
+    return `-# This prompt will expire in <t:${Math.floor(expiresAt / 1000)}:R>.`;
+}
+
+function parseDurationSeconds(input) {
+    const value = String(input ?? '').trim().toLowerCase();
+    if (!value) return undefined;
+
+    const compactMatch = value.match(/^(\d+)(s|sec|secs|second|seconds|m|min|mins|minute|minutes)?$/);
+    if (compactMatch) {
+        const amount = Number(compactMatch[1]);
+        const unit = compactMatch[2] ?? 'seconds';
+        return unit.startsWith('m') ? amount * 60 : amount;
+    }
+
+    const spacedMatch = value.match(/^(\d+)\s+(seconds?|secs?|minutes?|mins?)$/);
+    if (spacedMatch) {
+        const amount = Number(spacedMatch[1]);
+        return spacedMatch[2].startsWith('m') ? amount * 60 : amount;
+    }
+
+    return undefined;
+}
+
+function formatDuration(seconds) {
+    if (seconds % 60 === 0) return `${seconds / 60} minute${seconds === 60 ? '' : 's'}`;
+    return `${seconds} second${seconds === 1 ? '' : 's'}`;
 }
 
 
@@ -320,12 +361,13 @@ function buildImageEmbed(fieldOrEmbed, embedConfig) {
     return embed;
 }
 
-function buildChallengeEmbeds(challenge, stepIndex = 0) {
+function buildChallengeEmbeds(challenge, stepIndex = 0, expiresAt) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
     const embedConfig = verificationEmbedConfig.challengeEmbed ?? {};
     const steps = getVerificationChallengeSteps(challenge);
     const totalSteps = steps.length || 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
+    const expiryLine = buildExpiryLine(expiresAt);
     const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
     const stepDescription = step?.description ? `${step.description}\n\n` : '';
     let description = embedConfig.description ?? '{challenge}';
@@ -338,7 +380,7 @@ function buildChallengeEmbeds(challenge, stepIndex = 0) {
     const embed = new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor(step?.color ?? embedConfig.color))
         .setTitle(step?.title ?? embedConfig.title ?? 'Verification Challenge')
-        .setDescription(`${description}${stepLabel}`);
+        .setDescription([`${description}${stepLabel}`, expiryLine].filter(Boolean).join('\n\n'));
 
     const imageUrl = step?.imageUrl ?? challenge.imageUrl;
     const thumbnailUrl = step?.thumbnailUrl ?? challenge.thumbnailUrl;
@@ -388,7 +430,7 @@ function markdownHeading(text) {
     return `# ${text}`;
 }
 
-function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState) {
+function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expiresAt) {
     assertComponentsV2Support();
 
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
@@ -400,6 +442,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState) {
     const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const selectedImages = galleryState?.selectedImages ?? [];
+    const expiryLine = buildExpiryLine(expiresAt);
 
     if (selectedImages.length < 1) {
         throw new Error(`No gallery images were selected for challenge "${challenge.id}".`);
@@ -445,23 +488,29 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState) {
         ),
     );
 
+    if (expiryLine) {
+        container.addTextDisplayComponents(
+            new Discord.TextDisplayBuilder().setContent(expiryLine),
+        );
+    }
+
     container.addActionRowComponents(buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token));
 
     return [container];
 }
 
-function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState) {
+function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState, expiresAt) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
 
     if (isComponentsV2GalleryChallenge(challenge, step)) {
         return {
-            components: buildChallengeComponentsV2(challenge, stepIndex, galleryState),
+            components: buildChallengeComponentsV2(challenge, stepIndex, galleryState, expiresAt),
             flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
         };
     }
 
     return {
-        embeds: buildChallengeEmbeds(challenge, stepIndex),
+        embeds: buildChallengeEmbeds(challenge, stepIndex, expiresAt),
         components: [buildGiveAnswerRow(challenge.id, stepIndex)],
         ephemeral: true,
     };
@@ -477,20 +526,20 @@ function buildOldVersionRow(challengeId, stepIndex = 0, token) {
         );
 }
 
-function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState) {
+function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState, expiresAt) {
     return {
         embeds: [
             new Discord.EmbedBuilder()
                 .setColor(resolveEmbedColor(verificationEmbedConfig.challengeEmbed?.color))
                 .setTitle('Not working?')
-                .setDescription('If you cannot see the Verification Challenge please update your client, or click the Old Version button below.'),
+                .setDescription(['If you cannot see the Verification Challenge please update your client, or click the Old Version button below.', buildExpiryLine(expiresAt)].filter(Boolean).join('\n\n')),
         ],
         components: [buildOldVersionRow(challenge.id, stepIndex, galleryState?.token)],
         ephemeral: true,
     };
 }
 
-function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState) {
+function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expiresAt) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
     const embedConfig = verificationEmbedConfig.challengeEmbed ?? {};
     const steps = getVerificationChallengeSteps(challenge);
@@ -505,6 +554,7 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState) {
             step?.description,
             `**Question 1**\n${prompt}`,
             galleryPrompt ? `**Question 2**\n${galleryPrompt}${stepLabel}` : undefined,
+            buildExpiryLine(expiresAt),
         ].filter(Boolean).join('\n\n'));
 
     for (const field of step?.fields ?? []) {
@@ -521,16 +571,16 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState) {
     return [challengeEmbed, ...imageEmbeds];
 }
 
-function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds) {
+function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds, expiresAt) {
     return {
-        embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState),
+        embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt),
         components: [buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token)],
         ephemeral: true,
     };
 }
 
-function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState) {
-    const embeds = buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState);
+function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, expiresAt) {
+    const embeds = buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt);
     const challengeEmbed = embeds[0];
     const imageEmbeds = embeds.slice(1);
     const pages = [
@@ -544,21 +594,49 @@ function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState) {
     return pages.filter((page) => page.length > 0);
 }
 
-async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState) {
-    const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState);
-    await interaction.reply(buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage));
+async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
+    const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState, expiresAt);
+    await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage, expiresAt));
 
     for (const page of followUpPages) {
         await interaction.followUp({ embeds: page, ephemeral: true });
     }
 }
 
-async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState) {
+async function sendInitialInteractionResponse(interaction, options) {
+    if (interaction.deferred) {
+        return interaction.editReply(removeInitialOnlyResponseOptions(options));
+    }
+
+    if (interaction.replied) {
+        return interaction.followUp(options);
+    }
+
+    return interaction.reply(options);
+}
+
+function removeInitialOnlyResponseOptions(options) {
+    const editOptions = { ...options };
+
+    delete editOptions.ephemeral;
+
+    if (typeof editOptions.flags === 'number') {
+        editOptions.flags &= ~Discord.MessageFlags.Ephemeral;
+
+        if (editOptions.flags === 0) {
+            delete editOptions.flags;
+        }
+    }
+
+    return editOptions;
+}
+
+async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
 
     try {
-        await interaction.reply(buildChallengeReplyOptions(challenge, stepIndex, galleryState));
+        await sendInitialInteractionResponse(interaction, buildChallengeReplyOptions(challenge, stepIndex, galleryState, expiresAt));
     }
     catch (err) {
         if (!isGalleryChallenge) {
@@ -566,11 +644,11 @@ async function replyWithChallenge(interaction, challenge, stepIndex = 0, gallery
         }
 
         console.error('Failed to send Components V2 verification challenge. Falling back to legacy embeds:', err);
-        return replyWithLegacyGallery(interaction, challenge, stepIndex, galleryState);
+        return replyWithLegacyGallery(interaction, challenge, stepIndex, galleryState, expiresAt);
     }
 
     if (isGalleryChallenge) {
-        await interaction.followUp(buildGalleryFallbackPrompt(challenge, stepIndex, galleryState)).catch((err) => {
+        await interaction.followUp(buildGalleryFallbackPrompt(challenge, stepIndex, galleryState, expiresAt)).catch((err) => {
             console.error('Failed to send Components V2 verification fallback prompt:', err);
         });
     }
@@ -706,12 +784,18 @@ async function handleVerifyStart(interaction) {
     const challengeId = challenge.id;
     const stepIndex = 0;
     const step = getVerificationChallengeStep(challengeId, stepIndex);
+
+    if (isComponentsV2GalleryChallenge(challenge, step) && !interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: true });
+    }
+
     const galleryState = isComponentsV2GalleryChallenge(challenge, step)
         ? createGalleryState(challenge, stepIndex)
         : undefined;
-    setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState });
+    setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, resolveChallengeExpiryMs(verificationSettings));
+    const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
-    return replyWithChallenge(interaction, challenge, stepIndex, galleryState);
+    return replyWithChallenge(interaction, challenge, stepIndex, galleryState, activeChallenge?.expiresAt);
 }
 
 async function handleVerifyAnswer(interaction) {
@@ -726,7 +810,7 @@ async function handleVerifyAnswer(interaction) {
         return completeVerification(interaction);
     }
 
-    const activeChallenge = getChallenge(interaction.user.id);
+    const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
         return interaction.reply({
             embeds: [buildResultEmbed(
@@ -771,7 +855,7 @@ async function handleVerifyOldVersion(interaction) {
         return completeVerification(interaction);
     }
 
-    const activeChallenge = getChallenge(interaction.user.id);
+    const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
         return interaction.reply({
             embeds: [buildResultEmbed(
@@ -811,7 +895,7 @@ async function handleVerifyOldVersion(interaction) {
         });
     }
 
-    return replyWithLegacyGallery(interaction, challenge, stepIndex, activeChallenge.gallery);
+    return replyWithLegacyGallery(interaction, challenge, stepIndex, activeChallenge.gallery, activeChallenge.expiresAt);
 }
 
 async function handleVerifySubmit(interaction) {
@@ -826,7 +910,7 @@ async function handleVerifySubmit(interaction) {
         return completeVerification(interaction);
     }
 
-    const activeChallenge = getChallenge(interaction.user.id);
+    const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
         return interaction.reply({
             embeds: [buildResultEmbed(
@@ -869,7 +953,7 @@ async function handleVerifySubmit(interaction) {
         );
 
     if (!result.ok || !galleryResultOk) {
-        const cooldownSeconds = Number(config.Warden?.verification?.cooldownSeconds ?? 60);
+        const cooldownSeconds = resolveCooldownSeconds(verificationSettings);
         const retryAt = Date.now() + (cooldownSeconds * 1000);
         clearChallenge(interaction.user.id);
         setCooldown(interaction.user.id, retryAt);
@@ -888,12 +972,18 @@ async function handleVerifySubmit(interaction) {
     if (hasNextVerificationChallengeStep(challengeId, stepIndex)) {
         const nextStepIndex = stepIndex + 1;
         const nextStep = getVerificationChallengeStep(challengeId, nextStepIndex);
+
+        if (isComponentsV2GalleryChallenge(challenge, nextStep) && !interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ ephemeral: true });
+        }
+
         const nextGalleryState = isComponentsV2GalleryChallenge(challenge, nextStep)
             ? createGalleryState(challenge, nextStepIndex)
             : undefined;
-        setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: nextGalleryState });
+        setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: nextGalleryState }, resolveChallengeExpiryMs(verificationSettings));
+        const nextActiveChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
-        return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState);
+        return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState, nextActiveChallenge?.expiresAt);
     }
 
     return completeVerification(interaction);
@@ -940,47 +1030,35 @@ module.exports = {
                         )
                 )
         )
-        .addSubcommandGroup(group =>
-            group
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('challenge')
-                .setDescription('Inspect configured Warden verification challenges')
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('list')
-                        .setDescription('List configured verification challenge IDs')
-                )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('set')
-                        .setDescription('Set the only enabled verification challenge')
-                        .addStringOption(option =>
-                            option
-                                .setName('id')
-                                .setDescription('Challenge ID to set as the only active challenge')
-                                .setRequired(true)
+                .setDescription('Manage configured Warden verification challenges')
+                .addStringOption(option =>
+                    option
+                        .setName('action')
+                        .setDescription('Challenge setting to inspect or update')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'List challenge IDs', value: 'list' },
+                            { name: 'Set only enabled challenge', value: 'set' },
+                            { name: 'Enable challenge', value: 'enable' },
+                            { name: 'Disable challenge', value: 'disable' },
+                            { name: 'Set prompt expiry timer', value: 'timer' },
+                            { name: 'Set retry cooldown timer', value: 'cooldown' },
                         )
                 )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('enable')
-                        .setDescription('Enable a verification challenge')
-                        .addStringOption(option =>
-                            option
-                                .setName('id')
-                                .setDescription('Challenge ID to enable')
-                                .setRequired(true)
-                        )
+                .addStringOption(option =>
+                    option
+                        .setName('id')
+                        .setDescription('Challenge ID for set, enable, or disable')
+                        .setRequired(false)
                 )
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('disable')
-                        .setDescription('Disable a verification challenge')
-                        .addStringOption(option =>
-                            option
-                                .setName('id')
-                                .setDescription('Challenge ID to disable')
-                                .setRequired(true)
-                        )
+                .addStringOption(option =>
+                    option
+                        .setName('time')
+                        .setDescription('Duration for timer or cooldown, such as 90s, 2m, or 2 minutes')
+                        .setRequired(false)
                 )
         ),
     async execute(interaction) {
@@ -988,7 +1066,6 @@ module.exports = {
 
         try {
             const verificationConfig = config.Warden?.verification;
-            const subcommandGroup = interaction.options.getSubcommandGroup(false);
             const subcommand = interaction.options.getSubcommand();
 
             const guildId = interaction.guild?.id;
@@ -999,35 +1076,59 @@ module.exports = {
                 return interaction.editReply({ content: `Verification mode set to **${mode}**.` });
             }
 
-            if (subcommandGroup === 'challenge') {
+            if (subcommand === 'challenge') {
+                const action = interaction.options.getString('action', true);
                 const verificationSettings = await getVerificationSettings(guildId);
                 const activeChallenge = getActiveVerificationChallenge({ verification: verificationSettings });
                 const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
 
-                if (subcommand === 'list') {
+                if (action === 'list') {
                     const challengeList = Object.values(verificationChallenges)
                         .map(challenge => `${challenge.id === activeChallenge.id ? '**' : ''}${challenge.id}${challenge.id === activeChallenge.id ? '** (active)' : ''}${enabledChallengeIds.includes(challenge.id) ? ' [enabled]' : ''}`)
                         .join('\n');
 
-                    return interaction.editReply({ content: `Configured verification challenge IDs:\n${challengeList}` });
+                    return interaction.editReply({ content: `Configured verification challenge IDs:
+${challengeList}
+
+Prompt expiry: **${formatDuration(verificationSettings.challengeExpirySeconds)}**
+Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
                 }
 
-                const challengeId = interaction.options.getString('id', true);
+                if (action === 'timer' || action === 'cooldown') {
+                    const durationSeconds = parseDurationSeconds(interaction.options.getString('time'));
+                    if (!durationSeconds) {
+                        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid time, such as `90s`, `2m`, or `2 minutes`.')] });
+                    }
+
+                    const updatedSettings = action === 'timer'
+                        ? await setChallengeExpirySeconds(guildId, durationSeconds, interaction.user.id)
+                        : await setCooldownSeconds(guildId, durationSeconds, interaction.user.id);
+                    const settingName = action === 'timer' ? 'challenge expiry timer' : 'verification retry cooldown';
+                    const updatedSeconds = action === 'timer' ? updatedSettings.challengeExpirySeconds : updatedSettings.cooldownSeconds;
+
+                    return interaction.editReply({ content: `Updated ${settingName} to **${formatDuration(updatedSeconds)}**.` });
+                }
+
+                const challengeId = interaction.options.getString('id');
+                if (!challengeId) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('Please provide an `id` for the selected challenge action.')] });
+                }
+
                 if (!verificationChallenges[challengeId]) {
                     return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
                 }
 
-                if (subcommand === 'set') {
+                if (action === 'set') {
                     const updatedSettings = await setActiveChallengeIds(guildId, [challengeId], interaction.user.id);
                     return interaction.editReply({ content: `Verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}` });
                 }
 
-                if (subcommand === 'enable') {
+                if (action === 'enable') {
                     const updatedSettings = await enableChallengeId(guildId, challengeId, interaction.user.id);
                     return interaction.editReply({ content: `Enabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
                 }
 
-                if (subcommand === 'disable') {
+                if (action === 'disable') {
                     if (enabledChallengeIds.length === 1 && enabledChallengeIds.includes(challengeId)) {
                         return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode disabled` or `/verification mode skip` if you do not want challenge verification.')] });
                     }
@@ -1036,6 +1137,7 @@ module.exports = {
                     return interaction.editReply({ content: `Disabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
                 }
             }
+
 
             const verificationSettings = await getVerificationSettings(guildId);
             if (resolveVerificationMode(verificationSettings) === VERIFICATION_MODES.disabled) {
