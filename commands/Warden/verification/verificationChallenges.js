@@ -16,7 +16,8 @@
  * - `renderMode`: optional renderer. Use `componentsV2Gallery` for a Components V2 media gallery.
  * - `imagePoolId`: optional reusable image pool ID for gallery challenges.
  * - `gallerySize`: optional number of images to show for gallery challenges.
- * - `solutionImageCount`: optional `{ min, max }` range for solution images.
+ * - `solutionImageCount`: optional `{ min, max }` range for solution image slots. Solution
+ *   images may repeat if the requested slot count is larger than the number of solution URLs.
  * - `controlImageCount`: optional `{ min, max }` range for control images.
  * - `maxControlImageRepeats`: optional maximum number of times the same control image can appear.
  *

@@ -81,6 +81,28 @@ function pickRandomItems(items, count, itemRole) {
     return shuffleArray(items).slice(0, count);
 }
 
+function pickRandomItemsWithRepeats(items, count, itemRole) {
+    if (count <= 0) {
+        return [];
+    }
+
+    if (items.length < 1) {
+        throw new Error(`Verification image pool does not contain any ${itemRole} images. Required ${count}.`);
+    }
+
+    if (items.length >= count) {
+        return pickRandomItems(items, count, itemRole);
+    }
+
+    const selectedItems = [];
+
+    while (selectedItems.length < count) {
+        selectedItems.push(items[Math.floor(Math.random() * items.length)]);
+    }
+
+    return selectedItems;
+}
+
 function pickRandomItemsWithRepeatLimit(items, count, maxRepeats, itemRole) {
     const normalizedMaxRepeats = Math.floor(Number(maxRepeats ?? 1));
 
@@ -152,7 +174,7 @@ function createGalleryState(challenge, stepIndex = 0) {
     const controlImages = imagePool.images.filter((image) => image.role === 'control');
     const maxControlImageRepeats = step?.maxControlImageRepeats ?? challenge.maxControlImageRepeats ?? 1;
     const selectedImages = shuffleArray([
-        ...pickRandomItems(solutionImages, solutionCount, 'solution'),
+        ...pickRandomItemsWithRepeats(solutionImages, solutionCount, 'solution'),
         ...pickRandomItemsWithRepeatLimit(controlImages, controlCount, maxControlImageRepeats, 'control'),
     ]).map((image, index) => ({
         ...image,

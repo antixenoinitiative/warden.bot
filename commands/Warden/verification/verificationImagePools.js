@@ -10,7 +10,7 @@
  */
 const verificationImagePools = {
     eliteStarterShips: {
-        id: 'eliteStarterShip',
+        id: 'eliteStarterShips',
         description: 'Elite Dangerous vessel img pool for starter ship question.',
         images: [
             {
