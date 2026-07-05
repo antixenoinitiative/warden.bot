@@ -98,7 +98,7 @@ const verificationChallenges = {
             {
                 title: 'Verification Challenge',
                 description: 'Answer both questions below.',
-                prompt: 'What is the starter ship in Elite Dangerous?',
+                prompt: 'What is the name of the starter ship in Elite Dangerous?',
                 galleryPrompt: 'Which of these images is the starter ship? Remember their position in the order.',
                 answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki'],
                 positionInputLabel: 'Image position(s)',
