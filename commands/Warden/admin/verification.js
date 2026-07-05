@@ -46,43 +46,6 @@ function resolveVerificationMode(verificationSettings = config.Warden?.verificat
     return VERIFICATION_MODES.enabled;
 }
 
-const VERIFICATION_MODES = {
-    enabled: 'enabled',
-    disabled: 'disabled',
-    skip: 'skip',
-};
-
-let runtimeVerificationMode;
-
-function resolveEmbedColor(color, fallbackColor = '#3498DB') {
-    if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
-        return `#${color.slice(1).split('').map((char) => char + char).join('')}`;
-    }
-
-    return color ?? fallbackColor;
-}
-
-function resolveVerificationMode(verificationConfig = config.Warden?.verification) {
-    if (runtimeVerificationMode) return runtimeVerificationMode;
-
-    const configuredMode = verificationConfig?.mode;
-    if (Object.values(VERIFICATION_MODES).includes(configuredMode)) {
-        return configuredMode;
-    }
-
-    if (verificationConfig?.enabled === false) return VERIFICATION_MODES.disabled;
-
-    return VERIFICATION_MODES.enabled;
-}
-
-function setRuntimeVerificationMode(mode) {
-    if (!Object.values(VERIFICATION_MODES).includes(mode)) {
-        throw new Error(`Invalid verification mode: ${mode}`);
-    }
-
-    runtimeVerificationMode = mode;
-}
-
 function userErrorEmbed(message) {
     return new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor('#E74C3C'))

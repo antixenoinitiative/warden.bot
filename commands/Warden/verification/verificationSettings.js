@@ -26,7 +26,13 @@ function defaultVerificationSettings() {
         : verificationConfig.enabled === false ? 'disabled' : 'enabled';
     const activeChallengeIds = Array.isArray(verificationConfig.activeChallengeIds)
         ? verificationConfig.activeChallengeIds
-        : [verificationConfig.activeChallengeId ?? verificationConfig.challengeId ?? 'placeholder'];
+        : [
+            verificationConfig.activeChallengeId
+            ?? verificationConfig.challengeId
+            ?? verificationConfig.activeCaptchaId
+            ?? verificationConfig.captchaId
+            ?? 'placeholder',
+        ];
 
     return {
         mode,
