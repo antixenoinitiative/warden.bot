@@ -823,13 +823,14 @@ async function handleVerifyStart(interaction) {
     const stepIndex = 0;
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
-    if (isComponentsV2GalleryChallenge(challenge, step) && !interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    }
-
-    const galleryState = isComponentsV2GalleryChallenge(challenge, step)
+    const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
+    const galleryState = isGalleryChallenge
         ? createGalleryState(challenge, stepIndex)
         : undefined;
+
+    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    }
     setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, resolveChallengeExpiryMs(verificationSettings));
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
