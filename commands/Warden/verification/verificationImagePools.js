@@ -10,48 +10,53 @@
  */
 const verificationImagePools = {
     eliteStarterShips: {
-        id: 'eliteStarterShips',
-        description: 'Example Elite Dangerous starter ship pool. Replace neutral placeholder URLs with production ship images before enabling.',
+        id: 'eliteStarterShip',
+        description: 'Elite Dangerous vessel img pool for starter ship question.',
         images: [
             {
                 id: 'sidewinder-1',
                 role: 'solution',
-                url: 'https://placehold.co/1024x576/1f2937/ffffff.png?text=Verification+Image+01',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel8.png',
             },
             {
-                id: 'sidewinder-2',
-                role: 'solution',
-                url: 'https://placehold.co/1024x576/111827/ffffff.png?text=Verification+Image+02',
-            },
-            {
-                id: 'cobra-mk3-1',
+                id: 'chieftain-1',
                 role: 'control',
-                url: 'https://placehold.co/1024x576/374151/ffffff.png?text=Verification+Image+03',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel1.png',
             },
             {
-                id: 'viper-mk3-1',
+                id: 'clops-1',
                 role: 'control',
-                url: 'https://placehold.co/1024x576/4b5563/ffffff.png?text=Verification+Image+04',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel2.png',
+            },
+            {
+                id: 'type-7-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel3.png',
             },
             {
                 id: 'eagle-1',
                 role: 'control',
-                url: 'https://placehold.co/1024x576/6b7280/ffffff.png?text=Verification+Image+05',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel9.png',
             },
             {
-                id: 'adder-1',
+                id: 'imp-eagle-1',
                 role: 'control',
-                url: 'https://placehold.co/1024x576/475569/ffffff.png?text=Verification+Image+06',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel4.png',
             },
             {
-                id: 'hauler-1',
+                id: 'krait-mk2-1',
                 role: 'control',
-                url: 'https://placehold.co/1024x576/334155/ffffff.png?text=Verification+Image+07',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel5.png',
             },
             {
-                id: 'diamondback-explorer-1',
+                id: 'type-10-1',
                 role: 'control',
-                url: 'https://placehold.co/1024x576/1e293b/ffffff.png?text=Verification+Image+08',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel6.png',
+            },
+            {
+                id: 'fas-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel7.png',
             },
         ],
     },
