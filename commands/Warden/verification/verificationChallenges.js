@@ -35,7 +35,7 @@ const verificationChallenges = {
         enabled: true,
         steps: [
             {
-                title: 'AXI Verification Challenge',
+                title: 'Verification Challenge',
                 prompt: 'Type "AXI" to verify.',
                 answers: ['axi'],
                 fields: [
@@ -77,7 +77,7 @@ const verificationChallenges = {
                     {
                         title: 'Additional image example',
                         description: 'Optional extra embeds can carry more pictures for multi-picture challenges.',
-                        imageUrl: 'https://www.antixenoinitiative.com/favicon.ico',
+                        imageUrl: 'https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png',
                     },
                 ],
             },
@@ -91,7 +91,7 @@ const verificationChallenges = {
         gallerySize: 6,
         solutionImageCount: {
             min: 1,
-            max: 1,
+            max: 2,
         },
         maxControlImageRepeats: 2,
         steps: [
@@ -100,7 +100,7 @@ const verificationChallenges = {
                 description: 'Answer both questions below.',
                 prompt: 'What is the name of the starter ship in Elite Dangerous?',
                 galleryPrompt: 'Which of these images is the starter ship? Remember their position in the order.',
-                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki'],
+                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
                 positionInputLabel: 'Image position(s)',
                 positionInputPlaceholder: 'If multiple, seperate position numbers by commas or spaces',
             },
