@@ -1,15 +1,15 @@
 {
     "welcomeEmbed": {
-        "title": "Welcome to the server",
+        "title": "Welcome to the Anti-Xeno Initiative",
         "description": "Please verify to access the server.",
         "color": "#ff7100",
         "thumbnail": {
-            "enabled": false,
-            "url": ""
+            "enabled": true,
+            "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
         },
         "icon": {
             "enabled": false,
-            "url": ""
+            "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
         }
     },
     "challengeEmbed": {
