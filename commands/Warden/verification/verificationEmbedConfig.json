@@ -15,7 +15,7 @@
     "challengeEmbed": {
         "title": "Verification Challenge",
         "description": "Answer this challenge to verify: {challenge}",
-        "color": "#1F1F1F"
+        "color": "#FFFFFF"
     },
     "successEmbed": {
         "title": "Verification Complete",

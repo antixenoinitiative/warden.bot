@@ -19,7 +19,7 @@
  * 2. Add either a single-step `prompt`/`answers` pair or a multi-step `steps` array.
  * 3. Add every accepted answer to `answers`; answers are normalized with `normalizeAnswer`
  *    unless the challenge defines a custom `normalizer`.
- * 4. Update `config.Warden.verification.activeChallengeIds` in `config.json` to enable it on boot.
+ * 4. Enable the challenge with `/verification challenge enable <id>` or add it to `config.Warden.verification.activeChallengeIds` as a boot fallback.
  */
 const DEFAULT_CHALLENGE_ID = 'placeholder';
 

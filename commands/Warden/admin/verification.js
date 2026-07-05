@@ -12,6 +12,39 @@ const {
     validateAnswer,
 } = require('../verification/verificationChallenges');
 const { setChallenge, getChallenge, clearChallenge, setCooldown, getCooldownRemaining, clearCooldown } = require('../verification/verificationState');
+const {
+    getVerificationSettings,
+    setVerificationMode,
+    setActiveChallengeIds,
+    enableChallengeId,
+    disableChallengeId,
+} = require('../verification/verificationSettings');
+
+const VERIFICATION_MODES = {
+    enabled: 'enabled',
+    disabled: 'disabled',
+    skip: 'skip',
+};
+
+
+function resolveEmbedColor(color, fallbackColor = '#3498DB') {
+    if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
+        return `#${color.slice(1).split('').map((char) => char + char).join('')}`;
+    }
+
+    return color ?? fallbackColor;
+}
+
+function resolveVerificationMode(verificationSettings = config.Warden?.verification) {
+    const configuredMode = verificationSettings?.mode;
+    if (Object.values(VERIFICATION_MODES).includes(configuredMode)) {
+        return configuredMode;
+    }
+
+    if (verificationSettings?.enabled === false) return VERIFICATION_MODES.disabled;
+
+    return VERIFICATION_MODES.enabled;
+}
 
 const VERIFICATION_MODES = {
     enabled: 'enabled',
@@ -58,10 +91,10 @@ function userErrorEmbed(message) {
 }
 
 
-function selectVerificationChallenge() {
-    const enabledChallenges = getEnabledVerificationChallenges(config.Warden);
+function selectVerificationChallenge(verificationSettings) {
+    const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
     if (enabledChallenges.length < 2) {
-        return enabledChallenges[0] ?? getActiveVerificationChallenge(config.Warden);
+        return enabledChallenges[0] ?? getActiveVerificationChallenge({ verification: verificationSettings });
     }
 
     return enabledChallenges[Math.floor(Math.random() * enabledChallenges.length)];
@@ -258,8 +291,8 @@ async function completeVerification(interaction) {
 }
 
 async function handleVerifyStart(interaction) {
-    const verificationConfig = config.Warden?.verification;
-    const verificationMode = resolveVerificationMode(verificationConfig);
+    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
+    const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.disabled) {
         return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
@@ -275,7 +308,7 @@ async function handleVerifyStart(interaction) {
         return interaction.reply({ content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, ephemeral: true });
     }
 
-    const challenge = selectVerificationChallenge();
+    const challenge = selectVerificationChallenge(verificationSettings);
     const challengeId = challenge.id;
     const stepIndex = 0;
     setChallenge(interaction.user.id, { challengeId, stepIndex });
@@ -288,7 +321,8 @@ async function handleVerifyStart(interaction) {
 }
 
 async function handleVerifyAnswer(interaction) {
-    const verificationMode = resolveVerificationMode(config.Warden?.verification);
+    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
+    const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.disabled) {
         return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
@@ -331,7 +365,8 @@ async function handleVerifyAnswer(interaction) {
 }
 
 async function handleVerifySubmit(interaction) {
-    const verificationMode = resolveVerificationMode(config.Warden?.verification);
+    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
+    const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.disabled) {
         return interaction.reply({ content: 'Verification is currently disabled.', ephemeral: true });
@@ -392,7 +427,7 @@ async function handleVerifySubmit(interaction) {
 
     if (hasNextVerificationChallengeStep(challengeId, stepIndex)) {
         const nextStepIndex = stepIndex + 1;
-        const challenge = verificationChallenges[challengeId] ?? getActiveVerificationChallenge(config.Warden);
+        const challenge = verificationChallenges[challengeId] ?? getActiveVerificationChallenge({ verification: verificationSettings });
         setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex });
 
         return interaction.reply({
@@ -432,11 +467,11 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('mode')
-                .setDescription('Set the runtime verification mode')
+                .setDescription('Set the persisted verification mode')
                 .addStringOption(option =>
                     option
                         .setName('setting')
-                        .setDescription('Verification mode to use until the bot restarts')
+                        .setDescription('Verification mode to use')
                         .setRequired(true)
                         .addChoices(
                             { name: 'Enabled', value: VERIFICATION_MODES.enabled },
@@ -457,18 +492,35 @@ module.exports = {
                 .addSubcommand(subcommand =>
                     subcommand
                         .setName('set')
-                        .setDescription('Reserved: select a challenge after settings persistence is chosen')
+                        .setDescription('Set the only enabled verification challenge')
                         .addStringOption(option =>
                             option
                                 .setName('id')
-                                .setDescription('Challenge ID to select later')
+                                .setDescription('Challenge ID to set as the only active challenge')
+                                .setRequired(true)
+                        )
+                )
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('enable')
+                        .setDescription('Enable a verification challenge')
+                        .addStringOption(option =>
+                            option
+                                .setName('id')
+                                .setDescription('Challenge ID to enable')
                                 .setRequired(true)
                         )
                 )
                 .addSubcommand(subcommand =>
                     subcommand
                         .setName('disable')
-                        .setDescription('Reserved: disable challenges after settings persistence is chosen')
+                        .setDescription('Disable a verification challenge')
+                        .addStringOption(option =>
+                            option
+                                .setName('id')
+                                .setDescription('Challenge ID to disable')
+                                .setRequired(true)
+                        )
                 )
         ),
     async execute(interaction) {
@@ -479,15 +531,18 @@ module.exports = {
             const subcommandGroup = interaction.options.getSubcommandGroup(false);
             const subcommand = interaction.options.getSubcommand();
 
+            const guildId = interaction.guild?.id;
+
             if (subcommand === 'mode') {
                 const mode = interaction.options.getString('setting', true);
-                setRuntimeVerificationMode(mode);
-                return interaction.editReply({ content: `Verification mode set to **${mode}** until the bot restarts.` });
+                await setVerificationMode(guildId, mode, interaction.user.id);
+                return interaction.editReply({ content: `Verification mode set to **${mode}**.` });
             }
 
             if (subcommandGroup === 'challenge') {
-                const activeChallenge = getActiveVerificationChallenge(config.Warden);
-                const enabledChallengeIds = getEnabledVerificationChallenges(config.Warden).map((challenge) => challenge.id);
+                const verificationSettings = await getVerificationSettings(guildId);
+                const activeChallenge = getActiveVerificationChallenge({ verification: verificationSettings });
+                const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
 
                 if (subcommand === 'list') {
                     const challengeList = Object.values(verificationChallenges)
@@ -497,18 +552,34 @@ module.exports = {
                     return interaction.editReply({ content: `Configured verification challenge IDs:\n${challengeList}` });
                 }
 
+                const challengeId = interaction.options.getString('id', true);
+                if (!verificationChallenges[challengeId]) {
+                    return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+                }
+
                 if (subcommand === 'set') {
-                    const challengeId = interaction.options.getString('id', true);
-                    return interaction.editReply({ content: `Challenge selection is reserved for a future persistent settings command. To select this challenge now, set \`config.Warden.verification.activeChallengeIds\` to [\`${challengeId}\`] in \`config.json\`.` });
+                    const updatedSettings = await setActiveChallengeIds(guildId, [challengeId], interaction.user.id);
+                    return interaction.editReply({ content: `Verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}` });
+                }
+
+                if (subcommand === 'enable') {
+                    const updatedSettings = await enableChallengeId(guildId, challengeId, interaction.user.id);
+                    return interaction.editReply({ content: `Enabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
                 }
 
                 if (subcommand === 'disable') {
-                    return interaction.editReply({ content: 'Challenge disabling is reserved for a future persistent settings command. No configuration was changed.' });
+                    if (enabledChallengeIds.length === 1 && enabledChallengeIds.includes(challengeId)) {
+                        return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode disabled` or `/verification mode skip` if you do not want challenge verification.')] });
+                    }
+
+                    const updatedSettings = await disableChallengeId(guildId, challengeId, interaction.user.id);
+                    return interaction.editReply({ content: `Disabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
                 }
             }
 
-            if (resolveVerificationMode(verificationConfig) === VERIFICATION_MODES.disabled) {
-                return interaction.editReply({ embeds: [userErrorEmbed('Verification is disabled in the Warden configuration.')] });
+            const verificationSettings = await getVerificationSettings(guildId);
+            if (resolveVerificationMode(verificationSettings) === VERIFICATION_MODES.disabled) {
+                return interaction.editReply({ embeds: [userErrorEmbed('Verification is disabled in the Warden settings.')] });
             }
 
             const configuredChannelId = verificationConfig?.channelId;
