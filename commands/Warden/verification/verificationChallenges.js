@@ -107,6 +107,30 @@ const verificationChallenges = {
             },
         ],
     },
+    eliteStarterShipGalleryObfuscatedPrompt: {
+        id: 'eliteStarterShipGalleryObfuscatedPrompt',
+        enabled: false,
+        renderMode: 'componentsV2Gallery',
+        promptImageGallery: true,
+        imagePoolId: 'eliteStarterShips_c',
+        gallerySize: 9,
+        solutionImageCount: {
+            min: 1,
+            max: 2,
+        },
+        maxControlImageRepeats: 2,
+        steps: [
+            {
+                title: 'Verification Challenge',
+                description: 'Answer both questions below.',
+                prompt: 'What is the name of the starter ship in Elite Dangerous?',
+                galleryPrompt: 'Find all images depicting the starter ship. It may be multiple. Remember their position in the order.',
+                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
+                positionInputLabel: 'Image position(s) (1-9)',
+                positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
+            },
+        ],
+    },
 };
 
 function normalizeAnswer(answer) {

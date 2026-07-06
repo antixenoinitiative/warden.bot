@@ -1,6 +1,7 @@
 const Discord = require('discord.js');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+const { createCanvas } = require('@napi-rs/canvas');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
 const verificationEmbedConfig = require('../verification/verificationEmbedConfig.json');
@@ -42,6 +43,12 @@ const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
 const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
 const GALLERY_IMAGE_FETCH_TIMEOUT_MS = 10000;
 const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
+const PROMPT_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-prompt';
+const PROMPT_IMAGE_WIDTH = 1200;
+const PROMPT_IMAGE_MIN_HEIGHT = 360;
+const PROMPT_IMAGE_PADDING = 58;
+const PROMPT_IMAGE_FONT_SIZE = 54;
+const PROMPT_IMAGE_LINE_HEIGHT = 68;
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -67,6 +74,121 @@ function resolveComponentAccentColor(color, fallbackColor = '#3498DB') {
 
 function isComponentsV2GalleryChallenge(challenge, step) {
     return challenge?.renderMode === COMPONENTS_V2_RENDER_MODE || step?.renderMode === COMPONENTS_V2_RENDER_MODE;
+}
+
+
+function createPromptImageNonce() {
+    return crypto.randomBytes(12).toString('hex');
+}
+
+function buildPromptImageAttachmentName() {
+    return `${PROMPT_IMAGE_ATTACHMENT_NAME_PREFIX}-${createPromptImageNonce()}.png`;
+}
+
+function wrapCanvasText(context, text, maxWidth) {
+    const words = String(text ?? '').split(/\s+/).filter(Boolean);
+    const lines = [];
+    let currentLine = '';
+
+    for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        if (context.measureText(testLine).width <= maxWidth || !currentLine) {
+            currentLine = testLine;
+        }
+        else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+
+    return lines.length > 0 ? lines : [''];
+}
+
+function drawPromptImageNoise(context, width, height) {
+    for (let index = 0; index < 90; index += 1) {
+        context.save();
+        context.globalAlpha = 0.12 + Math.random() * 0.18;
+        context.strokeStyle = index % 2 === 0 ? '#76d7ff' : '#f5b7ff';
+        context.lineWidth = 1 + Math.random() * 4;
+        context.beginPath();
+        context.moveTo(Math.random() * width, Math.random() * height);
+        context.bezierCurveTo(
+            Math.random() * width,
+            Math.random() * height,
+            Math.random() * width,
+            Math.random() * height,
+            Math.random() * width,
+            Math.random() * height,
+        );
+        context.stroke();
+        context.restore();
+    }
+
+    for (let index = 0; index < 1400; index += 1) {
+        context.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)';
+        context.fillRect(Math.random() * width, Math.random() * height, 1 + Math.random() * 3, 1 + Math.random() * 3);
+    }
+}
+
+async function createPromptImageAttachment(prompt) {
+    const measureCanvas = createCanvas(PROMPT_IMAGE_WIDTH, PROMPT_IMAGE_MIN_HEIGHT);
+    const measureContext = measureCanvas.getContext('2d');
+    measureContext.font = `700 ${PROMPT_IMAGE_FONT_SIZE}px Arial, Helvetica, sans-serif`;
+    const lines = wrapCanvasText(measureContext, prompt, PROMPT_IMAGE_WIDTH - (PROMPT_IMAGE_PADDING * 2));
+    const height = Math.max(PROMPT_IMAGE_MIN_HEIGHT, (PROMPT_IMAGE_PADDING * 2) + (lines.length * PROMPT_IMAGE_LINE_HEIGHT));
+    const canvas = createCanvas(PROMPT_IMAGE_WIDTH, height);
+    const context = canvas.getContext('2d');
+
+    const gradient = context.createLinearGradient(0, 0, PROMPT_IMAGE_WIDTH, height);
+    gradient.addColorStop(0, '#07111f');
+    gradient.addColorStop(0.5, '#14213d');
+    gradient.addColorStop(1, '#0b1020');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, PROMPT_IMAGE_WIDTH, height);
+
+    drawPromptImageNoise(context, PROMPT_IMAGE_WIDTH, height);
+
+    context.font = `700 ${PROMPT_IMAGE_FONT_SIZE}px Arial, Helvetica, sans-serif`;
+    context.textBaseline = 'middle';
+    context.textAlign = 'center';
+
+    const startY = (height - ((lines.length - 1) * PROMPT_IMAGE_LINE_HEIGHT)) / 2;
+    lines.forEach((line, index) => {
+        const y = startY + (index * PROMPT_IMAGE_LINE_HEIGHT);
+        const x = PROMPT_IMAGE_WIDTH / 2;
+        context.save();
+        context.translate(x, y);
+        context.rotate((Math.random() - 0.5) * 0.035);
+        context.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        context.fillText(line, 4, 5);
+        context.strokeStyle = 'rgba(118, 215, 255, 0.55)';
+        context.lineWidth = 2;
+        context.strokeText(line, 0, 0);
+        context.fillStyle = '#f6fbff';
+        context.fillText(line, 0, 0);
+        context.restore();
+    });
+
+    const name = buildPromptImageAttachmentName();
+    const buffer = await canvas.png();
+
+    return {
+        displayUrl: `attachment://${name}`,
+        attachment: new Discord.AttachmentBuilder(buffer, { name }),
+    };
+}
+
+async function preparePromptImageAttachment(challenge, step) {
+    if (!step?.promptImageGallery && !challenge?.promptImageGallery) {
+        return undefined;
+    }
+
+    const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
+    return createPromptImageAttachment(prompt);
 }
 
 function createGalleryImageNonce() {
@@ -613,6 +735,10 @@ function markdownHeading(text) {
     return `# ${text}`;
 }
 
+function getPromptImageAttachment(promptImage) {
+    return promptImage?.attachment ? [promptImage.attachment] : [];
+}
+
 function getGalleryImageAttachments(selectedImages = []) {
     return selectedImages
         .map((image) => image.attachment)
@@ -623,7 +749,7 @@ function getGalleryDisplayUrl(image) {
     return image.displayUrl ?? image.url;
 }
 
-function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expiresAt) {
+function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
     assertComponentsV2Support();
 
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
@@ -655,8 +781,23 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     }
 
     container.addTextDisplayComponents(
-        new Discord.TextDisplayBuilder().setContent(`**Question 1**\n${prompt}`),
+        new Discord.TextDisplayBuilder().setContent('**Question 1**'),
     );
+
+    if (promptImage?.displayUrl) {
+        container.addMediaGalleryComponents(
+            new Discord.MediaGalleryBuilder().addItems(
+                new Discord.MediaGalleryItemBuilder()
+                    .setURL(promptImage.displayUrl)
+                    .setDescription('Question 1 prompt'),
+            ),
+        );
+    }
+    else {
+        container.addTextDisplayComponents(
+            new Discord.TextDisplayBuilder().setContent(prompt),
+        );
+    }
 
     if (galleryPrompt) {
         container.addTextDisplayComponents(
@@ -696,13 +837,13 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     return [container];
 }
 
-function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState, expiresAt) {
+function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
 
     if (isComponentsV2GalleryChallenge(challenge, step)) {
         return {
-            components: buildChallengeComponentsV2(challenge, stepIndex, galleryState, expiresAt),
-            files: getGalleryImageAttachments(galleryState?.selectedImages),
+            components: buildChallengeComponentsV2(challenge, stepIndex, galleryState, expiresAt, promptImage),
+            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages)],
             flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
         };
     }
@@ -737,7 +878,7 @@ function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState, expi
     };
 }
 
-function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expiresAt) {
+function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
     const embedConfig = verificationEmbedConfig.challengeEmbed ?? {};
     const steps = getVerificationChallengeSteps(challenge);
@@ -750,10 +891,14 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expire
         .setTitle(step?.title ?? embedConfig.title ?? 'Verification Challenge')
         .setDescription([
             step?.description,
-            `**Question 1**\n${prompt}`,
+            promptImage?.displayUrl ? '**Question 1**' : `**Question 1**\n${prompt}`,
             galleryPrompt ? `**Question 2**\n${galleryPrompt}${stepLabel}` : undefined,
             buildExpiryLine(expiresAt),
         ].filter(Boolean).join('\n\n'));
+
+    if (promptImage?.displayUrl) {
+        challengeEmbed.setImage(promptImage.displayUrl);
+    }
 
     for (const field of step?.fields ?? []) {
         applyFieldToEmbed(challengeEmbed, field);
@@ -769,24 +914,24 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expire
     return [challengeEmbed, ...imageEmbeds];
 }
 
-function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds, expiresAt, files) {
+function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds, expiresAt, files, promptImage) {
     return {
-        embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt),
-        files: files ?? getGalleryImageAttachments(galleryState?.selectedImages),
+        embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt, promptImage),
+        files: files ?? [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages)],
         components: [buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token)],
         flags: Discord.MessageFlags.Ephemeral,
     };
 }
 
-function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, expiresAt) {
-    const embeds = buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt);
+function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
+    const embeds = buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt, promptImage);
     const challengeEmbed = embeds[0];
     const imageEmbeds = embeds.slice(1);
     const selectedImages = galleryState?.selectedImages ?? [];
     const pages = [
         {
             embeds: [challengeEmbed, ...imageEmbeds.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)].filter(Boolean),
-            files: getGalleryImageAttachments(selectedImages.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)),
+            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(selectedImages.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT))],
         },
     ];
 
@@ -800,9 +945,9 @@ function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, ex
     return pages.filter((page) => page.embeds.length > 0);
 }
 
-async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
-    const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState, expiresAt);
-    await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage.embeds, expiresAt, firstPage.files));
+async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
+    const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState, expiresAt, promptImage);
+    await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage.embeds, expiresAt, firstPage.files, promptImage));
 
     for (const page of followUpPages) {
         await interaction.followUp({ embeds: page.embeds, files: page.files, flags: Discord.MessageFlags.Ephemeral });
@@ -837,12 +982,12 @@ function removeInitialOnlyResponseOptions(options) {
     return editOptions;
 }
 
-async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState, expiresAt) {
+async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
 
     try {
-        await sendInitialInteractionResponse(interaction, buildChallengeReplyOptions(challenge, stepIndex, galleryState, expiresAt));
+        await sendInitialInteractionResponse(interaction, buildChallengeReplyOptions(challenge, stepIndex, galleryState, expiresAt, promptImage));
     }
     catch (err) {
         if (!isGalleryChallenge) {
@@ -850,7 +995,7 @@ async function replyWithChallenge(interaction, challenge, stepIndex = 0, gallery
         }
 
         console.error('Failed to send Components V2 verification challenge. Falling back to legacy embeds:', err);
-        return replyWithLegacyGallery(interaction, challenge, stepIndex, galleryState, expiresAt);
+        return replyWithLegacyGallery(interaction, challenge, stepIndex, galleryState, expiresAt, promptImage);
     }
 
     if (isGalleryChallenge) {
@@ -1015,10 +1160,12 @@ async function handleVerifyStart(interaction) {
     setChallenge(interaction.user.id, { challengeId, stepIndex, pending: true, reservationToken }, challengeExpiryMs);
 
     let galleryState;
+    let promptImage;
     try {
         galleryState = isGalleryChallenge
             ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
             : undefined;
+        promptImage = await preparePromptImageAttachment(challenge, step);
     }
     catch (err) {
         const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
@@ -1053,12 +1200,13 @@ async function handleVerifyStart(interaction) {
         challengeId,
         stepIndex,
         gallery: galleryState,
+        promptImage,
         createdTimestamp: reservedChallenge.createdTimestamp,
         expiresAt: reservedChallenge.expiresAt,
     }, challengeExpiryMs);
     const activeChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
 
-    return replyWithChallenge(interaction, challenge, stepIndex, galleryState, activeChallenge?.expiresAt);
+    return replyWithChallenge(interaction, challenge, stepIndex, galleryState, activeChallenge?.expiresAt, promptImage);
 }
 
 async function handleVerifyAnswer(interaction) {
@@ -1172,7 +1320,7 @@ async function handleVerifyOldVersion(interaction) {
         });
     }
 
-    return replyWithLegacyGallery(interaction, challenge, stepIndex, activeChallenge.gallery, activeChallenge.expiresAt);
+    return replyWithLegacyGallery(interaction, challenge, stepIndex, activeChallenge.gallery, activeChallenge.expiresAt, activeChallenge.promptImage);
 }
 
 async function handleVerifySubmit(interaction) {
