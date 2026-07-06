@@ -65,7 +65,7 @@ const verificationImagePools = {
             },
         ],
     },
-    eliteStarterShips: {
+    eliteStarterShips_c: {
         id: 'eliteStarterShips_c',
         description: 'Elite Dangerous vessel img pool for starter ship question.',
         images: [
