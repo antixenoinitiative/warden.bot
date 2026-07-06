@@ -70,8 +70,11 @@ async function processAutokick(member) {
         try {
             await freshMember.kick('Verification autokick: user still had the unverified role after the configured timer.');
             await botLog(guild, new Discord.EmbedBuilder()
-                .setTitle('Verification autokick')
-                .setDescription(`Kicked ${freshMember.user.tag} (${freshMember.id}) after they did not complete verification.`)
+                .setTitle('Verification Autokick')
+                .setDescription(`User ${freshMember.user.tag}(${freshMember.displayName}) was autokicked after not completing verification.`)
+                .addFields(
+                    { name: 'ID', value: `${freshMember.id}` },
+                )
                 , 1, 'info');
         }
         catch (err) {
