@@ -19,16 +19,19 @@ const {
     getVerificationSettings,
     setVerificationMode,
     setActiveChallengeIds,
-    enableChallengeId,
-    disableChallengeId,
     setChallengeExpirySeconds,
     setCooldownSeconds,
 } = require('../verification/verificationSettings');
 
 const VERIFICATION_MODES = {
-    enabled: 'enabled',
-    disabled: 'disabled',
-    skip: 'skip',
+    block: 'block',
+    challenge: 'challenge',
+    skipChallenge: 'skip_challenge',
+};
+const LEGACY_VERIFICATION_MODE_ALIASES = {
+    disabled: VERIFICATION_MODES.block,
+    enabled: VERIFICATION_MODES.challenge,
+    skip: VERIFICATION_MODES.skipChallenge,
 };
 
 const COMPONENTS_V2_RENDER_MODE = 'componentsV2Gallery';
@@ -299,9 +302,13 @@ function resolveVerificationMode(verificationSettings = config.Warden?.verificat
         return configuredMode;
     }
 
-    if (verificationSettings?.enabled === false) return VERIFICATION_MODES.disabled;
+    if (LEGACY_VERIFICATION_MODE_ALIASES[configuredMode]) {
+        return LEGACY_VERIFICATION_MODE_ALIASES[configuredMode];
+    }
 
-    return VERIFICATION_MODES.enabled;
+    if (verificationSettings?.enabled === false) return VERIFICATION_MODES.block;
+
+    return VERIFICATION_MODES.challenge;
 }
 
 function userErrorEmbed(message) {
@@ -346,6 +353,13 @@ function parseDurationSeconds(input) {
     }
 
     return undefined;
+}
+
+function parseChallengeIdList(input) {
+    return String(input ?? '')
+        .split(/[\s,]+/)
+        .map((challengeId) => challengeId.trim())
+        .filter(Boolean);
 }
 
 function formatDuration(seconds) {
@@ -862,11 +876,11 @@ async function handleVerifyStart(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -882,13 +896,14 @@ async function handleVerifyStart(interaction) {
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
+    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    }
+
     const galleryState = isGalleryChallenge
         ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
         : undefined;
 
-    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    }
     setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, resolveChallengeExpiryMs(verificationSettings));
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
@@ -899,11 +914,11 @@ async function handleVerifyAnswer(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -944,11 +959,11 @@ async function handleVerifyOldVersion(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -999,11 +1014,11 @@ async function handleVerifySubmit(interaction) {
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
-    if (verificationMode === VERIFICATION_MODES.disabled) {
-        return interaction.reply({ content: 'Verification is currently disabled.', flags: Discord.MessageFlags.Ephemeral });
+    if (verificationMode === VERIFICATION_MODES.block) {
+        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
-    if (verificationMode === VERIFICATION_MODES.skip) {
+    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
         return completeVerification(interaction);
     }
 
@@ -1071,13 +1086,14 @@ async function handleVerifySubmit(interaction) {
         const nextStep = getVerificationChallengeStep(challengeId, nextStepIndex);
 
         const isNextGalleryChallenge = isComponentsV2GalleryChallenge(challenge, nextStep);
+        if (isNextGalleryChallenge && !interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+        }
+
         const nextGalleryState = isNextGalleryChallenge
             ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex))
             : undefined;
 
-        if (isNextGalleryChallenge && !interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-        }
         setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: nextGalleryState }, resolveChallengeExpiryMs(verificationSettings));
         const nextActiveChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
@@ -1122,9 +1138,9 @@ module.exports = {
                         .setDescription('Verification mode to use')
                         .setRequired(true)
                         .addChoices(
-                            { name: 'Enabled', value: VERIFICATION_MODES.enabled },
-                            { name: 'Disabled', value: VERIFICATION_MODES.disabled },
-                            { name: 'Skip', value: VERIFICATION_MODES.skip },
+                            { name: 'Challenge', value: VERIFICATION_MODES.challenge },
+                            { name: 'Block', value: VERIFICATION_MODES.block },
+                            { name: 'Skip Challenge', value: VERIFICATION_MODES.skipChallenge },
                         )
                 )
         )
@@ -1139,9 +1155,7 @@ module.exports = {
                         .setRequired(true)
                         .addChoices(
                             { name: 'List challenge IDs', value: 'list' },
-                            { name: 'Set only enabled challenge', value: 'set' },
-                            { name: 'Enable challenge', value: 'enable' },
-                            { name: 'Disable challenge', value: 'disable' },
+                            { name: 'Set active challenge IDs', value: 'set' },
                             { name: 'Set prompt expiry timer', value: 'timer' },
                             { name: 'Set retry cooldown timer', value: 'cooldown' },
                         )
@@ -1149,7 +1163,7 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('id')
-                        .setDescription('Challenge ID for set, enable, or disable')
+                        .setDescription('Challenge ID list for set, separated by commas or spaces')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
@@ -1177,12 +1191,11 @@ module.exports = {
             if (subcommand === 'challenge') {
                 const action = interaction.options.getString('action', true);
                 const verificationSettings = await getVerificationSettings(guildId);
-                const activeChallenge = getActiveVerificationChallenge({ verification: verificationSettings });
                 const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
 
                 if (action === 'list') {
                     const challengeList = Object.values(verificationChallenges)
-                        .map(challenge => `${challenge.id === activeChallenge.id ? '**' : ''}${challenge.id}${challenge.id === activeChallenge.id ? '** (active)' : ''}${enabledChallengeIds.includes(challenge.id) ? ' [enabled]' : ''}`)
+                        .map(challenge => `${enabledChallengeIds.includes(challenge.id) ? '**' : ''}${challenge.id}${enabledChallengeIds.includes(challenge.id) ? '** [active]' : ''}`)
                         .join('\n');
 
                     return interaction.editReply({ content: `Configured verification challenge IDs:
@@ -1207,39 +1220,26 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
                     return interaction.editReply({ content: `Updated ${settingName} to **${formatDuration(updatedSeconds)}**.` });
                 }
 
-                const challengeId = interaction.options.getString('id');
-                if (!challengeId) {
-                    return interaction.editReply({ embeds: [userErrorEmbed('Please provide an `id` for the selected challenge action.')] });
-                }
-
-                if (!verificationChallenges[challengeId]) {
-                    return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
-                }
-
                 if (action === 'set') {
-                    const updatedSettings = await setActiveChallengeIds(guildId, [challengeId], interaction.user.id);
-                    return interaction.editReply({ content: `Verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}` });
-                }
-
-                if (action === 'enable') {
-                    const updatedSettings = await enableChallengeId(guildId, challengeId, interaction.user.id);
-                    return interaction.editReply({ content: `Enabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
-                }
-
-                if (action === 'disable') {
-                    if (enabledChallengeIds.length === 1 && enabledChallengeIds.includes(challengeId)) {
-                        return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode disabled` or `/verification mode skip` if you do not want challenge verification.')] });
+                    const challengeIds = parseChallengeIdList(interaction.options.getString('id'));
+                    if (challengeIds.length < 1) {
+                        return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID. To stop serving challenges, use `/verification mode block` or `/verification mode skip_challenge` instead.')] });
                     }
 
-                    const updatedSettings = await disableChallengeId(guildId, challengeId, interaction.user.id);
-                    return interaction.editReply({ content: `Disabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
+                    const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
+                    if (unknownChallengeIds.length > 0) {
+                        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
+                    }
+
+                    const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
+                    return interaction.editReply({ content: `Active verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}` });
                 }
             }
 
 
             const verificationSettings = await getVerificationSettings(guildId);
-            if (resolveVerificationMode(verificationSettings) === VERIFICATION_MODES.disabled) {
-                return interaction.editReply({ embeds: [userErrorEmbed('Verification is disabled in the Warden settings.')] });
+            if (resolveVerificationMode(verificationSettings) === VERIFICATION_MODES.block) {
+                return interaction.editReply({ embeds: [userErrorEmbed('Verification is blocked in the Warden settings.')] });
             }
 
             const configuredChannelId = verificationConfig?.channelId;

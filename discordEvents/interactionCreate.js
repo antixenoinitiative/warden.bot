@@ -13,6 +13,20 @@ const path = require('path')
 
 let args = {}
 
+async function sendVerificationErrorResponse(interaction, content) {
+    if (interaction.deferred && !interaction.replied) {
+        await interaction.editReply({ content });
+        return;
+    }
+
+    if (interaction.replied) {
+        await interaction.followUp({ content, flags: Discord.MessageFlags.Ephemeral });
+        return;
+    }
+
+    await interaction.reply({ content, flags: Discord.MessageFlags.Ephemeral });
+}
+
 function postArgs(interaction) {
     for (let key of interaction.options.data) {
         args[key.name] = key.value
@@ -109,9 +123,7 @@ const exp = {
                         ,2
                         ,'error'
                     )
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ content: 'Verification could not be submitted. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
-                    }
+                    await sendVerificationErrorResponse(interaction, 'Verification could not be submitted. Please contact staff.');
                 }
                 return
             }
@@ -255,9 +267,7 @@ const exp = {
                             ,2
                             ,'error'
                         )
-                        if (!interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: 'Verification could not be started. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
-                        }
+                        await sendVerificationErrorResponse(interaction, 'Verification could not be started. Please contact staff.');
                     }
                     return;
                 }
