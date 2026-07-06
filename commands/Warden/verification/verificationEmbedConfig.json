@@ -27,6 +27,11 @@
         "description": "That answer was incorrect. Please try again in {cooldownSeconds} seconds.",
         "color": "#E74C3C"
     },
+    "inProgressEmbed": {
+        "title": "Verification in Progress",
+        "description": "You already have a verification challenge in progress. Please answer your current challenge or retry after it expires {retryTime}.",
+        "color": "#FEE75C"
+    },
     "expiredChallengeEmbed": {
         "title": "Verification Challenge Expired",
         "description": "Your verification challenge has expired. Please start verification again.",

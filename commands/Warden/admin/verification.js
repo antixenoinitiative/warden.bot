@@ -894,7 +894,12 @@ async function handleVerifyStart(interaction) {
     const existingChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
     if (existingChallenge) {
         return interaction.reply({
-            content: `You already have a verification challenge in progress. Please answer your current challenge or retry after it expires <t:${Math.floor(existingChallenge.expiresAt / 1000)}:R>.`,
+            embeds: [buildResultEmbed(
+                verificationEmbedConfig.inProgressEmbed,
+                'Verification in Progress',
+                'You already have a verification challenge in progress. Please answer your current challenge or retry after it expires {retryTime}.',
+                { retryTime: `<t:${Math.floor(existingChallenge.expiresAt / 1000)}:R>` },
+            )],
             flags: Discord.MessageFlags.Ephemeral,
         });
     }
