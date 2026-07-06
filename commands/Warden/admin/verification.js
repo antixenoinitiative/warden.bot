@@ -419,6 +419,47 @@ function buildWelcomeEmbed() {
     return embed;
 }
 
+function buildVerificationHelpEmbed() {
+    return buildResultEmbed(
+        verificationEmbedConfig.verificationHelpEmbed,
+        'Verification Help',
+        'If you are having trouble verifying, please contact staff for assistance.',
+    );
+}
+
+function buildVerificationPostComponents() {
+    return [new Discord.ActionRowBuilder()
+        .addComponents(
+            new Discord.ButtonBuilder()
+                .setCustomId('wardenVerify-start')
+                .setLabel('Verify')
+                .setStyle(Discord.ButtonStyle.Success),
+            new Discord.ButtonBuilder()
+                .setCustomId('wardenVerify-help')
+                .setLabel('Help')
+                .setStyle(Discord.ButtonStyle.Secondary),
+        )];
+}
+
+async function handleVerifyHelp(interaction) {
+    return interaction.reply({
+        embeds: [buildVerificationHelpEmbed()],
+        flags: Discord.MessageFlags.Ephemeral,
+    });
+}
+
+async function fetchVerificationMessage(interaction, messageId) {
+    const channels = await interaction.guild.channels.fetch();
+    for (const channel of channels.values()) {
+        if (!channel?.isTextBased?.()) continue;
+
+        const message = await channel.messages.fetch(messageId).catch(() => null);
+        if (message) return message;
+    }
+
+    return null;
+}
+
 function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
     let description = embedConfig?.description ?? fallbackDescription;
 
@@ -1215,6 +1256,7 @@ async function handleVerifySubmit(interaction) {
 module.exports = {
     VERIFICATION_MODES,
     handleVerifyStart,
+    handleVerifyHelp,
     handleVerifyAnswer,
     handleVerifyOldVersion,
     handleVerifySubmit,
@@ -1225,15 +1267,27 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('post')
-                .setDescription('Post the verification welcome message')
+                .setDescription('Post or refresh the verification post')
                 .addChannelOption(option =>
                     option
                         .setName('channel')
-                        .setDescription('Channel to post the verification welcome message in')
+                        .setDescription('Channel to post the verification post in')
                         .addChannelTypes(
                             Discord.ChannelType.GuildText,
                             Discord.ChannelType.GuildAnnouncement,
                         )
+                        .setRequired(false)
+                )
+                .addBooleanOption(option =>
+                    option
+                        .setName('refresh')
+                        .setDescription('Update an existing verification post instead of posting a new one')
+                        .setRequired(false)
+                )
+                .addStringOption(option =>
+                    option
+                        .setName('message_id')
+                        .setDescription('Verification post message ID to update when refresh is enabled')
                         .setRequired(false)
                 )
         )
@@ -1353,30 +1407,39 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
 
             const configuredChannelId = verificationConfig?.channelId;
             const optionChannel = interaction.options.getChannel('channel');
-            const targetChannelId = optionChannel?.id ?? configuredChannelId;
+            const shouldRefresh = interaction.options.getBoolean('refresh') ?? false;
+            const messageId = interaction.options.getString('message_id');
 
+            const welcomeEmbed = buildWelcomeEmbed();
+            const components = buildVerificationPostComponents();
+
+            if (shouldRefresh) {
+                if (!messageId) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('Please provide a message_id when refresh is enabled.')] });
+                }
+
+                const message = await fetchVerificationMessage(interaction, messageId);
+                if (!message) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('Could not find that verification post. Please check the message ID.')] });
+                }
+
+                await message.edit({ embeds: [welcomeEmbed], components });
+                return interaction.editReply({ content: `Verification post refreshed successfully: ${message.url}` });
+            }
+
+            const targetChannelId = optionChannel?.id ?? configuredChannelId;
             if (!targetChannelId) {
                 return interaction.editReply({ embeds: [userErrorEmbed('No verification channel is configured. Please provide a channel option.')] });
             }
 
             const targetChannel = optionChannel ?? await interaction.guild.channels.fetch(targetChannelId);
-
             if (!targetChannel || !targetChannel.isTextBased()) {
                 return interaction.editReply({ embeds: [userErrorEmbed('The verification channel could not be found or is not a text channel.')] });
             }
 
-            const welcomeEmbed = buildWelcomeEmbed();
-            const row = new Discord.ActionRowBuilder()
-                .addComponents(
-                    new Discord.ButtonBuilder()
-                        .setCustomId('wardenVerify-start')
-                        .setLabel('Verify')
-                        .setStyle(Discord.ButtonStyle.Success),
-                );
+            const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
 
-            const message = await targetChannel.send({ embeds: [welcomeEmbed], components: [row] });
-
-            return interaction.editReply({ content: `Verification message posted successfully in ${targetChannel}. ${message.url}` });
+            return interaction.editReply({ content: `Verification post posted successfully in ${targetChannel}. ${message.url}` });
         }
         catch (err) {
             console.log(err);

@@ -22,6 +22,14 @@ function getVerificationRoute(interaction) {
         };
     }
 
+    if (interaction.isButton() && customId === 'wardenVerify-help') {
+        return {
+            handlerName: 'handleVerifyHelp',
+            errorTitle: '⛔ Verification help error',
+            userError: 'Verification help could not be shown. Please contact staff.',
+        };
+    }
+
     if (interaction.isButton() && customId.startsWith('wardenVerify-answer-')) {
         return {
             handlerName: 'handleVerifyAnswer',
