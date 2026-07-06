@@ -4,9 +4,9 @@
  * Each pool can be referenced by one or more verification challenges. Images with role
  * `solution` are correct gallery choices; images with role `control` are distractors.
  *
- * Keep URLs and any displayed metadata neutral. Discord clients receive media URLs, so
- * filenames, query strings, CDN paths, and rendered image text must not reveal whether an
- * image is a solution or what answer it represents.
+ * Keep URLs and any displayed metadata neutral. Discord clients receive them.
+ * - Changed code so images are turned into discordapp attachments before transmitting,
+ * this will obscure image URLs atlest.
  */
 const verificationImagePools = {
     eliteStarterShips: {
