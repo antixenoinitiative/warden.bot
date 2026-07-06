@@ -437,7 +437,13 @@ async function prepareGalleryImageAttachments(galleryState) {
     const compositeImage = galleryState.useCompositeImage
         ? await createGalleryCompositeAttachment(fetchedImages)
         : undefined;
-    const selectedImages = fetchedImages.map(({ buffer, ...image }) => image);
+    const selectedImages = fetchedImages.map(({ buffer, attachment, ...image }) => {
+        if (galleryState.useCompositeImage) {
+            return image;
+        }
+
+        return { ...image, attachment };
+    });
 
     return {
         ...galleryState,
@@ -1623,7 +1629,9 @@ async function handleVerifySubmit(interaction) {
 
         if (!currentChallenge
             || currentChallenge.challengeId !== challengeId
-            || (currentChallenge.stepIndex ?? 0) !== stepIndex) {
+            || (currentChallenge.stepIndex ?? 0) !== stepIndex
+            || currentChallenge.createdTimestamp !== activeChallenge.createdTimestamp
+            || currentChallenge.expiresAt !== activeChallenge.expiresAt) {
             return sendInitialInteractionResponse(interaction, buildExpiredChallengeResponse());
         }
 
