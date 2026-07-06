@@ -392,6 +392,10 @@ function buildWelcomeEmbed() {
         embed.setAuthor({ name: welcomeEmbedConfig.title ?? 'Welcome to the server', iconURL: welcomeEmbedConfig.icon.url });
     }
 
+    for (const field of welcomeEmbedConfig.fields ?? []) {
+        applyFieldToEmbed(embed, field);
+    }
+
     return embed;
 }
 
