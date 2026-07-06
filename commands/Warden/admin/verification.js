@@ -174,7 +174,7 @@ async function createPromptImageAttachment(prompt) {
     });
 
     const name = buildPromptImageAttachmentName();
-    const buffer = await canvas.png();
+    const buffer = await canvas.encode('png');
 
     return {
         displayUrl: `attachment://${name}`,
