@@ -20,6 +20,7 @@
  *   images may repeat if the requested slot count is larger than the number of solution URLs.
  * - `controlImageCount`: optional `{ min, max }` range for control images.
  * - `maxControlImageRepeats`: optional maximum number of times the same control image can appear.
+ * - `compositeImageGallery`: optional boolean that renders selected gallery images as one labeled grid.
  *
  * How to add a new verification challenge for future admin selection:
  * 1. Add a stable ID as a new key in `verificationChallenges`.
@@ -112,6 +113,7 @@ const verificationChallenges = {
         enabled: false,
         renderMode: 'componentsV2Gallery',
         promptImageGallery: true,
+        compositeImageGallery: true,
         imagePoolId: 'eliteStarterShips_c',
         gallerySize: 9,
         solutionImageCount: {
