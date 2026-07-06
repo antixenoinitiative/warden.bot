@@ -1267,7 +1267,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('post')
-                .setDescription('Post or refresh the verification post')
+                .setDescription('Post a new verification post or refresh one by message ID')
                 .addChannelOption(option =>
                     option
                         .setName('channel')
@@ -1278,16 +1278,10 @@ module.exports = {
                         )
                         .setRequired(false)
                 )
-                .addBooleanOption(option =>
-                    option
-                        .setName('refresh')
-                        .setDescription('Update an existing verification post instead of posting a new one')
-                        .setRequired(false)
-                )
                 .addStringOption(option =>
                     option
                         .setName('message_id')
-                        .setDescription('Verification post message ID to update when refresh is enabled')
+                        .setDescription('Existing verification post message ID to refresh')
                         .setRequired(false)
                 )
         )
@@ -1407,17 +1401,12 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
 
             const configuredChannelId = verificationConfig?.channelId;
             const optionChannel = interaction.options.getChannel('channel');
-            const shouldRefresh = interaction.options.getBoolean('refresh') ?? false;
             const messageId = interaction.options.getString('message_id');
 
             const welcomeEmbed = buildWelcomeEmbed();
             const components = buildVerificationPostComponents();
 
-            if (shouldRefresh) {
-                if (!messageId) {
-                    return interaction.editReply({ embeds: [userErrorEmbed('Please provide a message_id when refresh is enabled.')] });
-                }
-
+            if (messageId) {
                 const message = await fetchVerificationMessage(interaction, messageId);
                 if (!message) {
                     return interaction.editReply({ embeds: [userErrorEmbed('Could not find that verification post. Please check the message ID.')] });
