@@ -19,6 +19,7 @@ function getVerificationRoute(interaction) {
             handlerName: 'handleVerifyStart',
             errorTitle: '⛔ Verification start error',
             userError: 'Verification could not be started. Please contact staff.',
+            deferImmediately: true,
         };
     }
 
@@ -87,6 +88,10 @@ async function handleVerificationInteraction(interaction) {
     if (!route) return false;
 
     try {
+        if (route.deferImmediately && !interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+        }
+
         const handlers = getVerificationHandlers();
         await handlers[route.handlerName](interaction);
     }
