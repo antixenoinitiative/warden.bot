@@ -349,11 +349,11 @@ function resolveCooldownSeconds(verificationSettings) {
 
 function buildExpiryLine(expiresAt) {
     if (!expiresAt) return undefined;
-    return `-# This prompt will expire in <t:${Math.floor(expiresAt / 1000)}:R>.`;
+    return `-# This prompt will expire in <t:${Math.floor(expiresAt / 1000)}:R>`;
 }
 
 function buildGalleryOrderLine() {
-    return '-# Click the gallery to view image order; positions start top-left, left-to-right by row.';
+    return '-# **Click the gallery to view image order; positions start top-left, left-to-right by row.**';
 }
 
 function parseDurationSeconds(input) {
