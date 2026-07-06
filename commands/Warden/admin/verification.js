@@ -60,6 +60,13 @@ const PROMPT_IMAGE_DECOY_GLYPH_COUNT = 160;
 const PROMPT_IMAGE_OCCLUSION_LINE_COUNT = 26;
 const PROMPT_IMAGE_MAX_CHARACTER_ROTATION = 0.18;
 const PROMPT_IMAGE_CHARACTER_JITTER = 7;
+const PROMPT_IMAGE_PALETTES = [
+    { background: ['#07111f', '#14213d', '#0b1020'], curve: ['#76d7ff', '#f5b7ff'], glyph: ['#d9f3ff', '#ffd9fb'], stroke: 'rgba(118, 215, 255, 0.70)' },
+    { background: ['#1c0b2b', '#3d145c', '#10091f'], curve: ['#ff9cf5', '#8ad8ff'], glyph: ['#ffe2fb', '#d8f4ff'], stroke: 'rgba(255, 156, 245, 0.70)' },
+    { background: ['#06261d', '#115740', '#071611'], curve: ['#8dffcc', '#ffe08a'], glyph: ['#dcfff0', '#fff2cc'], stroke: 'rgba(141, 255, 204, 0.70)' },
+    { background: ['#2b1608', '#5a3112', '#120904'], curve: ['#ffcf8a', '#8ac7ff'], glyph: ['#fff1d8', '#d8ecff'], stroke: 'rgba(255, 207, 138, 0.70)' },
+    { background: ['#25110f', '#5b1f2d', '#120708'], curve: ['#ff8aa8', '#ffd36e'], glyph: ['#ffe0e7', '#fff0c5'], stroke: 'rgba(255, 138, 168, 0.70)' },
+];
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -119,11 +126,15 @@ function wrapCanvasText(context, text, maxWidth) {
     return lines.length > 0 ? lines : [''];
 }
 
-function drawPromptImageNoise(context, width, height) {
+function pickPromptImagePalette() {
+    return PROMPT_IMAGE_PALETTES[Math.floor(Math.random() * PROMPT_IMAGE_PALETTES.length)];
+}
+
+function drawPromptImageNoise(context, width, height, palette) {
     for (let index = 0; index < PROMPT_IMAGE_CURVE_NOISE_COUNT; index += 1) {
         context.save();
         context.globalAlpha = 0.16 + Math.random() * 0.26;
-        context.strokeStyle = index % 2 === 0 ? '#76d7ff' : '#f5b7ff';
+        context.strokeStyle = palette.curve[index % palette.curve.length];
         context.lineWidth = 1 + Math.random() * 5;
         context.beginPath();
         context.moveTo(Math.random() * width, Math.random() * height);
@@ -145,7 +156,7 @@ function drawPromptImageNoise(context, width, height) {
     }
 }
 
-function drawPromptDecoyGlyphs(context, width, height) {
+function drawPromptDecoyGlyphs(context, width, height, palette) {
     const glyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&';
 
     for (let index = 0; index < PROMPT_IMAGE_DECOY_GLYPH_COUNT; index += 1) {
@@ -155,7 +166,7 @@ function drawPromptDecoyGlyphs(context, width, height) {
         context.rotate((Math.random() - 0.5) * 1.2);
         context.globalAlpha = 0.06 + Math.random() * 0.10;
         context.font = `700 ${18 + Math.random() * 44}px Arial, Helvetica, sans-serif`;
-        context.fillStyle = Math.random() > 0.5 ? '#d9f3ff' : '#ffd9fb';
+        context.fillStyle = palette.glyph[Math.floor(Math.random() * palette.glyph.length)];
         context.fillText(glyph, 0, 0);
         context.restore();
     }
@@ -180,7 +191,7 @@ function drawPromptOcclusionLines(context, width, height) {
     }
 }
 
-function drawPromptTextLine(context, line, centerX, centerY) {
+function drawPromptTextLine(context, line, centerX, centerY, palette) {
     const characters = [...line];
     const characterWidths = characters.map((character) => context.measureText(character).width);
     const totalWidth = characterWidths.reduce((sum, width) => sum + width, 0);
@@ -198,7 +209,7 @@ function drawPromptTextLine(context, line, centerX, centerY) {
         context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
         context.fillStyle = 'rgba(0, 0, 0, 0.55)';
         context.fillText(character, 4, 5);
-        context.strokeStyle = 'rgba(118, 215, 255, 0.70)';
+        context.strokeStyle = palette.stroke;
         context.lineWidth = 3;
         context.strokeText(character, 0, 0);
         context.fillStyle = '#f6fbff';
@@ -218,15 +229,16 @@ async function createPromptImageAttachment(prompt) {
     const canvas = createCanvas(PROMPT_IMAGE_WIDTH, height);
     const context = canvas.getContext('2d');
 
+    const palette = pickPromptImagePalette();
     const gradient = context.createLinearGradient(0, 0, PROMPT_IMAGE_WIDTH, height);
-    gradient.addColorStop(0, '#07111f');
-    gradient.addColorStop(0.5, '#14213d');
-    gradient.addColorStop(1, '#0b1020');
+    gradient.addColorStop(0, palette.background[0]);
+    gradient.addColorStop(0.5, palette.background[1]);
+    gradient.addColorStop(1, palette.background[2]);
     context.fillStyle = gradient;
     context.fillRect(0, 0, PROMPT_IMAGE_WIDTH, height);
 
-    drawPromptImageNoise(context, PROMPT_IMAGE_WIDTH, height);
-    drawPromptDecoyGlyphs(context, PROMPT_IMAGE_WIDTH, height);
+    drawPromptImageNoise(context, PROMPT_IMAGE_WIDTH, height, palette);
+    drawPromptDecoyGlyphs(context, PROMPT_IMAGE_WIDTH, height, palette);
 
     context.font = `700 ${PROMPT_IMAGE_FONT_SIZE}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'middle';
@@ -236,7 +248,7 @@ async function createPromptImageAttachment(prompt) {
     lines.forEach((line, index) => {
         const y = startY + (index * PROMPT_IMAGE_LINE_HEIGHT);
         const x = PROMPT_IMAGE_WIDTH / 2;
-        drawPromptTextLine(context, line, x, y);
+        drawPromptTextLine(context, line, x, y, palette);
     });
 
     drawPromptOcclusionLines(context, PROMPT_IMAGE_WIDTH, height);
