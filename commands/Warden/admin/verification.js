@@ -890,6 +890,15 @@ async function handleVerifyStart(interaction) {
         return interaction.reply({ content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, flags: Discord.MessageFlags.Ephemeral });
     }
 
+    const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
+    const existingChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
+    if (existingChallenge) {
+        return interaction.reply({
+            content: `You already have a verification challenge in progress. Please answer your current challenge or retry after it expires <t:${Math.floor(existingChallenge.expiresAt / 1000)}:R>.`,
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
+
     const challenge = selectVerificationChallenge(verificationSettings);
     const challengeId = challenge.id;
     const stepIndex = 0;
@@ -904,8 +913,8 @@ async function handleVerifyStart(interaction) {
         ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
         : undefined;
 
-    setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, resolveChallengeExpiryMs(verificationSettings));
-    const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
+    setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, challengeExpiryMs);
+    const activeChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
 
     return replyWithChallenge(interaction, challenge, stepIndex, galleryState, activeChallenge?.expiresAt);
 }
@@ -1155,7 +1164,7 @@ module.exports = {
                         .setRequired(true)
                         .addChoices(
                             { name: 'List challenge IDs', value: 'list' },
-                            { name: 'Set active challenge IDs', value: 'set' },
+                            { name: 'Replace active challenge ID list', value: 'set' },
                             { name: 'Set prompt expiry timer', value: 'timer' },
                             { name: 'Set retry cooldown timer', value: 'cooldown' },
                         )
@@ -1163,7 +1172,7 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('id')
-                        .setDescription('Challenge ID list for set, separated by commas or spaces')
+                        .setDescription('Complete challenge ID list for set, separated by commas or spaces')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
@@ -1229,9 +1238,6 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
                     const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
                     if (unknownChallengeIds.length > 0) {
                         return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
-                if (action === 'disable') {
-                    if (enabledChallengeIds.length === 1 && enabledChallengeIds.includes(challengeId)) {
-                        return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode block` or `/verification mode skip_challenge` if you do not want challenge verification.')] });
                     }
 
                     const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
