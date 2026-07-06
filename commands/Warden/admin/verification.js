@@ -918,7 +918,16 @@ async function handleVerifyStart(interaction) {
     setChallenge(interaction.user.id, { challengeId, stepIndex, pending: true, reservationToken }, challengeExpiryMs);
 
     if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+        try {
+            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+        }
+        catch (err) {
+            const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
+            if (reservedChallenge?.reservationToken === reservationToken) {
+                clearChallenge(interaction.user.id);
+            }
+            throw err;
+        }
     }
 
     let galleryState;
