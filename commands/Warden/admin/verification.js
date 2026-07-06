@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
-const { createCanvas } = require('@napi-rs/canvas');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
 const verificationEmbedConfig = require('../verification/verificationEmbedConfig.json');
@@ -43,6 +43,11 @@ const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
 const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
 const GALLERY_IMAGE_FETCH_TIMEOUT_MS = 10000;
 const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
+const GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX = 'warden-gallery-grid';
+const GALLERY_COMPOSITE_GRID_COLUMNS = 3;
+const GALLERY_COMPOSITE_TILE_SIZE = 420;
+const GALLERY_COMPOSITE_LABEL_PADDING = 16;
+const GALLERY_COMPOSITE_LABEL_SIZE = 72;
 const PROMPT_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-prompt';
 const PROMPT_IMAGE_WIDTH = 1200;
 const PROMPT_IMAGE_MIN_HEIGHT = 360;
@@ -55,6 +60,13 @@ const PROMPT_IMAGE_DECOY_GLYPH_COUNT = 160;
 const PROMPT_IMAGE_OCCLUSION_LINE_COUNT = 26;
 const PROMPT_IMAGE_MAX_CHARACTER_ROTATION = 0.18;
 const PROMPT_IMAGE_CHARACTER_JITTER = 7;
+const PROMPT_IMAGE_PALETTES = [
+    { background: ['#07111f', '#14213d', '#0b1020'], curve: ['#76d7ff', '#f5b7ff'], glyph: ['#d9f3ff', '#ffd9fb'], stroke: 'rgba(118, 215, 255, 0.70)' },
+    { background: ['#1c0b2b', '#3d145c', '#10091f'], curve: ['#ff9cf5', '#8ad8ff'], glyph: ['#ffe2fb', '#d8f4ff'], stroke: 'rgba(255, 156, 245, 0.70)' },
+    { background: ['#06261d', '#115740', '#071611'], curve: ['#8dffcc', '#ffe08a'], glyph: ['#dcfff0', '#fff2cc'], stroke: 'rgba(141, 255, 204, 0.70)' },
+    { background: ['#2b1608', '#5a3112', '#120904'], curve: ['#ffcf8a', '#8ac7ff'], glyph: ['#fff1d8', '#d8ecff'], stroke: 'rgba(255, 207, 138, 0.70)' },
+    { background: ['#25110f', '#5b1f2d', '#120708'], curve: ['#ff8aa8', '#ffd36e'], glyph: ['#ffe0e7', '#fff0c5'], stroke: 'rgba(255, 138, 168, 0.70)' },
+];
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -114,11 +126,15 @@ function wrapCanvasText(context, text, maxWidth) {
     return lines.length > 0 ? lines : [''];
 }
 
-function drawPromptImageNoise(context, width, height) {
+function pickPromptImagePalette() {
+    return PROMPT_IMAGE_PALETTES[Math.floor(Math.random() * PROMPT_IMAGE_PALETTES.length)];
+}
+
+function drawPromptImageNoise(context, width, height, palette) {
     for (let index = 0; index < PROMPT_IMAGE_CURVE_NOISE_COUNT; index += 1) {
         context.save();
         context.globalAlpha = 0.16 + Math.random() * 0.26;
-        context.strokeStyle = index % 2 === 0 ? '#76d7ff' : '#f5b7ff';
+        context.strokeStyle = palette.curve[index % palette.curve.length];
         context.lineWidth = 1 + Math.random() * 5;
         context.beginPath();
         context.moveTo(Math.random() * width, Math.random() * height);
@@ -140,7 +156,7 @@ function drawPromptImageNoise(context, width, height) {
     }
 }
 
-function drawPromptDecoyGlyphs(context, width, height) {
+function drawPromptDecoyGlyphs(context, width, height, palette) {
     const glyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&';
 
     for (let index = 0; index < PROMPT_IMAGE_DECOY_GLYPH_COUNT; index += 1) {
@@ -150,7 +166,7 @@ function drawPromptDecoyGlyphs(context, width, height) {
         context.rotate((Math.random() - 0.5) * 1.2);
         context.globalAlpha = 0.06 + Math.random() * 0.10;
         context.font = `700 ${18 + Math.random() * 44}px Arial, Helvetica, sans-serif`;
-        context.fillStyle = Math.random() > 0.5 ? '#d9f3ff' : '#ffd9fb';
+        context.fillStyle = palette.glyph[Math.floor(Math.random() * palette.glyph.length)];
         context.fillText(glyph, 0, 0);
         context.restore();
     }
@@ -175,7 +191,7 @@ function drawPromptOcclusionLines(context, width, height) {
     }
 }
 
-function drawPromptTextLine(context, line, centerX, centerY) {
+function drawPromptTextLine(context, line, centerX, centerY, palette) {
     const characters = [...line];
     const characterWidths = characters.map((character) => context.measureText(character).width);
     const totalWidth = characterWidths.reduce((sum, width) => sum + width, 0);
@@ -193,7 +209,7 @@ function drawPromptTextLine(context, line, centerX, centerY) {
         context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
         context.fillStyle = 'rgba(0, 0, 0, 0.55)';
         context.fillText(character, 4, 5);
-        context.strokeStyle = 'rgba(118, 215, 255, 0.70)';
+        context.strokeStyle = palette.stroke;
         context.lineWidth = 3;
         context.strokeText(character, 0, 0);
         context.fillStyle = '#f6fbff';
@@ -213,15 +229,16 @@ async function createPromptImageAttachment(prompt) {
     const canvas = createCanvas(PROMPT_IMAGE_WIDTH, height);
     const context = canvas.getContext('2d');
 
+    const palette = pickPromptImagePalette();
     const gradient = context.createLinearGradient(0, 0, PROMPT_IMAGE_WIDTH, height);
-    gradient.addColorStop(0, '#07111f');
-    gradient.addColorStop(0.5, '#14213d');
-    gradient.addColorStop(1, '#0b1020');
+    gradient.addColorStop(0, palette.background[0]);
+    gradient.addColorStop(0.5, palette.background[1]);
+    gradient.addColorStop(1, palette.background[2]);
     context.fillStyle = gradient;
     context.fillRect(0, 0, PROMPT_IMAGE_WIDTH, height);
 
-    drawPromptImageNoise(context, PROMPT_IMAGE_WIDTH, height);
-    drawPromptDecoyGlyphs(context, PROMPT_IMAGE_WIDTH, height);
+    drawPromptImageNoise(context, PROMPT_IMAGE_WIDTH, height, palette);
+    drawPromptDecoyGlyphs(context, PROMPT_IMAGE_WIDTH, height, palette);
 
     context.font = `700 ${PROMPT_IMAGE_FONT_SIZE}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'middle';
@@ -231,7 +248,7 @@ async function createPromptImageAttachment(prompt) {
     lines.forEach((line, index) => {
         const y = startY + (index * PROMPT_IMAGE_LINE_HEIGHT);
         const x = PROMPT_IMAGE_WIDTH / 2;
-        drawPromptTextLine(context, line, x, y);
+        drawPromptTextLine(context, line, x, y, palette);
     });
 
     drawPromptOcclusionLines(context, PROMPT_IMAGE_WIDTH, height);
@@ -290,6 +307,14 @@ function buildGalleryAttachmentName(image, extension) {
     return `${GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX}-${createGalleryImageNonce()}-${image.position}.${extension}`;
 }
 
+function buildGalleryCompositeAttachmentName() {
+    return `${GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX}-${createGalleryImageNonce()}.png`;
+}
+
+function shouldUseCompositeGallery(challenge, step) {
+    return step?.compositeImageGallery === true || challenge?.compositeImageGallery === true;
+}
+
 async function fetchGalleryImageAttachment(image) {
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), GALLERY_IMAGE_FETCH_TIMEOUT_MS);
@@ -324,6 +349,82 @@ async function fetchGalleryImageAttachment(image) {
         ...image,
         displayUrl: `attachment://${name}`,
         attachment: new Discord.AttachmentBuilder(buffer, { name }),
+        buffer,
+    };
+}
+
+function drawImageCover(context, image, x, y, width, height) {
+    const sourceRatio = image.width / image.height;
+    const targetRatio = width / height;
+    let sourceX = 0;
+    let sourceY = 0;
+    let sourceWidth = image.width;
+    let sourceHeight = image.height;
+
+    if (sourceRatio > targetRatio) {
+        sourceWidth = image.height * targetRatio;
+        sourceX = (image.width - sourceWidth) / 2;
+    }
+    else {
+        sourceHeight = image.width / targetRatio;
+        sourceY = (image.height - sourceHeight) / 2;
+    }
+
+    context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+}
+
+function drawGalleryCompositeLabel(context, label, x, y) {
+    context.save();
+    context.font = `700 ${GALLERY_COMPOSITE_LABEL_SIZE}px Arial, Helvetica, sans-serif`;
+    context.textBaseline = 'top';
+    context.textAlign = 'left';
+    const metrics = context.measureText(label);
+    const labelWidth = metrics.width + (GALLERY_COMPOSITE_LABEL_PADDING * 2);
+    const labelHeight = GALLERY_COMPOSITE_LABEL_SIZE + (GALLERY_COMPOSITE_LABEL_PADDING * 1.5);
+
+    context.fillStyle = 'rgba(0, 0, 0, 0.72)';
+    context.fillRect(x, y, labelWidth, labelHeight);
+    context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+    context.lineWidth = 4;
+    context.strokeRect(x, y, labelWidth, labelHeight);
+    context.fillStyle = '#ffffff';
+    context.fillText(label, x + GALLERY_COMPOSITE_LABEL_PADDING, y + (GALLERY_COMPOSITE_LABEL_PADDING / 2));
+    context.restore();
+}
+
+async function createGalleryCompositeAttachment(selectedImages) {
+    const columns = GALLERY_COMPOSITE_GRID_COLUMNS;
+    const rows = Math.ceil(selectedImages.length / columns);
+    const width = columns * GALLERY_COMPOSITE_TILE_SIZE;
+    const height = rows * GALLERY_COMPOSITE_TILE_SIZE;
+    const canvas = createCanvas(width, height);
+    const context = canvas.getContext('2d');
+
+    context.fillStyle = '#05070d';
+    context.fillRect(0, 0, width, height);
+
+    const loadedImages = await Promise.all(selectedImages.map((image) => loadImage(image.buffer)));
+
+    loadedImages.forEach((loadedImage, index) => {
+        const image = selectedImages[index];
+        const column = index % columns;
+        const row = Math.floor(index / columns);
+        const x = column * GALLERY_COMPOSITE_TILE_SIZE;
+        const y = row * GALLERY_COMPOSITE_TILE_SIZE;
+
+        drawImageCover(context, loadedImage, x, y, GALLERY_COMPOSITE_TILE_SIZE, GALLERY_COMPOSITE_TILE_SIZE);
+        context.strokeStyle = '#ffffff';
+        context.lineWidth = 5;
+        context.strokeRect(x, y, GALLERY_COMPOSITE_TILE_SIZE, GALLERY_COMPOSITE_TILE_SIZE);
+        drawGalleryCompositeLabel(context, String(image.position), x + 12, y + 12);
+    });
+
+    const name = buildGalleryCompositeAttachmentName();
+    const buffer = await canvas.encode('png');
+
+    return {
+        displayUrl: `attachment://${name}`,
+        attachment: new Discord.AttachmentBuilder(buffer, { name }),
     };
 }
 
@@ -332,9 +433,15 @@ async function prepareGalleryImageAttachments(galleryState) {
         return galleryState;
     }
 
+    const selectedImages = await Promise.all(galleryState.selectedImages.map(fetchGalleryImageAttachment));
+    const compositeImage = galleryState.useCompositeImage
+        ? await createGalleryCompositeAttachment(selectedImages)
+        : undefined;
+
     return {
         ...galleryState,
-        selectedImages: await Promise.all(galleryState.selectedImages.map(fetchGalleryImageAttachment)),
+        selectedImages,
+        compositeImage,
     };
 }
 
@@ -465,6 +572,7 @@ function createGalleryState(challenge, stepIndex = 0) {
         token: createGalleryToken(),
         imagePoolId,
         selectedImages,
+        useCompositeImage: shouldUseCompositeGallery(challenge, step),
         solutionPositions: selectedImages
             .filter((image) => image.role === 'solution')
             .map((image) => image.position)
@@ -537,7 +645,11 @@ function buildExpiryLine(expiresAt) {
     return `-# This prompt will expire in <t:${Math.floor(expiresAt / 1000)}:R>`;
 }
 
-function buildGalleryOrderLine() {
+function buildGalleryOrderLine(galleryState) {
+    if (galleryState?.compositeImage?.displayUrl) {
+        return '-# **Use the number labels in the top-left of each grid square; positions read left-to-right by row.**';
+    }
+
     return '-# **Click the gallery to view image order; positions start top-left, left-to-right by row.**';
 }
 
@@ -802,10 +914,26 @@ function getPromptImageAttachment(promptImage) {
     return promptImage?.attachment ? [promptImage.attachment] : [];
 }
 
-function getGalleryImageAttachments(selectedImages = []) {
+function getGalleryImageAttachments(selectedImages = [], compositeImage) {
+    if (compositeImage?.attachment) {
+        return [compositeImage.attachment];
+    }
+
     return selectedImages
         .map((image) => image.attachment)
         .filter(Boolean);
+}
+
+function getGalleryDisplayImages(galleryState) {
+    if (galleryState?.compositeImage?.displayUrl) {
+        return [{
+            displayUrl: galleryState.compositeImage.displayUrl,
+            position: `1-${galleryState.selectedImages?.length ?? 9}`,
+            description: `Positions 1-${galleryState.selectedImages?.length ?? 9} in a labeled grid`,
+        }];
+    }
+
+    return galleryState?.selectedImages ?? [];
 }
 
 function getGalleryDisplayUrl(image) {
@@ -824,6 +952,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const selectedImages = galleryState?.selectedImages ?? [];
+    const displayImages = getGalleryDisplayImages(galleryState);
     const expiryLine = buildExpiryLine(expiresAt);
 
     if (selectedImages.length < 1) {
@@ -879,14 +1008,14 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
 
     container.addMediaGalleryComponents(
         new Discord.MediaGalleryBuilder().addItems(
-            selectedImages.map((image) => new Discord.MediaGalleryItemBuilder()
+            displayImages.map((image) => new Discord.MediaGalleryItemBuilder()
                 .setURL(getGalleryDisplayUrl(image))
-                .setDescription(`Position ${image.position}`)),
+                .setDescription(image.description ?? `Position ${image.position}`)),
         ),
     );
 
     container.addTextDisplayComponents(
-        new Discord.TextDisplayBuilder().setContent(buildGalleryOrderLine()),
+        new Discord.TextDisplayBuilder().setContent(buildGalleryOrderLine(galleryState)),
     );
 
     if (expiryLine) {
@@ -906,7 +1035,7 @@ function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState, expi
     if (isComponentsV2GalleryChallenge(challenge, step)) {
         return {
             components: buildChallengeComponentsV2(challenge, stepIndex, galleryState, expiresAt, promptImage),
-            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages)],
+            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages, galleryState?.compositeImage)],
             flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
         };
     }
@@ -967,10 +1096,10 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expire
         applyFieldToEmbed(challengeEmbed, field);
     }
 
-    const imageEmbeds = (galleryState?.selectedImages ?? []).map((image) => {
+    const imageEmbeds = getGalleryDisplayImages(galleryState).map((image) => {
         return new Discord.EmbedBuilder()
             .setColor(resolveEmbedColor(step?.color ?? embedConfig.color))
-            .setTitle(`Position ${image.position}`)
+            .setTitle(image.description ?? `Position ${image.position}`)
             .setImage(getGalleryDisplayUrl(image));
     });
 
@@ -980,7 +1109,7 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expire
 function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds, expiresAt, files, promptImage) {
     return {
         embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt, promptImage),
-        files: files ?? [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages)],
+        files: files ?? [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages, galleryState?.compositeImage)],
         components: [buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token)],
         flags: Discord.MessageFlags.Ephemeral,
     };
@@ -994,7 +1123,7 @@ function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, ex
     const pages = [
         {
             embeds: [challengeEmbed, ...imageEmbeds.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)].filter(Boolean),
-            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(selectedImages.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT))],
+            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(selectedImages.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT), galleryState?.compositeImage)],
         },
     ];
 
@@ -1476,11 +1605,19 @@ async function handleVerifySubmit(interaction) {
         const nextGalleryState = isNextGalleryChallenge
             ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex))
             : undefined;
+        const nextPromptImage = await preparePromptImageAttachment(challenge, nextStep);
 
-        setChallenge(interaction.user.id, { challengeId, stepIndex: nextStepIndex, gallery: nextGalleryState }, resolveChallengeExpiryMs(verificationSettings));
+        setChallenge(interaction.user.id, {
+            challengeId,
+            stepIndex: nextStepIndex,
+            gallery: nextGalleryState,
+            promptImage: nextPromptImage,
+            createdTimestamp: activeChallenge.createdTimestamp,
+            expiresAt: activeChallenge.expiresAt,
+        }, resolveChallengeExpiryMs(verificationSettings));
         const nextActiveChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
-        return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState, nextActiveChallenge?.expiresAt);
+        return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState, nextActiveChallenge?.expiresAt, nextPromptImage);
     }
 
     return completeVerification(interaction);
