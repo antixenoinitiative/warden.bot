@@ -2,6 +2,7 @@ const { botLog, botIdent, getRankEmoji, hasSpecifiedRole } = require('../functio
 const Discord = require('discord.js')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
+const { scheduleVerificationAutokick } = require('../commands/Warden/verification/verificationAutokick')
 
 
 //xsf stuff
@@ -1090,6 +1091,10 @@ const exp = {
         ),2)
     },
     guildMemberAdd: async (member, bot) => {
+        if (botIdent().activeBot.botName == 'Warden') {
+            await scheduleVerificationAutokick(member)
+        }
+
         let roles = ``;
         member.roles.cache.each(role => roles += `${role}\n`)
         const accountCreationDate = new Date(member.user.createdAt)
