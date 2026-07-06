@@ -1229,6 +1229,9 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
                     const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
                     if (unknownChallengeIds.length > 0) {
                         return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
+                if (action === 'disable') {
+                    if (enabledChallengeIds.length === 1 && enabledChallengeIds.includes(challengeId)) {
+                        return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode block` or `/verification mode skip_challenge` if you do not want challenge verification.')] });
                     }
 
                     const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
