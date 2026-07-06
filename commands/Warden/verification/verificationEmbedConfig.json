@@ -16,11 +16,6 @@
                 "name": "Verification",
                 "value": "Please verify to access the server. Click the Verify button.",
                 "inline": false
-            },
-            {
-                "name": "Having trouble?",
-                "value": "You can direct message a staff member <@380248192534577152>, <@380248896385056769> or <@380249268818018304> from the memberlist of the channel. Or contact staff through our [website](<https://antixenoinitiative.com/contact/>).",
-                "inline": false
             }
         ]
     },
@@ -51,7 +46,7 @@
     },
     "verificationHelpEmbed": {
         "title": "Verification Help",
-        "description": "Click Verify to start the verification challenge. If you cannot complete verification or something goes wrong, please direct message a staff member <@380248192534577152>, <@380248896385056769> or <@380249268818018304> from the member list, or contact staff through our [website](<https://antixenoinitiative.com/contact/>).",
-        "color": "#95A5A6"
+        "description": "Click Verify to start the verification. If you cannot complete verification or something does not function correctly, please direct message a staff member <@380248192534577152>, <@380248896385056769> or <@380249268818018304> from the member list, or contact staff through our [website](<https://antixenoinitiative.com/contact/>).",
+        "color": "#ff7100"
     }
 }
