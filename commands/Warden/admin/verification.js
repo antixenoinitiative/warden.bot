@@ -433,10 +433,11 @@ async function prepareGalleryImageAttachments(galleryState) {
         return galleryState;
     }
 
-    const selectedImages = await Promise.all(galleryState.selectedImages.map(fetchGalleryImageAttachment));
+    const fetchedImages = await Promise.all(galleryState.selectedImages.map(fetchGalleryImageAttachment));
     const compositeImage = galleryState.useCompositeImage
-        ? await createGalleryCompositeAttachment(selectedImages)
+        ? await createGalleryCompositeAttachment(fetchedImages)
         : undefined;
+    const selectedImages = fetchedImages.map(({ buffer, ...image }) => image);
 
     return {
         ...galleryState,
@@ -799,6 +800,17 @@ function buildInProgressEmbed(expiresAt) {
         'You already have a verification challenge in progress. Please answer your current challenge or retry after it expires {retryTime}.',
         { retryTime: `<t:${Math.floor(expiresAt / 1000)}:R>` },
     );
+}
+
+function buildExpiredChallengeResponse(description = 'Your verification challenge has expired. Please start verification again.') {
+    return {
+        embeds: [buildResultEmbed(
+            verificationEmbedConfig.expiredChallengeEmbed,
+            'Verification Challenge Expired',
+            description,
+        )],
+        flags: Discord.MessageFlags.Ephemeral,
+    };
 }
 
 function applyFieldToEmbed(embed, field) {
@@ -1606,18 +1618,30 @@ async function handleVerifySubmit(interaction) {
             ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex))
             : undefined;
         const nextPromptImage = await preparePromptImageAttachment(challenge, nextStep);
+        const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
+        const currentChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
+
+        if (!currentChallenge
+            || currentChallenge.challengeId !== challengeId
+            || (currentChallenge.stepIndex ?? 0) !== stepIndex) {
+            return sendInitialInteractionResponse(interaction, buildExpiredChallengeResponse());
+        }
 
         setChallenge(interaction.user.id, {
             challengeId,
             stepIndex: nextStepIndex,
             gallery: nextGalleryState,
             promptImage: nextPromptImage,
-            createdTimestamp: activeChallenge.createdTimestamp,
-            expiresAt: activeChallenge.expiresAt,
-        }, resolveChallengeExpiryMs(verificationSettings));
-        const nextActiveChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
+            createdTimestamp: currentChallenge.createdTimestamp,
+            expiresAt: currentChallenge.expiresAt,
+        }, challengeExpiryMs);
+        const nextActiveChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
 
-        return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState, nextActiveChallenge?.expiresAt, nextPromptImage);
+        if (!nextActiveChallenge) {
+            return sendInitialInteractionResponse(interaction, buildExpiredChallengeResponse());
+        }
+
+        return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState, nextActiveChallenge.expiresAt, nextPromptImage);
     }
 
     return completeVerification(interaction);
