@@ -39,6 +39,7 @@ const DEFAULT_GALLERY_SIZE = 6;
 const LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT = 9;
 const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
 const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
+const GALLERY_IMAGE_FETCH_TIMEOUT_MS = 10000;
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -103,7 +104,23 @@ function buildGalleryAttachmentName(image, extension) {
 }
 
 async function fetchGalleryImageAttachment(image) {
-    const response = await fetch(image.url);
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), GALLERY_IMAGE_FETCH_TIMEOUT_MS);
+    let response;
+
+    try {
+        response = await fetch(image.url, { signal: abortController.signal });
+    }
+    catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error(`Timed out fetching verification gallery image for position ${image.position} after ${GALLERY_IMAGE_FETCH_TIMEOUT_MS}ms.`);
+        }
+
+        throw err;
+    }
+    finally {
+        clearTimeout(timeout);
+    }
 
     if (!response.ok) {
         throw new Error(`Failed to fetch verification gallery image for position ${image.position}: ${response.status} ${response.statusText}`);
@@ -942,7 +959,12 @@ async function handleVerifyStart(interaction) {
         if (reservedChallenge?.reservationToken === reservationToken) {
             clearChallenge(interaction.user.id);
         }
-        throw err;
+
+        console.error('Failed to prepare verification gallery challenge:', err);
+        return sendInitialInteractionResponse(interaction, {
+            content: 'Verification could not prepare the image challenge in time. Please click Verify again to retry.',
+            flags: Discord.MessageFlags.Ephemeral,
+        });
     }
 
     const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
