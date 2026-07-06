@@ -26,10 +26,16 @@ function buildAutoKickEmbed(member) {
         user: member.user?.toString?.() ?? member.displayName ?? 'there',
     };
 
-    return new Discord.EmbedBuilder()
+    const embed = new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor(embedConfig.color))
         .setTitle(applyTemplate(embedConfig.title ?? 'Verification Required', values))
         .setDescription(applyTemplate(embedConfig.description ?? 'You were removed from {serverName} because verification was not completed in time.', values));
+
+    if (embedConfig.thumbnail?.enabled && embedConfig.thumbnail.url) {
+        embed.setThumbnail(embedConfig.thumbnail.url);
+    }
+
+    return embed;
 }
 
 function getTimerKey(member) {
