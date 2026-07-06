@@ -225,20 +225,6 @@ async function setActiveChallengeIds(guildId, challengeIds, updatedBy) {
     return saveVerificationSettings(guildId, { ...currentSettings, activeChallengeIds: challengeIds }, updatedBy);
 }
 
-async function enableChallengeId(guildId, challengeId, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    return setActiveChallengeIds(guildId, [...currentSettings.activeChallengeIds, challengeId], updatedBy);
-}
-
-async function disableChallengeId(guildId, challengeId, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    return setActiveChallengeIds(
-        guildId,
-        currentSettings.activeChallengeIds.filter((activeChallengeId) => activeChallengeId !== challengeId),
-        updatedBy,
-    );
-}
-
 async function setChallengeExpirySeconds(guildId, challengeExpirySeconds, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
     return saveVerificationSettings(guildId, { ...currentSettings, challengeExpirySeconds }, updatedBy);
@@ -257,8 +243,6 @@ module.exports = {
     getVerificationSettings,
     setVerificationMode,
     setActiveChallengeIds,
-    enableChallengeId,
-    disableChallengeId,
     setChallengeExpirySeconds,
     setCooldownSeconds,
 };

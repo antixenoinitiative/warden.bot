@@ -19,8 +19,6 @@ const {
     getVerificationSettings,
     setVerificationMode,
     setActiveChallengeIds,
-    enableChallengeId,
-    disableChallengeId,
     setChallengeExpirySeconds,
     setCooldownSeconds,
 } = require('../verification/verificationSettings');
@@ -355,6 +353,13 @@ function parseDurationSeconds(input) {
     }
 
     return undefined;
+}
+
+function parseChallengeIdList(input) {
+    return String(input ?? '')
+        .split(/[\s,]+/)
+        .map((challengeId) => challengeId.trim())
+        .filter(Boolean);
 }
 
 function formatDuration(seconds) {
@@ -1150,9 +1155,7 @@ module.exports = {
                         .setRequired(true)
                         .addChoices(
                             { name: 'List challenge IDs', value: 'list' },
-                            { name: 'Set only enabled challenge', value: 'set' },
-                            { name: 'Enable challenge', value: 'enable' },
-                            { name: 'Disable challenge', value: 'disable' },
+                            { name: 'Set active challenge IDs', value: 'set' },
                             { name: 'Set prompt expiry timer', value: 'timer' },
                             { name: 'Set retry cooldown timer', value: 'cooldown' },
                         )
@@ -1160,7 +1163,7 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('id')
-                        .setDescription('Challenge ID for set, enable, or disable')
+                        .setDescription('Challenge ID list for set, separated by commas or spaces')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
@@ -1188,12 +1191,11 @@ module.exports = {
             if (subcommand === 'challenge') {
                 const action = interaction.options.getString('action', true);
                 const verificationSettings = await getVerificationSettings(guildId);
-                const activeChallenge = getActiveVerificationChallenge({ verification: verificationSettings });
                 const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
 
                 if (action === 'list') {
                     const challengeList = Object.values(verificationChallenges)
-                        .map(challenge => `${challenge.id === activeChallenge.id ? '**' : ''}${challenge.id}${challenge.id === activeChallenge.id ? '** (active)' : ''}${enabledChallengeIds.includes(challenge.id) ? ' [enabled]' : ''}`)
+                        .map(challenge => `${enabledChallengeIds.includes(challenge.id) ? '**' : ''}${challenge.id}${enabledChallengeIds.includes(challenge.id) ? '** [active]' : ''}`)
                         .join('\n');
 
                     return interaction.editReply({ content: `Configured verification challenge IDs:
@@ -1218,32 +1220,22 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
                     return interaction.editReply({ content: `Updated ${settingName} to **${formatDuration(updatedSeconds)}**.` });
                 }
 
-                const challengeId = interaction.options.getString('id');
-                if (!challengeId) {
-                    return interaction.editReply({ embeds: [userErrorEmbed('Please provide an `id` for the selected challenge action.')] });
-                }
-
-                if (!verificationChallenges[challengeId]) {
-                    return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
-                }
-
                 if (action === 'set') {
-                    const updatedSettings = await setActiveChallengeIds(guildId, [challengeId], interaction.user.id);
-                    return interaction.editReply({ content: `Verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}` });
-                }
+                    const challengeIds = parseChallengeIdList(interaction.options.getString('id'));
+                    if (challengeIds.length < 1) {
+                        return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID. To stop serving challenges, use `/verification mode block` or `/verification mode skip_challenge` instead.')] });
+                    }
 
-                if (action === 'enable') {
-                    const updatedSettings = await enableChallengeId(guildId, challengeId, interaction.user.id);
-                    return interaction.editReply({ content: `Enabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
-                }
-
+                    const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
+                    if (unknownChallengeIds.length > 0) {
+                        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
                 if (action === 'disable') {
                     if (enabledChallengeIds.length === 1 && enabledChallengeIds.includes(challengeId)) {
                         return interaction.editReply({ embeds: [userErrorEmbed('At least one verification challenge must remain enabled. Use `/verification mode block` or `/verification mode skip_challenge` if you do not want challenge verification.')] });
                     }
 
-                    const updatedSettings = await disableChallengeId(guildId, challengeId, interaction.user.id);
-                    return interaction.editReply({ content: `Disabled verification challenge **${challengeId}**. Active challenges: ${updatedSettings.activeChallengeIds.join(', ')}` });
+                    const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
+                    return interaction.editReply({ content: `Active verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}` });
                 }
             }
 
