@@ -202,13 +202,24 @@ const thisBotFunctions = {
                 }
             }
 			const rest = new REST({version:10}).setToken(process.env.TOKEN);
-			await deleteStaleGlobalCommands(rest, Routes, ['verification']);
+			// Optional one-off cleanup for old global slash commands. Leave unset for normal guild-scoped registration.
+			const staleGlobalCommandNames = parseStaleGlobalCommandNames(process.env.STALE_GLOBAL_COMMAND_CLEANUP_NAMES);
+			if (staleGlobalCommandNames.length > 0) {
+				await deleteStaleGlobalCommands(rest, Routes, staleGlobalCommandNames);
+			}
 			await rest.put(
 				Routes.applicationGuildCommands(process.env.CLIENTID, process.env.GUILDID),
 				{ body: commands },
 			);
 	
 			console.log("[STARTUP]".yellow,`${thisBotFunctions.botIdent().activeBot.botName}`.green,"Commands Registered:".magenta,'✅');
+
+			function parseStaleGlobalCommandNames(commandNames) {
+				return String(commandNames ?? '')
+					.split(',')
+					.map((commandName) => commandName.trim())
+					.filter(Boolean);
+			}
 
 			async function deleteStaleGlobalCommands(rest, Routes, commandNames) {
 				try {
