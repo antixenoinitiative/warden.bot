@@ -83,8 +83,19 @@ async function handleVerificationInteraction(interaction) {
         await handlers[route.handlerName](interaction);
     }
     catch (err) {
-        await logVerificationError(interaction, err, route.errorTitle);
-        await sendVerificationErrorResponse(interaction, route.userError);
+        try {
+            await sendVerificationErrorResponse(interaction, route.userError);
+        }
+        catch (responseErr) {
+            console.error('Failed to send verification error response:', responseErr);
+        }
+
+        try {
+            await logVerificationError(interaction, err, route.errorTitle);
+        }
+        catch (logErr) {
+            console.error('Failed to log verification interaction error:', logErr);
+        }
     }
 
     return true;
