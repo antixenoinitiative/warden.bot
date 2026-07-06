@@ -408,6 +408,15 @@ function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, repla
         .setDescription(description);
 }
 
+function buildInProgressEmbed(expiresAt) {
+    return buildResultEmbed(
+        verificationEmbedConfig.inProgressEmbed,
+        'Verification in Progress',
+        'You already have a verification challenge in progress. Please answer your current challenge or retry after it expires {retryTime}.',
+        { retryTime: `<t:${Math.floor(expiresAt / 1000)}:R>` },
+    );
+}
+
 function applyFieldToEmbed(embed, field) {
     if (!field) return;
 
@@ -894,12 +903,7 @@ async function handleVerifyStart(interaction) {
     const existingChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
     if (existingChallenge) {
         return interaction.reply({
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.inProgressEmbed,
-                'Verification in Progress',
-                'You already have a verification challenge in progress. Please answer your current challenge or retry after it expires {retryTime}.',
-                { retryTime: `<t:${Math.floor(existingChallenge.expiresAt / 1000)}:R>` },
-            )],
+            embeds: [buildInProgressEmbed(existingChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
     }
@@ -910,7 +914,8 @@ async function handleVerifyStart(interaction) {
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
-    setChallenge(interaction.user.id, { challengeId, stepIndex }, challengeExpiryMs);
+    const reservationToken = crypto.randomUUID();
+    setChallenge(interaction.user.id, { challengeId, stepIndex, pending: true, reservationToken }, challengeExpiryMs);
 
     if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
@@ -923,17 +928,31 @@ async function handleVerifyStart(interaction) {
             : undefined;
     }
     catch (err) {
-        clearChallenge(interaction.user.id);
+        const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
+        if (reservedChallenge?.reservationToken === reservationToken) {
+            clearChallenge(interaction.user.id);
+        }
         throw err;
     }
 
     const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
+    if (!reservedChallenge || reservedChallenge.reservationToken !== reservationToken) {
+        return sendInitialInteractionResponse(interaction, {
+            embeds: [buildResultEmbed(
+                verificationEmbedConfig.expiredChallengeEmbed,
+                'Verification Challenge Expired',
+                'Your verification challenge has expired. Please start verification again.',
+            )],
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
+
     setChallenge(interaction.user.id, {
         challengeId,
         stepIndex,
         gallery: galleryState,
-        createdTimestamp: reservedChallenge?.createdTimestamp,
-        expiresAt: reservedChallenge?.expiresAt,
+        createdTimestamp: reservedChallenge.createdTimestamp,
+        expiresAt: reservedChallenge.expiresAt,
     }, challengeExpiryMs);
     const activeChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
 
@@ -960,6 +979,13 @@ async function handleVerifyAnswer(interaction) {
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
+
+    if (activeChallenge.pending) {
+        return interaction.reply({
+            embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
     }
@@ -1005,6 +1031,13 @@ async function handleVerifyOldVersion(interaction) {
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
+
+    if (activeChallenge.pending) {
+        return interaction.reply({
+            embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
     }
@@ -1060,6 +1093,13 @@ async function handleVerifySubmit(interaction) {
                 'Verification Challenge Expired',
                 'Your verification challenge has expired. Please start verification again.',
             )],
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
+
+    if (activeChallenge.pending) {
+        return interaction.reply({
+            embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
     }
