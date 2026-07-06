@@ -910,15 +910,31 @@ async function handleVerifyStart(interaction) {
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
+    setChallenge(interaction.user.id, { challengeId, stepIndex }, challengeExpiryMs);
+
     if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     }
 
-    const galleryState = isGalleryChallenge
-        ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
-        : undefined;
+    let galleryState;
+    try {
+        galleryState = isGalleryChallenge
+            ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
+            : undefined;
+    }
+    catch (err) {
+        clearChallenge(interaction.user.id);
+        throw err;
+    }
 
-    setChallenge(interaction.user.id, { challengeId, stepIndex, gallery: galleryState }, challengeExpiryMs);
+    const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
+    setChallenge(interaction.user.id, {
+        challengeId,
+        stepIndex,
+        gallery: galleryState,
+        createdTimestamp: reservedChallenge?.createdTimestamp,
+        expiresAt: reservedChallenge?.expiresAt,
+    }, challengeExpiryMs);
     const activeChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
 
     return replyWithChallenge(interaction, challenge, stepIndex, galleryState, activeChallenge?.expiresAt);
