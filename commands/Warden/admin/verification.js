@@ -48,7 +48,13 @@ const PROMPT_IMAGE_WIDTH = 1200;
 const PROMPT_IMAGE_MIN_HEIGHT = 360;
 const PROMPT_IMAGE_PADDING = 58;
 const PROMPT_IMAGE_FONT_SIZE = 54;
-const PROMPT_IMAGE_LINE_HEIGHT = 68;
+const PROMPT_IMAGE_LINE_HEIGHT = 74;
+const PROMPT_IMAGE_CURVE_NOISE_COUNT = 170;
+const PROMPT_IMAGE_PIXEL_NOISE_COUNT = 3200;
+const PROMPT_IMAGE_DECOY_GLYPH_COUNT = 160;
+const PROMPT_IMAGE_OCCLUSION_LINE_COUNT = 26;
+const PROMPT_IMAGE_MAX_CHARACTER_ROTATION = 0.18;
+const PROMPT_IMAGE_CHARACTER_JITTER = 7;
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -109,11 +115,11 @@ function wrapCanvasText(context, text, maxWidth) {
 }
 
 function drawPromptImageNoise(context, width, height) {
-    for (let index = 0; index < 90; index += 1) {
+    for (let index = 0; index < PROMPT_IMAGE_CURVE_NOISE_COUNT; index += 1) {
         context.save();
-        context.globalAlpha = 0.12 + Math.random() * 0.18;
+        context.globalAlpha = 0.16 + Math.random() * 0.26;
         context.strokeStyle = index % 2 === 0 ? '#76d7ff' : '#f5b7ff';
-        context.lineWidth = 1 + Math.random() * 4;
+        context.lineWidth = 1 + Math.random() * 5;
         context.beginPath();
         context.moveTo(Math.random() * width, Math.random() * height);
         context.bezierCurveTo(
@@ -128,10 +134,74 @@ function drawPromptImageNoise(context, width, height) {
         context.restore();
     }
 
-    for (let index = 0; index < 1400; index += 1) {
-        context.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)';
-        context.fillRect(Math.random() * width, Math.random() * height, 1 + Math.random() * 3, 1 + Math.random() * 3);
+    for (let index = 0; index < PROMPT_IMAGE_PIXEL_NOISE_COUNT; index += 1) {
+        context.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.20)';
+        context.fillRect(Math.random() * width, Math.random() * height, 1 + Math.random() * 4, 1 + Math.random() * 4);
     }
+}
+
+function drawPromptDecoyGlyphs(context, width, height) {
+    const glyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&';
+
+    for (let index = 0; index < PROMPT_IMAGE_DECOY_GLYPH_COUNT; index += 1) {
+        const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+        context.save();
+        context.translate(Math.random() * width, Math.random() * height);
+        context.rotate((Math.random() - 0.5) * 1.2);
+        context.globalAlpha = 0.06 + Math.random() * 0.10;
+        context.font = `700 ${18 + Math.random() * 44}px Arial, Helvetica, sans-serif`;
+        context.fillStyle = Math.random() > 0.5 ? '#d9f3ff' : '#ffd9fb';
+        context.fillText(glyph, 0, 0);
+        context.restore();
+    }
+}
+
+function drawPromptOcclusionLines(context, width, height) {
+    for (let index = 0; index < PROMPT_IMAGE_OCCLUSION_LINE_COUNT; index += 1) {
+        const y = Math.random() * height;
+        context.save();
+        context.globalAlpha = 0.18 + Math.random() * 0.18;
+        context.strokeStyle = index % 2 === 0 ? '#07111f' : '#ffffff';
+        context.lineWidth = 2 + Math.random() * 5;
+        context.beginPath();
+        context.moveTo(0, y);
+        context.bezierCurveTo(
+            width * 0.25, y + ((Math.random() - 0.5) * 90),
+            width * 0.75, y + ((Math.random() - 0.5) * 90),
+            width, y + ((Math.random() - 0.5) * 40),
+        );
+        context.stroke();
+        context.restore();
+    }
+}
+
+function drawPromptTextLine(context, line, centerX, centerY) {
+    const characters = [...line];
+    const characterWidths = characters.map((character) => context.measureText(character).width);
+    const totalWidth = characterWidths.reduce((sum, width) => sum + width, 0);
+    let currentX = centerX - (totalWidth / 2);
+
+    characters.forEach((character, index) => {
+        const characterWidth = characterWidths[index];
+        const x = currentX + (characterWidth / 2) + ((Math.random() - 0.5) * PROMPT_IMAGE_CHARACTER_JITTER);
+        const y = centerY + ((Math.random() - 0.5) * PROMPT_IMAGE_CHARACTER_JITTER);
+        const fontSize = PROMPT_IMAGE_FONT_SIZE + ((Math.random() - 0.5) * 8);
+
+        context.save();
+        context.translate(x, y);
+        context.rotate((Math.random() - 0.5) * PROMPT_IMAGE_MAX_CHARACTER_ROTATION);
+        context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+        context.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        context.fillText(character, 4, 5);
+        context.strokeStyle = 'rgba(118, 215, 255, 0.70)';
+        context.lineWidth = 3;
+        context.strokeText(character, 0, 0);
+        context.fillStyle = '#f6fbff';
+        context.fillText(character, 0, 0);
+        context.restore();
+
+        currentX += characterWidth;
+    });
 }
 
 async function createPromptImageAttachment(prompt) {
@@ -151,6 +221,7 @@ async function createPromptImageAttachment(prompt) {
     context.fillRect(0, 0, PROMPT_IMAGE_WIDTH, height);
 
     drawPromptImageNoise(context, PROMPT_IMAGE_WIDTH, height);
+    drawPromptDecoyGlyphs(context, PROMPT_IMAGE_WIDTH, height);
 
     context.font = `700 ${PROMPT_IMAGE_FONT_SIZE}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'middle';
@@ -160,18 +231,10 @@ async function createPromptImageAttachment(prompt) {
     lines.forEach((line, index) => {
         const y = startY + (index * PROMPT_IMAGE_LINE_HEIGHT);
         const x = PROMPT_IMAGE_WIDTH / 2;
-        context.save();
-        context.translate(x, y);
-        context.rotate((Math.random() - 0.5) * 0.035);
-        context.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        context.fillText(line, 4, 5);
-        context.strokeStyle = 'rgba(118, 215, 255, 0.55)';
-        context.lineWidth = 2;
-        context.strokeText(line, 0, 0);
-        context.fillStyle = '#f6fbff';
-        context.fillText(line, 0, 0);
-        context.restore();
+        drawPromptTextLine(context, line, x, y);
     });
+
+    drawPromptOcclusionLines(context, PROMPT_IMAGE_WIDTH, height);
 
     const name = buildPromptImageAttachmentName();
     const buffer = await canvas.encode('png');
