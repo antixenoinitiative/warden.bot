@@ -202,12 +202,29 @@ const thisBotFunctions = {
                 }
             }
 			const rest = new REST({version:10}).setToken(process.env.TOKEN);
+			await deleteStaleGlobalCommands(rest, Routes, ['verification']);
 			await rest.put(
 				Routes.applicationGuildCommands(process.env.CLIENTID, process.env.GUILDID),
 				{ body: commands },
 			);
 	
 			console.log("[STARTUP]".yellow,`${thisBotFunctions.botIdent().activeBot.botName}`.green,"Commands Registered:".magenta,'✅');
+
+			async function deleteStaleGlobalCommands(rest, Routes, commandNames) {
+				try {
+					const staleCommandNames = new Set(commandNames);
+					const globalCommands = await rest.get(Routes.applicationCommands(process.env.CLIENTID));
+					const staleGlobalCommands = globalCommands.filter((command) => staleCommandNames.has(command.name));
+
+					for (const command of staleGlobalCommands) {
+						await rest.delete(Routes.applicationCommand(process.env.CLIENTID, command.id));
+						console.log("[STARTUP]".yellow, `${thisBotFunctions.botIdent().activeBot.botName}`.green, `Deleted stale global /${command.name} command:`.magenta, '✅');
+					}
+				}
+				catch (error) {
+					console.error("[STARTUP]", `${thisBotFunctions.botIdent().activeBot.botName}`, 'Stale global command cleanup failed:', error);
+				}
+			}
 		} catch (error) {
 			console.error(error);
 		}
