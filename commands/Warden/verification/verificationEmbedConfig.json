@@ -1,7 +1,7 @@
 {
     "welcomeEmbed": {
         "title": "Welcome to the Anti-Xeno Initiative",
-        "description": "Please verify to access the server.",
+        "description": "We are an Elite: Dangerous community centered on Thargoid Combat (Anti-Xeno) and defending humanity.",
         "color": "#ff7100",
         "thumbnail": {
             "enabled": true,
@@ -10,7 +10,19 @@
         "icon": {
             "enabled": false,
             "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
-        }
+        },
+        "fields": [
+            {
+                "name": "Verification",
+                "value": "Please verify to access the server. Click the Verify button.",
+                "inline": false
+            },
+            {
+                "name": "Having trouble?",
+                "value": "You can direct message a staff member <@380248192534577152>, <@380248896385056769> or <@380249268818018304> from the memberlist of the channel. Or contact staff through our [website](<https://antixenoinitiative.com/contact/>).",
+                "inline": false
+            }
+        ]
     },
     "challengeEmbed": {
         "title": "Verification Challenge",
