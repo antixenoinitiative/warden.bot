@@ -202,7 +202,7 @@ const exp = {
             }
         }
     },
-    guildMemberAdd: async (interaction, bot) => {
+    guildMemberAdd: async (member, bot) => {
         if (process.env.MODE == 'testServer') {
              // The role IDs or names you want to assign
             const rolesToAssign = ['test person', 'Learner']; // Replace with the actual role IDs or names
