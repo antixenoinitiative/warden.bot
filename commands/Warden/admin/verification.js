@@ -39,6 +39,8 @@ const DEFAULT_GALLERY_SIZE = 6;
 const LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT = 9;
 const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
 const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
+const GALLERY_IMAGE_FETCH_TIMEOUT_MS = 10000;
+const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -103,7 +105,25 @@ function buildGalleryAttachmentName(image, extension) {
 }
 
 async function fetchGalleryImageAttachment(image) {
-    const response = await fetch(image.url);
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), GALLERY_IMAGE_FETCH_TIMEOUT_MS);
+    let response;
+
+    try {
+        response = await fetch(image.url, { signal: abortController.signal });
+    }
+    catch (err) {
+        if (err.name === 'AbortError') {
+            const timeoutError = new Error(`Timed out fetching verification gallery image for position ${image.position} after ${GALLERY_IMAGE_FETCH_TIMEOUT_MS}ms.`);
+            timeoutError.code = GALLERY_IMAGE_FETCH_TIMEOUT_CODE;
+            throw timeoutError;
+        }
+
+        throw err;
+    }
+    finally {
+        clearTimeout(timeout);
+    }
 
     if (!response.ok) {
         throw new Error(`Failed to fetch verification gallery image for position ${image.position}: ${response.status} ${response.statusText}`);
@@ -875,7 +895,7 @@ async function completeVerification(interaction) {
         await interaction.member.roles.remove(unverifiedRoleId);
     }
 
-    return interaction.reply({
+    return sendInitialInteractionResponse(interaction, {
         embeds: [buildResultEmbed(
             verificationEmbedConfig.successEmbed,
             'Verification Complete',
@@ -886,11 +906,18 @@ async function completeVerification(interaction) {
 }
 
 async function handleVerifyStart(interaction) {
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    }
+
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.block) {
-        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
+        return sendInitialInteractionResponse(interaction, {
+            content: 'Verification is currently blocked.',
+            flags: Discord.MessageFlags.Ephemeral,
+        });
     }
 
     if (verificationMode === VERIFICATION_MODES.skipChallenge) {
@@ -900,13 +927,16 @@ async function handleVerifyStart(interaction) {
     const cooldownRemaining = getCooldownRemaining(interaction.user.id);
     if (cooldownRemaining > 0) {
         const retryAt = Math.ceil((Date.now() + cooldownRemaining) / 1000);
-        return interaction.reply({ content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, flags: Discord.MessageFlags.Ephemeral });
+        return sendInitialInteractionResponse(interaction, {
+            content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`,
+            flags: Discord.MessageFlags.Ephemeral,
+        });
     }
 
     const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
     const existingChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
     if (existingChallenge) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildInProgressEmbed(existingChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
@@ -921,19 +951,6 @@ async function handleVerifyStart(interaction) {
     const reservationToken = crypto.randomUUID();
     setChallenge(interaction.user.id, { challengeId, stepIndex, pending: true, reservationToken }, challengeExpiryMs);
 
-    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
-        try {
-            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-        }
-        catch (err) {
-            const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
-            if (reservedChallenge?.reservationToken === reservationToken) {
-                clearChallenge(interaction.user.id);
-            }
-            throw err;
-        }
-    }
-
     let galleryState;
     try {
         galleryState = isGalleryChallenge
@@ -945,7 +962,16 @@ async function handleVerifyStart(interaction) {
         if (reservedChallenge?.reservationToken === reservationToken) {
             clearChallenge(interaction.user.id);
         }
-        throw err;
+
+        if (err.code !== GALLERY_IMAGE_FETCH_TIMEOUT_CODE) {
+            throw err;
+        }
+
+        console.error('Failed to prepare verification gallery challenge:', err);
+        return sendInitialInteractionResponse(interaction, {
+            content: 'Verification could not prepare the image challenge in time. Please click Verify again to retry.',
+            flags: Discord.MessageFlags.Ephemeral,
+        });
     }
 
     const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
