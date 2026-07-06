@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { handleVerifyStart, handleVerifyAnswer, handleVerifyOldVersion, handleVerifySubmit } = require('../commands/Warden/admin/verification')
+const { handleVerificationInteraction } = require('../commands/Warden/verification/verificationInteractions')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
@@ -12,20 +12,6 @@ const path = require('path')
 // const { default: test }
 
 let args = {}
-
-async function sendVerificationErrorResponse(interaction, content) {
-    if (interaction.deferred && !interaction.replied) {
-        await interaction.editReply({ content });
-        return;
-    }
-
-    if (interaction.replied) {
-        await interaction.followUp({ content, flags: Discord.MessageFlags.Ephemeral });
-        return;
-    }
-
-    await interaction.reply({ content, flags: Discord.MessageFlags.Ephemeral });
-}
 
 function postArgs(interaction) {
     for (let key of interaction.options.data) {
@@ -111,21 +97,8 @@ async function opordInterestedModal(i) {
 const exp = {
     interactionCreate: async (interaction,bot) => {
         if (interaction.isModalSubmit()) {
-            if (botIdent().activeBot.botName == 'Warden' && interaction.customId.startsWith('wardenVerify-submit-')) {
-                try {
-                    await handleVerifySubmit(interaction)
-                }
-                catch (err) {
-                    console.log(err)
-                    botLog(interaction.guild,new Discord.EmbedBuilder()
-                        .setDescription('```' + err.stack + '```')
-                        .setTitle(`⛔ Verification submission error`)
-                        ,2
-                        ,'error'
-                    )
-                    await sendVerificationErrorResponse(interaction, 'Verification could not be submitted. Please contact staff.');
-                }
-                return
+            if (botIdent().activeBot.botName == 'Warden') {
+                if (await handleVerificationInteraction(interaction)) return
             }
             if (botIdent().activeBot.botName == 'GuardianAI') {
                 if (interaction.customId.startsWith("interestedOpord")) {
@@ -255,61 +228,10 @@ const exp = {
             //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
             // }
             if (botIdent().activeBot.botName == 'Warden') {
-                if (interaction.customId.startsWith("wardenVerify-start")) {
-                    try {
-                        await handleVerifyStart(interaction);
-                    }
-                    catch (err) {
-                        console.log(err)
-                        botLog(interaction.guild,new Discord.EmbedBuilder()
-                            .setDescription('```' + err.stack + '```')
-                            .setTitle(`⛔ Fatal error experienced`)
-                            ,2
-                            ,'error'
-                        )
-                        await sendVerificationErrorResponse(interaction, 'Verification could not be started. Please contact staff.');
-                    }
-                    return;
-                }
-                if (interaction.customId.startsWith("wardenVerify-answer")) {
-                    try {
-                        await handleVerifyAnswer(interaction);
-                    }
-                    catch (err) {
-                        console.log(err)
-                        botLog(interaction.guild,new Discord.EmbedBuilder()
-                            .setDescription('```' + err.stack + '```')
-                            .setTitle(`⛔ Fatal error experienced`)
-                            ,2
-                            ,'error'
-                        )
-                        if (!interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: 'Verification answer modal could not be opened. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
-                        }
-                    }
-                    return;
-                }
+                if (await handleVerificationInteraction(interaction)) return
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)
-                    return;
-                }
-                if (interaction.customId.startsWith("wardenVerify-oldVersion")) {
-                    try {
-                        await handleVerifyOldVersion(interaction);
-                    }
-                    catch (err) {
-                        console.log(err)
-                        botLog(interaction.guild,new Discord.EmbedBuilder()
-                            .setDescription('```' + err.stack + '```')
-                            .setTitle(`⛔ Fatal error experienced`)
-                            ,2
-                            ,'error'
-                        )
-                        if (!interaction.replied && !interaction.deferred) {
-                            await interaction.reply({ content: 'Verification old version could not be shown. Please contact staff.', flags: Discord.MessageFlags.Ephemeral });
-                        }
-                    }
                     return;
                 }
             }
