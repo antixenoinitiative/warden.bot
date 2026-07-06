@@ -1355,8 +1355,8 @@ module.exports = {
                         .setDescription('Challenge setting to inspect or update')
                         .setRequired(true)
                         .addChoices(
-                            { name: 'List challenge IDs', value: 'list' },
-                            { name: 'Replace active challenge ID list', value: 'set' },
+                            { name: 'Lists verification state and info', value: 'list' },
+                            { name: 'Set active challenge ID list', value: 'set' },
                             { name: 'Set prompt expiry timer', value: 'timer' },
                             { name: 'Set retry cooldown timer', value: 'cooldown' },
                         )
