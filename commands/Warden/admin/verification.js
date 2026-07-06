@@ -427,7 +427,7 @@ function buildVerificationHelpEmbed() {
     );
 }
 
-function buildWelcomeComponents() {
+function buildVerificationPostComponents() {
     return [new Discord.ActionRowBuilder()
         .addComponents(
             new Discord.ButtonBuilder()
@@ -1267,11 +1267,11 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('post')
-                .setDescription('Post the verification welcome message')
+                .setDescription('Post or refresh the verification post')
                 .addChannelOption(option =>
                     option
                         .setName('channel')
-                        .setDescription('Channel to post the verification welcome message in')
+                        .setDescription('Channel to post the verification post in')
                         .addChannelTypes(
                             Discord.ChannelType.GuildText,
                             Discord.ChannelType.GuildAnnouncement,
@@ -1281,13 +1281,13 @@ module.exports = {
                 .addBooleanOption(option =>
                     option
                         .setName('refresh')
-                        .setDescription('Update an existing verification welcome message instead of posting a new one')
+                        .setDescription('Update an existing verification post instead of posting a new one')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
                     option
                         .setName('message_id')
-                        .setDescription('Message ID to update when refresh is enabled')
+                        .setDescription('Verification post message ID to update when refresh is enabled')
                         .setRequired(false)
                 )
         )
@@ -1411,7 +1411,7 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
             const messageId = interaction.options.getString('message_id');
 
             const welcomeEmbed = buildWelcomeEmbed();
-            const components = buildWelcomeComponents();
+            const components = buildVerificationPostComponents();
 
             if (shouldRefresh) {
                 if (!messageId) {
@@ -1420,11 +1420,11 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
 
                 const message = await fetchVerificationMessage(interaction, messageId);
                 if (!message) {
-                    return interaction.editReply({ embeds: [userErrorEmbed('Could not find that verification message. Please check the message ID.')] });
+                    return interaction.editReply({ embeds: [userErrorEmbed('Could not find that verification post. Please check the message ID.')] });
                 }
 
                 await message.edit({ embeds: [welcomeEmbed], components });
-                return interaction.editReply({ content: `Verification message refreshed successfully: ${message.url}` });
+                return interaction.editReply({ content: `Verification post refreshed successfully: ${message.url}` });
             }
 
             const targetChannelId = optionChannel?.id ?? configuredChannelId;
@@ -1439,7 +1439,7 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
 
             const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
 
-            return interaction.editReply({ content: `Verification message posted successfully in ${targetChannel}. ${message.url}` });
+            return interaction.editReply({ content: `Verification post posted successfully in ${targetChannel}. ${message.url}` });
         }
         catch (err) {
             console.log(err);
