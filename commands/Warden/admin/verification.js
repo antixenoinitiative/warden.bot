@@ -419,6 +419,51 @@ function buildWelcomeEmbed() {
     return embed;
 }
 
+function buildVerificationHelpEmbed() {
+    return buildResultEmbed(
+        verificationEmbedConfig.verificationHelpEmbed,
+        'Verification Help',
+        'If you are having trouble verifying, please contact staff for assistance.',
+    );
+}
+
+function buildWelcomeComponents() {
+    return [new Discord.ActionRowBuilder()
+        .addComponents(
+            new Discord.ButtonBuilder()
+                .setCustomId('wardenVerify-start')
+                .setLabel('Verify')
+                .setStyle(Discord.ButtonStyle.Success),
+            new Discord.ButtonBuilder()
+                .setCustomId('wardenVerify-help')
+                .setLabel('Help')
+                .setStyle(Discord.ButtonStyle.Secondary),
+        )];
+}
+
+async function handleVerifyHelp(interaction) {
+    return interaction.reply({
+        embeds: [buildVerificationHelpEmbed()],
+        flags: Discord.MessageFlags.Ephemeral,
+    });
+}
+
+async function fetchVerificationMessage(interaction, targetChannel, messageId) {
+    if (targetChannel) {
+        return targetChannel.messages.fetch(messageId).catch(() => null);
+    }
+
+    const channels = await interaction.guild.channels.fetch();
+    for (const channel of channels.values()) {
+        if (!channel?.isTextBased?.()) continue;
+
+        const message = await channel.messages.fetch(messageId).catch(() => null);
+        if (message) return message;
+    }
+
+    return null;
+}
+
 function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
     let description = embedConfig?.description ?? fallbackDescription;
 
@@ -1215,6 +1260,7 @@ async function handleVerifySubmit(interaction) {
 module.exports = {
     VERIFICATION_MODES,
     handleVerifyStart,
+    handleVerifyHelp,
     handleVerifyAnswer,
     handleVerifyOldVersion,
     handleVerifySubmit,
@@ -1229,11 +1275,23 @@ module.exports = {
                 .addChannelOption(option =>
                     option
                         .setName('channel')
-                        .setDescription('Channel to post the verification welcome message in')
+                        .setDescription('Channel to post the verification welcome message in, or channel containing the message to refresh')
                         .addChannelTypes(
                             Discord.ChannelType.GuildText,
                             Discord.ChannelType.GuildAnnouncement,
                         )
+                        .setRequired(false)
+                )
+                .addBooleanOption(option =>
+                    option
+                        .setName('refresh')
+                        .setDescription('Update an existing verification welcome message instead of posting a new one')
+                        .setRequired(false)
+                )
+                .addStringOption(option =>
+                    option
+                        .setName('message_id')
+                        .setDescription('Message ID to update when refresh is enabled')
                         .setRequired(false)
                 )
         )
@@ -1354,27 +1412,39 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
             const configuredChannelId = verificationConfig?.channelId;
             const optionChannel = interaction.options.getChannel('channel');
             const targetChannelId = optionChannel?.id ?? configuredChannelId;
+            const shouldRefresh = interaction.options.getBoolean('refresh') ?? false;
+            const messageId = interaction.options.getString('message_id');
 
-            if (!targetChannelId) {
-                return interaction.editReply({ embeds: [userErrorEmbed('No verification channel is configured. Please provide a channel option.')] });
-            }
-
-            const targetChannel = optionChannel ?? await interaction.guild.channels.fetch(targetChannelId);
-
-            if (!targetChannel || !targetChannel.isTextBased()) {
-                return interaction.editReply({ embeds: [userErrorEmbed('The verification channel could not be found or is not a text channel.')] });
+            let targetChannel = null;
+            if (targetChannelId) {
+                targetChannel = optionChannel ?? await interaction.guild.channels.fetch(targetChannelId);
+                if (!targetChannel || !targetChannel.isTextBased()) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('The verification channel could not be found or is not a text channel.')] });
+                }
             }
 
             const welcomeEmbed = buildWelcomeEmbed();
-            const row = new Discord.ActionRowBuilder()
-                .addComponents(
-                    new Discord.ButtonBuilder()
-                        .setCustomId('wardenVerify-start')
-                        .setLabel('Verify')
-                        .setStyle(Discord.ButtonStyle.Success),
-                );
+            const components = buildWelcomeComponents();
 
-            const message = await targetChannel.send({ embeds: [welcomeEmbed], components: [row] });
+            if (shouldRefresh) {
+                if (!messageId) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('Please provide a message_id when refresh is enabled.')] });
+                }
+
+                const message = await fetchVerificationMessage(interaction, targetChannel, messageId);
+                if (!message) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('Could not find that verification message. Provide its channel option or check the message ID.')] });
+                }
+
+                await message.edit({ embeds: [welcomeEmbed], components });
+                return interaction.editReply({ content: `Verification message refreshed successfully: ${message.url}` });
+            }
+
+            if (!targetChannel) {
+                return interaction.editReply({ embeds: [userErrorEmbed('No verification channel is configured. Please provide a channel option.')] });
+            }
+
+            const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
 
             return interaction.editReply({ content: `Verification message posted successfully in ${targetChannel}. ${message.url}` });
         }
