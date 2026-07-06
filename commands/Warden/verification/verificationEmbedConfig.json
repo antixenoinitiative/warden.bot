@@ -52,15 +52,15 @@
     "autoKickEmbed": {
         "title": "Verification Timed Out",
         "description": "You were removed from {serverName} because you did not complete verification before the timer expired. You may rejoin and try verification again.",
-        "color": "#E74C3C",
+        "color": "#ff7100",
         "thumbnail": {
-            "enabled": false,
+            "enabled": true,
             "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
         }
     },
     "autoKickWelcomeField": {
         "title": "Verification time limit",
-        "value": "Please complete verification within {timer}. If you still have the verification role after that timer expires, you will receive a DM and be removed from the server.",
+        "value": "Please complete verification within {timer}. If you are still unverified when that timer expires, you will be removed from the server.",
         "inline": false
     }
 }
