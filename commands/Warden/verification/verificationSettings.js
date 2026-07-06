@@ -23,6 +23,7 @@ const LEGACY_VERIFICATION_MODE_ALIASES = {
 };
 const DEFAULT_CHALLENGE_EXPIRY_SECONDS = 10 * 60;
 const DEFAULT_COOLDOWN_SECONDS = 60;
+const DEFAULT_AUTOKICK_SECONDS = 10 * 60;
 const settingsCache = new Map();
 let tableReady;
 
@@ -49,6 +50,8 @@ function defaultVerificationSettings() {
         activeChallengeIds: normalizeChallengeIds(activeChallengeIds),
         challengeExpirySeconds: normalizeTimerSeconds(verificationConfig.challengeExpirySeconds ?? verificationConfig.expirySeconds, DEFAULT_CHALLENGE_EXPIRY_SECONDS),
         cooldownSeconds: normalizeTimerSeconds(verificationConfig.cooldownSeconds, DEFAULT_COOLDOWN_SECONDS),
+        autokickEnabled: verificationConfig.autokickEnabled === true,
+        autokickSeconds: normalizeTimerSeconds(verificationConfig.autokickSeconds ?? verificationConfig.autokickTimerSeconds, DEFAULT_AUTOKICK_SECONDS),
     };
 }
 
@@ -83,6 +86,8 @@ function normalizeSettings(settings) {
         activeChallengeIds: activeChallengeIds.length > 0 ? activeChallengeIds : defaults.activeChallengeIds,
         challengeExpirySeconds: normalizeTimerSeconds(settings?.challengeExpirySeconds, defaults.challengeExpirySeconds),
         cooldownSeconds: normalizeTimerSeconds(settings?.cooldownSeconds, defaults.cooldownSeconds),
+        autokickEnabled: settings?.autokickEnabled === true || settings?.autokickEnabled === 1 || settings?.autokickEnabled === '1',
+        autokickSeconds: normalizeTimerSeconds(settings?.autokickSeconds, defaults.autokickSeconds),
     };
 }
 
@@ -102,10 +107,12 @@ function parseSettingsRow(row) {
         activeChallengeIds,
         challengeExpirySeconds: row.challenge_expiry_seconds,
         cooldownSeconds: row.cooldown_seconds,
+        autokickEnabled: row.autokick_enabled,
+        autokickSeconds: row.autokick_seconds,
     });
 }
 
-async function ensureVerificationSettingsColumn(columnName, definition) {
+async function ensureVerificationSettingsColumn(columnName, definition, options = {}) {
     const rows = await getDatabase().query(
         `SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE
          FROM INFORMATION_SCHEMA.COLUMNS
@@ -122,7 +129,10 @@ async function ensureVerificationSettingsColumn(columnName, definition) {
     }
 
     const [column] = rows;
-    if (column.IS_NULLABLE !== 'YES' || column.COLUMN_DEFAULT !== null || column.DATA_TYPE !== 'int') {
+    const expectedNullable = options.nullable ?? 'YES';
+    const expectedDefault = options.defaultValue ?? null;
+    const expectedTypes = options.dataTypes ?? ['int'];
+    if (column.IS_NULLABLE !== expectedNullable || column.COLUMN_DEFAULT !== expectedDefault || !expectedTypes.includes(column.DATA_TYPE)) {
         await getDatabase().query(`ALTER TABLE verification_settings MODIFY COLUMN ${definition}`);
     }
 }
@@ -150,6 +160,8 @@ async function ensureVerificationSettingsTable() {
                 active_challenge_ids TEXT NOT NULL,
                 challenge_expiry_seconds INT NULL DEFAULT NULL,
                 cooldown_seconds INT NULL DEFAULT NULL,
+                autokick_enabled TINYINT(1) NOT NULL DEFAULT 0,
+                autokick_seconds INT NULL DEFAULT NULL,
                 updated_by VARCHAR(32) NULL,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
@@ -157,6 +169,8 @@ async function ensureVerificationSettingsTable() {
             .then(async () => {
                 await ensureVerificationSettingsColumn('challenge_expiry_seconds', 'challenge_expiry_seconds INT NULL DEFAULT NULL');
                 await ensureVerificationSettingsColumn('cooldown_seconds', 'cooldown_seconds INT NULL DEFAULT NULL');
+                await ensureVerificationSettingsColumn('autokick_enabled', 'autokick_enabled TINYINT(1) NOT NULL DEFAULT 0', { nullable: 'NO', defaultValue: '0', dataTypes: ['tinyint'] });
+                await ensureVerificationSettingsColumn('autokick_seconds', 'autokick_seconds INT NULL DEFAULT NULL');
                 await migrateVerificationModeNames();
             })
             .catch((err) => {
@@ -174,13 +188,15 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
 
     await ensureVerificationSettingsTable();
     await getDatabase().query(
-        `INSERT INTO verification_settings (guild_id, mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO verification_settings (guild_id, mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             mode = VALUES(mode),
             active_challenge_ids = VALUES(active_challenge_ids),
             challenge_expiry_seconds = VALUES(challenge_expiry_seconds),
             cooldown_seconds = VALUES(cooldown_seconds),
+            autokick_enabled = VALUES(autokick_enabled),
+            autokick_seconds = VALUES(autokick_seconds),
             updated_by = VALUES(updated_by)`,
         [
             normalizedGuildId,
@@ -188,6 +204,8 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
             JSON.stringify(normalizedSettings.activeChallengeIds),
             normalizedSettings.challengeExpirySeconds,
             normalizedSettings.cooldownSeconds,
+            normalizedSettings.autokickEnabled ? 1 : 0,
+            normalizedSettings.autokickSeconds,
             updatedBy ? String(updatedBy) : null,
         ],
     );
@@ -204,7 +222,7 @@ async function getVerificationSettings(guildId) {
     }
 
     await ensureVerificationSettingsTable();
-    const rows = await getDatabase().query('SELECT mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds FROM verification_settings WHERE guild_id = ? LIMIT 1', [normalizedGuildId]);
+    const rows = await getDatabase().query('SELECT mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds FROM verification_settings WHERE guild_id = ? LIMIT 1', [normalizedGuildId]);
 
     if (rows.length > 0) {
         const settings = parseSettingsRow(rows[0]);
@@ -235,14 +253,25 @@ async function setCooldownSeconds(guildId, cooldownSeconds, updatedBy) {
     return saveVerificationSettings(guildId, { ...currentSettings, cooldownSeconds }, updatedBy);
 }
 
+async function setAutokickSettings(guildId, autokickEnabled, autokickSeconds, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    return saveVerificationSettings(guildId, {
+        ...currentSettings,
+        autokickEnabled,
+        autokickSeconds: autokickSeconds ?? currentSettings.autokickSeconds,
+    }, updatedBy);
+}
+
 module.exports = {
     VALID_VERIFICATION_MODES,
     DEFAULT_CHALLENGE_EXPIRY_SECONDS,
     DEFAULT_COOLDOWN_SECONDS,
+    DEFAULT_AUTOKICK_SECONDS,
     ensureVerificationSettingsTable,
     getVerificationSettings,
     setVerificationMode,
     setActiveChallengeIds,
     setChallengeExpirySeconds,
     setCooldownSeconds,
+    setAutokickSettings,
 };

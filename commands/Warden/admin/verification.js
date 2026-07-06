@@ -21,6 +21,7 @@ const {
     setActiveChallengeIds,
     setChallengeExpirySeconds,
     setCooldownSeconds,
+    setAutokickSettings,
 } = require('../verification/verificationSettings');
 
 const VERIFICATION_MODES = {
@@ -388,6 +389,16 @@ function formatDuration(seconds) {
 }
 
 
+function applyTextReplacements(text, replacements = {}) {
+    let resolvedText = String(text ?? '');
+
+    for (const [key, value] of Object.entries(replacements)) {
+        resolvedText = resolvedText.replaceAll(`{${key}}`, String(value));
+    }
+
+    return resolvedText;
+}
+
 function selectVerificationChallenge(verificationSettings) {
     const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
     if (enabledChallenges.length < 2) {
@@ -397,7 +408,7 @@ function selectVerificationChallenge(verificationSettings) {
     return enabledChallenges[Math.floor(Math.random() * enabledChallenges.length)];
 }
 
-function buildWelcomeEmbed() {
+function buildWelcomeEmbed(verificationSettings) {
     const welcomeEmbedConfig = verificationEmbedConfig.welcomeEmbed ?? {};
     const embed = new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor(welcomeEmbedConfig.color))
@@ -414,6 +425,20 @@ function buildWelcomeEmbed() {
 
     for (const field of welcomeEmbedConfig.fields ?? []) {
         applyFieldToEmbed(embed, field);
+    }
+
+    if (verificationSettings?.autokickEnabled) {
+        const autoKickWelcomeFieldConfig = verificationEmbedConfig.autoKickWelcomeField ?? {};
+        const replacements = {
+            autokickTimer: formatDuration(verificationSettings.autokickSeconds),
+            timer: formatDuration(verificationSettings.autokickSeconds),
+        };
+
+        applyFieldToEmbed(embed, {
+            title: applyTextReplacements(autoKickWelcomeFieldConfig.title ?? 'Verification time limit', replacements),
+            value: applyTextReplacements(autoKickWelcomeFieldConfig.value ?? 'Please complete verification within {timer}, or you will be removed from the server.', replacements),
+            inline: autoKickWelcomeFieldConfig.inline ?? false,
+        });
     }
 
     return embed;
@@ -462,10 +487,7 @@ async function fetchVerificationMessage(interaction, messageId) {
 
 function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
     let description = embedConfig?.description ?? fallbackDescription;
-
-    for (const [key, value] of Object.entries(replacements)) {
-        description = description.replaceAll(`{${key}}`, String(value));
-    }
+    description = applyTextReplacements(description, replacements);
 
     return new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor(embedConfig?.color))
@@ -1301,6 +1323,28 @@ module.exports = {
                         )
                 )
         )
+
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('autokick')
+                .setDescription('Set the persisted verification autokick state and timer')
+                .addStringOption(option =>
+                    option
+                        .setName('setting')
+                        .setDescription('Whether verification autokick is enabled')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'On', value: 'on' },
+                            { name: 'Off', value: 'off' },
+                        )
+                )
+                .addStringOption(option =>
+                    option
+                        .setName('timer')
+                        .setDescription('Autokick delay, such as 10m, 600s, or 10 minutes')
+                        .setRequired(false)
+                )
+        )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('challenge')
@@ -1345,6 +1389,20 @@ module.exports = {
                 return interaction.editReply({ content: `Verification mode set to **${mode}**.` });
             }
 
+
+            if (subcommand === 'autokick') {
+                const setting = interaction.options.getString('setting', true);
+                const timerInput = interaction.options.getString('timer');
+                const durationSeconds = timerInput ? parseDurationSeconds(timerInput) : undefined;
+
+                if (timerInput && !durationSeconds) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid autokick timer, such as `600s`, `10m`, or `10 minutes`.')] });
+                }
+
+                const updatedSettings = await setAutokickSettings(guildId, setting === 'on', durationSeconds, interaction.user.id);
+                return interaction.editReply({ content: `Verification autokick is now **${updatedSettings.autokickEnabled ? 'on' : 'off'}** with a timer of **${formatDuration(updatedSettings.autokickSeconds)}**.` });
+            }
+
             if (subcommand === 'challenge') {
                 const action = interaction.options.getString('action', true);
                 const verificationSettings = await getVerificationSettings(guildId);
@@ -1359,7 +1417,8 @@ module.exports = {
 ${challengeList}
 
 Prompt expiry: **${formatDuration(verificationSettings.challengeExpirySeconds)}**
-Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
+Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**
+Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${formatDuration(verificationSettings.autokickSeconds)}**` });
                 }
 
                 if (action === 'timer' || action === 'cooldown') {
@@ -1403,7 +1462,7 @@ Retry cooldown: **${formatDuration(verificationSettings.cooldownSeconds)}**` });
             const optionChannel = interaction.options.getChannel('channel');
             const messageId = interaction.options.getString('message_id');
 
-            const welcomeEmbed = buildWelcomeEmbed();
+            const welcomeEmbed = buildWelcomeEmbed(verificationSettings);
             const components = buildVerificationPostComponents();
 
             if (messageId) {
