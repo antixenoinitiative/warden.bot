@@ -65,6 +65,62 @@ const verificationImagePools = {
             },
         ],
     },
+    eliteStarterShips: {
+        id: 'eliteStarterShips_c',
+        description: 'Elite Dangerous vessel img pool for starter ship question.',
+        images: [
+            {
+                id: 'sidewinder-1',
+                role: 'solution',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel8_c.png',
+            },
+            {
+                id: 'chieftain-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel1_c.png',
+            },
+            {
+                id: 'clops-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel2_c.png',
+            },
+            {
+                id: 'type-7-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel3_c.png',
+            },
+            {
+                id: 'eagle-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel9_c.png',
+            },
+            {
+                id: 'imp-eagle-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel4_c.png',
+            },
+            {
+                id: 'krait-mk2-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel5_c.png',
+            },
+            {
+                id: 'type-10-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel6_c.png',
+            },
+            {
+                id: 'hauler-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel10_c.png',
+            },
+            {
+                id: 'fas-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel7_c.png',
+            },
+        ],
+    },
 };
 
 function getVerificationImagePool(poolId) {
