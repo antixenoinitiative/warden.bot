@@ -54,6 +54,11 @@ const verificationImagePools = {
                 url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel6.png',
             },
             {
+                id: 'hauler-1',
+                role: 'control',
+                url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel10.png',
+            },
+            {
                 id: 'fas-1',
                 role: 'control',
                 url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel7.png',
