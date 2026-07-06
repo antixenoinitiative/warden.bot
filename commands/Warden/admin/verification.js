@@ -875,7 +875,7 @@ async function completeVerification(interaction) {
         await interaction.member.roles.remove(unverifiedRoleId);
     }
 
-    return interaction.reply({
+    return sendInitialInteractionResponse(interaction, {
         embeds: [buildResultEmbed(
             verificationEmbedConfig.successEmbed,
             'Verification Complete',
@@ -886,11 +886,18 @@ async function completeVerification(interaction) {
 }
 
 async function handleVerifyStart(interaction) {
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    }
+
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.block) {
-        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
+        return sendInitialInteractionResponse(interaction, {
+            content: 'Verification is currently blocked.',
+            flags: Discord.MessageFlags.Ephemeral,
+        });
     }
 
     if (verificationMode === VERIFICATION_MODES.skipChallenge) {
@@ -900,13 +907,16 @@ async function handleVerifyStart(interaction) {
     const cooldownRemaining = getCooldownRemaining(interaction.user.id);
     if (cooldownRemaining > 0) {
         const retryAt = Math.ceil((Date.now() + cooldownRemaining) / 1000);
-        return interaction.reply({ content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, flags: Discord.MessageFlags.Ephemeral });
+        return sendInitialInteractionResponse(interaction, {
+            content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`,
+            flags: Discord.MessageFlags.Ephemeral,
+        });
     }
 
     const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
     const existingChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
     if (existingChallenge) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildInProgressEmbed(existingChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
@@ -920,19 +930,6 @@ async function handleVerifyStart(interaction) {
     const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
     const reservationToken = crypto.randomUUID();
     setChallenge(interaction.user.id, { challengeId, stepIndex, pending: true, reservationToken }, challengeExpiryMs);
-
-    if (isGalleryChallenge && !interaction.deferred && !interaction.replied) {
-        try {
-            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-        }
-        catch (err) {
-            const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
-            if (reservedChallenge?.reservationToken === reservationToken) {
-                clearChallenge(interaction.user.id);
-            }
-            throw err;
-        }
-    }
 
     let galleryState;
     try {
