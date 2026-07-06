@@ -40,6 +40,7 @@ const LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT = 9;
 const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
 const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
 const GALLERY_IMAGE_FETCH_TIMEOUT_MS = 10000;
+const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
 
 function resolveEmbedColor(color, fallbackColor = '#3498DB') {
     if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
@@ -113,7 +114,9 @@ async function fetchGalleryImageAttachment(image) {
     }
     catch (err) {
         if (err.name === 'AbortError') {
-            throw new Error(`Timed out fetching verification gallery image for position ${image.position} after ${GALLERY_IMAGE_FETCH_TIMEOUT_MS}ms.`);
+            const timeoutError = new Error(`Timed out fetching verification gallery image for position ${image.position} after ${GALLERY_IMAGE_FETCH_TIMEOUT_MS}ms.`);
+            timeoutError.code = GALLERY_IMAGE_FETCH_TIMEOUT_CODE;
+            throw timeoutError;
         }
 
         throw err;
@@ -958,6 +961,10 @@ async function handleVerifyStart(interaction) {
         const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
         if (reservedChallenge?.reservationToken === reservationToken) {
             clearChallenge(interaction.user.id);
+        }
+
+        if (err.code !== GALLERY_IMAGE_FETCH_TIMEOUT_CODE) {
+            throw err;
         }
 
         console.error('Failed to prepare verification gallery challenge:', err);
