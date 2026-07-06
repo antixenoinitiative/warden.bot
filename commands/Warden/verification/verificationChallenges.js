@@ -56,9 +56,9 @@ const verificationChallenges = {
             {
                 title: 'Multi-field Verification Challenge',
                 description: 'Review the information below, then answer the prompt.',
-                prompt: 'What three-letter group is this server for?',
+                prompt: 'What three-letter group does this server stand for?',
                 answers: ['axi', 'anti-xeno initiative', 'antixenoinitiative'],
-                thumbnailUrl: 'https://www.antixenoinitiative.com/favicon.ico',
+                thumbnailUrl: 'https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png',
                 fields: [
                     {
                         title: 'Hint',
@@ -71,7 +71,7 @@ const verificationChallenges = {
                     },
                     {
                         title: 'Reference image',
-                        imageUrl: 'https://www.antixenoinitiative.com/favicon.ico',
+                        imageUrl: 'https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png',
                     },
                 ],
                 embeds: [
@@ -100,10 +100,10 @@ const verificationChallenges = {
                 title: 'Verification Challenge',
                 description: 'Answer both questions below.',
                 prompt: 'What is the name of the starter ship in Elite Dangerous?',
-                galleryPrompt: 'Which of these images is the starter ship? Remember their position in the order.',
+                galleryPrompt: 'Find all images depicting the starter ship. It may be multiple. Remember their position in the order.',
                 answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
-                positionInputLabel: 'Image position(s)',
-                positionInputPlaceholder: 'If multiple, seperate position numbers by commas or spaces',
+                positionInputLabel: 'Image position(s) (1-9)',
+                positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
             },
         ],
     },
