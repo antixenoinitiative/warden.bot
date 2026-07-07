@@ -163,8 +163,8 @@ function mainOperation(){
 						await staffChannel.send({
 							embeds: [new Discord.EmbedBuilder()
 								.setColor('#F1C40F')
-								.setTitle('⚠️ Verification challenge configuration warning')
-								.setDescription(`These active verification challenge IDs need DB-configured prompt and/or answer overrides before they should be used:\n${warningDescription}`)],
+								.setTitle('Verification challenge configuration warning')
+								.setDescription(`These active verification challenge IDs need DB-configured prompt and/or answers before they should be used:\n${warningDescription}`)],
 						})
 					}
 				}
