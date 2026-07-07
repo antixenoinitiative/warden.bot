@@ -257,18 +257,6 @@ function buildVerificationErrorResponse(message, options = {}) {
     return response;
 }
 
-function buildVerificationSuccessResponse(templateKey, replacements = {}, options = {}) {
-    return buildVerificationResponse(templateKey, replacements, { color: 'success', ...options });
-}
-
-function buildVerificationInfoResponse(templateKey, replacements = {}, options = {}) {
-    return buildVerificationResponse(templateKey, replacements, { color: 'info', ...options });
-}
-
-function buildVerificationListResponse(templateKey, replacements = {}, fields = [], options = {}) {
-    return buildVerificationResponse(templateKey, replacements, { fields, ...options });
-}
-
 function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
     const template = {
         title: embedConfig?.title ?? fallbackTitle,
@@ -309,8 +297,5 @@ module.exports = {
     buildVerificationAdminSummary,
     buildVerificationErrorEmbed,
     buildVerificationErrorResponse,
-    buildVerificationSuccessResponse,
-    buildVerificationInfoResponse,
-    buildVerificationListResponse,
     buildResultEmbed,
 };

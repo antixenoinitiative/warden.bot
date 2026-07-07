@@ -829,10 +829,6 @@ function buildWelcomeEmbed(verificationSettings) {
     return embed;
 }
 
-function buildVerificationHelpEmbed() {
-    return buildVerificationPublicEmbed('verificationHelpEmbed');
-}
-
 function buildVerificationPostComponents() {
     return [new Discord.ActionRowBuilder()
         .addComponents(
@@ -848,10 +844,7 @@ function buildVerificationPostComponents() {
 }
 
 async function handleVerifyHelp(interaction) {
-    return interaction.reply({
-        embeds: [buildVerificationHelpEmbed()],
-        flags: Discord.MessageFlags.Ephemeral,
-    });
+    return interaction.reply(buildVerificationPublicResponse('verificationHelpEmbed'));
 }
 
 async function fetchVerificationMessage(interaction, messageId) {
