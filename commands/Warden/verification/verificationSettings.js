@@ -31,6 +31,10 @@ function normalizeGuildId(guildId) {
     return String(guildId ?? DEFAULT_GUILD_ID);
 }
 
+function defaultChallengeOverrides() {
+    return {};
+}
+
 function defaultVerificationSettings() {
     const verificationConfig = config.Warden?.verification ?? {};
     const fallbackMode = verificationConfig.enabled === false ? VERIFICATION_MODES.block : VERIFICATION_MODES.challenge;
@@ -52,6 +56,7 @@ function defaultVerificationSettings() {
         cooldownSeconds: normalizeTimerSeconds(verificationConfig.cooldownSeconds, DEFAULT_COOLDOWN_SECONDS),
         autokickEnabled: verificationConfig.autokickEnabled === true,
         autokickSeconds: normalizeTimerSeconds(verificationConfig.autokickSeconds ?? verificationConfig.autokickTimerSeconds, DEFAULT_AUTOKICK_SECONDS),
+        challengeOverrides: defaultChallengeOverrides(),
     };
 }
 
@@ -76,6 +81,64 @@ function normalizeTimerSeconds(value, fallback) {
     return Number.isFinite(seconds) && seconds > 0 ? seconds : fallback;
 }
 
+function normalizeChallengeOverrideEntry(entry) {
+    const normalizedEntry = {};
+
+    if (typeof entry?.prompt === 'string' && entry.prompt.trim()) {
+        normalizedEntry.prompt = entry.prompt.trim();
+    }
+
+    const answers = (Array.isArray(entry?.answers) ? entry.answers : [])
+        .map((answer) => String(answer ?? '').trim())
+        .filter(Boolean);
+
+    if (answers.length > 0) {
+        normalizedEntry.answers = [...new Set(answers)];
+    }
+
+    if (entry?.updatedBy) {
+        normalizedEntry.updatedBy = String(entry.updatedBy);
+    }
+
+    if (entry?.updatedAt) {
+        normalizedEntry.updatedAt = String(entry.updatedAt);
+    }
+
+    return normalizedEntry;
+}
+
+function normalizeChallengeOverrides(challengeOverrides) {
+    if (!challengeOverrides || typeof challengeOverrides !== 'object' || Array.isArray(challengeOverrides)) {
+        return defaultChallengeOverrides();
+    }
+
+    return Object.entries(challengeOverrides).reduce((normalizedOverrides, [challengeId, entry]) => {
+        const normalizedChallengeId = String(challengeId ?? '').trim();
+        if (!normalizedChallengeId) return normalizedOverrides;
+
+        const normalizedEntry = normalizeChallengeOverrideEntry(entry);
+        if (normalizedEntry.prompt || normalizedEntry.answers?.length) {
+            normalizedOverrides[normalizedChallengeId] = normalizedEntry;
+        }
+
+        return normalizedOverrides;
+    }, {});
+}
+
+function parseChallengeOverridesValue(challengeOverridesValue) {
+    if (!challengeOverridesValue) {
+        return defaultChallengeOverrides();
+    }
+
+    try {
+        return normalizeChallengeOverrides(JSON.parse(challengeOverridesValue));
+    }
+    catch (err) {
+        console.error('Failed to parse verification_settings.challenge_overrides_json:', err);
+        return defaultChallengeOverrides();
+    }
+}
+
 function normalizeSettings(settings) {
     const defaults = defaultVerificationSettings();
     const mode = normalizeVerificationMode(settings?.mode, defaults.mode);
@@ -88,6 +151,7 @@ function normalizeSettings(settings) {
         cooldownSeconds: normalizeTimerSeconds(settings?.cooldownSeconds, defaults.cooldownSeconds),
         autokickEnabled: settings?.autokickEnabled === true || settings?.autokickEnabled === 1 || settings?.autokickEnabled === '1',
         autokickSeconds: normalizeTimerSeconds(settings?.autokickSeconds, defaults.autokickSeconds),
+        challengeOverrides: normalizeChallengeOverrides(settings?.challengeOverrides ?? defaults.challengeOverrides),
     };
 }
 
@@ -109,6 +173,7 @@ function parseSettingsRow(row) {
         cooldownSeconds: row.cooldown_seconds,
         autokickEnabled: row.autokick_enabled,
         autokickSeconds: row.autokick_seconds,
+        challengeOverrides: parseChallengeOverridesValue(row.challenge_overrides_json),
     });
 }
 
@@ -162,6 +227,7 @@ async function ensureVerificationSettingsTable() {
                 cooldown_seconds INT NULL DEFAULT NULL,
                 autokick_enabled TINYINT(1) NOT NULL DEFAULT 0,
                 autokick_seconds INT NULL DEFAULT NULL,
+                challenge_overrides_json TEXT NULL DEFAULT NULL,
                 updated_by VARCHAR(32) NULL,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
@@ -171,6 +237,7 @@ async function ensureVerificationSettingsTable() {
                 await ensureVerificationSettingsColumn('cooldown_seconds', 'cooldown_seconds INT NULL DEFAULT NULL');
                 await ensureVerificationSettingsColumn('autokick_enabled', 'autokick_enabled TINYINT(1) NOT NULL DEFAULT 0', { nullable: 'NO', defaultValue: '0', dataTypes: ['tinyint'] });
                 await ensureVerificationSettingsColumn('autokick_seconds', 'autokick_seconds INT NULL DEFAULT NULL');
+                await ensureVerificationSettingsColumn('challenge_overrides_json', 'challenge_overrides_json TEXT NULL DEFAULT NULL', { dataTypes: ['text', 'mediumtext', 'longtext'] });
                 await migrateVerificationModeNames();
             })
             .catch((err) => {
@@ -188,8 +255,8 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
 
     await ensureVerificationSettingsTable();
     await getDatabase().query(
-        `INSERT INTO verification_settings (guild_id, mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO verification_settings (guild_id, mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, challenge_overrides_json, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             mode = VALUES(mode),
             active_challenge_ids = VALUES(active_challenge_ids),
@@ -197,6 +264,7 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
             cooldown_seconds = VALUES(cooldown_seconds),
             autokick_enabled = VALUES(autokick_enabled),
             autokick_seconds = VALUES(autokick_seconds),
+            challenge_overrides_json = VALUES(challenge_overrides_json),
             updated_by = VALUES(updated_by)`,
         [
             normalizedGuildId,
@@ -206,6 +274,7 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
             normalizedSettings.cooldownSeconds,
             normalizedSettings.autokickEnabled ? 1 : 0,
             normalizedSettings.autokickSeconds,
+            JSON.stringify(normalizedSettings.challengeOverrides),
             updatedBy ? String(updatedBy) : null,
         ],
     );
@@ -222,7 +291,7 @@ async function getVerificationSettings(guildId) {
     }
 
     await ensureVerificationSettingsTable();
-    const rows = await getDatabase().query('SELECT mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds FROM verification_settings WHERE guild_id = ? LIMIT 1', [normalizedGuildId]);
+    const rows = await getDatabase().query('SELECT mode, active_challenge_ids, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, challenge_overrides_json FROM verification_settings WHERE guild_id = ? LIMIT 1', [normalizedGuildId]);
 
     if (rows.length > 0) {
         const settings = parseSettingsRow(rows[0]);
@@ -262,6 +331,78 @@ async function setAutokickSettings(guildId, autokickEnabled, autokickSeconds, up
     }, updatedBy);
 }
 
+function buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, updateEntry) {
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    const currentOverrides = normalizeChallengeOverrides(currentSettings.challengeOverrides);
+    const currentEntry = currentOverrides[normalizedChallengeId] ?? {};
+    const updatedEntry = normalizeChallengeOverrideEntry({
+        ...updateEntry(currentEntry),
+        updatedBy,
+        updatedAt: new Date().toISOString(),
+    });
+    const updatedOverrides = { ...currentOverrides };
+
+    if (updatedEntry.prompt || updatedEntry.answers?.length) {
+        updatedOverrides[normalizedChallengeId] = updatedEntry;
+    }
+    else {
+        delete updatedOverrides[normalizedChallengeId];
+    }
+
+    return updatedOverrides;
+}
+
+async function setChallengePromptOverride(guildId, challengeId, prompt, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
+        ...currentEntry,
+        prompt,
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function clearChallengePromptOverride(guildId, challengeId, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
+        ...currentEntry,
+        prompt: undefined,
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function addChallengeAnswerOverride(guildId, challengeId, answer, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
+        ...currentEntry,
+        answers: [...(currentEntry.answers ?? []), answer],
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function removeChallengeAnswerOverride(guildId, challengeId, answer, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const answerToRemove = String(answer ?? '').trim().toLowerCase();
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
+        ...currentEntry,
+        answers: (currentEntry.answers ?? []).filter((currentAnswer) => String(currentAnswer).trim().toLowerCase() !== answerToRemove),
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function clearChallengeAnswerOverrides(guildId, challengeId, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
+        ...currentEntry,
+        answers: [],
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 module.exports = {
     VALID_VERIFICATION_MODES,
     DEFAULT_CHALLENGE_EXPIRY_SECONDS,
@@ -274,4 +415,9 @@ module.exports = {
     setChallengeExpirySeconds,
     setCooldownSeconds,
     setAutokickSettings,
+    setChallengePromptOverride,
+    clearChallengePromptOverride,
+    addChallengeAnswerOverride,
+    removeChallengeAnswerOverride,
+    clearChallengeAnswerOverrides,
 };

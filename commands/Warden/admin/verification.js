@@ -10,6 +10,7 @@ const verificationEmbedConfig = require('../verification/verificationEmbedConfig
 const {
     verificationChallenges,
     getActiveVerificationChallenge,
+    applyVerificationChallengeOverrides,
     getEnabledVerificationChallenges,
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
@@ -26,6 +27,11 @@ const {
     setChallengeExpirySeconds,
     setCooldownSeconds,
     setAutokickSettings,
+    setChallengePromptOverride,
+    clearChallengePromptOverride,
+    addChallengeAnswerOverride,
+    removeChallengeAnswerOverride,
+    clearChallengeAnswerOverrides,
 } = require('../verification/verificationSettings');
 
 const VERIFICATION_MODES = {
@@ -764,6 +770,33 @@ function parseChallengeIdList(input) {
 function formatDuration(seconds) {
     if (seconds % 60 === 0) return `${seconds / 60} minute${seconds === 60 ? '' : 's'}`;
     return `${seconds} second${seconds === 1 ? '' : 's'}`;
+}
+
+function getSingleKnownChallengeId(interaction) {
+    const challengeId = String(interaction.options.getString('id') ?? '').trim();
+
+    if (!challengeId) {
+        return { error: userErrorEmbed('Please provide a challenge ID.') };
+    }
+
+    if (!verificationChallenges[challengeId]) {
+        return { error: userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`) };
+    }
+
+    return { challengeId };
+}
+
+function getChallengeOverrideSummary(verificationSettings, challengeId) {
+    const override = verificationSettings.challengeOverrides?.[challengeId];
+    const promptLine = override?.prompt ? `Prompt override: ${override.prompt}` : 'Prompt override: not set';
+    const answerLine = override?.answers?.length
+        ? `Answer overrides:\n${override.answers.map((answer) => `- ${answer}`).join('\n')}`
+        : 'Answer overrides: not set';
+    const updatedLine = override?.updatedAt
+        ? `Last updated: ${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}`
+        : 'Last updated: never';
+
+    return `${promptLine}\n\n${answerLine}\n\n${updatedLine}`;
 }
 
 
@@ -1598,7 +1631,7 @@ async function handleVerifyOldVersion(interaction) {
         });
     }
 
-    const challenge = verificationChallenges[challengeId] ?? getActiveVerificationChallenge({ verification: verificationSettings });
+    const challenge = applyVerificationChallengeOverrides(verificationChallenges[challengeId], verificationSettings) ?? getActiveVerificationChallenge({ verification: verificationSettings });
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
     if (!isComponentsV2GalleryChallenge(challenge, step)) {
@@ -1665,8 +1698,8 @@ async function handleVerifySubmit(interaction) {
     }
 
     const answer = interaction.fields.getTextInputValue('answer');
-    const result = validateAnswer(challengeId, answer, stepIndex);
-    const challenge = verificationChallenges[challengeId] ?? getActiveVerificationChallenge({ verification: verificationSettings });
+    const result = validateAnswer(challengeId, answer, stepIndex, verificationSettings);
+    const challenge = applyVerificationChallengeOverrides(verificationChallenges[challengeId], verificationSettings) ?? getActiveVerificationChallenge({ verification: verificationSettings });
     const step = getVerificationChallengeStep(challengeId, stepIndex);
     const galleryState = activeChallenge.gallery;
     const galleryResultOk = !isComponentsV2GalleryChallenge(challenge, step)
@@ -1789,16 +1822,23 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('autokick')
-                .setDescription('Set the persisted verification autokick state and timer')
+                .setDescription('Set or inspect the persisted verification autokick state and timer')
                 .addStringOption(option =>
                     option
-                        .setName('setting')
+                        .setName('set')
                         .setDescription('Whether verification autokick is enabled')
-                        .setRequired(true)
+                        .setRequired(false)
                         .addChoices(
                             { name: 'On', value: 'on' },
                             { name: 'Off', value: 'off' },
                         )
+                )
+                .addStringOption(option =>
+                    option
+                        .setName('status')
+                        .setDescription('Show the current verification autokick status')
+                        .setRequired(false)
+                        .addChoices({ name: 'Show current status', value: 'status' })
                 )
                 .addStringOption(option =>
                     option
@@ -1821,12 +1861,30 @@ module.exports = {
                             { name: 'Set active challenge ID list', value: 'set' },
                             { name: 'Set prompt expiry timer', value: 'timer' },
                             { name: 'Set retry cooldown timer', value: 'cooldown' },
+                            { name: 'Set challenge prompt override', value: 'prompt_set' },
+                            { name: 'Clear challenge prompt override', value: 'prompt_clear' },
+                            { name: 'Add challenge answer override', value: 'answer_add' },
+                            { name: 'Remove challenge answer override', value: 'answer_remove' },
+                            { name: 'List challenge prompt/answer overrides', value: 'answer_list' },
+                            { name: 'Clear challenge answer overrides', value: 'answer_clear' },
                         )
                 )
                 .addStringOption(option =>
                     option
                         .setName('id')
-                        .setDescription('Complete challenge ID list for set, separated by commas or spaces')
+                        .setDescription('Challenge ID, or complete ID list for set separated by commas/spaces')
+                        .setRequired(false)
+                )
+                .addStringOption(option =>
+                    option
+                        .setName('prompt')
+                        .setDescription('Prompt text for prompt_set')
+                        .setRequired(false)
+                )
+                .addStringOption(option =>
+                    option
+                        .setName('answer')
+                        .setDescription('Answer text for answer_add or answer_remove')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
@@ -1853,8 +1911,19 @@ module.exports = {
 
 
             if (subcommand === 'autokick') {
-                const setting = interaction.options.getString('setting', true);
+                const setting = interaction.options.getString('set');
+                const status = interaction.options.getString('status');
                 const timerInput = interaction.options.getString('timer');
+                const verificationSettings = await getVerificationSettings(guildId);
+
+                if ((setting && status) || (!setting && !status)) {
+                    return interaction.editReply({ embeds: [userErrorEmbed('Choose either `set` to update autokick or `status` to inspect it.')] });
+                }
+
+                if (status) {
+                    return interaction.editReply({ content: `Verification autokick is currently **${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(verificationSettings.autokickSeconds)}**.` });
+                }
+
                 const durationSeconds = timerInput ? parseDurationSeconds(timerInput) : undefined;
 
                 if (timerInput && !durationSeconds) {
@@ -1862,7 +1931,7 @@ module.exports = {
                 }
 
                 const updatedSettings = await setAutokickSettings(guildId, setting === 'on', durationSeconds, interaction.user.id);
-                return interaction.editReply({ content: `Verification autokick is now **${updatedSettings.autokickEnabled ? 'on' : 'off'}** with a timer of **${formatDuration(updatedSettings.autokickSeconds)}**.` });
+                return interaction.editReply({ content: `Verification autokick is now **${updatedSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(updatedSettings.autokickSeconds)}**.` });
             }
 
             if (subcommand === 'challenge') {
@@ -1911,6 +1980,58 @@ Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${f
 
                     const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
                     return interaction.editReply({ content: `Active verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}` });
+                }
+
+
+                if (['prompt_set', 'prompt_clear', 'answer_add', 'answer_remove', 'answer_list', 'answer_clear'].includes(action)) {
+                    const { challengeId, error } = getSingleKnownChallengeId(interaction);
+                    if (error) {
+                        return interaction.editReply({ embeds: [error] });
+                    }
+
+                    if (action === 'answer_list') {
+                        return interaction.editReply({ content: `Overrides for **${challengeId}**:\n\n${getChallengeOverrideSummary(verificationSettings, challengeId)}` });
+                    }
+
+                    if (action === 'prompt_set') {
+                        const prompt = String(interaction.options.getString('prompt') ?? '').trim();
+                        if (!prompt) {
+                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide prompt text for `prompt_set`.')] });
+                        }
+
+                        const updatedSettings = await setChallengePromptOverride(guildId, challengeId, prompt, interaction.user.id);
+                        return interaction.editReply({ content: `Prompt override updated for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                    }
+
+                    if (action === 'prompt_clear') {
+                        const updatedSettings = await clearChallengePromptOverride(guildId, challengeId, interaction.user.id);
+                        return interaction.editReply({ content: `Prompt override cleared for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                    }
+
+                    if (action === 'answer_add') {
+                        const answer = String(interaction.options.getString('answer') ?? '').trim();
+                        if (!answer) {
+                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide an answer for `answer_add`.')] });
+                        }
+
+                        const updatedSettings = await addChallengeAnswerOverride(guildId, challengeId, answer, interaction.user.id);
+                        return interaction.editReply({ content: `Answer override added for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                    }
+
+                    if (action === 'answer_remove') {
+                        const answer = String(interaction.options.getString('answer') ?? '').trim();
+                        if (!answer) {
+                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide an answer for `answer_remove`.')] });
+                        }
+
+                        const updatedSettings = await removeChallengeAnswerOverride(guildId, challengeId, answer, interaction.user.id);
+                        return interaction.editReply({ content: `Answer override removed for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                    }
+
+                    if (action === 'answer_clear') {
+                        const updatedSettings = await clearChallengeAnswerOverrides(guildId, challengeId, interaction.user.id);
+                        return interaction.editReply({ content: `Answer overrides cleared for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                    }
                 }
             }
 

@@ -172,8 +172,56 @@ function resolveEnvironmentValue(envVarName) {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-function resolvePrompt(challenge, step) {
-    return resolveEnvironmentValue(step?.promptEnvVar)
+function getChallengeOverride(challengeId, verificationSettings) {
+    if (!challengeId) return undefined;
+
+    return verificationSettings?.challengeOverrides?.[challengeId];
+}
+
+function applyVerificationChallengeOverrides(challenge, verificationSettings) {
+    if (!challenge) return challenge;
+
+    const override = getChallengeOverride(challenge.id, verificationSettings);
+    if (!override) return challenge;
+
+    const overriddenChallenge = { ...challenge };
+
+    if (override.prompt) {
+        overriddenChallenge.prompt = override.prompt;
+        overriddenChallenge.promptEnvVar = undefined;
+        overriddenChallenge.hasPromptOverride = true;
+    }
+
+    if (override.answers?.length) {
+        overriddenChallenge.answers = override.answers;
+        overriddenChallenge.answersEnvVar = undefined;
+        overriddenChallenge.hasAnswerOverride = true;
+    }
+
+    if (Array.isArray(challenge.steps) && challenge.steps.length > 0) {
+        overriddenChallenge.steps = challenge.steps.map((step, index) => {
+            if (index !== 0) return { ...step };
+
+            return {
+                ...step,
+                ...(override.prompt ? { prompt: override.prompt, promptEnvVar: undefined } : {}),
+                ...(override.answers?.length ? { answers: override.answers, answersEnvVar: undefined } : {}),
+            };
+        });
+    }
+
+    return overriddenChallenge;
+}
+
+function resolvePrompt(challenge, step, verificationSettings) {
+    const override = getChallengeOverride(challenge?.id, verificationSettings);
+
+    if (challenge?.hasPromptOverride && challenge.prompt) {
+        return challenge.prompt;
+    }
+
+    return override?.prompt
+        ?? resolveEnvironmentValue(step?.promptEnvVar)
         ?? resolveEnvironmentValue(challenge?.promptEnvVar)
         ?? step?.prompt
         ?? challenge?.prompt
@@ -187,7 +235,17 @@ function parseAnswersValue(answersValue) {
         .filter(Boolean);
 }
 
-function resolveAnswers(challenge, step) {
+function resolveAnswers(challenge, step, verificationSettings) {
+    const override = getChallengeOverride(challenge?.id, verificationSettings);
+
+    if (challenge?.hasAnswerOverride && challenge.answers?.length) {
+        return challenge.answers;
+    }
+
+    if (override?.answers?.length) {
+        return override.answers;
+    }
+
     const environmentAnswers = resolveEnvironmentValue(step?.answersEnvVar)
         ?? resolveEnvironmentValue(challenge?.answersEnvVar);
 
@@ -249,12 +307,12 @@ function hasNextVerificationChallengeStep(challengeId, stepIndex = 0) {
 }
 
 function getEnabledVerificationChallenges(config) {
-    const configuredChallengeIds = config?.verification?.activeChallengeIds
-        ?? config?.activeChallengeIds;
+    const verificationSettings = config?.verification ?? config;
+    const configuredChallengeIds = verificationSettings?.activeChallengeIds;
 
     if (Array.isArray(configuredChallengeIds) && configuredChallengeIds.length > 0) {
         return configuredChallengeIds
-            .map((challengeId) => getVerificationChallenge(challengeId))
+            .map((challengeId) => applyVerificationChallengeOverrides(getVerificationChallenge(challengeId), verificationSettings))
             .filter(Boolean);
     }
 
@@ -264,19 +322,22 @@ function getEnabledVerificationChallenges(config) {
         ?? config?.challengeId;
 
     if (legacyChallengeId) {
-        return [getVerificationChallenge(legacyChallengeId) ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID)];
+        const legacyChallenge = getVerificationChallenge(legacyChallengeId) ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
+        return [applyVerificationChallengeOverrides(legacyChallenge, verificationSettings)];
     }
 
-    return Object.values(verificationChallenges).filter((challenge) => challenge.enabled);
+    return Object.values(verificationChallenges)
+        .filter((challenge) => challenge.enabled)
+        .map((challenge) => applyVerificationChallengeOverrides(challenge, verificationSettings));
 }
 
 function getActiveVerificationChallenge(config) {
     return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
 }
 
-function validateAnswer(challengeId, answer, stepIndex = 0) {
-    const challenge = getVerificationChallenge(challengeId);
-    const step = getVerificationChallengeStep(challengeId, stepIndex);
+function validateAnswer(challengeId, answer, stepIndex = 0, verificationSettings) {
+    const challenge = applyVerificationChallengeOverrides(getVerificationChallenge(challengeId), verificationSettings);
+    const step = getVerificationChallengeSteps(challenge)[stepIndex];
 
     if (!challenge || !step) {
         return { ok: false, reason: 'not_found' };
@@ -284,7 +345,7 @@ function validateAnswer(challengeId, answer, stepIndex = 0) {
 
     const normalizer = step.normalizer ?? challenge.normalizer ?? normalizeAnswer;
     const normalizedAnswer = normalizer(answer);
-    const validAnswers = resolveAnswers(challenge, step).map((validAnswer) => normalizer(validAnswer));
+    const validAnswers = resolveAnswers(challenge, step, verificationSettings).map((validAnswer) => normalizer(validAnswer));
 
     if (validAnswers.includes(normalizedAnswer)) {
         return { ok: true };
@@ -297,6 +358,7 @@ module.exports = {
     DEFAULT_CHALLENGE_ID,
     verificationChallenges,
     getVerificationChallenge,
+    applyVerificationChallengeOverrides,
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
     getEnabledVerificationChallenges,
