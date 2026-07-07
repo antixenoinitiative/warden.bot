@@ -1,4 +1,5 @@
 const Discord = require('discord.js');
+const { botIdent } = require('../../../functions');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 
 const DESCRIPTION_LIMIT = 4096;
@@ -43,6 +44,15 @@ function truncateText(value, limit = DESCRIPTION_LIMIT) {
     if (text.length <= limit) return text;
 
     return `${text.slice(0, Math.max(0, limit - 17))}\n... [truncated]`;
+}
+
+function resolveActiveBotIconURL() {
+    try {
+        return botIdent().activeBot?.icon;
+    }
+    catch (err) {
+        return undefined;
+    }
 }
 
 function resolveTemplate(templateKey) {
@@ -107,7 +117,7 @@ function applyEmbedMeta(embed, template, replacements = {}, options = {}) {
     if (shouldUseTemplateFooter || shouldUseDefaultFooter) {
         embed.setFooter({
             text: applyTextReplacements(footer?.text ?? defaultFooter.text ?? 'Warden Verification', replacements),
-            iconURL: footer?.iconURL ?? defaultFooter.iconURL,
+            iconURL: footer?.iconURL ?? defaultFooter.iconURL ?? resolveActiveBotIconURL(),
         });
     }
 
