@@ -71,8 +71,8 @@ const verificationImagePools = {
             },
         ],
     },
-    eliteStarterShips_c_local: {
-        id: 'eliteStarterShips_c_local',
+    eliteVessels_c_local: {
+        id: 'eliteVessels_c_local',
         description: 'Local Elite Dangerous vessel img pool for verification challenges.',
         directory: '/home/container/verificationPool/',
         images: [
