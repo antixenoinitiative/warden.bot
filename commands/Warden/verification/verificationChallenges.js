@@ -88,11 +88,12 @@ const verificationChallenges = {
             },
         ],
     },
-    eliteStarterShipGallery: {
-        id: 'eliteStarterShipGallery',
+    
+    eliteVesselGallery: {
+        id: 'eliteVesselGallery',
         enabled: false,
         renderMode: 'componentsV2Gallery',
-        imagePoolId: 'eliteStarterShips_c',
+        imagePoolId: 'eliteVessels_c',
         gallerySize: 9,
         solutionImageCount: {
             min: 1,
@@ -111,39 +112,14 @@ const verificationChallenges = {
             },
         ],
     },
-    eliteStarterShipGalleryObfuscatedPrompt: {
-        id: 'eliteStarterShipGalleryObfuscatedPrompt',
+    
+    eliteVesselGalleryEnhanced: {
+        id: 'eliteVesselGalleryEnhanced',
         enabled: false,
         renderMode: 'componentsV2Gallery',
         promptImageGallery: true,
         compositeImageGallery: true,
-        imagePoolId: 'eliteStarterShips_c',
-        gallerySize: 9,
-        solutionImageCount: {
-            min: 1,
-            max: 2,
-        },
-        maxControlImageRepeats: 2,
-        steps: [
-            {
-                title: 'Verification Challenge',
-                description: 'Answer both questions below.',
-                questionText: 'What is the name of the following object from Elite Dangerous?',
-                prompt: 'The starter Ship',
-                galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
-                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
-                positionInputLabel: 'Image tags (1-9)',
-                positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
-            },
-        ],
-    },
-    eliteStarterShipGalleryObfuscatedPromptLocal: {
-        id: 'eliteStarterShipGalleryObfuscatedPromptLocal',
-        enabled: false,
-        renderMode: 'componentsV2Gallery',
-        promptImageGallery: true,
-        compositeImageGallery: true,
-        imagePoolId: 'eliteStarterShips_c_local',
+        imagePoolId: 'eliteVessels_c_local',
         gallerySize: 9,
         solutionImageCount: {
             min: 1,
