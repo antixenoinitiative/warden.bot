@@ -11,16 +11,11 @@ function getDatabase() {
 
 const DEFAULT_GUILD_ID = 'global';
 const VERIFICATION_MODES = {
-    block: 'block',
     challenge: 'challenge',
-    skipChallenge: 'skip_challenge',
+    halt: 'halt',
+    oneClick: 'one-click',
 };
 const VALID_VERIFICATION_MODES = Object.values(VERIFICATION_MODES);
-const LEGACY_VERIFICATION_MODE_ALIASES = {
-    disabled: VERIFICATION_MODES.block,
-    enabled: VERIFICATION_MODES.challenge,
-    skip: VERIFICATION_MODES.skipChallenge,
-};
 const DEFAULT_CHALLENGE_EXPIRY_SECONDS = 10 * 60;
 const DEFAULT_COOLDOWN_SECONDS = 60;
 const DEFAULT_AUTOKICK_SECONDS = 10 * 60;
@@ -37,8 +32,7 @@ function defaultChallengeOverrides() {
 
 function defaultVerificationSettings() {
     const verificationConfig = config.Warden?.verification ?? {};
-    const fallbackMode = verificationConfig.enabled === false ? VERIFICATION_MODES.block : VERIFICATION_MODES.challenge;
-    const mode = normalizeVerificationMode(verificationConfig.mode, fallbackMode);
+    const mode = normalizeVerificationMode(verificationConfig.mode, VERIFICATION_MODES.challenge);
     const activeChallengeIds = Array.isArray(verificationConfig.activeChallengeIds)
         ? verificationConfig.activeChallengeIds
         : [
@@ -68,12 +62,12 @@ function normalizeChallengeIds(challengeIds) {
     return [...new Set(normalizedChallengeIds)];
 }
 
-function normalizeVerificationMode(mode, fallback) {
+function normalizeVerificationMode(mode, fallback = VERIFICATION_MODES.challenge) {
     if (VALID_VERIFICATION_MODES.includes(mode)) {
         return mode;
     }
 
-    return LEGACY_VERIFICATION_MODE_ALIASES[mode] ?? fallback;
+    return fallback;
 }
 
 function normalizeTimerSeconds(value, fallback) {
@@ -202,20 +196,6 @@ async function ensureVerificationSettingsColumn(columnName, definition, options 
     }
 }
 
-async function migrateVerificationModeNames() {
-    await getDatabase().query(
-        `UPDATE verification_settings
-         SET mode = CASE mode
-            WHEN 'disabled' THEN ?
-            WHEN 'enabled' THEN ?
-            WHEN 'skip' THEN ?
-            ELSE mode
-         END
-         WHERE mode IN ('disabled', 'enabled', 'skip')`,
-        [VERIFICATION_MODES.block, VERIFICATION_MODES.challenge, VERIFICATION_MODES.skipChallenge],
-    );
-}
-
 async function ensureVerificationSettingsTable() {
     if (!tableReady) {
         tableReady = getDatabase().query(`
@@ -238,7 +218,6 @@ async function ensureVerificationSettingsTable() {
                 await ensureVerificationSettingsColumn('autokick_enabled', 'autokick_enabled TINYINT(1) NOT NULL DEFAULT 0', { nullable: 'NO', defaultValue: '0', dataTypes: ['tinyint'] });
                 await ensureVerificationSettingsColumn('autokick_seconds', 'autokick_seconds INT NULL DEFAULT NULL');
                 await ensureVerificationSettingsColumn('challenge_overrides_json', 'challenge_overrides_json TEXT NULL DEFAULT NULL', { dataTypes: ['text', 'mediumtext', 'longtext'] });
-                await migrateVerificationModeNames();
             })
             .catch((err) => {
                 tableReady = undefined;
@@ -393,6 +372,7 @@ async function clearChallengeAnswerOverrides(guildId, challengeId, updatedBy) {
 }
 
 module.exports = {
+    VERIFICATION_MODES,
     VALID_VERIFICATION_MODES,
     DEFAULT_CHALLENGE_EXPIRY_SECONDS,
     DEFAULT_COOLDOWN_SECONDS,
