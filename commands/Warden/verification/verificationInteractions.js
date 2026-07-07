@@ -44,6 +44,7 @@ function getVerificationRoute(interaction) {
             handlerName: 'handleVerifyOldVersion',
             errorTitle: '⛔ Verification old version error',
             userError: 'Verification old version could not be shown. Please contact staff.',
+            deferImmediately: true,
         };
     }
 

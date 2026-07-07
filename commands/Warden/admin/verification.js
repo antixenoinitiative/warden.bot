@@ -1546,11 +1546,15 @@ async function handleVerifyAnswer(interaction) {
 }
 
 async function handleVerifyOldVersion(interaction) {
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    }
+
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.block) {
-        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
+        return sendInitialInteractionResponse(interaction, { content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
     if (verificationMode === VERIFICATION_MODES.skipChallenge) {
@@ -1559,7 +1563,7 @@ async function handleVerifyOldVersion(interaction) {
 
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.expiredChallengeEmbed,
                 'Verification Challenge Expired',
@@ -1570,7 +1574,7 @@ async function handleVerifyOldVersion(interaction) {
     }
 
     if (activeChallenge.pending) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
@@ -1584,7 +1588,7 @@ async function handleVerifyOldVersion(interaction) {
         || clickedChallenge.challengeId !== challengeId
         || clickedChallenge.stepIndex !== stepIndex
         || isStaleGalleryComponent(clickedChallenge, activeChallenge)) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.expiredChallengeEmbed,
                 'Verification Challenge Expired',
@@ -1598,7 +1602,7 @@ async function handleVerifyOldVersion(interaction) {
     const step = getVerificationChallengeStep(challengeId, stepIndex);
 
     if (!isComponentsV2GalleryChallenge(challenge, step)) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [userErrorEmbed('This verification challenge does not have an old version fallback.')],
             flags: Discord.MessageFlags.Ephemeral,
         });
