@@ -1,3 +1,6 @@
+const fs = require('fs/promises');
+const path = require('path');
+
 /**
  * Reusable image pools for verification gallery challenges.
  *
@@ -126,7 +129,7 @@ const verificationImagePools = {
     eliteStarterShips_c_local: {
         id: 'eliteStarterShips_c_local',
         description: 'Local Elite Dangerous vessel img pool for starter ship question.',
-        directory: '/home/container/verificationPool/',
+        directory: process.env.WARDEN_VERIFICATION_IMAGE_POOL_DIR ?? '/home/container/verificationPool/',
         images: [
             {
                 id: 'elitevessel8',
@@ -198,7 +201,38 @@ function getVerificationImagePool(poolId) {
     return verificationImagePools[poolId];
 }
 
+async function getLocalVerificationImagePoolIssues() {
+    const issues = [];
+
+    for (const pool of Object.values(verificationImagePools)) {
+        if (!pool.directory) continue;
+
+        const resolvedDirectory = path.resolve(pool.directory);
+
+        for (const image of pool.images ?? []) {
+            if (!image.fileName) continue;
+
+            const filePath = path.resolve(resolvedDirectory, image.fileName);
+
+            if (!filePath.startsWith(`${resolvedDirectory}${path.sep}`)) {
+                issues.push(`${pool.id}/${image.id}: invalid local path ${image.fileName}`);
+                continue;
+            }
+
+            try {
+                await fs.access(filePath);
+            }
+            catch (err) {
+                issues.push(`${pool.id}/${image.id}: missing local file ${filePath}`);
+            }
+        }
+    }
+
+    return issues;
+}
+
 module.exports = {
     verificationImagePools,
+    getLocalVerificationImagePoolIssues,
     getVerificationImagePool,
 };

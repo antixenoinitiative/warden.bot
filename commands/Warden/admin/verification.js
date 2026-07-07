@@ -48,7 +48,7 @@ const GALLERY_IMAGE_FETCH_TIMEOUT_MS = 10000;
 const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
 const GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX = 'warden-gallery-grid';
 const GALLERY_COMPOSITE_GRID_COLUMNS = 3;
-const GALLERY_COMPOSITE_TILE_SIZE = 420;
+const GALLERY_COMPOSITE_TILE_SIZE = 320;
 const GALLERY_COMPOSITE_LABEL_PADDING = 16;
 const GALLERY_COMPOSITE_LABEL_SIZE = 72;
 const PROMPT_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-prompt';
@@ -332,11 +332,26 @@ function getGalleryImageExtensionFromPath(filePath) {
     return /^[a-z0-9]{1,8}$/.test(extension) ? extension : 'png';
 }
 
+const localGalleryImageBufferCache = new Map();
+
+async function readCachedLocalImageBuffer(filePath) {
+    const stat = await fs.stat(filePath);
+    const cacheKey = `${filePath}:${stat.size}:${stat.mtimeMs}`;
+
+    if (localGalleryImageBufferCache.has(cacheKey)) {
+        return localGalleryImageBufferCache.get(cacheKey);
+    }
+
+    const buffer = await fs.readFile(filePath);
+    localGalleryImageBufferCache.set(cacheKey, buffer);
+    return buffer;
+}
+
 async function readLocalGalleryImageAttachment(image) {
     const filePath = resolveLocalGalleryImagePath(image);
     const extension = getGalleryImageExtensionFromPath(filePath);
     const name = buildGalleryAttachmentName(image, extension);
-    const buffer = await fs.readFile(filePath);
+    const buffer = await readCachedLocalImageBuffer(filePath);
 
     return {
         ...image,
@@ -1489,18 +1504,8 @@ async function handleVerifyStart(interaction) {
 }
 
 async function handleVerifyAnswer(interaction) {
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const verificationMode = resolveVerificationMode(verificationSettings);
+    const activeChallenge = getChallenge(interaction.user.id);
 
-    if (verificationMode === VERIFICATION_MODES.block) {
-        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
-    }
-
-    if (verificationMode === VERIFICATION_MODES.skipChallenge) {
-        return completeVerification(interaction);
-    }
-
-    const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
         return interaction.reply({
             embeds: [buildResultEmbed(
@@ -1603,11 +1608,15 @@ async function handleVerifyOldVersion(interaction) {
 }
 
 async function handleVerifySubmit(interaction) {
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    }
+
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const verificationMode = resolveVerificationMode(verificationSettings);
 
     if (verificationMode === VERIFICATION_MODES.block) {
-        return interaction.reply({ content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
+        return sendInitialInteractionResponse(interaction, { content: 'Verification is currently blocked.', flags: Discord.MessageFlags.Ephemeral });
     }
 
     if (verificationMode === VERIFICATION_MODES.skipChallenge) {
@@ -1616,7 +1625,7 @@ async function handleVerifySubmit(interaction) {
 
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.expiredChallengeEmbed,
                 'Verification Challenge Expired',
@@ -1627,7 +1636,7 @@ async function handleVerifySubmit(interaction) {
     }
 
     if (activeChallenge.pending) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
             flags: Discord.MessageFlags.Ephemeral,
         });
@@ -1641,7 +1650,7 @@ async function handleVerifySubmit(interaction) {
         || submittedChallenge.challengeId !== challengeId
         || submittedChallenge.stepIndex !== stepIndex
         || isStaleGalleryComponent(submittedChallenge, activeChallenge)) {
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.expiredChallengeEmbed,
                 'Verification Challenge Expired',
@@ -1669,7 +1678,7 @@ async function handleVerifySubmit(interaction) {
         clearChallenge(interaction.user.id);
         setCooldown(interaction.user.id, retryAt);
 
-        return interaction.reply({
+        return sendInitialInteractionResponse(interaction, {
             embeds: [buildResultEmbed(
                 verificationEmbedConfig.failureEmbed,
                 'Verification Failed',

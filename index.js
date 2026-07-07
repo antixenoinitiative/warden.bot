@@ -143,6 +143,22 @@ function mainOperation(){
 			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			warden_vars = database
 
+			try {
+				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
+				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImagePools')
+
+				await ensureVerificationSettingsTable()
+				await getVerificationSettings(process.env.GUILDID)
+
+				const imagePoolIssues = await getLocalVerificationImagePoolIssues()
+				if (imagePoolIssues.length > 0) {
+					console.warn('[STARTUP] Warden verification local image pool preflight found missing or invalid files:', imagePoolIssues)
+				}
+			}
+			catch (err) {
+				console.error('[STARTUP] Failed to warm Warden verification settings or image pool preflight:', err)
+			}
+
 			if(process.env.MODE == "PROD") {
 				const evaluateMessageUpdate = 1
 				const leaderboards = ['speedrun','ace']
