@@ -29,8 +29,7 @@ const {
     setAutokickSettings,
     setChallengePromptOverride,
     clearChallengePromptOverride,
-    addChallengeAnswerOverride,
-    removeChallengeAnswerOverride,
+    setChallengeAnswerOverrides,
     clearChallengeAnswerOverrides,
 } = require('../verification/verificationSettings');
 
@@ -764,6 +763,13 @@ function parseChallengeIdList(input) {
     return String(input ?? '')
         .split(/[\s,]+/)
         .map((challengeId) => challengeId.trim())
+        .filter(Boolean);
+}
+
+function parseAnswerOverrideList(input) {
+    return String(input ?? '')
+        .split(/[\s,]+/)
+        .map((answer) => answer.trim())
         .filter(Boolean);
 }
 
@@ -1878,8 +1884,7 @@ module.exports = {
                             { name: 'Set retry cooldown timer', value: 'cooldown' },
                             { name: 'Set challenge prompt override', value: 'prompt_set' },
                             { name: 'Clear challenge prompt override', value: 'prompt_clear' },
-                            { name: 'Add challenge answer override', value: 'answer_add' },
-                            { name: 'Remove challenge answer override', value: 'answer_remove' },
+                            { name: 'Set complete challenge answer list for a challengeID', value: 'answer_set' },
                             { name: 'List challenge prompt/answer overrides', value: 'answer_list' },
                             { name: 'Clear challenge answer overrides', value: 'answer_clear' },
                         )
@@ -1899,7 +1904,7 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('answer')
-                        .setDescription('Answer text for answer_add or answer_remove')
+                        .setDescription('Set full answer list for the selected challengeID, separated by commas and/or spaces')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
@@ -1998,7 +2003,7 @@ Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${f
                 }
 
 
-                if (['prompt_set', 'prompt_clear', 'answer_add', 'answer_remove', 'answer_list', 'answer_clear'].includes(action)) {
+                if (['prompt_set', 'prompt_clear', 'answer_set', 'answer_list', 'answer_clear'].includes(action)) {
                     const { challengeId, error } = getSingleKnownChallengeId(interaction);
                     if (error) {
                         return interaction.editReply({ embeds: [error] });
@@ -2028,34 +2033,24 @@ Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${f
                         return interaction.editReply({ content: `Prompt override cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
                     }
 
-                    if (action === 'answer_add') {
-                        const answer = String(interaction.options.getString('answer') ?? '').trim();
-                        if (!answer) {
-                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide an answer for `answer_add`.')] });
+                    if (action === 'answer_set') {
+                        const answers = parseAnswerOverrideList(interaction.options.getString('answer'));
+                        if (answers.length < 1) {
+                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide a complete answer list for `answer_set`, separated by commas or spaces.')] });
                         }
 
-                        const updatedSettings = await addChallengeAnswerOverride(guildId, challengeId, answer, interaction.user.id);
-                        return interaction.editReply({ content: `Answer override added for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
-                    }
-
-                    if (action === 'answer_remove') {
-                        const answer = String(interaction.options.getString('answer') ?? '').trim();
-                        if (!answer) {
-                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide an answer for `answer_remove`.')] });
-                        }
-
-                        const updatedSettings = await removeChallengeAnswerOverride(guildId, challengeId, answer, interaction.user.id);
-                        return interaction.editReply({ content: `Answer override removed for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                        const updatedSettings = await setChallengeAnswerOverrides(guildId, challengeId, answers, interaction.user.id);
+                        return interaction.editReply({ content: `Answer overrides set for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
                     }
 
                     if (action === 'answer_clear') {
                         const updatedSettings = await clearChallengeAnswerOverrides(guildId, challengeId, interaction.user.id);
                         await sendVerificationStaffWarning(
                             interaction.guild,
-                            '⚠️ Verification challenge answer overrides cleared',
-                            `Answer overrides for **${challengeId}** were cleared by ${interaction.user}. If this challenge requires configured answers, set them again with \`/verification challenge action:answer_add id:${challengeId}\`.`,
+                            'Verification challenge answer list cleared',
+                            `Answer list for **${challengeId}** was cleared by ${interaction.user}. If this challenge requires configured answers, set them again with \`/verification challenge action:answer_set id:${challengeId}\`.`,
                         );
-                        return interaction.editReply({ content: `Answer overrides cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                        return interaction.editReply({ content: `Answe list cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
                     }
                 }
             }

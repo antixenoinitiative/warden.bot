@@ -372,22 +372,11 @@ async function clearChallengePromptOverride(guildId, challengeId, updatedBy) {
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
-async function addChallengeAnswerOverride(guildId, challengeId, answer, updatedBy) {
+async function setChallengeAnswerOverrides(guildId, challengeId, answers, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
     const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
         ...currentEntry,
-        answers: [...(currentEntry.answers ?? []), answer],
-    }));
-
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
-}
-
-async function removeChallengeAnswerOverride(guildId, challengeId, answer, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const answerToRemove = String(answer ?? '').trim().toLowerCase();
-    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
-        ...currentEntry,
-        answers: (currentEntry.answers ?? []).filter((currentAnswer) => String(currentAnswer).trim().toLowerCase() !== answerToRemove),
+        answers,
     }));
 
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
@@ -417,7 +406,6 @@ module.exports = {
     setAutokickSettings,
     setChallengePromptOverride,
     clearChallengePromptOverride,
-    addChallengeAnswerOverride,
-    removeChallengeAnswerOverride,
+    setChallengeAnswerOverrides,
     clearChallengeAnswerOverrides,
 };
