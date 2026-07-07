@@ -63,7 +63,7 @@ function parseChallengeIdList(input) {
 
 function parseAnswerOverrideList(input) {
     return String(input ?? '')
-        .split(/[\s,]+/)
+        .split(',')
         .map((answer) => answer.trim())
         .filter(Boolean);
 }
@@ -96,15 +96,30 @@ async function sendVerificationStaffWarning(guild, title, description) {
 
 function getChallengeOverrideSummary(verificationSettings, challengeId) {
     const override = verificationSettings.challengeOverrides?.[challengeId];
-    const promptLine = override?.prompt ? `Prompt override: ${override.prompt}` : 'Prompt override: not set';
-    const answerLine = override?.answers?.length
-        ? `Answer overrides:\n${override.answers.map((answer) => `- ${answer}`).join('\n')}`
-        : 'Answer overrides: not set';
-    const updatedLine = override?.updatedAt
+    return override?.updatedAt
         ? `Last updated: ${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}`
         : 'Last updated: never';
+}
 
-    return `${promptLine}\n\n${answerLine}\n\n${updatedLine}`;
+function getChallengeOverrideFields(verificationSettings, challengeId) {
+    const override = verificationSettings.challengeOverrides?.[challengeId];
+    const prompt = override?.prompt || 'Not set';
+    const answers = override?.answers?.length
+        ? override.answers.map((answer) => `- ${answer}`).join('\n')
+        : 'Not set';
+
+    return [
+        {
+            name: 'Prompt',
+            value: prompt,
+            inline: false,
+        },
+        {
+            name: 'Answers',
+            value: answers,
+            inline: false,
+        },
+    ];
 }
 
 
@@ -245,7 +260,7 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('answer')
-                        .setDescription('Set full answer list for the selected challengeID, separated by commas and/or spaces')
+                        .setDescription('Set full answer list for the selected challengeID, separated by commas')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
@@ -311,26 +326,32 @@ module.exports = {
 
                 if (action === 'list') {
                     const challengeList = Object.values(verificationChallenges)
-                        .map(challenge => `${enabledChallengeIds.includes(challenge.id) ? '**' : ''}${challenge.id}${enabledChallengeIds.includes(challenge.id) ? '** [active]' : ''}`)
+                        .map(challenge => `- ${enabledChallengeIds.includes(challenge.id) ? '**' : ''}${challenge.id}${enabledChallengeIds.includes(challenge.id) ? '** [active]' : ''}`)
                         .join('\n');
+                    const autokickState = verificationSettings.autokickEnabled ? 'ON' : 'OFF';
 
                     return interaction.editReply(buildVerificationAdminConfiguration(
                         'Challenge',
-                        `Configured verification challenge IDs:\n${challengeList}`,
+                        'Configured verification challenge settings:',
                         [
                             {
+                                name: 'Available IDs',
+                                value: challengeList,
+                                inline: false,
+                            },
+                            {
                                 name: 'Prompt expiry',
-                                value: `**${formatDuration(verificationSettings.challengeExpirySeconds)}**`,
+                                value: formatDuration(verificationSettings.challengeExpirySeconds),
                                 inline: true,
                             },
                             {
                                 name: 'Retry cooldown',
-                                value: `**${formatDuration(verificationSettings.cooldownSeconds)}**`,
+                                value: formatDuration(verificationSettings.cooldownSeconds),
                                 inline: true,
                             },
                             {
                                 name: 'Autokick',
-                                value: `**${verificationSettings.autokickEnabled ? 'on' : 'off'} after ${formatDuration(verificationSettings.autokickSeconds)}**`,
+                                value: `**${autokickState}** after **${formatDuration(verificationSettings.autokickSeconds)}**`,
                                 inline: false,
                             },
                         ],
@@ -386,6 +407,7 @@ module.exports = {
                             `Overrides for **${challengeId}**:`,
                             getChallengeOverrideSummary(verificationSettings, challengeId),
                             'info',
+                            { fields: getChallengeOverrideFields(verificationSettings, challengeId) },
                         ));
                     }
 
@@ -401,6 +423,7 @@ module.exports = {
                             `Prompt override updated for **${challengeId}**.`,
                             getChallengeOverrideSummary(updatedSettings, challengeId),
                             'success',
+                            { fields: getChallengeOverrideFields(updatedSettings, challengeId) },
                         ));
                     }
 
@@ -416,13 +439,14 @@ module.exports = {
                             `Prompt override cleared for **${challengeId}**. Staff warning sent.`,
                             getChallengeOverrideSummary(updatedSettings, challengeId),
                             'warning',
+                            { fields: getChallengeOverrideFields(updatedSettings, challengeId) },
                         ));
                     }
 
                     if (action === 'answer_set') {
                         const answers = parseAnswerOverrideList(interaction.options.getString('answer'));
                         if (answers.length < 1) {
-                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide a complete answer list for `answer_set`, separated by commas or spaces.')] });
+                            return interaction.editReply({ embeds: [userErrorEmbed('Please provide a complete answer list for `answer_set`, separated by commas. Spaces inside an answer are allowed.')] });
                         }
 
                         const updatedSettings = await setChallengeAnswerOverrides(guildId, challengeId, answers, interaction.user.id);
@@ -431,6 +455,7 @@ module.exports = {
                             `Answer overrides set for **${challengeId}**.`,
                             getChallengeOverrideSummary(updatedSettings, challengeId),
                             'success',
+                            { fields: getChallengeOverrideFields(updatedSettings, challengeId) },
                         ));
                     }
 
@@ -446,6 +471,7 @@ module.exports = {
                             `Answer list cleared for **${challengeId}**. Staff warning sent.`,
                             getChallengeOverrideSummary(updatedSettings, challengeId),
                             'warning',
+                            { fields: getChallengeOverrideFields(updatedSettings, challengeId) },
                         ));
                     }
                 }
