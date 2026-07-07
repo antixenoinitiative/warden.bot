@@ -1,4 +1,107 @@
 {
+    "responseDefaults": {
+        "timestamp": true,
+        "footer": {
+            "enabled": true,
+            "text": "Warden Verification"
+        },
+        "colors": {
+            "success": "#57F287",
+            "error": "#E74C3C",
+            "warning": "#F1C40F",
+            "info": "#ff7100",
+            "neutral": "#2B2D31"
+        }
+    },
+    "adminResponses": {
+        "genericError": {
+            "title": "Verification Error",
+            "description": "{message}",
+            "color": "error"
+        },
+        "modeUpdated": {
+            "title": "Verification Mode Updated",
+            "description": "Verification mode set to **{mode}**.",
+            "color": "success"
+        },
+        "autokickStatus": {
+            "title": "Verification Autokick Status",
+            "description": "Verification autokick is currently **{state}** with a timer of **{timer}**.",
+            "color": "info"
+        },
+        "autokickUpdated": {
+            "title": "Verification Autokick Updated",
+            "description": "Verification autokick is now **{state}** with a timer of **{timer}**.",
+            "color": "success"
+        },
+        "challengeList": {
+            "title": "Verification Challenge Configuration",
+            "description": "Configured verification challenge IDs:\n{challengeList}",
+            "color": "info",
+            "fields": [
+                {
+                    "name": "Prompt expiry",
+                    "value": "**{promptExpiry}**",
+                    "inline": true
+                },
+                {
+                    "name": "Retry cooldown",
+                    "value": "**{retryCooldown}**",
+                    "inline": true
+                },
+                {
+                    "name": "Autokick",
+                    "value": "**{autokick}**",
+                    "inline": false
+                }
+            ]
+        },
+        "challengeTimeSettingUpdated": {
+            "title": "Verification Timer Updated",
+            "description": "Updated {settingName} to **{duration}**.",
+            "color": "success"
+        },
+        "activeChallengesUpdated": {
+            "title": "Active Verification Challenges Updated",
+            "description": "Active verification challenges set to: {activeChallengeIds}",
+            "color": "success"
+        },
+        "challengeOverrideSummary": {
+            "title": "Verification Challenge Overrides",
+            "description": "Overrides for **{challengeId}**:\n\n{summary}",
+            "color": "info"
+        },
+        "challengePromptUpdated": {
+            "title": "Verification Challenge Prompt Updated",
+            "description": "Prompt override updated for **{challengeId}**.\n\n{summary}",
+            "color": "success"
+        },
+        "challengePromptCleared": {
+            "title": "Verification Challenge Prompt Cleared",
+            "description": "Prompt override cleared for **{challengeId}**. Staff warning sent.\n\n{summary}",
+            "color": "warning"
+        },
+        "challengeAnswersUpdated": {
+            "title": "Verification Challenge Answers Updated",
+            "description": "Answer overrides set for **{challengeId}**.\n\n{summary}",
+            "color": "success"
+        },
+        "challengeAnswersCleared": {
+            "title": "Verification Challenge Answers Cleared",
+            "description": "Answer list cleared for **{challengeId}**. Staff warning sent.\n\n{summary}",
+            "color": "warning"
+        },
+        "verificationPostRefreshed": {
+            "title": "Verification Post Refreshed",
+            "description": "Verification post refreshed successfully: {url}",
+            "color": "success"
+        },
+        "verificationPostPosted": {
+            "title": "Verification Post Posted",
+            "description": "Verification post posted successfully in {channel}. {url}",
+            "color": "success"
+        }
+    },
     "welcomeEmbed": {
         "title": "Welcome to the Anti-Xeno Initiative",
         "description": "We are an Elite: Dangerous community centered on Thargoid Combat (Anti-Xeno) and defending humanity.",
