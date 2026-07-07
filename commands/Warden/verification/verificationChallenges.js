@@ -5,11 +5,9 @@
  * `prompt`/`answers` directly. Multi-step challenges should define `steps`, where each step can
  * contain:
  * - `prompt`: user-facing question, riddle, or challenge text.
- * - `promptEnvVar`: optional environment variable name that supplies private prompt text.
  * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step.
- * - `answersEnvVar`: optional environment variable name that supplies private accepted answers, separated by commas or newlines.
  * - `title`: optional embed title for the step.
  * - `imageUrl`: optional primary image shown on the challenge embed.
  * - `thumbnailUrl`: optional thumbnail shown on the challenge embed.
@@ -155,8 +153,8 @@ const verificationChallenges = {
                 title: 'Verification Challenge',
                 description: 'Answer both questions below.',
                 questionText: 'What is the name of the following object from Elite Dangerous?',
-                promptEnvVar: 'WARDEN_ELITE_STARTER_SHIP_PROMPT',
-                answersEnvVar: 'WARDEN_ELITE_STARTER_SHIP_ANSWERS',
+                prompt: 'The starter Ship',
+                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
                 galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
                 positionInputLabel: 'Image tags (1-9)',
                 positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
@@ -164,13 +162,6 @@ const verificationChallenges = {
         ],
     },
 };
-
-function resolveEnvironmentValue(envVarName) {
-    if (!envVarName) return undefined;
-
-    const value = process.env[envVarName];
-    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-}
 
 function getChallengeOverride(challengeId, verificationSettings) {
     if (!challengeId) return undefined;
@@ -188,13 +179,11 @@ function applyVerificationChallengeOverrides(challenge, verificationSettings) {
 
     if (override.prompt) {
         overriddenChallenge.prompt = override.prompt;
-        overriddenChallenge.promptEnvVar = undefined;
         overriddenChallenge.hasPromptOverride = true;
     }
 
     if (override.answers?.length) {
         overriddenChallenge.answers = override.answers;
-        overriddenChallenge.answersEnvVar = undefined;
         overriddenChallenge.hasAnswerOverride = true;
     }
 
@@ -204,8 +193,8 @@ function applyVerificationChallengeOverrides(challenge, verificationSettings) {
 
             return {
                 ...step,
-                ...(override.prompt ? { prompt: override.prompt, promptEnvVar: undefined } : {}),
-                ...(override.answers?.length ? { answers: override.answers, answersEnvVar: undefined } : {}),
+                ...(override.prompt ? { prompt: override.prompt } : {}),
+                ...(override.answers?.length ? { answers: override.answers } : {}),
             };
         });
     }
@@ -221,18 +210,9 @@ function resolvePrompt(challenge, step, verificationSettings) {
     }
 
     return override?.prompt
-        ?? resolveEnvironmentValue(step?.promptEnvVar)
-        ?? resolveEnvironmentValue(challenge?.promptEnvVar)
         ?? step?.prompt
         ?? challenge?.prompt
         ?? 'Please answer the verification challenge.';
-}
-
-function parseAnswersValue(answersValue) {
-    return String(answersValue ?? '')
-        .split(/[\n,]+/)
-        .map((answer) => answer.trim())
-        .filter(Boolean);
 }
 
 function resolveAnswers(challenge, step, verificationSettings) {
@@ -244,13 +224,6 @@ function resolveAnswers(challenge, step, verificationSettings) {
 
     if (override?.answers?.length) {
         return override.answers;
-    }
-
-    const environmentAnswers = resolveEnvironmentValue(step?.answersEnvVar)
-        ?? resolveEnvironmentValue(challenge?.answersEnvVar);
-
-    if (environmentAnswers) {
-        return parseAnswersValue(environmentAnswers);
     }
 
     return step?.answers ?? challenge?.answers ?? [];
@@ -279,10 +252,8 @@ function getVerificationChallengeSteps(challenge) {
     return [
         {
             prompt: challenge.prompt,
-            promptEnvVar: challenge.promptEnvVar,
             description: challenge.description,
             answers: challenge.answers ?? [],
-            answersEnvVar: challenge.answersEnvVar,
             title: challenge.title,
             imageUrl: challenge.imageUrl,
             thumbnailUrl: challenge.thumbnailUrl,
