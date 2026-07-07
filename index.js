@@ -158,15 +158,10 @@ function mainOperation(){
 						.join('\n')
 					console.warn('[STARTUP] Warden verification challenge configuration warnings:', warningDescription)
 
-					const staffChannel = process.env.STAFFCHANNELID ? await guild.channels.fetch(process.env.STAFFCHANNELID).catch(() => undefined) : undefined
-					if (staffChannel?.isTextBased()) {
-						await staffChannel.send({
-							embeds: [new Discord.EmbedBuilder()
-								.setColor('#F1C40F')
-								.setTitle('Verification challenge configuration warning')
-								.setDescription(`These active verification challenge IDs need DB-configured prompt and/or answers before they should be used:\n${warningDescription}`)],
-						})
-					}
+					await botFunc.botLog(guild, new Discord.EmbedBuilder()
+						.setTitle('Verification challenge configuration warning')
+						.setDescription(`These active verification challenge IDs need DB-configured prompt and/or answers before they should be used:\n${warningDescription}`),
+					1, 'staff')
 				}
 
 				const imagePoolIssues = await getLocalVerificationImagePoolIssues()
