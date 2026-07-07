@@ -176,6 +176,46 @@ function buildVerificationResponse(templateKey, replacements = {}, options = {})
     return response;
 }
 
+function buildVerificationPublicEmbed(templateKey, replacements = {}, options = {}) {
+    return buildVerificationEmbed(templateKey, replacements, {
+        footer: { enabled: false },
+        timestamp: false,
+        ...options,
+    });
+}
+
+function buildVerificationPublicResponse(templateKey, replacements = {}, options = {}) {
+    const {
+        flags = Discord.MessageFlags.Ephemeral,
+        ...embedOptions
+    } = options;
+
+    return {
+        embeds: [buildVerificationPublicEmbed(templateKey, replacements, embedOptions)],
+        flags,
+    };
+}
+
+function buildVerificationInProgressResponse(expiresAt, options = {}) {
+    return buildVerificationPublicResponse('inProgressEmbed', {
+        retryTime: `<t:${Math.floor(expiresAt / 1000)}:R>`,
+    }, options);
+}
+
+function buildVerificationExpiredResponse(description, options = {}) {
+    return buildVerificationPublicResponse('expiredChallengeEmbed', {}, {
+        templateOverrides: description ? { description } : undefined,
+        ...options,
+    });
+}
+
+function buildVerificationFailureResponse(cooldownSeconds, retryAt, options = {}) {
+    return buildVerificationPublicResponse('failureEmbed', {
+        cooldownSeconds,
+        retryTime: `<t:${Math.floor(retryAt / 1000)}:R>`,
+    }, options);
+}
+
 // For editReply() after an already-ephemeral deferReply().
 function buildVerificationAdminResponse(templateKey, replacements = {}, options = {}) {
     return buildVerificationResponse(templateKey, replacements, { includeFlags: false, ...options });
@@ -256,6 +296,11 @@ module.exports = {
     truncateText,
     buildVerificationEmbed,
     buildVerificationResponse,
+    buildVerificationPublicEmbed,
+    buildVerificationPublicResponse,
+    buildVerificationInProgressResponse,
+    buildVerificationExpiredResponse,
+    buildVerificationFailureResponse,
     buildVerificationAdminResponse,
     buildVerificationAdminSettingUpdated,
     buildVerificationAdminStatus,
