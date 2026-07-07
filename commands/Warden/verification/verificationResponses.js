@@ -176,6 +176,46 @@ function buildVerificationResponse(templateKey, replacements = {}, options = {})
     return response;
 }
 
+function buildVerificationPublicEmbed(templateKey, replacements = {}, options = {}) {
+    return buildVerificationEmbed(templateKey, replacements, {
+        footer: { enabled: false },
+        timestamp: false,
+        ...options,
+    });
+}
+
+function buildVerificationPublicResponse(templateKey, replacements = {}, options = {}) {
+    const {
+        flags = Discord.MessageFlags.Ephemeral,
+        ...embedOptions
+    } = options;
+
+    return {
+        embeds: [buildVerificationPublicEmbed(templateKey, replacements, embedOptions)],
+        flags,
+    };
+}
+
+function buildVerificationInProgressResponse(expiresAt, options = {}) {
+    return buildVerificationPublicResponse('inProgressEmbed', {
+        retryTime: `<t:${Math.floor(expiresAt / 1000)}:R>`,
+    }, options);
+}
+
+function buildVerificationExpiredResponse(description, options = {}) {
+    return buildVerificationPublicResponse('expiredChallengeEmbed', {}, {
+        templateOverrides: description ? { description } : undefined,
+        ...options,
+    });
+}
+
+function buildVerificationFailureResponse(cooldownSeconds, retryAt, options = {}) {
+    return buildVerificationPublicResponse('failureEmbed', {
+        cooldownSeconds,
+        retryTime: `<t:${Math.floor(retryAt / 1000)}:R>`,
+    }, options);
+}
+
 // For editReply() after an already-ephemeral deferReply().
 function buildVerificationAdminResponse(templateKey, replacements = {}, options = {}) {
     return buildVerificationResponse(templateKey, replacements, { includeFlags: false, ...options });
@@ -217,18 +257,6 @@ function buildVerificationErrorResponse(message, options = {}) {
     return response;
 }
 
-function buildVerificationSuccessResponse(templateKey, replacements = {}, options = {}) {
-    return buildVerificationResponse(templateKey, replacements, { color: 'success', ...options });
-}
-
-function buildVerificationInfoResponse(templateKey, replacements = {}, options = {}) {
-    return buildVerificationResponse(templateKey, replacements, { color: 'info', ...options });
-}
-
-function buildVerificationListResponse(templateKey, replacements = {}, fields = [], options = {}) {
-    return buildVerificationResponse(templateKey, replacements, { fields, ...options });
-}
-
 function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, replacements = {}) {
     const template = {
         title: embedConfig?.title ?? fallbackTitle,
@@ -256,6 +284,11 @@ module.exports = {
     truncateText,
     buildVerificationEmbed,
     buildVerificationResponse,
+    buildVerificationPublicEmbed,
+    buildVerificationPublicResponse,
+    buildVerificationInProgressResponse,
+    buildVerificationExpiredResponse,
+    buildVerificationFailureResponse,
     buildVerificationAdminResponse,
     buildVerificationAdminSettingUpdated,
     buildVerificationAdminStatus,
@@ -264,8 +297,5 @@ module.exports = {
     buildVerificationAdminSummary,
     buildVerificationErrorEmbed,
     buildVerificationErrorResponse,
-    buildVerificationSuccessResponse,
-    buildVerificationInfoResponse,
-    buildVerificationListResponse,
     buildResultEmbed,
 };

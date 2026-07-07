@@ -10,7 +10,6 @@ const verificationEmbedConfig = require('../verification/verificationEmbedConfig
 const {
     resolveEmbedColor,
     resolveComponentAccentColor,
-    applyTextReplacements,
     applyFieldToEmbed,
     buildVerificationAdminSettingUpdated,
     buildVerificationAdminStatus,
@@ -18,7 +17,11 @@ const {
     buildVerificationAdminActionCompleted,
     buildVerificationAdminSummary,
     buildVerificationErrorEmbed,
-    buildResultEmbed,
+    buildVerificationPublicEmbed,
+    buildVerificationPublicResponse,
+    buildVerificationInProgressResponse,
+    buildVerificationExpiredResponse,
+    buildVerificationFailureResponse,
 } = require('../verification/verificationResponses');
 const {
     verificationChallenges,
@@ -811,23 +814,7 @@ function selectVerificationChallenge(verificationSettings) {
 }
 
 function buildWelcomeEmbed(verificationSettings) {
-    const welcomeEmbedConfig = verificationEmbedConfig.welcomeEmbed ?? {};
-    const embed = new Discord.EmbedBuilder()
-        .setColor(resolveEmbedColor(welcomeEmbedConfig.color))
-        .setTitle(welcomeEmbedConfig.title ?? 'Welcome to the server')
-        .setDescription(welcomeEmbedConfig.description ?? 'Please verify to access the server.');
-
-    if (welcomeEmbedConfig.thumbnail?.enabled && welcomeEmbedConfig.thumbnail.url) {
-        embed.setThumbnail(welcomeEmbedConfig.thumbnail.url);
-    }
-
-    if (welcomeEmbedConfig.icon?.enabled && welcomeEmbedConfig.icon.url) {
-        embed.setAuthor({ name: welcomeEmbedConfig.title ?? 'Welcome to the server', iconURL: welcomeEmbedConfig.icon.url });
-    }
-
-    for (const field of welcomeEmbedConfig.fields ?? []) {
-        applyFieldToEmbed(embed, field);
-    }
+    const embed = buildVerificationPublicEmbed('welcomeEmbed');
 
     if (verificationSettings?.autokickEnabled) {
         const autoKickWelcomeFieldConfig = verificationEmbedConfig.autoKickWelcomeField ?? {};
@@ -836,22 +823,10 @@ function buildWelcomeEmbed(verificationSettings) {
             timer: formatDuration(verificationSettings.autokickSeconds),
         };
 
-        applyFieldToEmbed(embed, {
-            title: applyTextReplacements(autoKickWelcomeFieldConfig.title ?? 'Verification time limit', replacements),
-            value: applyTextReplacements(autoKickWelcomeFieldConfig.value ?? 'Please complete verification within {timer}, or you will be removed from the server.', replacements),
-            inline: autoKickWelcomeFieldConfig.inline ?? false,
-        });
+        applyFieldToEmbed(embed, autoKickWelcomeFieldConfig, replacements);
     }
 
     return embed;
-}
-
-function buildVerificationHelpEmbed() {
-    return buildResultEmbed(
-        verificationEmbedConfig.verificationHelpEmbed,
-        'Verification Help',
-        'If you are having trouble verifying, please contact staff for assistance.',
-    );
 }
 
 function buildVerificationPostComponents() {
@@ -869,10 +844,7 @@ function buildVerificationPostComponents() {
 }
 
 async function handleVerifyHelp(interaction) {
-    return interaction.reply({
-        embeds: [buildVerificationHelpEmbed()],
-        flags: Discord.MessageFlags.Ephemeral,
-    });
+    return interaction.reply(buildVerificationPublicResponse('verificationHelpEmbed'));
 }
 
 async function fetchVerificationMessage(interaction, messageId) {
@@ -885,26 +857,6 @@ async function fetchVerificationMessage(interaction, messageId) {
     }
 
     return null;
-}
-
-function buildInProgressEmbed(expiresAt) {
-    return buildResultEmbed(
-        verificationEmbedConfig.inProgressEmbed,
-        'Verification in Progress',
-        'You already have a verification challenge in progress. Please answer your current challenge or retry after it expires {retryTime}.',
-        { retryTime: `<t:${Math.floor(expiresAt / 1000)}:R>` },
-    );
-}
-
-function buildExpiredChallengeResponse(description = 'Your verification challenge has expired. Please start verification again.') {
-    return {
-        embeds: [buildResultEmbed(
-            verificationEmbedConfig.expiredChallengeEmbed,
-            'Verification Challenge Expired',
-            description,
-        )],
-        flags: Discord.MessageFlags.Ephemeral,
-    };
 }
 
 function buildImageEmbed(fieldOrEmbed, embedConfig) {
@@ -1394,14 +1346,10 @@ async function completeVerification(interaction) {
         await interaction.member.roles.remove(unverifiedRoleId);
     }
 
-    return sendInitialInteractionResponse(interaction, {
-        embeds: [buildResultEmbed(
-            verificationEmbedConfig.successEmbed,
-            'Verification Complete',
-            'You have been verified successfully.',
-        )],
-        flags: Discord.MessageFlags.Ephemeral,
-    });
+    return sendInitialInteractionResponse(
+        interaction,
+        buildVerificationPublicResponse('successEmbed'),
+    );
 }
 
 async function handleVerifyStart(interaction) {
@@ -1435,10 +1383,10 @@ async function handleVerifyStart(interaction) {
     const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
     const existingChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
     if (existingChallenge) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildInProgressEmbed(existingChallenge.expiresAt)],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(
+            interaction,
+            buildVerificationInProgressResponse(existingChallenge.expiresAt),
+        );
     }
 
     const challenge = selectVerificationChallenge(verificationSettings);
@@ -1477,14 +1425,7 @@ async function handleVerifyStart(interaction) {
 
     const reservedChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
     if (!reservedChallenge || reservedChallenge.reservationToken !== reservationToken) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.expiredChallengeEmbed,
-                'Verification Challenge Expired',
-                'Your verification challenge has expired. Please start verification again.',
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse());
     }
 
     setChallenge(interaction.user.id, {
@@ -1504,21 +1445,11 @@ async function handleVerifyAnswer(interaction) {
     const activeChallenge = getChallenge(interaction.user.id);
 
     if (!activeChallenge) {
-        return interaction.reply({
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.expiredChallengeEmbed,
-                'Verification Challenge Expired',
-                'Your verification challenge has expired. Please start verification again.',
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return interaction.reply(buildVerificationExpiredResponse());
     }
 
     if (activeChallenge.pending) {
-        return interaction.reply({
-            embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return interaction.reply(buildVerificationInProgressResponse(activeChallenge.expiresAt));
     }
 
     const clickedChallenge = parseAnswerCustomId(interaction.customId);
@@ -1529,14 +1460,9 @@ async function handleVerifyAnswer(interaction) {
         || clickedChallenge.challengeId !== challengeId
         || clickedChallenge.stepIndex !== stepIndex
         || isStaleGalleryComponent(clickedChallenge, activeChallenge)) {
-        return interaction.reply({
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.expiredChallengeEmbed,
-                'Verification Challenge Expired',
-                'This challenge button is no longer current. Please use the latest verification challenge message.',
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return interaction.reply(buildVerificationExpiredResponse(
+            'This challenge button is no longer current. Please use the latest verification challenge message.',
+        ));
     }
 
     return interaction.showModal(buildAnswerModal(challengeId, stepIndex, activeChallenge));
@@ -1560,21 +1486,14 @@ async function handleVerifyOldVersion(interaction) {
 
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.expiredChallengeEmbed,
-                'Verification Challenge Expired',
-                'Your verification challenge has expired. Please start verification again.',
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse());
     }
 
     if (activeChallenge.pending) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(
+            interaction,
+            buildVerificationInProgressResponse(activeChallenge.expiresAt),
+        );
     }
 
     const clickedChallenge = parseOldVersionCustomId(interaction.customId);
@@ -1585,14 +1504,9 @@ async function handleVerifyOldVersion(interaction) {
         || clickedChallenge.challengeId !== challengeId
         || clickedChallenge.stepIndex !== stepIndex
         || isStaleGalleryComponent(clickedChallenge, activeChallenge)) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.expiredChallengeEmbed,
-                'Verification Challenge Expired',
-                'This old version button is no longer current. Please use the latest verification challenge message.',
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse(
+            'This old version button is no longer current. Please use the latest verification challenge message.',
+        ));
     }
 
     const challenge = applyVerificationChallengeOverrides(verificationChallenges[challengeId], verificationSettings) ?? getActiveVerificationChallenge({ verification: verificationSettings });
@@ -1626,21 +1540,14 @@ async function handleVerifySubmit(interaction) {
 
     const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
     if (!activeChallenge) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.expiredChallengeEmbed,
-                'Verification Challenge Expired',
-                'Your verification challenge has expired. Please start verification again.',
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse());
     }
 
     if (activeChallenge.pending) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildInProgressEmbed(activeChallenge.expiresAt)],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(
+            interaction,
+            buildVerificationInProgressResponse(activeChallenge.expiresAt),
+        );
     }
 
     const submittedChallenge = parseSubmitCustomId(interaction.customId);
@@ -1651,14 +1558,9 @@ async function handleVerifySubmit(interaction) {
         || submittedChallenge.challengeId !== challengeId
         || submittedChallenge.stepIndex !== stepIndex
         || isStaleGalleryComponent(submittedChallenge, activeChallenge)) {
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.expiredChallengeEmbed,
-                'Verification Challenge Expired',
-                'This answer modal is no longer current. Please use the latest verification challenge message.',
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse(
+            'This answer modal is no longer current. Please use the latest verification challenge message.',
+        ));
     }
 
     const answer = interaction.fields.getTextInputValue('answer');
@@ -1679,15 +1581,10 @@ async function handleVerifySubmit(interaction) {
         clearChallenge(interaction.user.id);
         setCooldown(interaction.user.id, retryAt);
 
-        return sendInitialInteractionResponse(interaction, {
-            embeds: [buildResultEmbed(
-                verificationEmbedConfig.failureEmbed,
-                'Verification Failed',
-                'That answer was incorrect. Please try again in {cooldownSeconds} seconds.',
-                { cooldownSeconds, retryTime: `<t:${Math.floor(retryAt / 1000)}:R>` },
-            )],
-            flags: Discord.MessageFlags.Ephemeral,
-        });
+        return sendInitialInteractionResponse(
+            interaction,
+            buildVerificationFailureResponse(cooldownSeconds, retryAt),
+        );
     }
 
     if (hasNextVerificationChallengeStep(challengeId, stepIndex)) {
@@ -1711,7 +1608,7 @@ async function handleVerifySubmit(interaction) {
             || (currentChallenge.stepIndex ?? 0) !== stepIndex
             || currentChallenge.createdTimestamp !== activeChallenge.createdTimestamp
             || currentChallenge.expiresAt !== activeChallenge.expiresAt) {
-            return sendInitialInteractionResponse(interaction, buildExpiredChallengeResponse());
+            return sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse());
         }
 
         setChallenge(interaction.user.id, {
@@ -1725,7 +1622,7 @@ async function handleVerifySubmit(interaction) {
         const nextActiveChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
 
         if (!nextActiveChallenge) {
-            return sendInitialInteractionResponse(interaction, buildExpiredChallengeResponse());
+            return sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse());
         }
 
         return replyWithChallenge(interaction, challenge, nextStepIndex, nextGalleryState, nextActiveChallenge.expiresAt, nextPromptImage);
