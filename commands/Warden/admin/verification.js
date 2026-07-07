@@ -1,5 +1,7 @@
 const Discord = require('discord.js');
 const crypto = require('crypto');
+const fs = require('fs/promises');
+const path = require('path');
 const fetch = require('node-fetch');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const config = require('../../../config.json');
@@ -11,6 +13,7 @@ const {
     getEnabledVerificationChallenges,
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
+    resolvePrompt,
     hasNextVerificationChallengeStep,
     validateAnswer,
 } = require('../verification/verificationChallenges');
@@ -267,7 +270,7 @@ async function preparePromptImageAttachment(challenge, step) {
         return undefined;
     }
 
-    const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
+    const prompt = resolvePrompt(challenge, step);
     return createPromptImageAttachment(prompt);
 }
 
@@ -307,6 +310,42 @@ function buildGalleryAttachmentName(image, extension) {
     return `${GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX}-${createGalleryImageNonce()}-${image.position}.${extension}`;
 }
 
+function isLocalGalleryImage(image) {
+    return Boolean(image?.directory && (image.fileName || image.url));
+}
+
+function resolveLocalGalleryImagePath(image) {
+    const fileName = image.fileName ?? image.url;
+    const resolvedDirectory = path.resolve(image.directory);
+    const resolvedPath = path.resolve(resolvedDirectory, fileName);
+
+    if (!resolvedPath.startsWith(`${resolvedDirectory}${path.sep}`) && resolvedPath !== resolvedDirectory) {
+        throw new Error(`Invalid local verification gallery image path for position ${image.position}.`);
+    }
+
+    return resolvedPath;
+}
+
+function getGalleryImageExtensionFromPath(filePath) {
+    const extension = path.extname(filePath).slice(1).toLowerCase();
+
+    return /^[a-z0-9]{1,8}$/.test(extension) ? extension : 'png';
+}
+
+async function readLocalGalleryImageAttachment(image) {
+    const filePath = resolveLocalGalleryImagePath(image);
+    const extension = getGalleryImageExtensionFromPath(filePath);
+    const name = buildGalleryAttachmentName(image, extension);
+    const buffer = await fs.readFile(filePath);
+
+    return {
+        ...image,
+        displayUrl: `attachment://${name}`,
+        attachment: new Discord.AttachmentBuilder(buffer, { name }),
+        buffer,
+    };
+}
+
 function buildGalleryCompositeAttachmentName() {
     return `${GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX}-${createGalleryImageNonce()}.png`;
 }
@@ -315,7 +354,7 @@ function shouldUseCompositeGallery(challenge, step) {
     return step?.compositeImageGallery === true || challenge?.compositeImageGallery === true;
 }
 
-async function fetchGalleryImageAttachment(image) {
+async function fetchRemoteGalleryImageAttachment(image) {
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), GALLERY_IMAGE_FETCH_TIMEOUT_MS);
     let response;
@@ -351,6 +390,28 @@ async function fetchGalleryImageAttachment(image) {
         attachment: new Discord.AttachmentBuilder(buffer, { name }),
         buffer,
     };
+}
+
+async function fetchGalleryImageAttachment(image) {
+    if (isLocalGalleryImage(image)) {
+        try {
+            return await readLocalGalleryImageAttachment(image);
+        }
+        catch (err) {
+            if (!image.fallbackUrl) {
+                throw err;
+            }
+
+            console.warn(`Failed to read local verification gallery image "${image.fileName ?? image.url}" for position ${image.position}; falling back to configured remote attachment source.`, err);
+            return fetchRemoteGalleryImageAttachment({
+                ...image,
+                directory: undefined,
+                url: image.fallbackUrl,
+            });
+        }
+    }
+
+    return fetchRemoteGalleryImageAttachment(image);
 }
 
 function drawImageCover(context, image, x, y, width, height) {
@@ -569,6 +630,7 @@ function createGalleryState(challenge, stepIndex = 0) {
         ...pickRandomItemsWithRepeatLimit(controlImages, controlCount, maxControlImageRepeats, 'control'),
     ]).map((image, index) => ({
         ...image,
+        directory: imagePool.directory,
         position: index + 1,
     }));
 
@@ -863,7 +925,7 @@ function buildChallengeEmbeds(challenge, stepIndex = 0, expiresAt) {
     const totalSteps = steps.length || 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
     const expiryLine = buildExpiryLine(expiresAt);
-    const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
+    const prompt = resolvePrompt(challenge, step);
     const stepDescription = step?.description ? `${step.description}\n\n` : '';
     let description = embedConfig.description ?? '{challenge}';
 
@@ -964,7 +1026,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     const totalSteps = steps.length || 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
     const title = step?.title ?? embedConfig.title ?? 'Verification Challenge';
-    const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
+    const prompt = resolvePrompt(challenge, step);
     const questionText = step?.questionText ?? challenge.questionText;
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const selectedImages = galleryState?.selectedImages ?? [];
@@ -1098,7 +1160,7 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expire
     const steps = getVerificationChallengeSteps(challenge);
     const totalSteps = steps.length || 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
-    const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
+    const prompt = resolvePrompt(challenge, step);
     const questionText = step?.questionText ?? challenge.questionText;
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const challengeEmbed = new Discord.EmbedBuilder()

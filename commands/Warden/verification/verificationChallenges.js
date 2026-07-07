@@ -5,9 +5,11 @@
  * `prompt`/`answers` directly. Multi-step challenges should define `steps`, where each step can
  * contain:
  * - `prompt`: user-facing question, riddle, or challenge text.
+ * - `promptEnvVar`: optional environment variable name that supplies private prompt text.
  * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step.
+ * - `answersEnvVar`: optional environment variable name that supplies private accepted answers, separated by commas or newlines.
  * - `title`: optional embed title for the step.
  * - `imageUrl`: optional primary image shown on the challenge embed.
  * - `thumbnailUrl`: optional thumbnail shown on the challenge embed.
@@ -135,7 +137,66 @@ const verificationChallenges = {
             },
         ],
     },
+    eliteStarterShipGalleryObfuscatedPromptLocal: {
+        id: 'eliteStarterShipGalleryObfuscatedPromptLocal',
+        enabled: false,
+        renderMode: 'componentsV2Gallery',
+        promptImageGallery: true,
+        compositeImageGallery: true,
+        imagePoolId: 'eliteStarterShips_c_local',
+        gallerySize: 9,
+        solutionImageCount: {
+            min: 1,
+            max: 2,
+        },
+        maxControlImageRepeats: 2,
+        steps: [
+            {
+                title: 'Verification Challenge',
+                description: 'Answer both questions below.',
+                questionText: 'What is the name of the following object from Elite Dangerous?',
+                promptEnvVar: 'WARDEN_ELITE_STARTER_SHIP_PROMPT',
+                answersEnvVar: 'WARDEN_ELITE_STARTER_SHIP_ANSWERS',
+                galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
+                positionInputLabel: 'Image tags (1-9)',
+                positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
+            },
+        ],
+    },
 };
+
+function resolveEnvironmentValue(envVarName) {
+    if (!envVarName) return undefined;
+
+    const value = process.env[envVarName];
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function resolvePrompt(challenge, step) {
+    return resolveEnvironmentValue(step?.promptEnvVar)
+        ?? resolveEnvironmentValue(challenge?.promptEnvVar)
+        ?? step?.prompt
+        ?? challenge?.prompt
+        ?? 'Please answer the verification challenge.';
+}
+
+function parseAnswersValue(answersValue) {
+    return String(answersValue ?? '')
+        .split(/[\n,]+/)
+        .map((answer) => answer.trim())
+        .filter(Boolean);
+}
+
+function resolveAnswers(challenge, step) {
+    const environmentAnswers = resolveEnvironmentValue(step?.answersEnvVar)
+        ?? resolveEnvironmentValue(challenge?.answersEnvVar);
+
+    if (environmentAnswers) {
+        return parseAnswersValue(environmentAnswers);
+    }
+
+    return step?.answers ?? challenge?.answers ?? [];
+}
 
 function normalizeAnswer(answer) {
     return String(answer ?? '')
@@ -160,8 +221,10 @@ function getVerificationChallengeSteps(challenge) {
     return [
         {
             prompt: challenge.prompt,
+            promptEnvVar: challenge.promptEnvVar,
             description: challenge.description,
             answers: challenge.answers ?? [],
+            answersEnvVar: challenge.answersEnvVar,
             title: challenge.title,
             imageUrl: challenge.imageUrl,
             thumbnailUrl: challenge.thumbnailUrl,
@@ -221,7 +284,7 @@ function validateAnswer(challengeId, answer, stepIndex = 0) {
 
     const normalizer = step.normalizer ?? challenge.normalizer ?? normalizeAnswer;
     const normalizedAnswer = normalizer(answer);
-    const validAnswers = (step.answers ?? []).map((validAnswer) => normalizer(validAnswer));
+    const validAnswers = resolveAnswers(challenge, step).map((validAnswer) => normalizer(validAnswer));
 
     if (validAnswers.includes(normalizedAnswer)) {
         return { ok: true };
@@ -240,5 +303,7 @@ module.exports = {
     getActiveVerificationChallenge,
     hasNextVerificationChallengeStep,
     normalizeAnswer,
+    resolvePrompt,
+    resolveAnswers,
     validateAnswer,
 };
