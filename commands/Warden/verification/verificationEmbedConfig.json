@@ -1,4 +1,50 @@
 {
+    "responseDefaults": {
+        "timestamp": true,
+        "footer": {
+            "enabled": true,
+            "text": "Warden Verification"
+        },
+        "colors": {
+            "success": "#57F287",
+            "error": "#E74C3C",
+            "warning": "#F1C40F",
+            "info": "#ff7100",
+            "neutral": "#2B2D31"
+        }
+    },
+    "adminResponseTemplates": {
+        "genericError": {
+            "title": "Verification Error",
+            "description": "{message}",
+            "color": "error"
+        },
+        "settingUpdated": {
+            "title": "Verification {label} Updated",
+            "description": "{message}",
+            "color": "success"
+        },
+        "settingStatus": {
+            "title": "Verification {label} Status",
+            "description": "{message}",
+            "color": "info"
+        },
+        "configurationList": {
+            "title": "Verification {label} Configuration",
+            "description": "{message}",
+            "color": "info"
+        },
+        "actionCompleted": {
+            "title": "Verification {label}",
+            "description": "{message}",
+            "color": "success"
+        },
+        "summary": {
+            "title": "Verification {label}",
+            "description": "{message}\n\n{summary}",
+            "color": "{tone}"
+        }
+    },
     "welcomeEmbed": {
         "title": "Welcome to the Anti-Xeno Initiative",
         "description": "We are an Elite: Dangerous community centered on Thargoid Combat (Anti-Xeno) and defending humanity.",
