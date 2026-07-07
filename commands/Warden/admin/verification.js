@@ -1884,7 +1884,7 @@ module.exports = {
                             { name: 'Set retry cooldown timer', value: 'cooldown' },
                             { name: 'Set challenge prompt override', value: 'prompt_set' },
                             { name: 'Clear challenge prompt override', value: 'prompt_clear' },
-                            { name: 'Set complete challenge answer override list', value: 'answer_set' },
+                            { name: 'Set complete challenge answer list for a challengeID', value: 'answer_set' },
                             { name: 'List challenge prompt/answer overrides', value: 'answer_list' },
                             { name: 'Clear challenge answer overrides', value: 'answer_clear' },
                         )
@@ -1904,7 +1904,7 @@ module.exports = {
                 .addStringOption(option =>
                     option
                         .setName('answer')
-                        .setDescription('Complete answer list for answer_set, separated by commas or spaces')
+                        .setDescription('Set full answer list for the selected challengeID, separated by commas and/or spaces')
                         .setRequired(false)
                 )
                 .addStringOption(option =>
@@ -2047,10 +2047,10 @@ Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${f
                         const updatedSettings = await clearChallengeAnswerOverrides(guildId, challengeId, interaction.user.id);
                         await sendVerificationStaffWarning(
                             interaction.guild,
-                            '⚠️ Verification challenge answer overrides cleared',
-                            `Answer overrides for **${challengeId}** were cleared by ${interaction.user}. If this challenge requires configured answers, set them again with \`/verification challenge action:answer_set id:${challengeId}\`.`,
+                            'Verification challenge answer list cleared',
+                            `Answer list for **${challengeId}** was cleared by ${interaction.user}. If this challenge requires configured answers, set them again with \`/verification challenge action:answer_set id:${challengeId}\`.`,
                         );
-                        return interaction.editReply({ content: `Answer overrides cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                        return interaction.editReply({ content: `Answe list cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
                     }
                 }
             }
