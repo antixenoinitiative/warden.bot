@@ -8,6 +8,8 @@
  * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step.
+ * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
+ * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
  * - `title`: optional embed title for the step.
  * - `imageUrl`: optional primary image shown on the challenge embed.
  * - `thumbnailUrl`: optional thumbnail shown on the challenge embed.
@@ -148,13 +150,13 @@ const verificationChallenges = {
             max: 2,
         },
         maxControlImageRepeats: 2,
+        requiresConfiguredPrompt: true,
+        requiresConfiguredAnswers: true,
         steps: [
             {
                 title: 'Verification Challenge',
                 description: 'Answer both questions below.',
                 questionText: 'What is the name of the following object from Elite Dangerous?',
-                prompt: 'The starter Ship',
-                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
                 galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
                 positionInputLabel: 'Image tags (1-9)',
                 positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
@@ -277,6 +279,27 @@ function hasNextVerificationChallengeStep(challengeId, stepIndex = 0) {
     return stepIndex + 1 < steps.length;
 }
 
+function getMissingChallengeOverrideRequirements(verificationSettings) {
+    const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
+
+    return enabledChallenges.flatMap((challenge) => {
+        const override = getChallengeOverride(challenge.id, verificationSettings);
+        const missing = [];
+
+        if (challenge.requiresConfiguredPrompt && !override?.prompt) {
+            missing.push('prompt');
+        }
+
+        if (challenge.requiresConfiguredAnswers && !override?.answers?.length) {
+            missing.push('answers');
+        }
+
+        if (missing.length < 1) return [];
+
+        return [{ challengeId: challenge.id, missing }];
+    });
+}
+
 function getEnabledVerificationChallenges(config) {
     const verificationSettings = config?.verification ?? config;
     const configuredChallengeIds = verificationSettings?.activeChallengeIds;
@@ -332,6 +355,7 @@ module.exports = {
     applyVerificationChallengeOverrides,
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
+    getMissingChallengeOverrideRequirements,
     getEnabledVerificationChallenges,
     getActiveVerificationChallenge,
     hasNextVerificationChallengeStep,

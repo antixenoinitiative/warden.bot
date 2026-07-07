@@ -786,6 +786,21 @@ function getSingleKnownChallengeId(interaction) {
     return { challengeId };
 }
 
+async function sendVerificationStaffWarning(guild, title, description) {
+    const staffChannelId = process.env.STAFFCHANNELID;
+    if (!staffChannelId || !guild?.channels) return;
+
+    const staffChannel = guild.channels.cache.get(staffChannelId) ?? await guild.channels.fetch(staffChannelId).catch(() => undefined);
+    if (!staffChannel?.isTextBased()) return;
+
+    await staffChannel.send({
+        embeds: [new Discord.EmbedBuilder()
+            .setColor(resolveEmbedColor('#F1C40F'))
+            .setTitle(title)
+            .setDescription(description)],
+    }).catch((err) => console.error('Failed to send verification staff warning:', err));
+}
+
 function getChallengeOverrideSummary(verificationSettings, challengeId) {
     const override = verificationSettings.challengeOverrides?.[challengeId];
     const promptLine = override?.prompt ? `Prompt override: ${override.prompt}` : 'Prompt override: not set';
@@ -2005,7 +2020,12 @@ Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${f
 
                     if (action === 'prompt_clear') {
                         const updatedSettings = await clearChallengePromptOverride(guildId, challengeId, interaction.user.id);
-                        return interaction.editReply({ content: `Prompt override cleared for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                        await sendVerificationStaffWarning(
+                            interaction.guild,
+                            '⚠️ Verification challenge prompt override cleared',
+                            `Prompt override for **${challengeId}** was cleared by ${interaction.user}. If this challenge requires a configured prompt, set it again with \`/verification challenge action:prompt_set id:${challengeId}\`.`,
+                        );
+                        return interaction.editReply({ content: `Prompt override cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
                     }
 
                     if (action === 'answer_add') {
@@ -2030,7 +2050,12 @@ Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${f
 
                     if (action === 'answer_clear') {
                         const updatedSettings = await clearChallengeAnswerOverrides(guildId, challengeId, interaction.user.id);
-                        return interaction.editReply({ content: `Answer overrides cleared for **${challengeId}**.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
+                        await sendVerificationStaffWarning(
+                            interaction.guild,
+                            '⚠️ Verification challenge answer overrides cleared',
+                            `Answer overrides for **${challengeId}** were cleared by ${interaction.user}. If this challenge requires configured answers, set them again with \`/verification challenge action:answer_add id:${challengeId}\`.`,
+                        );
+                        return interaction.editReply({ content: `Answer overrides cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
                     }
                 }
             }

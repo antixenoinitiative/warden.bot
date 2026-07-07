@@ -146,9 +146,28 @@ function mainOperation(){
 			try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImagePools')
+				const { getMissingChallengeOverrideRequirements } = require('./commands/Warden/verification/verificationChallenges')
 
 				await ensureVerificationSettingsTable()
-				await getVerificationSettings(process.env.GUILDID)
+				const verificationSettings = await getVerificationSettings(process.env.GUILDID)
+
+				const missingChallengeRequirements = getMissingChallengeOverrideRequirements(verificationSettings)
+				if (missingChallengeRequirements.length > 0) {
+					const warningDescription = missingChallengeRequirements
+						.map(({ challengeId, missing }) => `- **${challengeId}** missing ${missing.join(' and ')}`)
+						.join('\n')
+					console.warn('[STARTUP] Warden verification challenge configuration warnings:', warningDescription)
+
+					const staffChannel = process.env.STAFFCHANNELID ? await guild.channels.fetch(process.env.STAFFCHANNELID).catch(() => undefined) : undefined
+					if (staffChannel?.isTextBased()) {
+						await staffChannel.send({
+							embeds: [new Discord.EmbedBuilder()
+								.setColor('#F1C40F')
+								.setTitle('⚠️ Verification challenge configuration warning')
+								.setDescription(`These active verification challenge IDs need DB-configured prompt and/or answer overrides before they should be used:\n${warningDescription}`)],
+						})
+					}
+				}
 
 				const imagePoolIssues = await getLocalVerificationImagePoolIssues()
 				if (imagePoolIssues.length > 0) {
