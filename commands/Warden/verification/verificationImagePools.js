@@ -121,6 +121,63 @@ const verificationImagePools = {
             },
         ],
     },
+    eliteStarterShips_c_local: {
+        id: 'eliteStarterShips_c_local',
+        description: 'Local Elite Dangerous vessel img pool for starter ship question.',
+        directory: '/home/container/verificationPool/',
+        images: [
+            {
+                id: 'sidewinder-1',
+                role: 'solution',
+                url: 'elitevessel8_c.png',
+            },
+            {
+                id: 'chieftain-1',
+                role: 'control',
+                url: 'elitevessel1_c.png',
+            },
+            {
+                id: 'clops-1',
+                role: 'control',
+                url: 'elitevessel2_c.png',
+            },
+            {
+                id: 'type-7-1',
+                role: 'control',
+                url: 'elitevessel3_c.png',
+            },
+            {
+                id: 'eagle-1',
+                role: 'control',
+                url: 'elitevessel9_c.png',
+            },
+            {
+                id: 'imp-eagle-1',
+                role: 'control',
+                url: 'elitevessel4_c.png',
+            },
+            {
+                id: 'krait-mk2-1',
+                role: 'control',
+                url: 'elitevessel5_c.png',
+            },
+            {
+                id: 'type-10-1',
+                role: 'control',
+                url: 'elitevessel6_c.png',
+            },
+            {
+                id: 'hauler-1',
+                role: 'control',
+                url: 'elitevessel10_c.png',
+            },
+            {
+                id: 'fas-1',
+                role: 'control',
+                url: 'elitevessel7_c.png',
+            },
+        ],
+    },
 };
 
 function getVerificationImagePool(poolId) {
