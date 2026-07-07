@@ -64,10 +64,11 @@ function resolveTemplate(templateKey) {
         ?? {};
 }
 
-function resolveResponseColor(template, options = {}) {
+function resolveResponseColor(template, options = {}, replacements = {}) {
     const defaults = verificationEmbedConfig.responseDefaults ?? {};
     const colors = defaults.colors ?? {};
-    const color = options.color ?? template.color;
+    const rawColor = options.color ?? template.color;
+    const color = typeof rawColor === 'string' ? applyTextReplacements(rawColor, replacements) : rawColor;
     const fallback = colors.info ?? '#3498DB';
 
     if (colors[color]) {
@@ -139,7 +140,7 @@ function applyEmbedMeta(embed, template, replacements = {}, options = {}) {
 
 function buildVerificationEmbed(templateKey, replacements = {}, options = {}) {
     const template = { ...resolveTemplate(templateKey), ...options.templateOverrides };
-    const embed = new Discord.EmbedBuilder().setColor(resolveResponseColor(template, options));
+    const embed = new Discord.EmbedBuilder().setColor(resolveResponseColor(template, options, replacements));
 
     if (template.title) {
         embed.setTitle(truncateText(applyTextReplacements(template.title, replacements), 256));
