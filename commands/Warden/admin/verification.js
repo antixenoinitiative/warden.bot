@@ -1880,13 +1880,13 @@ module.exports = {
                         .addChoices(
                             { name: 'Lists verification state and info', value: 'list' },
                             { name: 'Set active challenge ID list', value: 'set' },
-                            { name: 'Set prompt expiry timer', value: 'timer' },
-                            { name: 'Set retry cooldown timer', value: 'cooldown' },
-                            { name: 'Set challenge prompt override', value: 'prompt_set' },
-                            { name: 'Clear challenge prompt override', value: 'prompt_clear' },
-                            { name: 'Set complete challenge answer list for a challengeID', value: 'answer_set' },
-                            { name: 'List challenge prompt/answer overrides', value: 'answer_list' },
-                            { name: 'Clear challenge answer overrides', value: 'answer_clear' },
+                            { name: 'Set prompt expiry timer for all challenges', value: 'timer' },
+                            { name: 'Set retry cooldown timer for all challenges', value: 'cooldown' },
+                            { name: 'List challenge prompts/answers', value: 'answer_list' },
+                            { name: 'Set the prompt of a challenge', value: 'prompt_set' },
+                            { name: 'Clear prompt of a challenge', value: 'prompt_clear' },
+                            { name: 'Set the answer (list) of a challenge', value: 'answer_set' },
+                            { name: 'Clear answers of a challenge', value: 'answer_clear' },
                         )
                 )
                 .addStringOption(option =>
@@ -2027,8 +2027,8 @@ Autokick: **${verificationSettings.autokickEnabled ? 'on' : 'off'}** after **${f
                         const updatedSettings = await clearChallengePromptOverride(guildId, challengeId, interaction.user.id);
                         await sendVerificationStaffWarning(
                             interaction.guild,
-                            '⚠️ Verification challenge prompt override cleared',
-                            `Prompt override for **${challengeId}** was cleared by ${interaction.user}. If this challenge requires a configured prompt, set it again with \`/verification challenge action:prompt_set id:${challengeId}\`.`,
+                            'Verification challenge prompt cleared',
+                            `The prompt of **${challengeId}** was cleared by ${interaction.user}. If this challenge requires a configured prompt, set it again with \`/verification challenge action:prompt_set id:${challengeId}\`.`,
                         );
                         return interaction.editReply({ content: `Prompt override cleared for **${challengeId}**. Staff warning sent.\n\n${getChallengeOverrideSummary(updatedSettings, challengeId)}` });
                     }
