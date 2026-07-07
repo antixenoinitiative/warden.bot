@@ -311,7 +311,7 @@ function buildGalleryAttachmentName(image, extension) {
 }
 
 function isLocalGalleryImage(image) {
-    return Boolean(image?.directory);
+    return Boolean(image?.directory && (image.fileName || image.url));
 }
 
 function resolveLocalGalleryImagePath(image) {
@@ -354,11 +354,7 @@ function shouldUseCompositeGallery(challenge, step) {
     return step?.compositeImageGallery === true || challenge?.compositeImageGallery === true;
 }
 
-async function fetchGalleryImageAttachment(image) {
-    if (isLocalGalleryImage(image)) {
-        return readLocalGalleryImageAttachment(image);
-    }
-
+async function fetchRemoteGalleryImageAttachment(image) {
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), GALLERY_IMAGE_FETCH_TIMEOUT_MS);
     let response;
@@ -394,6 +390,28 @@ async function fetchGalleryImageAttachment(image) {
         attachment: new Discord.AttachmentBuilder(buffer, { name }),
         buffer,
     };
+}
+
+async function fetchGalleryImageAttachment(image) {
+    if (isLocalGalleryImage(image)) {
+        try {
+            return await readLocalGalleryImageAttachment(image);
+        }
+        catch (err) {
+            if (!image.fallbackUrl) {
+                throw err;
+            }
+
+            console.warn(`Failed to read local verification gallery image "${image.fileName ?? image.url}" for position ${image.position}; falling back to configured remote attachment source.`, err);
+            return fetchRemoteGalleryImageAttachment({
+                ...image,
+                directory: undefined,
+                url: image.fallbackUrl,
+            });
+        }
+    }
+
+    return fetchRemoteGalleryImageAttachment(image);
 }
 
 function drawImageCover(context, image, x, y, width, height) {

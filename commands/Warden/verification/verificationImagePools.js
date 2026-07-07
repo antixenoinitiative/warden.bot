@@ -3,6 +3,8 @@
  *
  * Each pool can be referenced by one or more verification challenges. Images with role
  * `solution` are correct gallery choices; images with role `control` are distractors.
+ * Pools with `directory` read local image `fileName` entries from that directory.
+ * `fallbackUrl` can keep verification available if a local file is missing.
  *
  * Keep URLs and any displayed metadata neutral. Discord clients receive them.
  * - Changed code so images are turned into discordapp attachments before transmitting,
@@ -127,54 +129,64 @@ const verificationImagePools = {
         directory: '/home/container/verificationPool/',
         images: [
             {
-                id: 'sidewinder-1',
+                id: 'elitevessel8',
                 role: 'solution',
-                url: 'elitevessel8_c.png',
+                fileName: 'elitevessel8_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel8_c.png',
             },
             {
-                id: 'chieftain-1',
+                id: 'elitevessel1',
                 role: 'control',
-                url: 'elitevessel1_c.png',
+                fileName: 'elitevessel1_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel1_c.png',
             },
             {
-                id: 'clops-1',
+                id: 'elitevessel2',
                 role: 'control',
-                url: 'elitevessel2_c.png',
+                fileName: 'elitevessel2_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel2_c.png',
             },
             {
-                id: 'type-7-1',
+                id: 'elitevessel3',
                 role: 'control',
-                url: 'elitevessel3_c.png',
+                fileName: 'elitevessel3_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel3_c.png',
             },
             {
-                id: 'eagle-1',
+                id: 'elitevessel9',
                 role: 'control',
-                url: 'elitevessel9_c.png',
+                fileName: 'elitevessel9_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel9_c.png',
             },
             {
-                id: 'imp-eagle-1',
+                id: 'elitevessel4',
                 role: 'control',
-                url: 'elitevessel4_c.png',
+                fileName: 'elitevessel4_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel4_c.png',
             },
             {
-                id: 'krait-mk2-1',
+                id: 'elitevessel5',
                 role: 'control',
-                url: 'elitevessel5_c.png',
+                fileName: 'elitevessel5_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel5_c.png',
             },
             {
-                id: 'type-10-1',
+                id: 'elitevessel6',
                 role: 'control',
-                url: 'elitevessel6_c.png',
+                fileName: 'elitevessel6_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel6_c.png',
             },
             {
-                id: 'hauler-1',
+                id: 'elitevessel10',
                 role: 'control',
-                url: 'elitevessel10_c.png',
+                fileName: 'elitevessel10_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel10_c.png',
             },
             {
-                id: 'fas-1',
+                id: 'elitevessel7',
                 role: 'control',
-                url: 'elitevessel7_c.png',
+                fileName: 'elitevessel7_c.png',
+                fallbackUrl: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel7_c.png',
             },
         ],
     },
