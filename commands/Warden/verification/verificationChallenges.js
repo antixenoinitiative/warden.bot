@@ -126,8 +126,8 @@ const verificationChallenges = {
             {
                 title: 'Verification Challenge',
                 description: 'Answer both questions below.',
-                questionText: 'What is the name of the starter ship in Elite Dangerous?',
-                prompt: 'Name the ship.',
+                questionText: 'What is the name of the following object from Elite Dangerous?',
+                prompt: 'The starter Ship',
                 galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
                 answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
                 positionInputLabel: 'Image tags (1-9)',
