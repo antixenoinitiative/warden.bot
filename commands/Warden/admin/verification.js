@@ -793,18 +793,10 @@ function getSingleKnownChallengeId(interaction) {
 }
 
 async function sendVerificationStaffWarning(guild, title, description) {
-    const staffChannelId = process.env.STAFFCHANNELID;
-    if (!staffChannelId || !guild?.channels) return;
-
-    const staffChannel = guild.channels.cache.get(staffChannelId) ?? await guild.channels.fetch(staffChannelId).catch(() => undefined);
-    if (!staffChannel?.isTextBased()) return;
-
-    await staffChannel.send({
-        embeds: [new Discord.EmbedBuilder()
-            .setColor(resolveEmbedColor('#F1C40F'))
-            .setTitle(title)
-            .setDescription(description)],
-    }).catch((err) => console.error('Failed to send verification staff warning:', err));
+    await botLog(guild, new Discord.EmbedBuilder()
+        .setTitle(title)
+        .setDescription(description),
+    1, 'staff').catch((err) => console.error('Failed to send verification staff warning:', err));
 }
 
 function getChallengeOverrideSummary(verificationSettings, challengeId) {
