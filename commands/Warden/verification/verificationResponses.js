@@ -46,8 +46,10 @@ function truncateText(value, limit = DESCRIPTION_LIMIT) {
 }
 
 function resolveTemplate(templateKey) {
-    return verificationEmbedConfig.adminResponses?.[templateKey]
+    return verificationEmbedConfig.adminResponseTemplates?.[templateKey]
+        ?? verificationEmbedConfig.adminResponses?.[templateKey]
         ?? verificationEmbedConfig[templateKey]
+        ?? verificationEmbedConfig.adminResponseTemplates?.genericError
         ?? verificationEmbedConfig.adminResponses?.genericError
         ?? {};
 }
@@ -168,6 +170,30 @@ function buildVerificationAdminResponse(templateKey, replacements = {}, options 
     return buildVerificationResponse(templateKey, replacements, { includeFlags: false, ...options });
 }
 
+function buildVerificationAdminSettingUpdated(label, message, options = {}) {
+    return buildVerificationAdminResponse('settingUpdated', { label, message }, options);
+}
+
+function buildVerificationAdminStatus(label, message, fields = [], options = {}) {
+    return buildVerificationAdminResponse('settingStatus', { label, message }, { fields, ...options });
+}
+
+function buildVerificationAdminConfiguration(label, message, fields = [], options = {}) {
+    return buildVerificationAdminResponse('configurationList', { label, message }, { fields, ...options });
+}
+
+function buildVerificationAdminActionCompleted(label, message, options = {}) {
+    return buildVerificationAdminResponse('actionCompleted', { label, message }, options);
+}
+
+function buildVerificationAdminSummary(label, message, summary, tone = 'info', options = {}) {
+    return buildVerificationAdminResponse(
+        'summary',
+        { label, message, summary, tone },
+        { color: tone, ...options },
+    );
+}
+
 function buildVerificationErrorEmbed(message, options = {}) {
     return buildVerificationEmbed('genericError', { message }, { color: 'error', ...options });
 }
@@ -220,6 +246,11 @@ module.exports = {
     buildVerificationEmbed,
     buildVerificationResponse,
     buildVerificationAdminResponse,
+    buildVerificationAdminSettingUpdated,
+    buildVerificationAdminStatus,
+    buildVerificationAdminConfiguration,
+    buildVerificationAdminActionCompleted,
+    buildVerificationAdminSummary,
     buildVerificationErrorEmbed,
     buildVerificationErrorResponse,
     buildVerificationSuccessResponse,

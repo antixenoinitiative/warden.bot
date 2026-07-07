@@ -12,7 +12,11 @@ const {
     resolveComponentAccentColor,
     applyTextReplacements,
     applyFieldToEmbed,
-    buildVerificationAdminResponse,
+    buildVerificationAdminSettingUpdated,
+    buildVerificationAdminStatus,
+    buildVerificationAdminConfiguration,
+    buildVerificationAdminActionCompleted,
+    buildVerificationAdminSummary,
     buildVerificationErrorEmbed,
     buildResultEmbed,
 } = require('../verification/verificationResponses');
@@ -1865,7 +1869,10 @@ module.exports = {
             if (subcommand === 'mode') {
                 const mode = interaction.options.getString('setting', true);
                 await setVerificationMode(guildId, mode, interaction.user.id);
-                return interaction.editReply(buildVerificationAdminResponse('modeUpdated', { mode }));
+                return interaction.editReply(buildVerificationAdminSettingUpdated(
+                    'Mode',
+                    `Verification mode set to **${mode}**.`,
+                ));
             }
 
 
@@ -1880,10 +1887,10 @@ module.exports = {
                 }
 
                 if (status) {
-                    return interaction.editReply(buildVerificationAdminResponse('autokickStatus', {
-                        state: verificationSettings.autokickEnabled ? 'ON' : 'OFF',
-                        timer: formatDuration(verificationSettings.autokickSeconds),
-                    }));
+                    return interaction.editReply(buildVerificationAdminStatus(
+                        'Autokick',
+                        `Verification autokick is currently **${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(verificationSettings.autokickSeconds)}**.`,
+                    ));
                 }
 
                 const durationSeconds = timerInput ? parseDurationSeconds(timerInput) : undefined;
@@ -1893,10 +1900,10 @@ module.exports = {
                 }
 
                 const updatedSettings = await setAutokickSettings(guildId, setting === 'on', durationSeconds, interaction.user.id);
-                return interaction.editReply(buildVerificationAdminResponse('autokickUpdated', {
-                    state: updatedSettings.autokickEnabled ? 'ON' : 'OFF',
-                    timer: formatDuration(updatedSettings.autokickSeconds),
-                }));
+                return interaction.editReply(buildVerificationAdminSettingUpdated(
+                    'Autokick',
+                    `Verification autokick is now **${updatedSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(updatedSettings.autokickSeconds)}**.`,
+                ));
             }
 
             if (subcommand === 'challenge') {
@@ -1909,12 +1916,27 @@ module.exports = {
                         .map(challenge => `${enabledChallengeIds.includes(challenge.id) ? '**' : ''}${challenge.id}${enabledChallengeIds.includes(challenge.id) ? '** [active]' : ''}`)
                         .join('\n');
 
-                    return interaction.editReply(buildVerificationAdminResponse('challengeList', {
-                        challengeList,
-                        promptExpiry: formatDuration(verificationSettings.challengeExpirySeconds),
-                        retryCooldown: formatDuration(verificationSettings.cooldownSeconds),
-                        autokick: `${verificationSettings.autokickEnabled ? 'on' : 'off'} after ${formatDuration(verificationSettings.autokickSeconds)}`,
-                    }));
+                    return interaction.editReply(buildVerificationAdminConfiguration(
+                        'Challenge',
+                        `Configured verification challenge IDs:\n${challengeList}`,
+                        [
+                            {
+                                name: 'Prompt expiry',
+                                value: `**${formatDuration(verificationSettings.challengeExpirySeconds)}**`,
+                                inline: true,
+                            },
+                            {
+                                name: 'Retry cooldown',
+                                value: `**${formatDuration(verificationSettings.cooldownSeconds)}**`,
+                                inline: true,
+                            },
+                            {
+                                name: 'Autokick',
+                                value: `**${verificationSettings.autokickEnabled ? 'on' : 'off'} after ${formatDuration(verificationSettings.autokickSeconds)}**`,
+                                inline: false,
+                            },
+                        ],
+                    ));
                 }
 
                 if (action === 'timer' || action === 'cooldown') {
@@ -1929,10 +1951,10 @@ module.exports = {
                     const settingName = action === 'timer' ? 'challenge expiry timer' : 'verification retry cooldown';
                     const updatedSeconds = action === 'timer' ? updatedSettings.challengeExpirySeconds : updatedSettings.cooldownSeconds;
 
-                    return interaction.editReply(buildVerificationAdminResponse('challengeTimeSettingUpdated', {
-                        settingName,
-                        duration: formatDuration(updatedSeconds),
-                    }));
+                    return interaction.editReply(buildVerificationAdminSettingUpdated(
+                        'Setting',
+                        `Updated ${settingName} to **${formatDuration(updatedSeconds)}**.`,
+                    ));
                 }
 
                 if (action === 'set') {
@@ -1947,9 +1969,10 @@ module.exports = {
                     }
 
                     const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
-                    return interaction.editReply(buildVerificationAdminResponse('activeChallengesUpdated', {
-                        activeChallengeIds: updatedSettings.activeChallengeIds.join(', '),
-                    }));
+                    return interaction.editReply(buildVerificationAdminSettingUpdated(
+                        'Active Challenges',
+                        `Active verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}`,
+                    ));
                 }
 
 
@@ -1960,10 +1983,12 @@ module.exports = {
                     }
 
                     if (action === 'answer_list') {
-                        return interaction.editReply(buildVerificationAdminResponse('challengeOverrideSummary', {
-                            challengeId,
-                            summary: getChallengeOverrideSummary(verificationSettings, challengeId),
-                        }));
+                        return interaction.editReply(buildVerificationAdminSummary(
+                            'Challenge Overrides',
+                            `Overrides for **${challengeId}**:`,
+                            getChallengeOverrideSummary(verificationSettings, challengeId),
+                            'info',
+                        ));
                     }
 
                     if (action === 'prompt_set') {
@@ -1973,10 +1998,12 @@ module.exports = {
                         }
 
                         const updatedSettings = await setChallengePromptOverride(guildId, challengeId, prompt, interaction.user.id);
-                        return interaction.editReply(buildVerificationAdminResponse('challengePromptUpdated', {
-                            challengeId,
-                            summary: getChallengeOverrideSummary(updatedSettings, challengeId),
-                        }));
+                        return interaction.editReply(buildVerificationAdminSummary(
+                            'Challenge Prompt Updated',
+                            `Prompt override updated for **${challengeId}**.`,
+                            getChallengeOverrideSummary(updatedSettings, challengeId),
+                            'success',
+                        ));
                     }
 
                     if (action === 'prompt_clear') {
@@ -1986,10 +2013,12 @@ module.exports = {
                             'Verification challenge prompt cleared',
                             `The prompt of **${challengeId}** was cleared by ${interaction.user}. If this challenge requires a configured prompt, set it again with \`/verification challenge action:prompt_set id:${challengeId}\`.`,
                         );
-                        return interaction.editReply(buildVerificationAdminResponse('challengePromptCleared', {
-                            challengeId,
-                            summary: getChallengeOverrideSummary(updatedSettings, challengeId),
-                        }));
+                        return interaction.editReply(buildVerificationAdminSummary(
+                            'Challenge Prompt Cleared',
+                            `Prompt override cleared for **${challengeId}**. Staff warning sent.`,
+                            getChallengeOverrideSummary(updatedSettings, challengeId),
+                            'warning',
+                        ));
                     }
 
                     if (action === 'answer_set') {
@@ -1999,10 +2028,12 @@ module.exports = {
                         }
 
                         const updatedSettings = await setChallengeAnswerOverrides(guildId, challengeId, answers, interaction.user.id);
-                        return interaction.editReply(buildVerificationAdminResponse('challengeAnswersUpdated', {
-                            challengeId,
-                            summary: getChallengeOverrideSummary(updatedSettings, challengeId),
-                        }));
+                        return interaction.editReply(buildVerificationAdminSummary(
+                            'Challenge Answers Updated',
+                            `Answer overrides set for **${challengeId}**.`,
+                            getChallengeOverrideSummary(updatedSettings, challengeId),
+                            'success',
+                        ));
                     }
 
                     if (action === 'answer_clear') {
@@ -2012,10 +2043,12 @@ module.exports = {
                             'Verification challenge answer list cleared',
                             `Answer list for **${challengeId}** was cleared by ${interaction.user}. If this challenge requires configured answers, set them again with \`/verification challenge action:answer_set id:${challengeId}\`.`,
                         );
-                        return interaction.editReply(buildVerificationAdminResponse('challengeAnswersCleared', {
-                            challengeId,
-                            summary: getChallengeOverrideSummary(updatedSettings, challengeId),
-                        }));
+                        return interaction.editReply(buildVerificationAdminSummary(
+                            'Challenge Answers Cleared',
+                            `Answer list cleared for **${challengeId}**. Staff warning sent.`,
+                            getChallengeOverrideSummary(updatedSettings, challengeId),
+                            'warning',
+                        ));
                     }
                 }
             }
@@ -2040,9 +2073,10 @@ module.exports = {
                 }
 
                 await message.edit({ embeds: [welcomeEmbed], components });
-                return interaction.editReply(buildVerificationAdminResponse('verificationPostRefreshed', {
-                    url: message.url,
-                }));
+                return interaction.editReply(buildVerificationAdminActionCompleted(
+                    'Post Refreshed',
+                    `Verification post refreshed successfully: ${message.url}`,
+                ));
             }
 
             const targetChannelId = optionChannel?.id ?? configuredChannelId;
@@ -2057,10 +2091,10 @@ module.exports = {
 
             const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
 
-            return interaction.editReply(buildVerificationAdminResponse('verificationPostPosted', {
-                channel: String(targetChannel),
-                url: message.url,
-            }));
+            return interaction.editReply(buildVerificationAdminActionCompleted(
+                'Post Posted',
+                `Verification post posted successfully in ${String(targetChannel)}. ${message.url}`,
+            ));
         }
         catch (err) {
             console.log(err);
