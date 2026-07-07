@@ -413,9 +413,6 @@ async function createGalleryCompositeAttachment(selectedImages) {
         const y = row * GALLERY_COMPOSITE_TILE_SIZE;
 
         drawImageCover(context, loadedImage, x, y, GALLERY_COMPOSITE_TILE_SIZE, GALLERY_COMPOSITE_TILE_SIZE);
-        context.strokeStyle = '#ffffff';
-        context.lineWidth = 5;
-        context.strokeRect(x, y, GALLERY_COMPOSITE_TILE_SIZE, GALLERY_COMPOSITE_TILE_SIZE);
         drawGalleryCompositeLabel(context, String(image.position), x + 12, y + 12);
     });
 
