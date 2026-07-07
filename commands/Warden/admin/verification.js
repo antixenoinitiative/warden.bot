@@ -968,6 +968,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
     const title = step?.title ?? embedConfig.title ?? 'Verification Challenge';
     const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
+    const questionText = step?.questionText ?? challenge.questionText;
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const selectedImages = galleryState?.selectedImages ?? [];
     const displayImages = getGalleryDisplayImages(galleryState);
@@ -993,6 +994,12 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     container.addTextDisplayComponents(
         new Discord.TextDisplayBuilder().setContent('**Question 1**'),
     );
+
+    if (questionText) {
+        container.addTextDisplayComponents(
+            new Discord.TextDisplayBuilder().setContent(questionText),
+        );
+    }
 
     if (promptImage?.displayUrl) {
         container.addMediaGalleryComponents(
@@ -1095,13 +1102,16 @@ function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expire
     const totalSteps = steps.length || 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
     const prompt = step?.prompt ?? challenge.prompt ?? 'Please answer the verification challenge.';
+    const questionText = step?.questionText ?? challenge.questionText;
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
     const challengeEmbed = new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor(step?.color ?? embedConfig.color))
         .setTitle(step?.title ?? embedConfig.title ?? 'Verification Challenge')
         .setDescription([
             step?.description,
-            promptImage?.displayUrl ? '**Question 1**' : `**Question 1**\n${prompt}`,
+            promptImage?.displayUrl
+                ? ['**Question 1**', questionText].filter(Boolean).join('\n')
+                : `**Question 1**\n${questionText ? `${questionText}\n` : ''}${prompt}`,
             galleryPrompt ? `**Question 2**\n${galleryPrompt}${stepLabel}` : undefined,
             buildExpiryLine(expiresAt),
         ].filter(Boolean).join('\n\n'));

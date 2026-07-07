@@ -5,6 +5,7 @@
  * `prompt`/`answers` directly. Multi-step challenges should define `steps`, where each step can
  * contain:
  * - `prompt`: user-facing question, riddle, or challenge text.
+ * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step.
  * - `title`: optional embed title for the step.
@@ -125,7 +126,8 @@ const verificationChallenges = {
             {
                 title: 'Verification Challenge',
                 description: 'Answer both questions below.',
-                prompt: 'What is the name of the starter ship in Elite Dangerous?',
+                questionText: 'What is the name of the starter ship in Elite Dangerous?',
+                prompt: 'Name the ship.',
                 galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
                 answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
                 positionInputLabel: 'Image tags (1-9)',
