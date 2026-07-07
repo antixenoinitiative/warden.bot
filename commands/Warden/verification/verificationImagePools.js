@@ -129,7 +129,7 @@ const verificationImagePools = {
     eliteStarterShips_c_local: {
         id: 'eliteStarterShips_c_local',
         description: 'Local Elite Dangerous vessel img pool for starter ship question.',
-        directory: process.env.WARDEN_VERIFICATION_IMAGE_POOL_DIR ?? '/home/container/verificationPool/',
+        directory: process.env.WARDEN_VERIFICATION_IMAGE_POOL_DIR,
         images: [
             {
                 id: 'elitevessel8',
@@ -205,7 +205,14 @@ async function getLocalVerificationImagePoolIssues() {
     const issues = [];
 
     for (const pool of Object.values(verificationImagePools)) {
-        if (!pool.directory) continue;
+        const hasLocalImages = (pool.images ?? []).some((image) => image.fileName);
+
+        if (!pool.directory) {
+            if (hasLocalImages) {
+                issues.push(`${pool.id}: WARDEN_VERIFICATION_IMAGE_POOL_DIR is not configured for local verification images`);
+            }
+            continue;
+        }
 
         const resolvedDirectory = path.resolve(pool.directory);
 
