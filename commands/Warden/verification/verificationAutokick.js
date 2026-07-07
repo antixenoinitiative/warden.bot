@@ -1,42 +1,11 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
-const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 const { getVerificationSettings } = require('./verificationSettings');
+const { buildVerificationAutoKickEmbed } = require('./verificationResponses');
 
 const AUTOKICK_DM_TO_KICK_DELAY_MS = 1000;
 const activeAutokickTimers = new Map();
-
-function resolveEmbedColor(color, fallbackColor = '#E74C3C') {
-    if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
-        return `#${color.slice(1).split('').map((char) => char + char).join('')}`;
-    }
-
-    return color ?? fallbackColor;
-}
-
-function applyTemplate(template, values) {
-    return String(template ?? '').replace(/\{(\w+)\}/g, (_, key) => values[key] ?? '');
-}
-
-function buildAutoKickEmbed(member) {
-    const embedConfig = verificationEmbedConfig.autoKickEmbed ?? {};
-    const values = {
-        serverName: member.guild?.name ?? 'the server',
-        user: member.user?.toString?.() ?? member.displayName ?? 'there',
-    };
-
-    const embed = new Discord.EmbedBuilder()
-        .setColor(resolveEmbedColor(embedConfig.color))
-        .setTitle(applyTemplate(embedConfig.title ?? 'Verification Required', values))
-        .setDescription(applyTemplate(embedConfig.description ?? 'You were removed from {serverName} because verification was not completed in time.', values));
-
-    if (embedConfig.thumbnail?.enabled && embedConfig.thumbnail.url) {
-        embed.setThumbnail(embedConfig.thumbnail.url);
-    }
-
-    return embed;
-}
 
 function getTimerKey(member) {
     return `${member.guild.id}:${member.id}`;
@@ -63,7 +32,7 @@ async function processAutokick(member) {
     const freshMember = await guild.members.fetch(member.id).catch(() => null);
     if (!freshMember || !freshMember.roles.cache.has(unverifiedRoleId)) return;
 
-    const autoKickEmbed = buildAutoKickEmbed(freshMember);
+    const autoKickEmbed = buildVerificationAutoKickEmbed(freshMember);
     await freshMember.send({ embeds: [autoKickEmbed] });
 
     setTimeout(async () => {
@@ -119,5 +88,4 @@ async function scheduleVerificationAutokick(member) {
 module.exports = {
     scheduleVerificationAutokick,
     clearAutokickTimer,
-    buildAutoKickEmbed,
 };
