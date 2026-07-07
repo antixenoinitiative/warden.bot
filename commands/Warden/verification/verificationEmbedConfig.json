@@ -57,7 +57,7 @@
             ]
         },
         "challengeTimeSettingUpdated": {
-            "title": "Verification Timer Updated",
+            "title": "Verification Setting Updated",
             "description": "Updated {settingName} to **{duration}**.",
             "color": "success"
         },

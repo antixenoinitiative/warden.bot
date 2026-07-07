@@ -56,12 +56,22 @@ function resolveResponseColor(template, options = {}) {
     const defaults = verificationEmbedConfig.responseDefaults ?? {};
     const colors = defaults.colors ?? {};
     const color = options.color ?? template.color;
+    const fallback = colors.info ?? '#3498DB';
 
     if (colors[color]) {
-        return resolveEmbedColor(colors[color]);
+        return resolveEmbedColor(colors[color], fallback);
     }
 
-    return resolveEmbedColor(color, colors.info ?? '#3498DB');
+    const resolvedColor = resolveEmbedColor(color, fallback);
+    if (typeof resolvedColor === 'number') {
+        return resolvedColor;
+    }
+
+    if (typeof resolvedColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(resolvedColor)) {
+        return resolvedColor;
+    }
+
+    return resolveEmbedColor(fallback);
 }
 
 function applyFieldToEmbed(embed, field, replacements = {}) {
@@ -128,11 +138,11 @@ function buildVerificationEmbed(templateKey, replacements = {}, options = {}) {
         if (description) embed.setDescription(description);
     }
 
-    for (const field of (template.fields ?? []).slice(0, MAX_FIELDS)) {
-        applyFieldToEmbed(embed, field, replacements);
-    }
-
-    for (const field of (options.fields ?? []).slice(0, MAX_FIELDS)) {
+    const fields = [
+        ...(template.fields ?? []),
+        ...(options.fields ?? []),
+    ];
+    for (const field of fields.slice(0, MAX_FIELDS)) {
         applyFieldToEmbed(embed, field, replacements);
     }
 
@@ -153,6 +163,7 @@ function buildVerificationResponse(templateKey, replacements = {}, options = {})
     return response;
 }
 
+// For editReply() after an already-ephemeral deferReply().
 function buildVerificationAdminResponse(templateKey, replacements = {}, options = {}) {
     return buildVerificationResponse(templateKey, replacements, { includeFlags: false, ...options });
 }
