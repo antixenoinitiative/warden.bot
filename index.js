@@ -143,6 +143,41 @@ function mainOperation(){
 			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			warden_vars = database
 
+			try {
+				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
+				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImagePools')
+				const { getMissingChallengeOverrideRequirements } = require('./commands/Warden/verification/verificationChallenges')
+
+				await ensureVerificationSettingsTable()
+				const verificationSettings = await getVerificationSettings(process.env.GUILDID)
+
+				const missingChallengeRequirements = getMissingChallengeOverrideRequirements(verificationSettings)
+				if (missingChallengeRequirements.length > 0) {
+					const warningDescription = missingChallengeRequirements
+						.map(({ challengeId, missing }) => `- **${challengeId}** missing ${missing.join(' and ')}`)
+						.join('\n')
+					console.warn('[STARTUP] Warden verification challenge configuration warnings:', warningDescription)
+
+					const staffChannel = process.env.STAFFCHANNELID ? await guild.channels.fetch(process.env.STAFFCHANNELID).catch(() => undefined) : undefined
+					if (staffChannel?.isTextBased()) {
+						await staffChannel.send({
+							embeds: [new Discord.EmbedBuilder()
+								.setColor('#F1C40F')
+								.setTitle('⚠️ Verification challenge configuration warning')
+								.setDescription(`These active verification challenge IDs need DB-configured prompt and/or answer overrides before they should be used:\n${warningDescription}`)],
+						})
+					}
+				}
+
+				const imagePoolIssues = await getLocalVerificationImagePoolIssues()
+				if (imagePoolIssues.length > 0) {
+					console.warn('[STARTUP] Warden verification local image pool preflight found missing or invalid files:', imagePoolIssues)
+				}
+			}
+			catch (err) {
+				console.error('[STARTUP] Failed to warm Warden verification settings or image pool preflight:', err)
+			}
+
 			if(process.env.MODE == "PROD") {
 				const evaluateMessageUpdate = 1
 				const leaderboards = ['speedrun','ace']
