@@ -25,9 +25,7 @@ const {
     setCooldownSeconds,
     setAutokickSettings,
     setChallengePromptOverride,
-    clearChallengePromptOverride,
     setChallengeAnswerOverrides,
-    clearChallengeAnswerOverrides,
 } = require('../verification/verificationSettings');
 
 function userErrorEmbed(message) {
@@ -77,7 +75,7 @@ function getSingleKnownChallengeId(interaction) {
     const challengeId = String(interaction.options.getString('id') ?? '').trim();
 
     if (!challengeId) {
-        return { error: userErrorEmbed('Please provide a challenge ID.') };
+        return { error: userErrorEmbed('Please provide a challenge ID in `id`.') };
     }
 
     if (!verificationChallenges[challengeId]) {
@@ -85,13 +83,6 @@ function getSingleKnownChallengeId(interaction) {
     }
 
     return { challengeId };
-}
-
-async function sendVerificationStaffWarning(guild, title, description) {
-    await botLog(guild, new Discord.EmbedBuilder()
-        .setTitle(title)
-        .setDescription(description),
-    1, 'staff').catch((err) => console.error('Failed to send verification staff warning:', err));
 }
 
 function getChallengeOverrideSummary(verificationSettings, challengeId) {
@@ -162,23 +153,19 @@ function buildVerificationPostComponents() {
         )];
 }
 
-function addStringOption(commandBuilder, name, description, { required = true, choices } = {}) {
+function addStringOption(commandBuilder, name, description, { required = true, choices, autocomplete = false } = {}) {
     return commandBuilder.addStringOption(option => {
         const configuredOption = option
             .setName(name)
             .setDescription(description)
             .setRequired(required);
 
+        if (autocomplete) {
+            configuredOption.setAutocomplete(true);
+        }
+
         return choices ? configuredOption.addChoices(...choices) : configuredOption;
     });
-}
-
-function addChallengeIdOption(commandBuilder) {
-    return addStringOption(commandBuilder, 'id', 'Challenge ID');
-}
-
-function addDurationOption(commandBuilder) {
-    return addStringOption(commandBuilder, 'time', 'Duration such as 90s, 2m, or 2 minutes');
 }
 
 function buildActiveChallengeIdsValue(verificationSettings) {
@@ -205,18 +192,23 @@ async function handleVerificationModeCommand(interaction, guildId) {
     ));
 }
 
-async function handleVerificationAutokickCommand(interaction, subcommand, guildId) {
+async function handleVerificationAutokickCommand(interaction, guildId) {
+    const action = interaction.options.getString('action', true);
     const verificationSettings = await getVerificationSettings(guildId);
 
-    if (subcommand === 'status') {
+    if (action === 'status') {
         return interaction.editReply(buildVerificationAdminStatus(
             'Autokick',
             `Verification autokick is currently **${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(verificationSettings.autokickSeconds)}**.`,
         ));
     }
 
-    if (subcommand === 'set') {
-        const state = interaction.options.getString('state', true);
+    if (action === 'set') {
+        const state = interaction.options.getString('state');
+
+        if (!state) {
+            return interaction.editReply({ embeds: [userErrorEmbed('Please choose `state:on` or `state:off` for `action:set`.')] });
+        }
         const timerInput = interaction.options.getString('timer');
         const durationSeconds = timerInput ? parseDurationSeconds(timerInput) : undefined;
 
@@ -270,9 +262,14 @@ async function handleChallengeList(interaction, verificationSettings, enabledCha
 }
 
 async function handleChallengeActiveSet(interaction, guildId) {
-    const challengeIds = parseChallengeIdList(interaction.options.getString('ids', true));
+    const idsInput = interaction.options.getString('ids');
+    if (!idsInput?.trim()) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
+    }
+
+    const challengeIds = parseChallengeIdList(idsInput);
     if (challengeIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID. To stop serving challenges, use `/verification mode halt` or `/verification mode one-click` instead.')] });
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
     }
 
     const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
@@ -288,7 +285,12 @@ async function handleChallengeActiveSet(interaction, guildId) {
 }
 
 async function handleChallengeDurationSetting(interaction, guildId, { title, updateSettings, secondsKey, successMessage }) {
-    const durationSeconds = parseDurationSeconds(interaction.options.getString('time', true));
+    const timeInput = interaction.options.getString('time');
+    if (!timeInput?.trim()) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a time value, such as `90s`, `2m`, or `2 minutes`.')] });
+    }
+
+    const durationSeconds = parseDurationSeconds(timeInput);
     if (!durationSeconds) {
         return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid time, such as `90s`, `2m`, or `2 minutes`.')] });
     }
@@ -315,15 +317,15 @@ async function handleChallengeOverridesView(interaction, verificationSettings) {
     ));
 }
 
-async function handleChallengePromptSet(interaction, guildId) {
+async function handleChallengePrompt(interaction, guildId) {
     const { challengeId, error } = getSingleKnownChallengeId(interaction);
     if (error) {
         return interaction.editReply({ embeds: [error] });
     }
 
-    const prompt = String(interaction.options.getString('prompt', true) ?? '').trim();
+    const prompt = String(interaction.options.getString('prompt') ?? '').trim();
     if (!prompt) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide prompt text for `prompt-set`.')] });
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide non-empty prompt text in `prompt`.')] });
     }
 
     const updatedSettings = await setChallengePromptOverride(guildId, challengeId, prompt, interaction.user.id);
@@ -336,36 +338,15 @@ async function handleChallengePromptSet(interaction, guildId) {
     ));
 }
 
-async function handleChallengePromptClear(interaction, guildId) {
+async function handleChallengeAnswers(interaction, guildId) {
     const { challengeId, error } = getSingleKnownChallengeId(interaction);
     if (error) {
         return interaction.editReply({ embeds: [error] });
     }
 
-    const updatedSettings = await clearChallengePromptOverride(guildId, challengeId, interaction.user.id);
-    await sendVerificationStaffWarning(
-        interaction.guild,
-        'Verification challenge prompt cleared',
-        `The prompt of **${challengeId}** was cleared by ${interaction.user}. If this challenge requires a configured prompt, set it again with \`/verification challenge prompt-set id:${challengeId}\`.`,
-    );
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Prompt Cleared',
-        `Prompt override cleared for **${challengeId}**. Staff warning sent.`,
-        updatedSettings,
-        challengeId,
-        'warning',
-    ));
-}
-
-async function handleChallengeAnswersSet(interaction, guildId) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
-    }
-
-    const answers = parseAnswerOverrideList(interaction.options.getString('answers', true));
+    const answers = parseAnswerOverrideList(interaction.options.getString('answers'));
     if (answers.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a complete answer list for `answers-set`, separated by commas. Spaces inside an answer are allowed.')] });
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one answer. Multiple answers can be separated by commas.')] });
     }
 
     const updatedSettings = await setChallengeAnswerOverrides(guildId, challengeId, answers, interaction.user.id);
@@ -375,27 +356,6 @@ async function handleChallengeAnswersSet(interaction, guildId) {
         updatedSettings,
         challengeId,
         'success',
-    ));
-}
-
-async function handleChallengeAnswersClear(interaction, guildId) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
-    }
-
-    const updatedSettings = await clearChallengeAnswerOverrides(guildId, challengeId, interaction.user.id);
-    await sendVerificationStaffWarning(
-        interaction.guild,
-        'Verification challenge answer list cleared',
-        `Answer list for **${challengeId}** was cleared by ${interaction.user}. If this challenge requires configured answers, set them again with \`/verification challenge answers-set id:${challengeId}\`.`,
-    );
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Answers Cleared',
-        `Answer list cleared for **${challengeId}**. Staff warning sent.`,
-        updatedSettings,
-        challengeId,
-        'warning',
     ));
 }
 
@@ -414,30 +374,27 @@ const CHALLENGE_DURATION_COMMANDS = {
     },
 };
 
-async function handleVerificationChallengeCommand(interaction, subcommand, guildId) {
+async function handleVerificationChallengeCommand(interaction, guildId) {
+    const action = interaction.options.getString('action', true);
     const verificationSettings = await getVerificationSettings(guildId);
     const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
 
-    switch (subcommand) {
+    switch (action) {
         case 'list':
             return handleChallengeList(interaction, verificationSettings, enabledChallengeIds);
         case 'active-set':
             return handleChallengeActiveSet(interaction, guildId);
         case 'timer':
         case 'cooldown':
-            return handleChallengeDurationSetting(interaction, guildId, CHALLENGE_DURATION_COMMANDS[subcommand]);
+            return handleChallengeDurationSetting(interaction, guildId, CHALLENGE_DURATION_COMMANDS[action]);
         case 'overrides-view':
             return handleChallengeOverridesView(interaction, verificationSettings);
-        case 'prompt-set':
-            return handleChallengePromptSet(interaction, guildId);
-        case 'prompt-clear':
-            return handleChallengePromptClear(interaction, guildId);
-        case 'answers-set':
-            return handleChallengeAnswersSet(interaction, guildId);
-        case 'answers-clear':
-            return handleChallengeAnswersClear(interaction, guildId);
+        case 'prompt':
+            return handleChallengePrompt(interaction, guildId);
+        case 'answers':
+            return handleChallengeAnswers(interaction, guildId);
         default:
-            return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge command.')] });
+            return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge action.')] });
     }
 }
 
@@ -485,6 +442,76 @@ async function handleVerificationPostCommand(interaction, guildId, verificationC
     ));
 }
 
+function getChallengeIdChoices() {
+    return Object.values(verificationChallenges)
+        .map((challenge) => challenge.id)
+        .filter(Boolean);
+}
+
+function buildChallengeIdAutocompleteChoices(focusedValue) {
+    const search = String(focusedValue ?? '').trim().toLowerCase();
+
+    return getChallengeIdChoices()
+        .filter((challengeId) => !search || challengeId.toLowerCase().includes(search))
+        .slice(0, 25)
+        .map((challengeId) => ({
+            name: challengeId,
+            value: challengeId,
+        }));
+}
+
+function buildChallengeIdsAutocompleteChoices(focusedValue) {
+    const rawValue = String(focusedValue ?? '');
+    const match = rawValue.match(/^(.*?)([^,\s]*)$/);
+    const prefix = match?.[1] ?? '';
+    const currentToken = match?.[2] ?? rawValue;
+    const normalizedCurrentToken = currentToken.trim().toLowerCase();
+
+    const existingIds = new Set(
+        rawValue
+            .slice(0, rawValue.length - currentToken.length)
+            .split(/[\s,]+/)
+            .map((challengeId) => challengeId.trim())
+            .filter(Boolean),
+    );
+
+    return getChallengeIdChoices()
+        .filter((challengeId) => !existingIds.has(challengeId))
+        .filter((challengeId) => !normalizedCurrentToken || challengeId.toLowerCase().includes(normalizedCurrentToken))
+        .slice(0, 25)
+        .map((challengeId) => {
+            const value = `${prefix}${challengeId}`;
+            return {
+                name: value,
+                value,
+            };
+        });
+}
+
+async function handleVerificationAutocomplete(interaction) {
+    try {
+        const subcommand = interaction.options.getSubcommand(false);
+        if (subcommand !== 'challenge') {
+            return interaction.respond([]);
+        }
+
+        const focusedOption = interaction.options.getFocused(true);
+
+        if (focusedOption.name === 'id') {
+            return interaction.respond(buildChallengeIdAutocompleteChoices(focusedOption.value));
+        }
+
+        if (focusedOption.name === 'ids') {
+            return interaction.respond(buildChallengeIdsAutocompleteChoices(focusedOption.value));
+        }
+    }
+    catch (err) {
+        console.error('Failed to build verification autocomplete choices:', err);
+    }
+
+    return interaction.respond([]);
+}
+
 module.exports = {
     data: new Discord.SlashCommandBuilder()
         .setName('verification')
@@ -521,89 +548,86 @@ module.exports = {
                 ],
             },
         ))
-        .addSubcommandGroup(group => group
-            .setName('autokick')
-            .setDescription('Manage verification autokick')
-            .addSubcommand(subcommand => subcommand
-                .setName('status')
-                .setDescription('Show the current verification autokick status'),
-            )
-            .addSubcommand(subcommand => addStringOption(
+        .addSubcommand(subcommand => addStringOption(
+            addStringOption(
                 addStringOption(
                     subcommand
-                        .setName('set')
-                        .setDescription('Update verification autokick'),
-                    'state',
-                    'Whether verification autokick is enabled',
+                        .setName('autokick')
+                        .setDescription('Manage verification autokick'),
+                    'action',
+                    'Autokick action to run',
                     {
                         choices: [
-                            { name: 'On', value: 'on' },
-                            { name: 'Off', value: 'off' },
+                            { name: 'Show current status', value: 'status' },
+                            { name: 'Set autokick state', value: 'set' },
                         ],
                     },
                 ),
-                'timer',
-                'Autokick delay, such as 10m, 600s, or 10 minutes',
-                { required: false },
-            ))
-        )
-        .addSubcommandGroup(group => group
-            .setName('challenge')
-            .setDescription('Manage verification challenges')
-            .addSubcommand(subcommand => subcommand
-                .setName('list')
-                .setDescription('Show configured challenge IDs and verification challenge settings'),
-            )
-            .addSubcommand(subcommand => addStringOption(
-                subcommand
-                    .setName('active-set')
-                    .setDescription('Set the active verification challenge ID list'),
-                'ids',
-                'Challenge IDs separated by commas or spaces',
-            ))
-            .addSubcommand(subcommand => addDurationOption(subcommand
-                .setName('timer')
-                .setDescription('Set the prompt expiry timer for verification challenges'),
-            ))
-            .addSubcommand(subcommand => addDurationOption(subcommand
-                .setName('cooldown')
-                .setDescription('Set the retry cooldown after a failed verification attempt'),
-            ))
-            .addSubcommand(subcommand => addChallengeIdOption(subcommand
-                .setName('overrides-view')
-                .setDescription('Show prompt and answer overrides for a challenge'),
-            ))
-            .addSubcommand(subcommand => addStringOption(
-                addChallengeIdOption(subcommand
-                    .setName('prompt-set')
-                    .setDescription('Set the prompt override for a challenge'),
+                'state',
+                'Whether verification autokick is enabled',
+                {
+                    required: false,
+                    choices: [
+                        { name: 'On', value: 'on' },
+                        { name: 'Off', value: 'off' },
+                    ],
+                },
+            ),
+            'timer',
+            'Autokick delay, such as 10m, 600s, or 10 minutes',
+            { required: false },
+        ))
+        .addSubcommand(subcommand => addStringOption(
+            addStringOption(
+                addStringOption(
+                    addStringOption(
+                        addStringOption(
+                            addStringOption(
+                                subcommand
+                                    .setName('challenge')
+                                    .setDescription('Manage verification challenges'),
+                                'action',
+                                'Challenge setting to inspect or update',
+                                {
+                                    choices: [
+                                        { name: 'List configured challenge info', value: 'list' },
+                                        { name: 'Set active challenge ID list', value: 'active-set' },
+                                        { name: 'Set prompt expiry timer', value: 'timer' },
+                                        { name: 'Set retry cooldown timer', value: 'cooldown' },
+                                        { name: 'View prompt and answer overrides', value: 'overrides-view' },
+                                        { name: 'Set prompt override', value: 'prompt' },
+                                        { name: 'Set answer override list', value: 'answers' },
+                                    ],
+                                },
+                            ),
+                            'id',
+                            'Challenge ID',
+                            { required: false, autocomplete: true },
+                        ),
+                        'ids',
+                        'Challenge IDs separated by commas or spaces',
+                        { required: false, autocomplete: true },
+                    ),
+                    'time',
+                    'Duration such as 90s, 2m, or 2 minutes',
+                    { required: false },
                 ),
                 'prompt',
-                'Prompt text',
-            ))
-            .addSubcommand(subcommand => addChallengeIdOption(subcommand
-                .setName('prompt-clear')
-                .setDescription('Clear the prompt override for a challenge'),
-            ))
-            .addSubcommand(subcommand => addStringOption(
-                addChallengeIdOption(subcommand
-                    .setName('answers-set')
-                    .setDescription('Set the complete answer override list for a challenge'),
-                ),
-                'answers',
-                'Comma-separated answer list. Spaces inside answers are allowed.',
-            ))
-            .addSubcommand(subcommand => addChallengeIdOption(subcommand
-                .setName('answers-clear')
-                .setDescription('Clear answer overrides for a challenge'),
-            ))
-        ),
+                'Prompt override text',
+                { required: false },
+            ),
+            'answers',
+            'One answer, or multiple answers separated by commas',
+            { required: false },
+        )),
+    async autocomplete(interaction) {
+        return handleVerificationAutocomplete(interaction);
+    },
     async execute(interaction) {
         await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
         try {
             const verificationConfig = config.Warden?.verification;
-            const subcommandGroup = interaction.options.getSubcommandGroup(false);
             const subcommand = interaction.options.getSubcommand();
             const guildId = interaction.guild?.id;
 
@@ -611,12 +635,12 @@ module.exports = {
                 return handleVerificationModeCommand(interaction, guildId);
             }
 
-            if (subcommandGroup === 'autokick') {
-                return handleVerificationAutokickCommand(interaction, subcommand, guildId);
+            if (subcommand === 'autokick') {
+                return handleVerificationAutokickCommand(interaction, guildId);
             }
 
-            if (subcommandGroup === 'challenge') {
-                return handleVerificationChallengeCommand(interaction, subcommand, guildId);
+            if (subcommand === 'challenge') {
+                return handleVerificationChallengeCommand(interaction, guildId);
             }
 
             if (subcommand === 'post') {
