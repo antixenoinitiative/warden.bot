@@ -153,6 +153,19 @@ function buildVerificationPostComponents() {
         )];
 }
 
+async function fetchVerificationMessage(interaction, messageId) {
+    const channels = await interaction.guild.channels.fetch();
+
+    for (const channel of channels.values()) {
+        if (!channel?.isTextBased?.()) continue;
+
+        const message = await channel.messages.fetch(messageId).catch(() => null);
+        if (message) return message;
+    }
+
+    return null;
+}
+
 function addStringOption(commandBuilder, name, description, { required = true, choices, autocomplete = false } = {}) {
     return commandBuilder.addStringOption(option => {
         const configuredOption = option
@@ -651,11 +664,12 @@ module.exports = {
         }
         catch (err) {
             console.log(err);
-            botLog(interaction.guild, new Discord.EmbedBuilder()
+
+            await botLog(interaction.guild, new Discord.EmbedBuilder()
                 .setTitle('⛔ Verification command failed')
                 .setDescription('```' + err.stack + '```')
                 , 2, 'error'
-            );
+            ).catch((logErr) => console.error('Failed to log verification command error:', logErr));
 
             return interaction.editReply({ embeds: [userErrorEmbed('Failed to run the verification command. Please try again later.')] });
         }

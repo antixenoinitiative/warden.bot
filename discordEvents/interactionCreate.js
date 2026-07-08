@@ -20,6 +20,31 @@ function postArgs(interaction) {
     return args
 }
 
+async function sendCommandErrorResponse(interaction, content) {
+    try {
+        if (interaction.deferred) {
+            await interaction.editReply({ content });
+            return;
+        }
+
+        if (interaction.replied) {
+            await interaction.followUp({
+                content,
+                flags: Discord.MessageFlags.Ephemeral,
+            });
+            return;
+        }
+
+        await interaction.reply({
+            content,
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
+    catch (responseError) {
+        console.error('Failed to send command error response:', responseError);
+    }
+}
+
 async function activeDutyModal(i) {
     const fields = {
         title: new Discord.TextInputBuilder()
@@ -189,9 +214,10 @@ const exp = {
             }
         }
         if (interaction.isAutocomplete()) {
-            const command = interaction.client.commands.get(interaction.commandName)
+            const command = interaction.client.commands?.get(interaction.commandName)
+                ?? bot.commands?.get(interaction.commandName);
 
-            if (!command) return console.log('Command not found')
+            if (!command) return console.log('Command not found');
             if (!command.autocomplete) {
                 return console.error(`No autocomplete handler was found for the ${interaction.commandName} command.`,
                 );
@@ -215,10 +241,14 @@ const exp = {
                 opordInterestedModal(interaction)
             }
             try {
-                await command.execute(interaction)
-            } catch (error) {
+                await command.execute(interaction);
+            }
+            catch (error) {
                 console.error(error);
-                await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                await sendCommandErrorResponse(
+                    interaction,
+                    'There was an error while executing this command!',
+                );
             }
         }
         if (interaction.isButton()) {
