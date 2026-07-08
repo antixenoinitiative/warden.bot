@@ -1,5 +1,4 @@
 const Discord = require('discord.js');
-const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
 const verificationEmbedConfig = require('../verification/verificationEmbedConfig.json');
 const {
@@ -153,17 +152,12 @@ function buildVerificationPostComponents() {
         )];
 }
 
-async function fetchVerificationMessage(interaction, messageId) {
-    const channels = await interaction.guild.channels.fetch();
-
-    for (const channel of channels.values()) {
-        if (!channel?.isTextBased?.()) continue;
-
-        const message = await channel.messages.fetch(messageId).catch(() => null);
-        if (message) return message;
+async function fetchVerificationMessageFromChannel(channel, messageId) {
+    if (!channel?.isTextBased?.()) {
+        return null;
     }
 
-    return null;
+    return channel.messages.fetch(messageId).catch(() => null);
 }
 
 function addStringOption(commandBuilder, name, description, { required = true, choices, autocomplete = false } = {}) {
@@ -411,48 +405,53 @@ async function handleVerificationChallengeCommand(interaction, guildId) {
     }
 }
 
-async function handleVerificationPostCommand(interaction, guildId, verificationConfig) {
+async function handleVerificationPostCommand(interaction, guildId) {
     const verificationSettings = await getVerificationSettings(guildId);
     if (verificationSettings.mode === VERIFICATION_MODES.halt) {
         return interaction.editReply({ embeds: [userErrorEmbed('Verification is halted in the Warden settings.')] });
     }
 
-    const configuredChannelId = verificationConfig?.channelId;
-    const optionChannel = interaction.options.getChannel('channel');
-    const messageId = interaction.options.getString('message_id');
+    const action = interaction.options.getString('action', true);
+    const targetChannel = interaction.options.getChannel('channel', true);
+
+    if (!targetChannel?.isTextBased?.()) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid text channel.')] });
+    }
 
     const welcomeEmbed = buildWelcomeEmbed(verificationSettings);
     const components = buildVerificationPostComponents();
 
-    if (messageId) {
-        const message = await fetchVerificationMessage(interaction, messageId);
+    if (action === 'send') {
+        const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
+
+        return interaction.editReply(buildVerificationAdminActionCompleted(
+            'Post Posted',
+            `Verification post posted successfully in ${String(targetChannel)}. ${message.url}`,
+        ));
+    }
+
+    if (action === 'refresh') {
+        const messageId = interaction.options.getString('message_id');
+
+        if (!messageId?.trim()) {
+            return interaction.editReply({ embeds: [userErrorEmbed('Please provide `message_id` for `action:refresh`.')] });
+        }
+
+        const message = await fetchVerificationMessageFromChannel(targetChannel, messageId);
+
         if (!message) {
-            return interaction.editReply({ embeds: [userErrorEmbed('Could not find that verification post. Please check the message ID.')] });
+            return interaction.editReply({ embeds: [userErrorEmbed('Could not find that verification post in the selected channel. Please check the channel and message ID.')] });
         }
 
         await message.edit({ embeds: [welcomeEmbed], components });
+
         return interaction.editReply(buildVerificationAdminActionCompleted(
             'Post Refreshed',
             `Verification post refreshed successfully: ${message.url}`,
         ));
     }
 
-    const targetChannelId = optionChannel?.id ?? configuredChannelId;
-    if (!targetChannelId) {
-        return interaction.editReply({ embeds: [userErrorEmbed('No verification channel is configured. Please provide a channel option.')] });
-    }
-
-    const targetChannel = optionChannel ?? await interaction.guild.channels.fetch(targetChannelId);
-    if (!targetChannel || !targetChannel.isTextBased()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('The verification channel could not be found or is not a text channel.')] });
-    }
-
-    const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
-
-    return interaction.editReply(buildVerificationAdminActionCompleted(
-        'Post Posted',
-        `Verification post posted successfully in ${String(targetChannel)}. ${message.url}`,
-    ));
+    return interaction.editReply({ embeds: [userErrorEmbed('Unknown post action.')] });
 }
 
 function getChallengeIdChoices() {
@@ -530,23 +529,33 @@ module.exports = {
         .setName('verification')
         .setDescription('Manage Warden verification')
         .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
-        .addSubcommand(subcommand => addStringOption(
-            subcommand
-                .setName('post')
-                .setDescription('Post a new verification post or refresh one by message ID')
-                .addChannelOption(option => option
-                    .setName('channel')
-                    .setDescription('Channel to post the verification post in')
-                    .addChannelTypes(
-                        Discord.ChannelType.GuildText,
-                        Discord.ChannelType.GuildAnnouncement,
-                    )
-                    .setRequired(false),
+        .addSubcommand(subcommand => subcommand
+            .setName('post')
+            .setDescription('Send or refresh a verification post')
+            .addStringOption(option => option
+                .setName('action')
+                .setDescription('Post action to run')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Send new verification post', value: 'send' },
+                    { name: 'Refresh existing verification post', value: 'refresh' },
                 ),
-            'message_id',
-            'Existing verification post message ID to refresh',
-            { required: false },
-        ))
+            )
+            .addChannelOption(option => option
+                .setName('channel')
+                .setDescription('Verification channel')
+                .addChannelTypes(
+                    Discord.ChannelType.GuildText,
+                    Discord.ChannelType.GuildAnnouncement,
+                )
+                .setRequired(true),
+            )
+            .addStringOption(option => option
+                .setName('message_id')
+                .setDescription('Existing verification post message ID to refresh')
+                .setRequired(false),
+            ),
+        )
         .addSubcommand(subcommand => addStringOption(
             subcommand
                 .setName('mode')
@@ -640,7 +649,6 @@ module.exports = {
         await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
         try {
-            const verificationConfig = config.Warden?.verification;
             const subcommand = interaction.options.getSubcommand();
             const guildId = interaction.guild?.id;
 
@@ -657,7 +665,7 @@ module.exports = {
             }
 
             if (subcommand === 'post') {
-                return handleVerificationPostCommand(interaction, guildId, verificationConfig);
+                return handleVerificationPostCommand(interaction, guildId);
             }
 
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown verification command.')] });
