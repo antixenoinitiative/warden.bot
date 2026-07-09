@@ -92,7 +92,7 @@
     },
     "verificationHelpEmbed": {
         "title": "Verification Help",
-        "description": "Click the Verify button to start the verification process. Follow the prompts and read carefully.",
+        "description": "Click the **Verify** button to start the verification process.\nFollow the prompts and read carefully.\nUse the **Give Answer** button and fill in the modal.",
         "color": "info",
         "fields": [
             {
