@@ -10,7 +10,7 @@
             "error": "#E74C3C",
             "warning": "#F1C40F",
             "info": "#ff7100",
-            "neutral": "#2B2D31"
+            "neutral": "#1f1f1f"
         }
     },
     "adminResponseTemplates": {
@@ -68,37 +68,37 @@
     "challengeEmbed": {
         "title": "Verification Challenge",
         "description": "Answer this challenge to verify: {challenge}",
-        "color": "#FFFFFF"
+        "color": "neutral"
     },
     "successEmbed": {
         "title": "Verification Complete",
         "description": "You have been verified successfully.",
-        "color": "#57F287"
+        "color": "success"
     },
     "failureEmbed": {
         "title": "Verification Failed",
         "description": "That answer was incorrect. Please try again in {cooldownSeconds} seconds.",
-        "color": "#E74C3C"
+        "color": "error"
     },
     "inProgressEmbed": {
         "title": "Verification in Progress",
         "description": "You already have a verification challenge in progress. Please answer your current challenge or retry after it expires {retryTime}.",
-        "color": "#000000"
+        "color": "neutral"
     },
     "expiredChallengeEmbed": {
         "title": "Verification Challenge Expired",
         "description": "Your verification challenge has expired. Please start verification again.",
-        "color": "#000000"
+        "color": "neutral"
     },
     "verificationHelpEmbed": {
         "title": "Verification Help",
         "description": "Click Verify to start the verification. If you cannot complete verification or something does not function correctly, please direct message a staff member <@380248192534577152>, <@380248896385056769> or <@380249268818018304> from the member list, or contact staff through our [website](<https://antixenoinitiative.com/contact/>).",
-        "color": "#ff7100"
+        "color": "info"
     },
     "autoKickEmbed": {
         "title": "Verification Timed Out",
         "description": "You were removed from {serverName} because you did not complete verification before the timer expired. You may rejoin and try verification again.",
-        "color": "#ff7100",
+        "color": "info",
         "thumbnail": {
             "enabled": true,
             "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
