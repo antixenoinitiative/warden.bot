@@ -92,18 +92,41 @@
     },
     "verificationHelpEmbed": {
         "title": "Verification Help",
-        "description": "Click Verify to start the verification. If you cannot complete verification or something does not function correctly, please direct message a staff member <@380248192534577152>, <@380248896385056769> or <@380249268818018304> from the member list, or contact staff through our [website](<https://antixenoinitiative.com/contact/>).",
-        "color": "info"
-    },
-    "autoKickEmbed": {
-        "title": "Verification Timed Out",
-        "description": "You were removed from {serverName} because you did not complete verification before the timer expired. You may rejoin and try verification again.",
+        "description": "Click the Verify button to start the verification process. Follow the prompts and read carefully.",
         "color": "info",
+        "fields": [
+            {
+                "name": "Contact",
+                "value": "If you encounter problems, please direct message a staff member <@380248192534577152>, <@380248896385056769> or <@380249268818018304> from the member list.\n\nOr contact us through our [website](<https://antixenoinitiative.com/contact/>).",
+                "inline": false
+            }
+        ],
         "thumbnail": {
             "enabled": true,
             "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
         }
     },
+    "autoKickEmbed": {
+    "title": "Verification Time Limit",
+    "description": "You were automaticly removed from **{serverName}** after not completing verification.",
+    "color": "info",
+    "fields": [
+        {
+            "name": "Why?",
+            "value": "To protect our server, new members need to verify within {timer} or they will be removed.",
+            "inline": false
+        },
+        {
+            "name": "Can I try again?",
+            "value": "Yes! Rejoin the server and complete verification.\n\n<https://discord.com/invite/antixenoinitiative>",
+            "inline": false
+        }
+    ],
+    "thumbnail": {
+        "enabled": true,
+        "url": "https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png"
+    }
+}
     "autoKickWelcomeField": {
         "title": "Time limit",
         "value": "Please complete verification within {timer}. If you are still unverified when that timer expires, you will be removed from the server.",
