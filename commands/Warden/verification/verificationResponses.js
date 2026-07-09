@@ -13,12 +13,23 @@ const FIELD_NAME_LIMIT = 256;
 const FIELD_VALUE_LIMIT = 1024;
 const MAX_FIELDS = 25;
 
-function resolveEmbedColor(color, fallbackColor = '#3498DB') {
-    if (typeof color === 'string' && /^#[0-9a-fA-F]{3}$/.test(color)) {
-        return `#${color.slice(1).split('').map((char) => char + char).join('')}`;
+function resolveColorAlias(color) {
+    if (typeof color !== 'string') {
+        return color;
     }
 
-    return color ?? fallbackColor;
+    return verificationEmbedConfig.responseDefaults?.colors?.[color] ?? color;
+}
+
+function resolveEmbedColor(color, fallbackColor = '#3498DB') {
+    const resolvedFallback = resolveColorAlias(fallbackColor) ?? '#3498DB';
+    const resolvedColor = resolveColorAlias(color) ?? resolvedFallback;
+
+    if (typeof resolvedColor === 'string' && /^#[0-9a-fA-F]{3}$/.test(resolvedColor)) {
+        return `#${resolvedColor.slice(1).split('').map((char) => char + char).join('')}`;
+    }
+
+    return resolvedColor;
 }
 
 function resolveComponentAccentColor(color, fallbackColor = '#3498DB') {
