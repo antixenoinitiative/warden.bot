@@ -55,10 +55,10 @@ function parseDurationSeconds(input) {
 }
 
 function parseIdList(input) {
-    return String(input ?? '')
+    return [...new Set(String(input ?? '')
         .split(/[\s,]+/)
         .map((challengeId) => challengeId.trim())
-        .filter(Boolean);
+        .filter(Boolean))];
 }
 
 function parseAnswerOverrideList(input) {
