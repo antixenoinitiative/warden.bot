@@ -13,6 +13,64 @@
             "neutral": "#1f1f1f"
         }
     },
+    "imageGeneration": {
+        "gallery": {
+            "defaultSize": 6,
+            "fetchTimeoutMs": 10000,
+            "composite": {
+                "gridColumns": 3,
+                "tileSize": 320,
+                "labelPadding": 16,
+                "labelSize": 72
+            }
+        },
+        "prompt": {
+            "width": 960,
+            "minHeight": 320,
+            "padding": 54,
+            "fontSize": 54,
+            "lineHeight": 74,
+            "curveNoiseCount": 170,
+            "pixelNoiseCount": 3200,
+            "decoyGlyphs": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&",
+            "decoyGlyphCount": 160,
+            "occlusionLineCount": 26,
+            "maxCharacterRotation": 0.18,
+            "characterJitter": 7,
+            "palettes": [
+                {
+                    "background": ["#07111f", "#14213d", "#0b1020"],
+                    "curve": ["#76d7ff", "#f5b7ff"],
+                    "glyph": ["#d9f3ff", "#ffd9fb"],
+                    "stroke": "rgba(118, 215, 255, 0.70)"
+                },
+                {
+                    "background": ["#1c0b2b", "#3d145c", "#10091f"],
+                    "curve": ["#ff9cf5", "#8ad8ff"],
+                    "glyph": ["#ffe2fb", "#d8f4ff"],
+                    "stroke": "rgba(255, 156, 245, 0.70)"
+                },
+                {
+                    "background": ["#06261d", "#115740", "#071611"],
+                    "curve": ["#8dffcc", "#ffe08a"],
+                    "glyph": ["#dcfff0", "#fff2cc"],
+                    "stroke": "rgba(141, 255, 204, 0.70)"
+                },
+                {
+                    "background": ["#2b1608", "#5a3112", "#120904"],
+                    "curve": ["#ffcf8a", "#8ac7ff"],
+                    "glyph": ["#fff1d8", "#d8ecff"],
+                    "stroke": "rgba(255, 207, 138, 0.70)"
+                },
+                {
+                    "background": ["#25110f", "#5b1f2d", "#120708"],
+                    "curve": ["#ff8aa8", "#ffd36e"],
+                    "glyph": ["#ffe0e7", "#fff0c5"],
+                    "stroke": "rgba(255, 138, 168, 0.70)"
+                }
+            ]
+        }
+    },
     "adminResponseTemplates": {
         "genericError": {
             "title": "Verification Error",
