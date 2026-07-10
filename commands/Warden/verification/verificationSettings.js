@@ -75,6 +75,16 @@ function normalizeTimerSeconds(value, fallback) {
     return Number.isFinite(seconds) && seconds > 0 ? seconds : fallback;
 }
 
+function normalizeOverrideIdList(value) {
+    const values = Array.isArray(value)
+        ? value
+        : String(value ?? '').split(/[\s,]+/);
+
+    return [...new Set(values
+        .map((id) => String(id ?? '').trim())
+        .filter(Boolean))];
+}
+
 function normalizeChallengeOverrideEntry(entry) {
     const normalizedEntry = {};
 
@@ -88,6 +98,17 @@ function normalizeChallengeOverrideEntry(entry) {
 
     if (answers.length > 0) {
         normalizedEntry.answers = [...new Set(answers)];
+    }
+
+    const solutionImageIds = normalizeOverrideIdList(entry?.solutionImageIds);
+    const controlImageIds = normalizeOverrideIdList(entry?.controlImageIds);
+
+    if (solutionImageIds.length > 0) {
+        normalizedEntry.solutionImageIds = solutionImageIds;
+    }
+
+    if (controlImageIds.length > 0) {
+        normalizedEntry.controlImageIds = controlImageIds;
     }
 
     if (entry?.updatedBy) {
@@ -111,7 +132,12 @@ function normalizeChallengeOverrides(challengeOverrides) {
         if (!normalizedChallengeId) return normalizedOverrides;
 
         const normalizedEntry = normalizeChallengeOverrideEntry(entry);
-        if (normalizedEntry.prompt || normalizedEntry.answers?.length) {
+        if (
+            normalizedEntry.prompt
+            || normalizedEntry.answers?.length
+            || normalizedEntry.solutionImageIds?.length
+            || normalizedEntry.controlImageIds?.length
+        ) {
             normalizedOverrides[normalizedChallengeId] = normalizedEntry;
         }
 
@@ -321,7 +347,12 @@ function buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, u
     });
     const updatedOverrides = { ...currentOverrides };
 
-    if (updatedEntry.prompt || updatedEntry.answers?.length) {
+    if (
+        updatedEntry.prompt
+        || updatedEntry.answers?.length
+        || updatedEntry.solutionImageIds?.length
+        || updatedEntry.controlImageIds?.length
+    ) {
         updatedOverrides[normalizedChallengeId] = updatedEntry;
     }
     else {
@@ -371,6 +402,26 @@ async function clearChallengeAnswerOverrides(guildId, challengeId, updatedBy) {
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+async function setChallengeSolutionImageIds(guildId, challengeId, imageIds, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
+        ...currentEntry,
+        solutionImageIds: imageIds,
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function setChallengeControlImageIds(guildId, challengeId, imageIds, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => ({
+        ...currentEntry,
+        controlImageIds: imageIds,
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 module.exports = {
     VERIFICATION_MODES,
     VALID_VERIFICATION_MODES,
@@ -388,4 +439,6 @@ module.exports = {
     clearChallengePromptOverride,
     setChallengeAnswerOverrides,
     clearChallengeAnswerOverrides,
+    setChallengeSolutionImageIds,
+    setChallengeControlImageIds,
 };

@@ -160,13 +160,19 @@ function mainOperation(){
 
 					await botFunc.botLog(guild, new Discord.EmbedBuilder()
 						.setTitle('Verification challenge configuration warning')
-						.setDescription(`These active verification challenge IDs need DB-configured prompt and/or answers before they should be used:\n${warningDescription}`),
+						.setDescription(`These active verification challenge IDs need DB-configured override entries before they should be used:\n${warningDescription}`),
 					1, 'staff')
 				}
 
 				const imagePoolIssues = await getLocalVerificationImagePoolIssues()
 				if (imagePoolIssues.length > 0) {
 					console.warn('[STARTUP] Warden verification local image pool preflight found missing or invalid files:', imagePoolIssues)
+					await botFunc.botLog(guild, new Discord.EmbedBuilder()
+						.setTitle('Verification local image pool preflight failed')
+						.setDescription(`The following verification image pool files are missing or invalid:\n${imagePoolIssues.map((issue) => `- ${issue}`).join('\n')}`),
+					2,
+					'error',
+					).catch((logErr) => console.error('[STARTUP] Failed to log verification local image pool issues:', logErr))
 				}
 			}
 			catch (err) {

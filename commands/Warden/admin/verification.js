@@ -15,6 +15,7 @@ const {
     verificationChallenges,
     getEnabledVerificationChallenges,
 } = require('../verification/verificationChallenges');
+const { getVerificationImagePool } = require('../verification/verificationImagePools');
 const {
     VERIFICATION_MODES,
     getVerificationSettings,
@@ -25,6 +26,8 @@ const {
     setAutokickSettings,
     setChallengePromptOverride,
     setChallengeAnswerOverrides,
+    setChallengeSolutionImageIds,
+    setChallengeControlImageIds,
 } = require('../verification/verificationSettings');
 
 function userErrorEmbed(message) {
@@ -51,7 +54,7 @@ function parseDurationSeconds(input) {
     return undefined;
 }
 
-function parseChallengeIdList(input) {
+function parseIdList(input) {
     return String(input ?? '')
         .split(/[\s,]+/)
         .map((challengeId) => challengeId.trim())
@@ -97,6 +100,12 @@ function getChallengeOverrideFields(verificationSettings, challengeId) {
     const answers = override?.answers?.length
         ? override.answers.map((answer) => `- ${answer}`).join('\n')
         : 'Not set';
+    const solutionImageIds = override?.solutionImageIds?.length
+        ? override.solutionImageIds.map((imageId) => `- ${imageId}`).join('\n')
+        : 'Not set';
+    const controlImageIds = override?.controlImageIds?.length
+        ? override.controlImageIds.map((imageId) => `- ${imageId}`).join('\n')
+        : 'Not set';
 
     return [
         {
@@ -107,6 +116,16 @@ function getChallengeOverrideFields(verificationSettings, challengeId) {
         {
             name: 'Answers',
             value: answers,
+            inline: false,
+        },
+        {
+            name: 'Solution image IDs',
+            value: solutionImageIds,
+            inline: false,
+        },
+        {
+            name: 'Control image IDs',
+            value: controlImageIds,
             inline: false,
         },
     ];
@@ -273,7 +292,7 @@ async function handleChallengeActiveSet(interaction, guildId) {
         return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
     }
 
-    const challengeIds = parseChallengeIdList(idsInput);
+    const challengeIds = parseIdList(idsInput);
     if (challengeIds.length < 1) {
         return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
     }
@@ -344,6 +363,77 @@ async function handleChallengePrompt(interaction, guildId) {
     ));
 }
 
+function getChallengeImagePool(challengeId) {
+    const challenge = verificationChallenges[challengeId];
+    const step = challenge?.steps?.[0];
+    const imagePoolId = step?.imagePoolId ?? challenge?.imagePoolId;
+
+    if (!imagePoolId) {
+        return { error: userErrorEmbed(`Challenge **${challengeId}** does not define an image pool.`) };
+    }
+
+    const imagePool = getVerificationImagePool(imagePoolId);
+
+    if (!imagePool) {
+        return { error: userErrorEmbed(`Unknown image pool **${imagePoolId}** for challenge **${challengeId}**.`) };
+    }
+
+    return { challenge, step, imagePool, imagePoolId };
+}
+
+function getImagePoolIds(imagePool) {
+    return [...new Set((imagePool.images ?? [])
+        .map((image) => String(image.id ?? '').trim())
+        .filter(Boolean))];
+}
+
+function validateImageIdsInPool(imageIds, imagePool) {
+    const validImageIds = new Set(getImagePoolIds(imagePool));
+    return imageIds.filter((imageId) => !validImageIds.has(imageId));
+}
+
+function findImageIdOverlap(leftIds, rightIds) {
+    const right = new Set(rightIds);
+    return leftIds.filter((id) => right.has(id));
+}
+
+function validateGalleryImageCapacity(challenge, step, solutionImageIds, controlImageIds) {
+    const gallerySize = Number(step?.gallerySize ?? challenge.gallerySize ?? 6);
+    const solutionRange = step?.solutionImageCount ?? challenge.solutionImageCount ?? { min: 1, max: 1 };
+    const solutionMin = Math.ceil(Number(solutionRange.min ?? 1));
+    const solutionMax = Math.floor(Number(solutionRange.max ?? 1));
+    const maxControlImageRepeats = Math.floor(Number(step?.maxControlImageRepeats ?? challenge.maxControlImageRepeats ?? 1));
+
+    if (!Number.isInteger(gallerySize) || gallerySize < 1) {
+        return `Invalid gallery size for challenge **${challenge.id}**.`;
+    }
+
+    if (solutionImageIds.length < 1) {
+        return 'Please provide at least one solution image ID.';
+    }
+
+    if (controlImageIds.length < 1) {
+        return 'Please provide at least one control image ID.';
+    }
+
+    if (!Number.isInteger(solutionMin) || !Number.isInteger(solutionMax) || solutionMin < 1 || solutionMax < solutionMin) {
+        return `Invalid solution image count range for challenge **${challenge.id}**.`;
+    }
+
+    if (!Number.isInteger(maxControlImageRepeats) || maxControlImageRepeats < 1) {
+        return `Invalid maxControlImageRepeats for challenge **${challenge.id}**.`;
+    }
+
+    const maxRequiredControlSlots = gallerySize - solutionMin;
+    const controlCapacity = controlImageIds.length * maxControlImageRepeats;
+
+    if (controlCapacity < maxRequiredControlSlots) {
+        return `Not enough control image capacity. This challenge may need up to **${maxRequiredControlSlots}** control slots, but the configured controls provide only **${controlCapacity}** slots with maxControlImageRepeats=${maxControlImageRepeats}.`;
+    }
+
+    return undefined;
+}
+
 async function handleChallengeAnswers(interaction, guildId) {
     const { challengeId, error } = getSingleKnownChallengeId(interaction);
     if (error) {
@@ -359,6 +449,71 @@ async function handleChallengeAnswers(interaction, guildId) {
     return interaction.editReply(buildChallengeOverrideSummaryResponse(
         'Challenge Answers Updated',
         `Answer overrides set for **${challengeId}**.`,
+        updatedSettings,
+        challengeId,
+        'success',
+    ));
+}
+
+
+async function handleChallengeImageIds(interaction, guildId, imageRole) {
+    const { challengeId, error } = getSingleKnownChallengeId(interaction);
+    if (error) {
+        return interaction.editReply({ embeds: [error] });
+    }
+
+    const idsInput = interaction.options.getString('ids');
+    if (!idsInput?.trim()) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${imageRole} image IDs in \`ids\`.`)] });
+    }
+
+    const imageIds = parseIdList(idsInput);
+    if (imageIds.length < 1) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${imageRole} image IDs in \`ids\`.`)] });
+    }
+
+    const { challenge, step, imagePool, error: poolError } = getChallengeImagePool(challengeId);
+    if (poolError) {
+        return interaction.editReply({ embeds: [poolError] });
+    }
+
+    const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
+    if (unknownImageIds.length > 0) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for this challenge image pool: ${unknownImageIds.join(', ')}`)] });
+    }
+
+    const currentSettings = await getVerificationSettings(guildId);
+    const currentOverride = currentSettings.challengeOverrides?.[challengeId] ?? {};
+    const currentSolutionImageIds = currentOverride.solutionImageIds ?? [];
+    const currentControlImageIds = currentOverride.controlImageIds ?? [];
+
+    const nextSolutionImageIds = imageRole === 'solution'
+        ? imageIds
+        : currentSolutionImageIds;
+
+    const nextControlImageIds = imageRole === 'control'
+        ? imageIds
+        : currentControlImageIds;
+
+    const overlap = findImageIdOverlap(nextSolutionImageIds, nextControlImageIds);
+    if (overlap.length > 0) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Image ID${overlap.length === 1 ? '' : 's'} cannot be both solution and control: ${overlap.join(', ')}`)] });
+    }
+
+    if (nextSolutionImageIds.length > 0 && nextControlImageIds.length > 0) {
+        const capacityError = validateGalleryImageCapacity(challenge, step, nextSolutionImageIds, nextControlImageIds);
+        if (capacityError) {
+            return interaction.editReply({ embeds: [userErrorEmbed(capacityError)] });
+        }
+    }
+
+    const updatedSettings = imageRole === 'solution'
+        ? await setChallengeSolutionImageIds(guildId, challengeId, imageIds, interaction.user.id)
+        : await setChallengeControlImageIds(guildId, challengeId, imageIds, interaction.user.id);
+
+    return interaction.editReply(buildChallengeOverrideSummaryResponse(
+        imageRole === 'solution' ? 'Challenge Solution Images Updated' : 'Challenge Control Images Updated',
+        `${imageRole === 'solution' ? 'Solution' : 'Control'} image IDs updated for **${challengeId}**.`,
         updatedSettings,
         challengeId,
         'success',
@@ -399,6 +554,10 @@ async function handleVerificationChallengeCommand(interaction, guildId) {
             return handleChallengePrompt(interaction, guildId);
         case 'answers':
             return handleChallengeAnswers(interaction, guildId);
+        case 'solution-images':
+            return handleChallengeImageIds(interaction, guildId, 'solution');
+        case 'control-images':
+            return handleChallengeImageIds(interaction, guildId, 'control');
         default:
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge action.')] });
     }
@@ -472,6 +631,30 @@ function buildChallengeIdAutocompleteChoices(focusedValue) {
 }
 
 function buildChallengeIdsAutocompleteChoices(focusedValue) {
+    return buildDelimitedAutocompleteChoices(focusedValue, getChallengeIdChoices());
+}
+
+function buildContextualIdsAutocompleteChoices(interaction, focusedValue) {
+    const action = interaction.options.getString('action');
+
+    if (action === 'solution-images' || action === 'control-images') {
+        const challengeId = String(interaction.options.getString('id') ?? '').trim();
+        if (!challengeId || !verificationChallenges[challengeId]) {
+            return [];
+        }
+
+        const { imagePool } = getChallengeImagePool(challengeId);
+        if (!imagePool) {
+            return [];
+        }
+
+        return buildDelimitedAutocompleteChoices(focusedValue, getImagePoolIds(imagePool));
+    }
+
+    return buildChallengeIdsAutocompleteChoices(focusedValue);
+}
+
+function buildDelimitedAutocompleteChoices(focusedValue, candidates) {
     const rawValue = String(focusedValue ?? '');
     const match = rawValue.match(/^(.*?)([^,\s]*)$/);
     const prefix = match?.[1] ?? '';
@@ -486,12 +669,12 @@ function buildChallengeIdsAutocompleteChoices(focusedValue) {
             .filter(Boolean),
     );
 
-    return getChallengeIdChoices()
-        .filter((challengeId) => !existingIds.has(challengeId))
-        .filter((challengeId) => !normalizedCurrentToken || challengeId.toLowerCase().includes(normalizedCurrentToken))
+    return candidates
+        .filter((id) => !existingIds.has(id))
+        .filter((id) => !normalizedCurrentToken || id.toLowerCase().includes(normalizedCurrentToken))
         .slice(0, 25)
-        .map((challengeId) => {
-            const value = `${prefix}${challengeId}`;
+        .map((id) => {
+            const value = `${prefix}${id}`;
             return {
                 name: value,
                 value,
@@ -513,7 +696,7 @@ async function handleVerificationAutocomplete(interaction) {
         }
 
         if (focusedOption.name === 'ids') {
-            return interaction.respond(buildChallengeIdsAutocompleteChoices(focusedOption.value));
+            return interaction.respond(buildContextualIdsAutocompleteChoices(interaction, focusedOption.value));
         }
     }
     catch (err) {
@@ -618,6 +801,8 @@ module.exports = {
                                         { name: 'View prompt and answer entries', value: 'overrides-view' },
                                         { name: 'Set prompt entry', value: 'prompt' },
                                         { name: 'Set answer entry', value: 'answers' },
+                                        { name: 'Set solution image IDs', value: 'solution-images' },
+                                        { name: 'Set control image IDs', value: 'control-images' },
                                     ],
                                 },
                             ),
@@ -626,7 +811,7 @@ module.exports = {
                             { required: false, autocomplete: true },
                         ),
                         'ids',
-                        'Challenge IDs separated by commas or spaces',
+                        'IDs separated by commas or spaces. Uses challenge IDs for active-set and image IDs for image actions.',
                         { required: false, autocomplete: true },
                     ),
                     'time',
