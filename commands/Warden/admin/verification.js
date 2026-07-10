@@ -811,7 +811,7 @@ module.exports = {
                             { required: false, autocomplete: true },
                         ),
                         'ids',
-                        'IDs separated by commas or spaces. Uses challenge IDs for active-set and image IDs for image actions.',
+                        'Comma/space IDs. active-set: challenges; image actions: images.',
                         { required: false, autocomplete: true },
                     ),
                     'time',
