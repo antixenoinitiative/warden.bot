@@ -9,6 +9,7 @@ const {
     resolveSolutionImageIds,
     resolveControlImageIds,
 } = require('./verificationChallenges');
+const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 
 
 /**
@@ -130,34 +131,152 @@ function getCanvasApi() {
     return canvasApi;
 }
 
-const DEFAULT_GALLERY_SIZE = 6;
+const DEFAULT_IMAGE_GENERATION_CONFIG = {
+    gallery: {
+        defaultSize: 6,
+        fetchTimeoutMs: 10000,
+        composite: {
+            gridColumns: 3,
+            tileSize: 320,
+            labelPadding: 16,
+            labelSize: 72,
+        },
+    },
+    prompt: {
+        width: 960,
+        minHeight: 320,
+        padding: 54,
+        fontSize: 54,
+        lineHeight: 74,
+        curveNoiseCount: 170,
+        pixelNoiseCount: 3200,
+        decoyGlyphs: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&',
+        decoyGlyphCount: 160,
+        occlusionLineCount: 26,
+        maxCharacterRotation: 0.18,
+        characterJitter: 7,
+        palettes: [
+            { background: ['#07111f', '#14213d', '#0b1020'], curve: ['#76d7ff', '#f5b7ff'], glyph: ['#d9f3ff', '#ffd9fb'], stroke: 'rgba(118, 215, 255, 0.70)' },
+            { background: ['#1c0b2b', '#3d145c', '#10091f'], curve: ['#ff9cf5', '#8ad8ff'], glyph: ['#ffe2fb', '#d8f4ff'], stroke: 'rgba(255, 156, 245, 0.70)' },
+            { background: ['#06261d', '#115740', '#071611'], curve: ['#8dffcc', '#ffe08a'], glyph: ['#dcfff0', '#fff2cc'], stroke: 'rgba(141, 255, 204, 0.70)' },
+            { background: ['#2b1608', '#5a3112', '#120904'], curve: ['#ffcf8a', '#8ac7ff'], glyph: ['#fff1d8', '#d8ecff'], stroke: 'rgba(255, 207, 138, 0.70)' },
+            { background: ['#25110f', '#5b1f2d', '#120708'], curve: ['#ff8aa8', '#ffd36e'], glyph: ['#ffe0e7', '#fff0c5'], stroke: 'rgba(255, 138, 168, 0.70)' },
+        ],
+    },
+};
+
 const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
-const GALLERY_IMAGE_FETCH_TIMEOUT_MS = 10000;
 const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
 const GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX = 'warden-gallery-grid';
-const GALLERY_COMPOSITE_GRID_COLUMNS = 3;
-const GALLERY_COMPOSITE_TILE_SIZE = 320;
-const GALLERY_COMPOSITE_LABEL_PADDING = 16;
-const GALLERY_COMPOSITE_LABEL_SIZE = 72;
 const PROMPT_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-prompt';
-const PROMPT_IMAGE_WIDTH = 960;
-const PROMPT_IMAGE_MIN_HEIGHT = 320;
-const PROMPT_IMAGE_PADDING = 54;
-const PROMPT_IMAGE_FONT_SIZE = 54;
-const PROMPT_IMAGE_LINE_HEIGHT = 74;
-const PROMPT_IMAGE_CURVE_NOISE_COUNT = 170;
-const PROMPT_IMAGE_PIXEL_NOISE_COUNT = 3200;
-const PROMPT_IMAGE_DECOY_GLYPH_COUNT = 160;
-const PROMPT_IMAGE_OCCLUSION_LINE_COUNT = 26;
-const PROMPT_IMAGE_MAX_CHARACTER_ROTATION = 0.18;
-const PROMPT_IMAGE_CHARACTER_JITTER = 7;
-const PROMPT_IMAGE_PALETTES = [
-    { background: ['#07111f', '#14213d', '#0b1020'], curve: ['#76d7ff', '#f5b7ff'], glyph: ['#d9f3ff', '#ffd9fb'], stroke: 'rgba(118, 215, 255, 0.70)' },
-    { background: ['#1c0b2b', '#3d145c', '#10091f'], curve: ['#ff9cf5', '#8ad8ff'], glyph: ['#ffe2fb', '#d8f4ff'], stroke: 'rgba(255, 156, 245, 0.70)' },
-    { background: ['#06261d', '#115740', '#071611'], curve: ['#8dffcc', '#ffe08a'], glyph: ['#dcfff0', '#fff2cc'], stroke: 'rgba(141, 255, 204, 0.70)' },
-    { background: ['#2b1608', '#5a3112', '#120904'], curve: ['#ffcf8a', '#8ac7ff'], glyph: ['#fff1d8', '#d8ecff'], stroke: 'rgba(255, 207, 138, 0.70)' },
-    { background: ['#25110f', '#5b1f2d', '#120708'], curve: ['#ff8aa8', '#ffd36e'], glyph: ['#ffe0e7', '#fff0c5'], stroke: 'rgba(255, 138, 168, 0.70)' },
-];
+
+function getPositiveInteger(value, fallback) {
+    const numericValue = Number(value);
+
+    if (!Number.isInteger(numericValue) || numericValue < 1) {
+        return fallback;
+    }
+
+    return numericValue;
+}
+
+function getNonNegativeInteger(value, fallback) {
+    const numericValue = Number(value);
+
+    if (!Number.isInteger(numericValue) || numericValue < 0) {
+        return fallback;
+    }
+
+    return numericValue;
+}
+
+function getNonNegativeNumber(value, fallback) {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+        return fallback;
+    }
+
+    return numericValue;
+}
+
+function getString(value, fallback) {
+    return typeof value === 'string' && value.length > 0 ? value : fallback;
+}
+
+function getStringArray(value, fallback, minimumLength = 1) {
+    if (!Array.isArray(value)) {
+        return fallback;
+    }
+
+    const strings = value.filter((item) => typeof item === 'string' && item.length > 0);
+    return strings.length >= minimumLength ? strings : fallback;
+}
+
+function getPromptPalettes(value, fallback) {
+    if (!Array.isArray(value)) {
+        return fallback;
+    }
+
+    const palettes = value
+        .map((palette) => {
+            if (!palette || typeof palette !== 'object') {
+                return undefined;
+            }
+
+            const background = getStringArray(palette.background, undefined, 3);
+            const curve = getStringArray(palette.curve, undefined, 1);
+            const glyph = getStringArray(palette.glyph, undefined, 1);
+            const stroke = getString(palette.stroke, undefined);
+
+            if (!background || !curve || !glyph || !stroke) {
+                return undefined;
+            }
+
+            return { background, curve, glyph, stroke };
+        })
+        .filter(Boolean);
+
+    return palettes.length > 0 ? palettes : fallback;
+}
+
+function getImageGenerationConfig() {
+    const configured = verificationEmbedConfig.imageGeneration ?? {};
+    const defaultGallery = DEFAULT_IMAGE_GENERATION_CONFIG.gallery;
+    const defaultComposite = defaultGallery.composite;
+    const defaultPrompt = DEFAULT_IMAGE_GENERATION_CONFIG.prompt;
+    const gallery = configured.gallery ?? {};
+    const composite = gallery.composite ?? {};
+    const prompt = configured.prompt ?? {};
+
+    return {
+        gallery: {
+            defaultSize: getPositiveInteger(gallery.defaultSize, defaultGallery.defaultSize),
+            fetchTimeoutMs: getPositiveInteger(gallery.fetchTimeoutMs, defaultGallery.fetchTimeoutMs),
+            composite: {
+                gridColumns: getPositiveInteger(composite.gridColumns, defaultComposite.gridColumns),
+                tileSize: getPositiveInteger(composite.tileSize, defaultComposite.tileSize),
+                labelPadding: getNonNegativeInteger(composite.labelPadding, defaultComposite.labelPadding),
+                labelSize: getPositiveInteger(composite.labelSize, defaultComposite.labelSize),
+            },
+        },
+        prompt: {
+            width: getPositiveInteger(prompt.width, defaultPrompt.width),
+            minHeight: getPositiveInteger(prompt.minHeight, defaultPrompt.minHeight),
+            padding: getNonNegativeInteger(prompt.padding, defaultPrompt.padding),
+            fontSize: getPositiveInteger(prompt.fontSize, defaultPrompt.fontSize),
+            lineHeight: getPositiveInteger(prompt.lineHeight, defaultPrompt.lineHeight),
+            curveNoiseCount: getNonNegativeInteger(prompt.curveNoiseCount, defaultPrompt.curveNoiseCount),
+            pixelNoiseCount: getNonNegativeInteger(prompt.pixelNoiseCount, defaultPrompt.pixelNoiseCount),
+            decoyGlyphs: getString(prompt.decoyGlyphs, defaultPrompt.decoyGlyphs),
+            decoyGlyphCount: getNonNegativeInteger(prompt.decoyGlyphCount, defaultPrompt.decoyGlyphCount),
+            occlusionLineCount: getNonNegativeInteger(prompt.occlusionLineCount, defaultPrompt.occlusionLineCount),
+            maxCharacterRotation: getNonNegativeNumber(prompt.maxCharacterRotation, defaultPrompt.maxCharacterRotation),
+            characterJitter: getNonNegativeNumber(prompt.characterJitter, defaultPrompt.characterJitter),
+            palettes: getPromptPalettes(prompt.palettes, defaultPrompt.palettes),
+        },
+    };
+}
 
 function createPromptImageNonce() {
     return crypto.randomBytes(12).toString('hex');
@@ -190,12 +309,12 @@ function wrapCanvasText(context, text, maxWidth) {
     return lines.length > 0 ? lines : [''];
 }
 
-function pickPromptImagePalette() {
-    return PROMPT_IMAGE_PALETTES[Math.floor(Math.random() * PROMPT_IMAGE_PALETTES.length)];
+function pickPromptImagePalette(promptConfig) {
+    return promptConfig.palettes[Math.floor(Math.random() * promptConfig.palettes.length)];
 }
 
-function drawPromptImageNoise(context, width, height, palette) {
-    for (let index = 0; index < PROMPT_IMAGE_CURVE_NOISE_COUNT; index += 1) {
+function drawPromptImageNoise(context, width, height, palette, promptConfig) {
+    for (let index = 0; index < promptConfig.curveNoiseCount; index += 1) {
         context.save();
         context.globalAlpha = 0.16 + Math.random() * 0.26;
         context.strokeStyle = palette.curve[index % palette.curve.length];
@@ -214,16 +333,16 @@ function drawPromptImageNoise(context, width, height, palette) {
         context.restore();
     }
 
-    for (let index = 0; index < PROMPT_IMAGE_PIXEL_NOISE_COUNT; index += 1) {
+    for (let index = 0; index < promptConfig.pixelNoiseCount; index += 1) {
         context.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.20)';
         context.fillRect(Math.random() * width, Math.random() * height, 1 + Math.random() * 4, 1 + Math.random() * 4);
     }
 }
 
-function drawPromptDecoyGlyphs(context, width, height, palette) {
-    const glyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&';
+function drawPromptDecoyGlyphs(context, width, height, palette, promptConfig) {
+    const glyphs = promptConfig.decoyGlyphs;
 
-    for (let index = 0; index < PROMPT_IMAGE_DECOY_GLYPH_COUNT; index += 1) {
+    for (let index = 0; index < promptConfig.decoyGlyphCount; index += 1) {
         const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
         context.save();
         context.translate(Math.random() * width, Math.random() * height);
@@ -236,8 +355,8 @@ function drawPromptDecoyGlyphs(context, width, height, palette) {
     }
 }
 
-function drawPromptOcclusionLines(context, width, height) {
-    for (let index = 0; index < PROMPT_IMAGE_OCCLUSION_LINE_COUNT; index += 1) {
+function drawPromptOcclusionLines(context, width, height, promptConfig) {
+    for (let index = 0; index < promptConfig.occlusionLineCount; index += 1) {
         const y = Math.random() * height;
         context.save();
         context.globalAlpha = 0.18 + Math.random() * 0.18;
@@ -255,7 +374,7 @@ function drawPromptOcclusionLines(context, width, height) {
     }
 }
 
-function drawPromptTextLine(context, line, centerX, centerY, palette) {
+function drawPromptTextLine(context, line, centerX, centerY, palette, promptConfig) {
     const characters = [...line];
     const characterWidths = characters.map((character) => context.measureText(character).width);
     const totalWidth = characterWidths.reduce((sum, width) => sum + width, 0);
@@ -263,13 +382,13 @@ function drawPromptTextLine(context, line, centerX, centerY, palette) {
 
     characters.forEach((character, index) => {
         const characterWidth = characterWidths[index];
-        const x = currentX + (characterWidth / 2) + ((Math.random() - 0.5) * PROMPT_IMAGE_CHARACTER_JITTER);
-        const y = centerY + ((Math.random() - 0.5) * PROMPT_IMAGE_CHARACTER_JITTER);
-        const fontSize = PROMPT_IMAGE_FONT_SIZE + ((Math.random() - 0.5) * 8);
+        const x = currentX + (characterWidth / 2) + ((Math.random() - 0.5) * promptConfig.characterJitter);
+        const y = centerY + ((Math.random() - 0.5) * promptConfig.characterJitter);
+        const fontSize = promptConfig.fontSize + ((Math.random() - 0.5) * 8);
 
         context.save();
         context.translate(x, y);
-        context.rotate((Math.random() - 0.5) * PROMPT_IMAGE_MAX_CHARACTER_ROTATION);
+        context.rotate((Math.random() - 0.5) * promptConfig.maxCharacterRotation);
         context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
         context.fillStyle = 'rgba(0, 0, 0, 0.55)';
         context.fillText(character, 4, 5);
@@ -286,37 +405,39 @@ function drawPromptTextLine(context, line, centerX, centerY, palette) {
 
 async function createPromptImageAttachment(prompt) {
     const { createCanvas } = getCanvasApi();
-    const measureCanvas = createCanvas(PROMPT_IMAGE_WIDTH, PROMPT_IMAGE_MIN_HEIGHT);
+    const { prompt: promptConfig } = getImageGenerationConfig();
+    const measureCanvas = createCanvas(promptConfig.width, promptConfig.minHeight);
     const measureContext = measureCanvas.getContext('2d');
-    measureContext.font = `700 ${PROMPT_IMAGE_FONT_SIZE}px Arial, Helvetica, sans-serif`;
-    const lines = wrapCanvasText(measureContext, prompt, PROMPT_IMAGE_WIDTH - (PROMPT_IMAGE_PADDING * 2));
-    const height = Math.max(PROMPT_IMAGE_MIN_HEIGHT, (PROMPT_IMAGE_PADDING * 2) + (lines.length * PROMPT_IMAGE_LINE_HEIGHT));
-    const canvas = createCanvas(PROMPT_IMAGE_WIDTH, height);
+    measureContext.font = `700 ${promptConfig.fontSize}px Arial, Helvetica, sans-serif`;
+    const maxTextWidth = Math.max(1, promptConfig.width - (promptConfig.padding * 2));
+    const lines = wrapCanvasText(measureContext, prompt, maxTextWidth);
+    const height = Math.max(promptConfig.minHeight, (promptConfig.padding * 2) + (lines.length * promptConfig.lineHeight));
+    const canvas = createCanvas(promptConfig.width, height);
     const context = canvas.getContext('2d');
 
-    const palette = pickPromptImagePalette();
-    const gradient = context.createLinearGradient(0, 0, PROMPT_IMAGE_WIDTH, height);
+    const palette = pickPromptImagePalette(promptConfig);
+    const gradient = context.createLinearGradient(0, 0, promptConfig.width, height);
     gradient.addColorStop(0, palette.background[0]);
     gradient.addColorStop(0.5, palette.background[1]);
     gradient.addColorStop(1, palette.background[2]);
     context.fillStyle = gradient;
-    context.fillRect(0, 0, PROMPT_IMAGE_WIDTH, height);
+    context.fillRect(0, 0, promptConfig.width, height);
 
-    drawPromptImageNoise(context, PROMPT_IMAGE_WIDTH, height, palette);
-    drawPromptDecoyGlyphs(context, PROMPT_IMAGE_WIDTH, height, palette);
+    drawPromptImageNoise(context, promptConfig.width, height, palette, promptConfig);
+    drawPromptDecoyGlyphs(context, promptConfig.width, height, palette, promptConfig);
 
-    context.font = `700 ${PROMPT_IMAGE_FONT_SIZE}px Arial, Helvetica, sans-serif`;
+    context.font = `700 ${promptConfig.fontSize}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'middle';
     context.textAlign = 'center';
 
-    const startY = (height - ((lines.length - 1) * PROMPT_IMAGE_LINE_HEIGHT)) / 2;
+    const startY = (height - ((lines.length - 1) * promptConfig.lineHeight)) / 2;
     lines.forEach((line, index) => {
-        const y = startY + (index * PROMPT_IMAGE_LINE_HEIGHT);
-        const x = PROMPT_IMAGE_WIDTH / 2;
-        drawPromptTextLine(context, line, x, y, palette);
+        const y = startY + (index * promptConfig.lineHeight);
+        const x = promptConfig.width / 2;
+        drawPromptTextLine(context, line, x, y, palette, promptConfig);
     });
 
-    drawPromptOcclusionLines(context, PROMPT_IMAGE_WIDTH, height);
+    drawPromptOcclusionLines(context, promptConfig.width, height, promptConfig);
 
     const name = buildPromptImageAttachmentName();
     const buffer = await canvas.encode('png');
@@ -432,8 +553,9 @@ function shouldUseCompositeGallery(challenge, step) {
 }
 
 async function fetchRemoteGalleryImageAttachment(image) {
+    const { gallery: galleryConfig } = getImageGenerationConfig();
     const abortController = new AbortController();
-    const timeout = setTimeout(() => abortController.abort(), GALLERY_IMAGE_FETCH_TIMEOUT_MS);
+    const timeout = setTimeout(() => abortController.abort(), galleryConfig.fetchTimeoutMs);
     let response;
 
     try {
@@ -441,7 +563,7 @@ async function fetchRemoteGalleryImageAttachment(image) {
     }
     catch (err) {
         if (err.name === 'AbortError') {
-            const timeoutError = new Error(`Timed out fetching verification gallery image for position ${image.position} after ${GALLERY_IMAGE_FETCH_TIMEOUT_MS}ms.`);
+            const timeoutError = new Error(`Timed out fetching verification gallery image for position ${image.position} after ${galleryConfig.fetchTimeoutMs}ms.`);
             timeoutError.code = GALLERY_IMAGE_FETCH_TIMEOUT_CODE;
             throw timeoutError;
         }
@@ -497,14 +619,14 @@ function drawImageCover(context, image, x, y, width, height) {
     context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
 }
 
-function drawGalleryCompositeLabel(context, label, x, y) {
+function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     context.save();
-    context.font = `700 ${GALLERY_COMPOSITE_LABEL_SIZE}px Arial, Helvetica, sans-serif`;
+    context.font = `700 ${compositeConfig.labelSize}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'top';
     context.textAlign = 'left';
     const metrics = context.measureText(label);
-    const labelWidth = metrics.width + (GALLERY_COMPOSITE_LABEL_PADDING * 2);
-    const labelHeight = GALLERY_COMPOSITE_LABEL_SIZE + (GALLERY_COMPOSITE_LABEL_PADDING * 1.5);
+    const labelWidth = metrics.width + (compositeConfig.labelPadding * 2);
+    const labelHeight = compositeConfig.labelSize + (compositeConfig.labelPadding * 1.5);
 
     context.fillStyle = 'rgba(0, 0, 0, 0.72)';
     context.fillRect(x, y, labelWidth, labelHeight);
@@ -512,16 +634,17 @@ function drawGalleryCompositeLabel(context, label, x, y) {
     context.lineWidth = 4;
     context.strokeRect(x, y, labelWidth, labelHeight);
     context.fillStyle = '#ffffff';
-    context.fillText(label, x + GALLERY_COMPOSITE_LABEL_PADDING, y + (GALLERY_COMPOSITE_LABEL_PADDING / 2));
+    context.fillText(label, x + compositeConfig.labelPadding, y + (compositeConfig.labelPadding / 2));
     context.restore();
 }
 
 async function createGalleryCompositeAttachment(selectedImages) {
     const { createCanvas, loadImage } = getCanvasApi();
-    const columns = GALLERY_COMPOSITE_GRID_COLUMNS;
+    const { gallery: { composite: compositeConfig } } = getImageGenerationConfig();
+    const columns = compositeConfig.gridColumns;
     const rows = Math.ceil(selectedImages.length / columns);
-    const width = columns * GALLERY_COMPOSITE_TILE_SIZE;
-    const height = rows * GALLERY_COMPOSITE_TILE_SIZE;
+    const width = columns * compositeConfig.tileSize;
+    const height = rows * compositeConfig.tileSize;
     const canvas = createCanvas(width, height);
     const context = canvas.getContext('2d');
 
@@ -534,11 +657,11 @@ async function createGalleryCompositeAttachment(selectedImages) {
         const image = selectedImages[index];
         const column = index % columns;
         const row = Math.floor(index / columns);
-        const x = column * GALLERY_COMPOSITE_TILE_SIZE;
-        const y = row * GALLERY_COMPOSITE_TILE_SIZE;
+        const x = column * compositeConfig.tileSize;
+        const y = row * compositeConfig.tileSize;
 
-        drawImageCover(context, loadedImage, x, y, GALLERY_COMPOSITE_TILE_SIZE, GALLERY_COMPOSITE_TILE_SIZE);
-        drawGalleryCompositeLabel(context, String(image.position), x + 12, y + 12);
+        drawImageCover(context, loadedImage, x, y, compositeConfig.tileSize, compositeConfig.tileSize);
+        drawGalleryCompositeLabel(context, String(image.position), x + 12, y + 12, compositeConfig);
     });
 
     const name = buildGalleryCompositeAttachmentName();
@@ -644,7 +767,8 @@ function pickRandomItemsWithRepeatLimit(items, count, maxRepeats, itemRole) {
 }
 
 function resolveGalleryImageCounts(challenge, step) {
-    const gallerySize = Number(step?.gallerySize ?? challenge.gallerySize ?? DEFAULT_GALLERY_SIZE);
+    const { gallery: galleryConfig } = getImageGenerationConfig();
+    const gallerySize = Number(step?.gallerySize ?? challenge.gallerySize ?? galleryConfig.defaultSize);
     const solutionRange = step?.solutionImageCount ?? challenge.solutionImageCount ?? { min: 1, max: 1 };
     const controlRange = step?.controlImageCount ?? challenge.controlImageCount;
 
