@@ -384,6 +384,8 @@ function getImageGenerationConfig() {
     const decoyGlyphAlpha = getNumberRange(prompt.decoyGlyphAlphaMin, prompt.decoyGlyphAlphaMax, defaultPrompt.decoyGlyphAlphaMin, defaultPrompt.decoyGlyphAlphaMax, 0, 0.6);
     const decoyGlyphSize = getNumberRange(prompt.decoyGlyphSizeMin, prompt.decoyGlyphSizeMax, defaultPrompt.decoyGlyphSizeMin, defaultPrompt.decoyGlyphSizeMax, 6, 96);
     const cutoutRadius = getNumberRange(prompt.cutoutRadiusMin, prompt.cutoutRadiusMax, defaultPrompt.cutoutRadiusMin, defaultPrompt.cutoutRadiusMax, 1, 14);
+    const largeDecoyAlpha = getNumberRange(promptLargeDecoys.alphaMin, promptLargeDecoys.alphaMax, defaultLargeDecoys.alphaMin, defaultLargeDecoys.alphaMax, 0, 0.28);
+    const largeDecoySize = getNumberRange(promptLargeDecoys.sizeMin, promptLargeDecoys.sizeMax, defaultLargeDecoys.sizeMin, defaultLargeDecoys.sizeMax, 48, 240);
 
     return {
         gallery: {
@@ -459,6 +461,16 @@ function getImageGenerationConfig() {
             decoyGlyphSizeMin: decoyGlyphSize.min,
             decoyGlyphSizeMax: decoyGlyphSize.max,
             decoyGlyphRotationMax: getBoundedNumber(prompt.decoyGlyphRotationMax, defaultPrompt.decoyGlyphRotationMax, 0, 3),
+            largeDecoyGlyphs: {
+                enabled: getBoolean(promptLargeDecoys.enabled, defaultLargeDecoys.enabled),
+                count: getBoundedNumber(promptLargeDecoys.count, defaultLargeDecoys.count, 0, 8),
+                alphaMin: largeDecoyAlpha.min,
+                alphaMax: largeDecoyAlpha.max,
+                sizeMin: largeDecoySize.min,
+                sizeMax: largeDecoySize.max,
+                rotationMax: getBoundedNumber(promptLargeDecoys.rotationMax, defaultLargeDecoys.rotationMax, 0, 1.2),
+                centerBias: getBoundedNumber(promptLargeDecoys.centerBias, defaultLargeDecoys.centerBias, 0, 1),
+            },
             cutoutCount: getBoundedNumber(prompt.cutoutCount, defaultPrompt.cutoutCount, 0, 60),
             cutoutRadiusMin: cutoutRadius.min,
             cutoutRadiusMax: cutoutRadius.max,
@@ -965,6 +977,7 @@ async function createPromptImageAttachment(prompt) {
     drawPromptBackgroundPattern(context, promptConfig.width, height, palette, promptConfig);
     drawPromptImageNoise(context, promptConfig.width, height, palette, promptConfig);
     drawPromptDecoyGlyphs(context, promptConfig.width, height, palette, promptConfig);
+    drawPromptLargeDecoyGlyphs(context, promptConfig.width, height, palette, promptConfig);
 
     context.font = `700 ${promptConfig.fontSize}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'middle';
