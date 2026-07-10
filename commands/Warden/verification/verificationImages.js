@@ -158,11 +158,11 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         textWaveAmplitude: 5,
         textWaveFrequency: 0.45,
         textWaveRotation: 0.025,
-        characterScaleJitter: 0.04,
-        characterSkewJitter: 0.02,
-        characterSpacingJitter: 9,
-        characterOverlapMin: 8,
-        characterOverlapMax: 22,
+        characterScaleJitter: 0.02,
+        characterSkewJitter: 0.01,
+        characterSpacingJitter: 4,
+        characterOverlapMin: 3,
+        characterOverlapMax: 10,
         characterPositionMarginX: 72,
         characterPositionMarginY: 72,
         fontSizeJitter: 2,
@@ -716,8 +716,13 @@ function drawCharacterOcclusionLines(context, characterWidth, fontSize, palette,
 function drawPromptTextLine(context, line, centerX, centerY, palette, promptConfig, lineIndex = 0, canvasWidth = promptConfig.width, canvasHeight = promptConfig.minHeight) {
     const characters = [...line];
     const characterWidths = characters.map((character) => context.measureText(character).width);
-    const overlaps = characterWidths.map(() => randomBetween(promptConfig.characterOverlapMin, promptConfig.characterOverlapMax));
-    const totalWidth = characterWidths.reduce((sum, width, index) => sum + width - (overlaps[index] ?? 0), 0);
+    const overlaps = characters.map((character, index) => {
+        const nextCharacter = characters[index + 1];
+        if (index >= characters.length - 1 || character === ' ' || nextCharacter === ' ') return 0;
+
+        return randomBetween(promptConfig.characterOverlapMin, promptConfig.characterOverlapMax);
+    });
+    const totalWidth = characterWidths.reduce((sum, width, index) => sum + width - overlaps[index], 0);
     const wavePhase = Math.random() * Math.PI * 2 + lineIndex;
     let currentX = centerX - (totalWidth / 2);
 
