@@ -153,32 +153,35 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         decoyGlyphs: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&',
         decoyGlyphCount: 300,
         occlusionLineCount: 34,
-        maxCharacterRotation: 0.28,
-        characterJitter: 10,
-        textWaveAmplitude: 16,
-        textWaveFrequency: 0.8,
-        textWaveRotation: 0.12,
-        characterScaleJitter: 0.14,
-        characterSkewJitter: 0.10,
-        characterSpacingJitter: 6,
-        characterPositionMarginX: 58,
-        characterPositionMarginY: 58,
-        fontSizeJitter: 6,
-        textStrokeWidthMin: 2,
-        textStrokeWidthMax: 4.5,
-        textShadowBlur: 3,
-        textShadowOffsetMax: 4,
-        textShadowAlphaMin: 0.35,
-        textShadowAlphaMax: 0.62,
+        maxCharacterRotation: 0.22,
+        characterJitter: 7,
+        textWaveAmplitude: 12,
+        textWaveFrequency: 0.75,
+        textWaveRotation: 0.08,
+        characterScaleJitter: 0.10,
+        characterSkewJitter: 0.07,
+        characterSpacingJitter: 4,
+        characterPositionMarginX: 54,
+        characterPositionMarginY: 54,
+        fontSizeJitter: 4,
+        textStrokeEnabled: false,
+        textShadowEnabled: false,
+        textOffsetShadowEnabled: false,
+        textStrokeWidthMin: 0,
+        textStrokeWidthMax: 0,
+        textShadowBlur: 0,
+        textShadowOffsetMax: 0,
+        textShadowAlphaMin: 0,
+        textShadowAlphaMax: 0,
         textAlphaMin: 0.88,
         textAlphaMax: 1,
-        textStrokeAlphaMin: 0.62,
-        textStrokeAlphaMax: 0.86,
-        textFillAlphaMin: 0.90,
-        textFillAlphaMax: 0.98,
+        textStrokeAlphaMin: 0,
+        textStrokeAlphaMax: 0,
+        textFillAlphaMin: 0.86,
+        textFillAlphaMax: 0.96,
         textFontWeights: ['700', '800', '900'],
         textFontFamilies: ['Arial', 'Helvetica', 'Verdana', 'Trebuchet MS'],
-        textFillColors: ['#f6fbff', '#e8f7ff', '#fff4dc'],
+        textFillColors: ['#edf6f8', '#e2eef4', '#f3ead4'],
         occlusionLineAlphaMin: 0.10,
         occlusionLineAlphaMax: 0.34,
         occlusionLineWidthMin: 2,
@@ -347,10 +350,10 @@ function getImageGenerationConfig() {
     const promptBackgroundPattern = prompt.backgroundPattern ?? {};
     const defaultDistortion = defaultPrompt.distortion;
     const defaultBackgroundPattern = defaultPrompt.backgroundPattern;
-    const textStrokeWidth = getNumberRange(prompt.textStrokeWidthMin, prompt.textStrokeWidthMax, defaultPrompt.textStrokeWidthMin, defaultPrompt.textStrokeWidthMax, 1, 18);
+    const textStrokeWidth = getNumberRange(prompt.textStrokeWidthMin, prompt.textStrokeWidthMax, defaultPrompt.textStrokeWidthMin, defaultPrompt.textStrokeWidthMax, 0, 8);
     const textAlpha = getNumberRange(prompt.textAlphaMin, prompt.textAlphaMax, defaultPrompt.textAlphaMin, defaultPrompt.textAlphaMax, 0.4, 1);
     const textShadowAlpha = getNumberRange(prompt.textShadowAlphaMin, prompt.textShadowAlphaMax, defaultPrompt.textShadowAlphaMin, defaultPrompt.textShadowAlphaMax, 0, 1);
-    const textStrokeAlpha = getNumberRange(prompt.textStrokeAlphaMin, prompt.textStrokeAlphaMax, defaultPrompt.textStrokeAlphaMin, defaultPrompt.textStrokeAlphaMax, 0.2, 1);
+    const textStrokeAlpha = getNumberRange(prompt.textStrokeAlphaMin, prompt.textStrokeAlphaMax, defaultPrompt.textStrokeAlphaMin, defaultPrompt.textStrokeAlphaMax, 0, 1);
     const textFillAlpha = getNumberRange(prompt.textFillAlphaMin, prompt.textFillAlphaMax, defaultPrompt.textFillAlphaMin, defaultPrompt.textFillAlphaMax, 0.4, 1);
     const occlusionLineAlpha = getNumberRange(prompt.occlusionLineAlphaMin, prompt.occlusionLineAlphaMax, defaultPrompt.occlusionLineAlphaMin, defaultPrompt.occlusionLineAlphaMax, 0, 0.75);
     const occlusionLineWidth = getNumberRange(prompt.occlusionLineWidthMin, prompt.occlusionLineWidthMax, defaultPrompt.occlusionLineWidthMin, defaultPrompt.occlusionLineWidthMax, 1, 18);
@@ -380,17 +383,20 @@ function getImageGenerationConfig() {
             decoyGlyphs: getString(prompt.decoyGlyphs, defaultPrompt.decoyGlyphs),
             decoyGlyphCount: getNonNegativeInteger(prompt.decoyGlyphCount, defaultPrompt.decoyGlyphCount),
             occlusionLineCount: getNonNegativeInteger(prompt.occlusionLineCount, defaultPrompt.occlusionLineCount),
-            maxCharacterRotation: getBoundedNumber(prompt.maxCharacterRotation, defaultPrompt.maxCharacterRotation, 0, 0.5),
-            characterJitter: getBoundedNumber(prompt.characterJitter, defaultPrompt.characterJitter, 0, 24),
-            textWaveAmplitude: getBoundedNumber(prompt.textWaveAmplitude, defaultPrompt.textWaveAmplitude, 0, 40),
+            maxCharacterRotation: getBoundedNumber(prompt.maxCharacterRotation, defaultPrompt.maxCharacterRotation, 0, 0.35),
+            characterJitter: getBoundedNumber(prompt.characterJitter, defaultPrompt.characterJitter, 0, 14),
+            textWaveAmplitude: getBoundedNumber(prompt.textWaveAmplitude, defaultPrompt.textWaveAmplitude, 0, 24),
             textWaveFrequency: getBoundedNumber(prompt.textWaveFrequency, defaultPrompt.textWaveFrequency, 0, 3),
-            textWaveRotation: getBoundedNumber(prompt.textWaveRotation, defaultPrompt.textWaveRotation, 0, 0.5),
-            characterScaleJitter: getBoundedNumber(prompt.characterScaleJitter, defaultPrompt.characterScaleJitter, 0, 0.35),
-            characterSkewJitter: getBoundedNumber(prompt.characterSkewJitter, defaultPrompt.characterSkewJitter, 0, 0.35),
-            characterSpacingJitter: getBoundedNumber(prompt.characterSpacingJitter, defaultPrompt.characterSpacingJitter, 0, 16),
-            characterPositionMarginX: getBoundedNumber(prompt.characterPositionMarginX, defaultPrompt.characterPositionMarginX, 0, 160),
-            characterPositionMarginY: getBoundedNumber(prompt.characterPositionMarginY, defaultPrompt.characterPositionMarginY, 0, 160),
-            fontSizeJitter: getBoundedNumber(prompt.fontSizeJitter, defaultPrompt.fontSizeJitter, 0, 14),
+            textWaveRotation: getBoundedNumber(prompt.textWaveRotation, defaultPrompt.textWaveRotation, 0, 0.25),
+            characterScaleJitter: getBoundedNumber(prompt.characterScaleJitter, defaultPrompt.characterScaleJitter, 0, 0.22),
+            characterSkewJitter: getBoundedNumber(prompt.characterSkewJitter, defaultPrompt.characterSkewJitter, 0, 0.18),
+            characterSpacingJitter: getBoundedNumber(prompt.characterSpacingJitter, defaultPrompt.characterSpacingJitter, 0, 10),
+            characterPositionMarginX: getBoundedNumber(prompt.characterPositionMarginX, defaultPrompt.characterPositionMarginX, 0, 96),
+            characterPositionMarginY: getBoundedNumber(prompt.characterPositionMarginY, defaultPrompt.characterPositionMarginY, 0, 96),
+            fontSizeJitter: getBoundedNumber(prompt.fontSizeJitter, defaultPrompt.fontSizeJitter, 0, 9),
+            textStrokeEnabled: getBoolean(prompt.textStrokeEnabled, defaultPrompt.textStrokeEnabled),
+            textShadowEnabled: getBoolean(prompt.textShadowEnabled, defaultPrompt.textShadowEnabled),
+            textOffsetShadowEnabled: getBoolean(prompt.textOffsetShadowEnabled, defaultPrompt.textOffsetShadowEnabled),
             textStrokeWidthMin: textStrokeWidth.min,
             textStrokeWidthMax: textStrokeWidth.max,
             textShadowBlur: getBoundedNumber(prompt.textShadowBlur, defaultPrompt.textShadowBlur, 0, 16),
@@ -667,19 +673,35 @@ function drawPromptTextLine(context, line, centerX, centerY, palette, promptConf
         context.transform(safeScaleX, skewY, skewX, safeScaleY, 0, 0);
         context.font = `${fontWeight} ${fontSize}px ${fontFamily}, Arial, Helvetica, sans-serif`;
         context.globalAlpha = randomBetween(promptConfig.textAlphaMin, promptConfig.textAlphaMax);
-        context.shadowColor = `rgba(0, 0, 0, ${shadowAlpha})`;
-        context.shadowBlur = promptConfig.textShadowBlur;
-        context.shadowOffsetX = randomBetween(-promptConfig.textShadowOffsetMax, promptConfig.textShadowOffsetMax);
-        context.shadowOffsetY = randomBetween(-promptConfig.textShadowOffsetMax, promptConfig.textShadowOffsetMax);
-        context.fillStyle = 'rgba(0, 0, 0, 0.55)';
-        context.fillText(character, 4, 5);
-        context.shadowBlur = 0;
-        context.shadowOffsetX = 0;
-        context.shadowOffsetY = 0;
-        context.strokeStyle = palette.stroke;
-        context.lineWidth = strokeWidth;
-        context.globalAlpha = randomBetween(promptConfig.textStrokeAlphaMin, promptConfig.textStrokeAlphaMax);
-        context.strokeText(character, 0, 0);
+
+        if (promptConfig.textShadowEnabled) {
+            context.shadowColor = `rgba(0, 0, 0, ${shadowAlpha})`;
+            context.shadowBlur = promptConfig.textShadowBlur;
+            context.shadowOffsetX = randomBetween(-promptConfig.textShadowOffsetMax, promptConfig.textShadowOffsetMax);
+            context.shadowOffsetY = randomBetween(-promptConfig.textShadowOffsetMax, promptConfig.textShadowOffsetMax);
+        }
+        else {
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
+            context.shadowOffsetX = 0;
+            context.shadowOffsetY = 0;
+        }
+
+        if (promptConfig.textOffsetShadowEnabled) {
+            context.fillStyle = 'rgba(0, 0, 0, 0.42)';
+            context.fillText(character, 3, 4);
+        }
+
+        if (promptConfig.textStrokeEnabled && strokeWidth > 0 && promptConfig.textStrokeAlphaMax > 0) {
+            context.shadowBlur = 0;
+            context.shadowOffsetX = 0;
+            context.shadowOffsetY = 0;
+            context.strokeStyle = palette.stroke;
+            context.lineWidth = strokeWidth;
+            context.globalAlpha = randomBetween(promptConfig.textStrokeAlphaMin, promptConfig.textStrokeAlphaMax);
+            context.strokeText(character, 0, 0);
+        }
+
         context.globalAlpha = randomBetween(promptConfig.textFillAlphaMin, promptConfig.textFillAlphaMax);
         context.fillStyle = fillColor;
         context.fillText(character, 0, 0);
