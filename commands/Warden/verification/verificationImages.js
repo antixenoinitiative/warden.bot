@@ -205,6 +205,16 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         decoyGlyphSizeMin: 48,
         decoyGlyphSizeMax: 70,
         decoyGlyphRotationMax: 0.08,
+        largeDecoyGlyphs: {
+            enabled: true,
+            count: 3,
+            alphaMin: 0.075,
+            alphaMax: 0.16,
+            sizeMin: 96,
+            sizeMax: 180,
+            rotationMax: 0.35,
+            centerBias: 0.72,
+        },
         cutoutCount: 6,
         cutoutRadiusMin: 2,
         cutoutRadiusMax: 6,
@@ -369,6 +379,8 @@ function getImageGenerationConfig() {
     const defaultDistortion = defaultPrompt.distortion;
     const promptFinalWave = promptDistortion.finalWave ?? {};
     const defaultFinalWave = defaultDistortion.finalWave;
+    const promptLargeDecoys = prompt.largeDecoyGlyphs ?? {};
+    const defaultLargeDecoys = defaultPrompt.largeDecoyGlyphs;
     const defaultBackgroundPattern = defaultPrompt.backgroundPattern;
     const textStrokeWidth = getNumberRange(prompt.textStrokeWidthMin, prompt.textStrokeWidthMax, defaultPrompt.textStrokeWidthMin, defaultPrompt.textStrokeWidthMax, 0, 8);
     const textAlpha = getNumberRange(prompt.textAlphaMin, prompt.textAlphaMax, defaultPrompt.textAlphaMin, defaultPrompt.textAlphaMax, 0.4, 1);
@@ -688,6 +700,46 @@ function drawPromptDecoyGlyphs(context, width, height, palette, promptConfig) {
         context.fillStyle = Math.random() > 0.5
             ? pickRandomItem(promptConfig.textFillColors)
             : pickRandomItem(palette.glyph);
+        context.fillText(glyph, 0, 0);
+        context.restore();
+    }
+}
+
+function drawPromptLargeDecoyGlyphs(context, width, height, palette, promptConfig) {
+    const largeDecoyConfig = promptConfig.largeDecoyGlyphs;
+    if (!largeDecoyConfig?.enabled || largeDecoyConfig.count < 1) return;
+
+    const glyphs = promptConfig.decoyGlyphs;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const spreadX = width * (1 - largeDecoyConfig.centerBias);
+    const spreadY = height * (1 - largeDecoyConfig.centerBias);
+
+    for (let index = 0; index < largeDecoyConfig.count; index += 1) {
+        const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+        const fontWeight = pickRandomItem(promptConfig.textFontWeights);
+        const fontFamily = formatCanvasFontFamily(pickRandomItem(promptConfig.textFontFamilies));
+        const x = clamp(
+            centerX + (randomBetween(-width * 0.42, width * 0.42) * largeDecoyConfig.centerBias) + randomBetween(-spreadX, spreadX),
+            width * 0.12,
+            width * 0.88,
+        );
+        const y = clamp(
+            centerY + (randomBetween(-height * 0.30, height * 0.30) * largeDecoyConfig.centerBias) + randomBetween(-spreadY, spreadY),
+            height * 0.20,
+            height * 0.82,
+        );
+
+        context.save();
+        context.translate(x, y);
+        context.rotate(randomBetween(-largeDecoyConfig.rotationMax, largeDecoyConfig.rotationMax));
+        context.globalAlpha = randomBetween(largeDecoyConfig.alphaMin, largeDecoyConfig.alphaMax);
+        context.font = `${fontWeight} ${randomBetween(largeDecoyConfig.sizeMin, largeDecoyConfig.sizeMax)}px ${fontFamily}, Arial, Helvetica, sans-serif`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillStyle = Math.random() > 0.5
+            ? pickRandomItem(palette.glyph)
+            : pickRandomItem(palette.curve);
         context.fillText(glyph, 0, 0);
         context.restore();
     }
