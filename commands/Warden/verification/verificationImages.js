@@ -148,11 +148,12 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         padding: 64,
         fontSize: 64,
         lineHeight: 88,
-        curveNoiseCount: 120,
-        pixelNoiseCount: 6200,
+        backgroundFillEnabled: false,
+        curveNoiseCount: 90,
+        pixelNoiseCount: 5200,
         decoyGlyphs: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&',
-        decoyGlyphCount: 190,
-        occlusionLineCount: 24,
+        decoyGlyphCount: 80,
+        occlusionLineCount: 30,
         maxCharacterRotation: 0.08,
         characterJitter: 6,
         textWaveAmplitude: 5,
@@ -173,8 +174,8 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         textOffsetShadowEnabled: false,
         textStrokeWidthMin: 0,
         textStrokeWidthMax: 0,
-        characterOcclusionLineCountMin: 2,
-        characterOcclusionLineCountMax: 5,
+        characterOcclusionLineCountMin: 0,
+        characterOcclusionLineCountMax: 0,
         characterOcclusionLineWidthMin: 4,
         characterOcclusionLineWidthMax: 10,
         characterOcclusionLineAlphaMin: 0.34,
@@ -183,12 +184,12 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         textShadowOffsetMax: 0,
         textShadowAlphaMin: 0,
         textShadowAlphaMax: 0,
-        textAlphaMin: 0.88,
-        textAlphaMax: 0.96,
+        textAlphaMin: 0.78,
+        textAlphaMax: 0.88,
         textStrokeAlphaMin: 0,
         textStrokeAlphaMax: 0,
-        textFillAlphaMin: 0.62,
-        textFillAlphaMax: 0.80,
+        textFillAlphaMin: 0.52,
+        textFillAlphaMax: 0.68,
         textFontWeights: ['700', '800', '900'],
         textFontFamilies: ['Arial', 'Helvetica', 'Verdana', 'Trebuchet MS'],
         textFillColors: ['rgba(237, 246, 248, 0.72)', 'rgba(226, 238, 244, 0.68)', 'rgba(243, 234, 212, 0.66)'],
@@ -199,27 +200,17 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         occlusionLineCurveAmount: 150,
         occlusionLineDashChance: 0.55,
         occlusionLineUsePaletteColors: true,
-        decoyGlyphAlphaMin: 0.04,
-        decoyGlyphAlphaMax: 0.12,
-        decoyGlyphSizeMin: 16,
-        decoyGlyphSizeMax: 58,
-        decoyGlyphRotationMax: 1.4,
-        largeDecoyGlyphs: {
-            enabled: true,
-            count: 3,
-            alphaMin: 0.075,
-            alphaMax: 0.16,
-            sizeMin: 96,
-            sizeMax: 168,
-            rotationMax: 0.45,
-            centerBias: 0.72,
-        },
+        decoyGlyphAlphaMin: 0.28,
+        decoyGlyphAlphaMax: 0.48,
+        decoyGlyphSizeMin: 48,
+        decoyGlyphSizeMax: 70,
+        decoyGlyphRotationMax: 0.08,
         cutoutCount: 6,
         cutoutRadiusMin: 2,
         cutoutRadiusMax: 6,
         cutoutAlpha: 0.14,
         backgroundPattern: {
-            enabled: true,
+            enabled: false,
             gridLineCount: 48,
             ringCount: 32,
             microLineCount: 180,
@@ -378,8 +369,6 @@ function getImageGenerationConfig() {
     const defaultDistortion = defaultPrompt.distortion;
     const promptFinalWave = promptDistortion.finalWave ?? {};
     const defaultFinalWave = defaultDistortion.finalWave;
-    const promptLargeDecoys = prompt.largeDecoyGlyphs ?? {};
-    const defaultLargeDecoys = defaultPrompt.largeDecoyGlyphs;
     const defaultBackgroundPattern = defaultPrompt.backgroundPattern;
     const textStrokeWidth = getNumberRange(prompt.textStrokeWidthMin, prompt.textStrokeWidthMax, defaultPrompt.textStrokeWidthMin, defaultPrompt.textStrokeWidthMax, 0, 8);
     const textAlpha = getNumberRange(prompt.textAlphaMin, prompt.textAlphaMax, defaultPrompt.textAlphaMin, defaultPrompt.textAlphaMax, 0.4, 1);
@@ -392,7 +381,7 @@ function getImageGenerationConfig() {
     const textFillAlpha = getNumberRange(prompt.textFillAlphaMin, prompt.textFillAlphaMax, defaultPrompt.textFillAlphaMin, defaultPrompt.textFillAlphaMax, 0.4, 1);
     const occlusionLineAlpha = getNumberRange(prompt.occlusionLineAlphaMin, prompt.occlusionLineAlphaMax, defaultPrompt.occlusionLineAlphaMin, defaultPrompt.occlusionLineAlphaMax, 0, 0.75);
     const occlusionLineWidth = getNumberRange(prompt.occlusionLineWidthMin, prompt.occlusionLineWidthMax, defaultPrompt.occlusionLineWidthMin, defaultPrompt.occlusionLineWidthMax, 1, 18);
-    const decoyGlyphAlpha = getNumberRange(prompt.decoyGlyphAlphaMin, prompt.decoyGlyphAlphaMax, defaultPrompt.decoyGlyphAlphaMin, defaultPrompt.decoyGlyphAlphaMax, 0, 0.4);
+    const decoyGlyphAlpha = getNumberRange(prompt.decoyGlyphAlphaMin, prompt.decoyGlyphAlphaMax, defaultPrompt.decoyGlyphAlphaMin, defaultPrompt.decoyGlyphAlphaMax, 0, 0.6);
     const decoyGlyphSize = getNumberRange(prompt.decoyGlyphSizeMin, prompt.decoyGlyphSizeMax, defaultPrompt.decoyGlyphSizeMin, defaultPrompt.decoyGlyphSizeMax, 6, 96);
     const cutoutRadius = getNumberRange(prompt.cutoutRadiusMin, prompt.cutoutRadiusMax, defaultPrompt.cutoutRadiusMin, defaultPrompt.cutoutRadiusMax, 1, 14);
     const largeDecoyAlpha = getNumberRange(promptLargeDecoys.alphaMin, promptLargeDecoys.alphaMax, defaultLargeDecoys.alphaMin, defaultLargeDecoys.alphaMax, 0, 0.28);
@@ -415,6 +404,7 @@ function getImageGenerationConfig() {
             padding: getNonNegativeInteger(prompt.padding, defaultPrompt.padding),
             fontSize: getPositiveInteger(prompt.fontSize, defaultPrompt.fontSize),
             lineHeight: getPositiveInteger(prompt.lineHeight, defaultPrompt.lineHeight),
+            backgroundFillEnabled: getBoolean(prompt.backgroundFillEnabled, defaultPrompt.backgroundFillEnabled),
             curveNoiseCount: getNonNegativeInteger(prompt.curveNoiseCount, defaultPrompt.curveNoiseCount),
             pixelNoiseCount: getNonNegativeInteger(prompt.pixelNoiseCount, defaultPrompt.pixelNoiseCount),
             decoyGlyphs: getString(prompt.decoyGlyphs, defaultPrompt.decoyGlyphs),
@@ -665,56 +655,39 @@ function drawPromptImageNoise(context, width, height, palette, promptConfig) {
 
 function drawPromptDecoyGlyphs(context, width, height, palette, promptConfig) {
     const glyphs = promptConfig.decoyGlyphs;
+    const safeMarginX = Math.min(promptConfig.characterPositionMarginX, Math.floor(width / 2));
+    const safeMarginY = Math.min(promptConfig.characterPositionMarginY, Math.floor(height / 2));
+    const wavePhase = Math.random() * Math.PI * 2;
 
     for (let index = 0; index < promptConfig.decoyGlyphCount; index += 1) {
         const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
-        context.save();
-        context.translate(Math.random() * width, Math.random() * height);
-        context.rotate(randomBetween(-promptConfig.decoyGlyphRotationMax, promptConfig.decoyGlyphRotationMax));
-        context.globalAlpha = randomBetween(promptConfig.decoyGlyphAlphaMin, promptConfig.decoyGlyphAlphaMax);
-        context.font = `700 ${randomBetween(promptConfig.decoyGlyphSizeMin, promptConfig.decoyGlyphSizeMax)}px Arial, Helvetica, sans-serif`;
-        context.fillStyle = palette.glyph[Math.floor(Math.random() * palette.glyph.length)];
-        context.fillText(glyph, 0, 0);
-        context.restore();
-    }
-}
-
-function drawPromptLargeDecoyGlyphs(context, width, height, palette, promptConfig) {
-    const largeDecoyConfig = promptConfig.largeDecoyGlyphs;
-    if (!largeDecoyConfig?.enabled || largeDecoyConfig.count < 1) return;
-
-    const glyphs = promptConfig.decoyGlyphs;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const spreadX = width * (1 - largeDecoyConfig.centerBias);
-    const spreadY = height * (1 - largeDecoyConfig.centerBias);
-
-    for (let index = 0; index < largeDecoyConfig.count; index += 1) {
-        const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+        const wave = Math.sin((index * promptConfig.textWaveFrequency) + wavePhase);
         const fontWeight = pickRandomItem(promptConfig.textFontWeights);
         const fontFamily = formatCanvasFontFamily(pickRandomItem(promptConfig.textFontFamilies));
-
-        const x = clamp(
-            centerX + randomBetween(-width * 0.42, width * 0.42) * largeDecoyConfig.centerBias + randomBetween(-spreadX, spreadX),
-            width * 0.12,
-            width * 0.88,
-        );
+        const fontSize = randomBetween(promptConfig.decoyGlyphSizeMin, promptConfig.decoyGlyphSizeMax);
+        const rotation = randomBetween(-promptConfig.maxCharacterRotation, promptConfig.maxCharacterRotation) + (wave * promptConfig.textWaveRotation);
+        const scaleX = Math.max(0.65, 1 + randomBetween(-promptConfig.characterScaleJitter, promptConfig.characterScaleJitter));
+        const scaleY = Math.max(0.65, 1 + randomBetween(-promptConfig.characterScaleJitter, promptConfig.characterScaleJitter));
+        const skewX = randomBetween(-promptConfig.characterSkewJitter, promptConfig.characterSkewJitter);
+        const skewY = randomBetween(-promptConfig.characterSkewJitter, promptConfig.characterSkewJitter);
+        const x = clamp(Math.random() * width, safeMarginX, width - safeMarginX);
         const y = clamp(
-            centerY + randomBetween(-height * 0.30, height * 0.30) * largeDecoyConfig.centerBias + randomBetween(-spreadY, spreadY),
-            height * 0.20,
-            height * 0.82,
+            (Math.random() * height) + (wave * promptConfig.textWaveAmplitude),
+            safeMarginY,
+            height - safeMarginY,
         );
 
         context.save();
         context.translate(x, y);
-        context.rotate(randomBetween(-largeDecoyConfig.rotationMax, largeDecoyConfig.rotationMax));
-        context.globalAlpha = randomBetween(largeDecoyConfig.alphaMin, largeDecoyConfig.alphaMax);
-        context.font = `${fontWeight} ${randomBetween(largeDecoyConfig.sizeMin, largeDecoyConfig.sizeMax)}px ${fontFamily}, Arial, Helvetica, sans-serif`;
+        context.rotate(rotation);
+        context.transform(scaleX, skewY, skewX, scaleY, 0, 0);
+        context.globalAlpha = randomBetween(promptConfig.decoyGlyphAlphaMin, promptConfig.decoyGlyphAlphaMax);
+        context.font = `${fontWeight} ${fontSize}px ${fontFamily}, Arial, Helvetica, sans-serif`;
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillStyle = Math.random() > 0.5
-            ? pickRandomItem(palette.glyph)
-            : pickRandomItem(palette.curve);
+            ? pickRandomItem(promptConfig.textFillColors)
+            : pickRandomItem(palette.glyph);
         context.fillText(glyph, 0, 0);
         context.restore();
     }
@@ -991,12 +964,15 @@ async function createPromptImageAttachment(prompt) {
     const context = canvas.getContext('2d');
 
     const palette = pickPromptImagePalette(promptConfig);
-    const gradient = context.createLinearGradient(0, 0, promptConfig.width, height);
-    gradient.addColorStop(0, palette.background[0]);
-    gradient.addColorStop(0.5, palette.background[1]);
-    gradient.addColorStop(1, palette.background[2]);
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, promptConfig.width, height);
+
+    if (promptConfig.backgroundFillEnabled) {
+        const gradient = context.createLinearGradient(0, 0, promptConfig.width, height);
+        gradient.addColorStop(0, palette.background[0]);
+        gradient.addColorStop(0.5, palette.background[1]);
+        gradient.addColorStop(1, palette.background[2]);
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, promptConfig.width, height);
+    }
 
     drawPromptBackgroundPattern(context, promptConfig.width, height, palette, promptConfig);
     drawPromptImageNoise(context, promptConfig.width, height, palette, promptConfig);
