@@ -32,7 +32,10 @@ async function processAutokick(member) {
     const freshMember = await guild.members.fetch(member.id).catch(() => null);
     if (!freshMember || !freshMember.roles.cache.has(unverifiedRoleId)) return;
 
-    const autoKickEmbed = buildVerificationAutoKickEmbed(freshMember);
+    const verificationSettings = await getVerificationSettings(guild.id);
+    const autoKickEmbed = buildVerificationAutoKickEmbed(freshMember, {
+        autokickSeconds: verificationSettings.autokickSeconds,
+    });
     await freshMember.send({ embeds: [autoKickEmbed] });
 
     setTimeout(async () => {

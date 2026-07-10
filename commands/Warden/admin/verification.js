@@ -129,7 +129,6 @@ function buildWelcomeEmbed(verificationSettings) {
         const autoKickWelcomeFieldConfig = verificationEmbedConfig.autoKickWelcomeField ?? {};
         const replacements = {
             autokickTimer: formatDuration(verificationSettings.autokickSeconds),
-            timer: formatDuration(verificationSettings.autokickSeconds),
         };
 
         applyFieldToEmbed(embed, autoKickWelcomeFieldConfig, replacements);

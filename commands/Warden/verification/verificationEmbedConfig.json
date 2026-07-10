@@ -113,7 +113,7 @@
         "fields": [
             {
                 "name": "Why?",
-                "value": "To protect our server, new members need to verify within {timer} or they will be removed.",
+                "value": "To protect our server, new members need to verify within {autokickTimer} or they will be removed.",
                 "inline": false
             },
             {
@@ -129,7 +129,7 @@
     },
     "autoKickWelcomeField": {
         "title": "Time limit",
-        "value": "Please complete verification within {timer}. If you are still unverified when that timer expires, you will be removed from the server.",
+        "value": "Please complete verification within {autokickTimer}. If you are still unverified when that timer expires, you will be removed from the server.",
         "inline": false
     }
 }
