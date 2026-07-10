@@ -40,21 +40,21 @@
             "textWaveAmplitude": 5,
             "textWaveFrequency": 0.45,
             "textWaveRotation": 0.025,
-            "characterScaleJitter": 0.04,
-            "characterSkewJitter": 0.02,
-            "characterSpacingJitter": 1,
-            "textStrokeWidthMin": 2,
-            "textStrokeWidthMax": 3,
+            "characterScaleJitter": 0.02,
+            "characterSkewJitter": 0.01,
+            "characterSpacingJitter": 3,
+            "textStrokeWidthMin": 0,
+            "textStrokeWidthMax": 0,
             "textShadowBlur": 0,
             "textShadowOffsetMax": 0,
             "textShadowAlphaMin": 0,
             "textShadowAlphaMax": 0,
-            "textAlphaMin": 0.96,
-            "textAlphaMax": 1,
-            "textStrokeAlphaMin": 0.88,
-            "textStrokeAlphaMax": 1,
-            "textFillAlphaMin": 0.96,
-            "textFillAlphaMax": 1,
+            "textAlphaMin": 0.88,
+            "textAlphaMax": 0.96,
+            "textStrokeAlphaMin": 0,
+            "textStrokeAlphaMax": 0,
+            "textFillAlphaMin": 0.62,
+            "textFillAlphaMax": 0.8,
             "textFontWeights": [
                 "700",
                 "800",
@@ -100,7 +100,13 @@
                 "rowShiftAmplitude": 3,
                 "rowShiftFrequency": 0.035,
                 "columnShiftAmplitude": 1,
-                "columnShiftFrequency": 0.025
+                "columnShiftFrequency": 0.025,
+                "finalWave": {
+                    "enabled": true,
+                    "amplitude": 5,
+                    "frequency": 0.045,
+                    "phaseJitter": true
+                }
             },
             "palettes": [
                 {
@@ -161,9 +167,24 @@
             "characterPositionMarginX": 72,
             "characterPositionMarginY": 72,
             "fontSizeJitter": 2,
-            "textStrokeEnabled": true,
+            "textStrokeEnabled": false,
             "textShadowEnabled": false,
-            "textOffsetShadowEnabled": false
+            "textOffsetShadowEnabled": false,
+            "characterOverlapEnabled": true,
+            "characterOverlapChance": 0.85,
+            "characterOverlapMin": 3,
+            "characterOverlapMax": 8,
+            "occlusionLineUsePaletteColors": true,
+            "largeDecoyGlyphs": {
+                "enabled": true,
+                "count": 3,
+                "alphaMin": 0.075,
+                "alphaMax": 0.16,
+                "sizeMin": 96,
+                "sizeMax": 168,
+                "rotationMax": 0.45,
+                "centerBias": 0.72
+            }
         }
     },
     "adminResponseTemplates": {
