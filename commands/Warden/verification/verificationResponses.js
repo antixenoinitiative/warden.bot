@@ -56,6 +56,12 @@ function applyTextReplacements(text, replacements = {}) {
     return resolvedText;
 }
 
+
+function formatDuration(seconds) {
+    if (seconds % 60 === 0) return `${seconds / 60} minute${seconds === 60 ? '' : 's'}`;
+    return `${seconds} second${seconds === 1 ? '' : 's'}`;
+}
+
 function truncateText(value, limit = DESCRIPTION_LIMIT) {
     const text = String(value ?? '');
     if (text.length <= limit) return text;
@@ -295,9 +301,13 @@ function buildResultEmbed(embedConfig, fallbackTitle, fallbackDescription, repla
 
 
 function buildVerificationAutoKickEmbed(member, options = {}) {
+    const autokickSeconds = options.autokickSeconds;
+    const timer = Number.isFinite(autokickSeconds) ? formatDuration(autokickSeconds) : '';
+
     return buildVerificationPublicEmbed('autoKickEmbed', {
         serverName: member.guild?.name ?? 'the server',
         user: member.user?.toString?.() ?? member.displayName ?? 'there',
+        autokickTimer: timer,
     }, options);
 }
 
