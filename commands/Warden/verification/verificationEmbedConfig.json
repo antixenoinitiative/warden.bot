@@ -35,26 +35,26 @@
             "decoyGlyphs": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&@+=<>",
             "decoyGlyphCount": 300,
             "occlusionLineCount": 34,
-            "maxCharacterRotation": 0.28,
-            "characterJitter": 10,
-            "textWaveAmplitude": 16,
-            "textWaveFrequency": 0.8,
-            "textWaveRotation": 0.12,
-            "characterScaleJitter": 0.14,
-            "characterSkewJitter": 0.1,
-            "characterSpacingJitter": 6,
-            "textStrokeWidthMin": 2,
-            "textStrokeWidthMax": 4.5,
-            "textShadowBlur": 3,
-            "textShadowOffsetMax": 4,
-            "textShadowAlphaMin": 0.35,
-            "textShadowAlphaMax": 0.62,
+            "maxCharacterRotation": 0.22,
+            "characterJitter": 7,
+            "textWaveAmplitude": 12,
+            "textWaveFrequency": 0.75,
+            "textWaveRotation": 0.08,
+            "characterScaleJitter": 0.1,
+            "characterSkewJitter": 0.07,
+            "characterSpacingJitter": 4,
+            "textStrokeWidthMin": 0,
+            "textStrokeWidthMax": 0,
+            "textShadowBlur": 0,
+            "textShadowOffsetMax": 0,
+            "textShadowAlphaMin": 0,
+            "textShadowAlphaMax": 0,
             "textAlphaMin": 0.88,
             "textAlphaMax": 1,
-            "textStrokeAlphaMin": 0.62,
-            "textStrokeAlphaMax": 0.86,
-            "textFillAlphaMin": 0.9,
-            "textFillAlphaMax": 0.98,
+            "textStrokeAlphaMin": 0,
+            "textStrokeAlphaMax": 0,
+            "textFillAlphaMin": 0.86,
+            "textFillAlphaMax": 0.96,
             "textFontWeights": [
                 "700",
                 "800",
@@ -67,9 +67,9 @@
                 "Trebuchet MS"
             ],
             "textFillColors": [
-                "#f6fbff",
-                "#e8f7ff",
-                "#fff4dc"
+                "#edf6f8",
+                "#e2eef4",
+                "#f3ead4"
             ],
             "occlusionLineAlphaMin": 0.1,
             "occlusionLineAlphaMax": 0.34,
@@ -158,9 +158,12 @@
                     "stroke": "rgba(141, 255, 204, 0.78)"
                 }
             ],
-            "characterPositionMarginX": 58,
-            "characterPositionMarginY": 58,
-            "fontSizeJitter": 6
+            "characterPositionMarginX": 54,
+            "characterPositionMarginY": 54,
+            "fontSizeJitter": 4,
+            "textStrokeEnabled": false,
+            "textShadowEnabled": false,
+            "textOffsetShadowEnabled": false
         }
     },
     "adminResponseTemplates": {
