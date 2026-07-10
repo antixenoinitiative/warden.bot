@@ -1079,7 +1079,15 @@ async function handleVerifySubmit(interaction) {
                 'error',
             ).catch((logErr) => console.error('Failed to log next verification image challenge generation error:', logErr));
 
-            clearChallenge(interaction.user.id);
+            const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
+            const currentChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
+            if (currentChallenge
+                && currentChallenge.challengeId === challengeId
+                && (currentChallenge.stepIndex ?? 0) === stepIndex
+                && currentChallenge.createdTimestamp === activeChallenge.createdTimestamp
+                && currentChallenge.expiresAt === activeChallenge.expiresAt) {
+                clearChallenge(interaction.user.id);
+            }
 
             const retryMessage = err.code === GALLERY_IMAGE_FETCH_TIMEOUT_CODE
                 ? 'Verification could not prepare the next image challenge in time. Please click Verify again to retry.'

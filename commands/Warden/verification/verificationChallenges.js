@@ -288,12 +288,17 @@ function hasNextVerificationChallengeStep(challengeId, stepIndex = 0) {
 }
 
 function isGalleryImageChallenge(challenge) {
+    const steps = Array.isArray(challenge?.steps) ? challenge.steps : [];
+
     return Boolean(
-        challenge?.imagePoolId
-        && (
-            challenge.renderMode === 'componentsV2Gallery'
-            || challenge.steps?.some((step) => step?.renderMode === 'componentsV2Gallery')
-        ),
+        (
+            challenge?.renderMode === 'componentsV2Gallery'
+            && (challenge.imagePoolId || steps.some((step) => step?.imagePoolId))
+        )
+        || steps.some((step) => (
+            step?.renderMode === 'componentsV2Gallery'
+            && (step.imagePoolId || challenge?.imagePoolId)
+        )),
     );
 }
 
