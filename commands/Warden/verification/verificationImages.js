@@ -155,6 +155,56 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         occlusionLineCount: 26,
         maxCharacterRotation: 0.18,
         characterJitter: 7,
+        textWaveAmplitude: 18,
+        textWaveFrequency: 0.8,
+        textWaveRotation: 0.12,
+        characterScaleJitter: 0.16,
+        characterSkewJitter: 0.12,
+        characterSpacingJitter: 8,
+        textStrokeWidthMin: 2,
+        textStrokeWidthMax: 5,
+        textShadowBlur: 4,
+        textShadowOffsetMax: 5,
+        textShadowAlphaMin: 0.35,
+        textShadowAlphaMax: 0.72,
+        textAlphaMin: 0.88,
+        textAlphaMax: 1,
+        textStrokeAlphaMin: 0.55,
+        textStrokeAlphaMax: 0.82,
+        textFillAlphaMin: 0.86,
+        textFillAlphaMax: 0.98,
+        textFontWeights: ['700', '800', '900'],
+        textFontFamilies: ['Arial', 'Helvetica', 'Verdana', 'Trebuchet MS'],
+        textFillColors: ['#f6fbff', '#e8f7ff', '#fff4dc'],
+        occlusionLineAlphaMin: 0.14,
+        occlusionLineAlphaMax: 0.42,
+        occlusionLineWidthMin: 2,
+        occlusionLineWidthMax: 9,
+        occlusionLineCurveAmount: 130,
+        occlusionLineDashChance: 0.35,
+        decoyGlyphAlphaMin: 0.08,
+        decoyGlyphAlphaMax: 0.22,
+        decoyGlyphSizeMin: 16,
+        decoyGlyphSizeMax: 64,
+        decoyGlyphRotationMax: 1.4,
+        cutoutCount: 14,
+        cutoutRadiusMin: 2,
+        cutoutRadiusMax: 6,
+        cutoutAlpha: 0.28,
+        backgroundPattern: {
+            enabled: true,
+            gridLineCount: 24,
+            ringCount: 16,
+            microLineCount: 120,
+            alpha: 0.13,
+        },
+        distortion: {
+            enabled: true,
+            rowShiftAmplitude: 10,
+            rowShiftFrequency: 0.045,
+            columnShiftAmplitude: 4,
+            columnShiftFrequency: 0.035,
+        },
         palettes: [
             { background: ['#07111f', '#14213d', '#0b1020'], curve: ['#76d7ff', '#f5b7ff'], glyph: ['#d9f3ff', '#ffd9fb'], stroke: 'rgba(118, 215, 255, 0.70)' },
             { background: ['#1c0b2b', '#3d145c', '#10091f'], curve: ['#ff9cf5', '#8ad8ff'], glyph: ['#ffe2fb', '#d8f4ff'], stroke: 'rgba(255, 156, 245, 0.70)' },
@@ -204,6 +254,46 @@ function getString(value, fallback) {
     return typeof value === 'string' && value.length > 0 ? value : fallback;
 }
 
+function getBoolean(value, fallback) {
+    return typeof value === 'boolean' ? value : fallback;
+}
+
+function getBoundedNumber(value, fallback, min, max) {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+        return fallback;
+    }
+
+    return Math.min(max, Math.max(min, numericValue));
+}
+
+function getNumberRange(minValue, maxValue, fallbackMin, fallbackMax, minAllowed, maxAllowed) {
+    const min = getBoundedNumber(minValue, fallbackMin, minAllowed, maxAllowed);
+    const max = getBoundedNumber(maxValue, fallbackMax, minAllowed, maxAllowed);
+
+    return {
+        min: Math.min(min, max),
+        max: Math.max(min, max),
+    };
+}
+
+function randomBetween(min, max) {
+    return min + (Math.random() * (max - min));
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function pickRandomItem(items) {
+    return items[Math.floor(Math.random() * items.length)];
+}
+
+function formatCanvasFontFamily(fontFamily) {
+    return /\s/.test(fontFamily) ? `"${fontFamily.replace(/"/g, '')}"` : fontFamily;
+}
+
 function getStringArray(value, fallback, minimumLength = 1) {
     if (!Array.isArray(value)) {
         return fallback;
@@ -248,6 +338,20 @@ function getImageGenerationConfig() {
     const gallery = configured.gallery ?? {};
     const composite = gallery.composite ?? {};
     const prompt = configured.prompt ?? {};
+    const promptDistortion = prompt.distortion ?? {};
+    const promptBackgroundPattern = prompt.backgroundPattern ?? {};
+    const defaultDistortion = defaultPrompt.distortion;
+    const defaultBackgroundPattern = defaultPrompt.backgroundPattern;
+    const textStrokeWidth = getNumberRange(prompt.textStrokeWidthMin, prompt.textStrokeWidthMax, defaultPrompt.textStrokeWidthMin, defaultPrompt.textStrokeWidthMax, 1, 18);
+    const textAlpha = getNumberRange(prompt.textAlphaMin, prompt.textAlphaMax, defaultPrompt.textAlphaMin, defaultPrompt.textAlphaMax, 0.4, 1);
+    const textShadowAlpha = getNumberRange(prompt.textShadowAlphaMin, prompt.textShadowAlphaMax, defaultPrompt.textShadowAlphaMin, defaultPrompt.textShadowAlphaMax, 0, 1);
+    const textStrokeAlpha = getNumberRange(prompt.textStrokeAlphaMin, prompt.textStrokeAlphaMax, defaultPrompt.textStrokeAlphaMin, defaultPrompt.textStrokeAlphaMax, 0.2, 1);
+    const textFillAlpha = getNumberRange(prompt.textFillAlphaMin, prompt.textFillAlphaMax, defaultPrompt.textFillAlphaMin, defaultPrompt.textFillAlphaMax, 0.4, 1);
+    const occlusionLineAlpha = getNumberRange(prompt.occlusionLineAlphaMin, prompt.occlusionLineAlphaMax, defaultPrompt.occlusionLineAlphaMin, defaultPrompt.occlusionLineAlphaMax, 0, 0.75);
+    const occlusionLineWidth = getNumberRange(prompt.occlusionLineWidthMin, prompt.occlusionLineWidthMax, defaultPrompt.occlusionLineWidthMin, defaultPrompt.occlusionLineWidthMax, 1, 18);
+    const decoyGlyphAlpha = getNumberRange(prompt.decoyGlyphAlphaMin, prompt.decoyGlyphAlphaMax, defaultPrompt.decoyGlyphAlphaMin, defaultPrompt.decoyGlyphAlphaMax, 0, 0.4);
+    const decoyGlyphSize = getNumberRange(prompt.decoyGlyphSizeMin, prompt.decoyGlyphSizeMax, defaultPrompt.decoyGlyphSizeMin, defaultPrompt.decoyGlyphSizeMax, 6, 96);
+    const cutoutRadius = getNumberRange(prompt.cutoutRadiusMin, prompt.cutoutRadiusMax, defaultPrompt.cutoutRadiusMin, defaultPrompt.cutoutRadiusMax, 1, 14);
 
     return {
         gallery: {
@@ -271,8 +375,58 @@ function getImageGenerationConfig() {
             decoyGlyphs: getString(prompt.decoyGlyphs, defaultPrompt.decoyGlyphs),
             decoyGlyphCount: getNonNegativeInteger(prompt.decoyGlyphCount, defaultPrompt.decoyGlyphCount),
             occlusionLineCount: getNonNegativeInteger(prompt.occlusionLineCount, defaultPrompt.occlusionLineCount),
-            maxCharacterRotation: getNonNegativeNumber(prompt.maxCharacterRotation, defaultPrompt.maxCharacterRotation),
-            characterJitter: getNonNegativeNumber(prompt.characterJitter, defaultPrompt.characterJitter),
+            maxCharacterRotation: getBoundedNumber(prompt.maxCharacterRotation, defaultPrompt.maxCharacterRotation, 0, 0.5),
+            characterJitter: getBoundedNumber(prompt.characterJitter, defaultPrompt.characterJitter, 0, 24),
+            textWaveAmplitude: getBoundedNumber(prompt.textWaveAmplitude, defaultPrompt.textWaveAmplitude, 0, 40),
+            textWaveFrequency: getBoundedNumber(prompt.textWaveFrequency, defaultPrompt.textWaveFrequency, 0, 3),
+            textWaveRotation: getBoundedNumber(prompt.textWaveRotation, defaultPrompt.textWaveRotation, 0, 0.5),
+            characterScaleJitter: getBoundedNumber(prompt.characterScaleJitter, defaultPrompt.characterScaleJitter, 0, 0.35),
+            characterSkewJitter: getBoundedNumber(prompt.characterSkewJitter, defaultPrompt.characterSkewJitter, 0, 0.35),
+            characterSpacingJitter: getBoundedNumber(prompt.characterSpacingJitter, defaultPrompt.characterSpacingJitter, 0, 20),
+            textStrokeWidthMin: textStrokeWidth.min,
+            textStrokeWidthMax: textStrokeWidth.max,
+            textShadowBlur: getBoundedNumber(prompt.textShadowBlur, defaultPrompt.textShadowBlur, 0, 16),
+            textShadowOffsetMax: getBoundedNumber(prompt.textShadowOffsetMax, defaultPrompt.textShadowOffsetMax, 0, 16),
+            textShadowAlphaMin: textShadowAlpha.min,
+            textShadowAlphaMax: textShadowAlpha.max,
+            textAlphaMin: textAlpha.min,
+            textAlphaMax: textAlpha.max,
+            textStrokeAlphaMin: textStrokeAlpha.min,
+            textStrokeAlphaMax: textStrokeAlpha.max,
+            textFillAlphaMin: textFillAlpha.min,
+            textFillAlphaMax: textFillAlpha.max,
+            textFontWeights: getStringArray(prompt.textFontWeights, defaultPrompt.textFontWeights),
+            textFontFamilies: getStringArray(prompt.textFontFamilies, defaultPrompt.textFontFamilies),
+            textFillColors: getStringArray(prompt.textFillColors, defaultPrompt.textFillColors),
+            occlusionLineAlphaMin: occlusionLineAlpha.min,
+            occlusionLineAlphaMax: occlusionLineAlpha.max,
+            occlusionLineWidthMin: occlusionLineWidth.min,
+            occlusionLineWidthMax: occlusionLineWidth.max,
+            occlusionLineCurveAmount: getBoundedNumber(prompt.occlusionLineCurveAmount, defaultPrompt.occlusionLineCurveAmount, 0, 220),
+            occlusionLineDashChance: getBoundedNumber(prompt.occlusionLineDashChance, defaultPrompt.occlusionLineDashChance, 0, 1),
+            decoyGlyphAlphaMin: decoyGlyphAlpha.min,
+            decoyGlyphAlphaMax: decoyGlyphAlpha.max,
+            decoyGlyphSizeMin: decoyGlyphSize.min,
+            decoyGlyphSizeMax: decoyGlyphSize.max,
+            decoyGlyphRotationMax: getBoundedNumber(prompt.decoyGlyphRotationMax, defaultPrompt.decoyGlyphRotationMax, 0, 3),
+            cutoutCount: getBoundedNumber(prompt.cutoutCount, defaultPrompt.cutoutCount, 0, 60),
+            cutoutRadiusMin: cutoutRadius.min,
+            cutoutRadiusMax: cutoutRadius.max,
+            cutoutAlpha: getBoundedNumber(prompt.cutoutAlpha, defaultPrompt.cutoutAlpha, 0, 0.7),
+            backgroundPattern: {
+                enabled: getBoolean(promptBackgroundPattern.enabled, defaultBackgroundPattern.enabled),
+                gridLineCount: getBoundedNumber(promptBackgroundPattern.gridLineCount, defaultBackgroundPattern.gridLineCount, 0, 400),
+                ringCount: getBoundedNumber(promptBackgroundPattern.ringCount, defaultBackgroundPattern.ringCount, 0, 400),
+                microLineCount: getBoundedNumber(promptBackgroundPattern.microLineCount, defaultBackgroundPattern.microLineCount, 0, 400),
+                alpha: getBoundedNumber(promptBackgroundPattern.alpha, defaultBackgroundPattern.alpha, 0, 0.5),
+            },
+            distortion: {
+                enabled: getBoolean(promptDistortion.enabled, defaultDistortion.enabled),
+                rowShiftAmplitude: getBoundedNumber(promptDistortion.rowShiftAmplitude, defaultDistortion.rowShiftAmplitude, 0, 30),
+                rowShiftFrequency: getBoundedNumber(promptDistortion.rowShiftFrequency, defaultDistortion.rowShiftFrequency, 0, 0.2),
+                columnShiftAmplitude: getBoundedNumber(promptDistortion.columnShiftAmplitude, defaultDistortion.columnShiftAmplitude, 0, 30),
+                columnShiftFrequency: getBoundedNumber(promptDistortion.columnShiftFrequency, defaultDistortion.columnShiftFrequency, 0, 0.2),
+            },
             palettes: getPromptPalettes(prompt.palettes, defaultPrompt.palettes),
         },
     };
@@ -313,6 +467,52 @@ function pickPromptImagePalette(promptConfig) {
     return promptConfig.palettes[Math.floor(Math.random() * promptConfig.palettes.length)];
 }
 
+function drawPromptBackgroundPattern(context, width, height, palette, promptConfig) {
+    const patternConfig = promptConfig.backgroundPattern;
+    if (!patternConfig?.enabled) return;
+
+    context.save();
+    context.globalAlpha = patternConfig.alpha;
+
+    for (let index = 0; index < patternConfig.gridLineCount; index += 1) {
+        context.strokeStyle = palette.curve[index % palette.curve.length];
+        context.lineWidth = 1;
+        context.beginPath();
+
+        const offset = (index / Math.max(1, patternConfig.gridLineCount)) * (width + height);
+        context.moveTo(offset - height, 0);
+        context.lineTo(offset, height);
+        context.stroke();
+    }
+
+    for (let index = 0; index < patternConfig.ringCount; index += 1) {
+        context.strokeStyle = palette.glyph[index % palette.glyph.length];
+        context.lineWidth = 1 + Math.random() * 2;
+        context.beginPath();
+        context.arc(
+            Math.random() * width,
+            Math.random() * height,
+            18 + Math.random() * 120,
+            Math.random() * Math.PI,
+            Math.random() * Math.PI * 2,
+        );
+        context.stroke();
+    }
+
+    for (let index = 0; index < patternConfig.microLineCount; index += 1) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        context.strokeStyle = Math.random() > 0.5 ? palette.curve[0] : palette.glyph[0];
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(x, y);
+        context.lineTo(x + randomBetween(-22, 22), y + randomBetween(-22, 22));
+        context.stroke();
+    }
+
+    context.restore();
+}
+
 function drawPromptImageNoise(context, width, height, palette, promptConfig) {
     for (let index = 0; index < promptConfig.curveNoiseCount; index += 1) {
         context.save();
@@ -346,9 +546,9 @@ function drawPromptDecoyGlyphs(context, width, height, palette, promptConfig) {
         const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
         context.save();
         context.translate(Math.random() * width, Math.random() * height);
-        context.rotate((Math.random() - 0.5) * 1.2);
-        context.globalAlpha = 0.06 + Math.random() * 0.10;
-        context.font = `700 ${18 + Math.random() * 44}px Arial, Helvetica, sans-serif`;
+        context.rotate(randomBetween(-promptConfig.decoyGlyphRotationMax, promptConfig.decoyGlyphRotationMax));
+        context.globalAlpha = randomBetween(promptConfig.decoyGlyphAlphaMin, promptConfig.decoyGlyphAlphaMax);
+        context.font = `700 ${randomBetween(promptConfig.decoyGlyphSizeMin, promptConfig.decoyGlyphSizeMax)}px Arial, Helvetica, sans-serif`;
         context.fillStyle = palette.glyph[Math.floor(Math.random() * palette.glyph.length)];
         context.fillText(glyph, 0, 0);
         context.restore();
@@ -358,49 +558,142 @@ function drawPromptDecoyGlyphs(context, width, height, palette, promptConfig) {
 function drawPromptOcclusionLines(context, width, height, promptConfig) {
     for (let index = 0; index < promptConfig.occlusionLineCount; index += 1) {
         const y = Math.random() * height;
+        const curveAmount = promptConfig.occlusionLineCurveAmount;
+
         context.save();
-        context.globalAlpha = 0.18 + Math.random() * 0.18;
+        context.globalAlpha = randomBetween(promptConfig.occlusionLineAlphaMin, promptConfig.occlusionLineAlphaMax);
         context.strokeStyle = index % 2 === 0 ? '#07111f' : '#ffffff';
-        context.lineWidth = 2 + Math.random() * 5;
+        context.lineWidth = randomBetween(promptConfig.occlusionLineWidthMin, promptConfig.occlusionLineWidthMax);
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+
+        if (Math.random() < promptConfig.occlusionLineDashChance) {
+            context.setLineDash([
+                randomBetween(10, 34),
+                randomBetween(6, 22),
+            ]);
+        }
+
         context.beginPath();
         context.moveTo(0, y);
         context.bezierCurveTo(
-            width * 0.25, y + ((Math.random() - 0.5) * 90),
-            width * 0.75, y + ((Math.random() - 0.5) * 90),
-            width, y + ((Math.random() - 0.5) * 40),
+            width * 0.25,
+            y + randomBetween(-curveAmount, curveAmount),
+            width * 0.75,
+            y + randomBetween(-curveAmount, curveAmount),
+            width,
+            y + randomBetween(-curveAmount * 0.5, curveAmount * 0.5),
         );
         context.stroke();
         context.restore();
     }
 }
 
-function drawPromptTextLine(context, line, centerX, centerY, palette, promptConfig) {
+function drawPromptTextLine(context, line, centerX, centerY, palette, promptConfig, lineIndex = 0) {
     const characters = [...line];
     const characterWidths = characters.map((character) => context.measureText(character).width);
     const totalWidth = characterWidths.reduce((sum, width) => sum + width, 0);
+    const wavePhase = Math.random() * Math.PI * 2 + lineIndex;
     let currentX = centerX - (totalWidth / 2);
 
     characters.forEach((character, index) => {
         const characterWidth = characterWidths[index];
-        const x = currentX + (characterWidth / 2) + ((Math.random() - 0.5) * promptConfig.characterJitter);
-        const y = centerY + ((Math.random() - 0.5) * promptConfig.characterJitter);
-        const fontSize = promptConfig.fontSize + ((Math.random() - 0.5) * 8);
+        const wave = Math.sin((index * promptConfig.textWaveFrequency) + wavePhase);
+        const spacingJitter = randomBetween(-promptConfig.characterSpacingJitter, promptConfig.characterSpacingJitter);
+        const x = currentX + (characterWidth / 2) + randomBetween(-promptConfig.characterJitter, promptConfig.characterJitter);
+        const y = centerY + (wave * promptConfig.textWaveAmplitude) + randomBetween(-promptConfig.characterJitter, promptConfig.characterJitter);
+        const fontSize = promptConfig.fontSize + randomBetween(-8, 8);
+        const rotation = randomBetween(-promptConfig.maxCharacterRotation, promptConfig.maxCharacterRotation) + (wave * promptConfig.textWaveRotation);
+        const scaleX = 1 + randomBetween(-promptConfig.characterScaleJitter, promptConfig.characterScaleJitter);
+        const scaleY = 1 + randomBetween(-promptConfig.characterScaleJitter, promptConfig.characterScaleJitter);
+        const safeScaleX = Math.max(0.65, scaleX);
+        const safeScaleY = Math.max(0.65, scaleY);
+        const skewX = randomBetween(-promptConfig.characterSkewJitter, promptConfig.characterSkewJitter);
+        const skewY = randomBetween(-promptConfig.characterSkewJitter, promptConfig.characterSkewJitter);
+        const strokeWidth = randomBetween(promptConfig.textStrokeWidthMin, promptConfig.textStrokeWidthMax);
+        const fontWeight = pickRandomItem(promptConfig.textFontWeights);
+        const fontFamily = formatCanvasFontFamily(pickRandomItem(promptConfig.textFontFamilies));
+        const fillColor = pickRandomItem(promptConfig.textFillColors);
+        const shadowAlpha = randomBetween(promptConfig.textShadowAlphaMin, promptConfig.textShadowAlphaMax);
 
         context.save();
         context.translate(x, y);
-        context.rotate((Math.random() - 0.5) * promptConfig.maxCharacterRotation);
-        context.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+        context.rotate(rotation);
+        context.transform(safeScaleX, skewY, skewX, safeScaleY, 0, 0);
+        context.font = `${fontWeight} ${fontSize}px ${fontFamily}, Arial, Helvetica, sans-serif`;
+        context.globalAlpha = randomBetween(promptConfig.textAlphaMin, promptConfig.textAlphaMax);
+        context.shadowColor = `rgba(0, 0, 0, ${shadowAlpha})`;
+        context.shadowBlur = promptConfig.textShadowBlur;
+        context.shadowOffsetX = randomBetween(-promptConfig.textShadowOffsetMax, promptConfig.textShadowOffsetMax);
+        context.shadowOffsetY = randomBetween(-promptConfig.textShadowOffsetMax, promptConfig.textShadowOffsetMax);
         context.fillStyle = 'rgba(0, 0, 0, 0.55)';
         context.fillText(character, 4, 5);
+        context.shadowBlur = 0;
+        context.shadowOffsetX = 0;
+        context.shadowOffsetY = 0;
         context.strokeStyle = palette.stroke;
-        context.lineWidth = 3;
+        context.lineWidth = strokeWidth;
+        context.globalAlpha = randomBetween(promptConfig.textStrokeAlphaMin, promptConfig.textStrokeAlphaMax);
         context.strokeText(character, 0, 0);
-        context.fillStyle = '#f6fbff';
+        context.globalAlpha = randomBetween(promptConfig.textFillAlphaMin, promptConfig.textFillAlphaMax);
+        context.fillStyle = fillColor;
         context.fillText(character, 0, 0);
         context.restore();
 
-        currentX += characterWidth;
+        currentX += characterWidth + spacingJitter;
     });
+}
+
+function applyPromptImageDistortion(context, width, height, promptConfig) {
+    const distortionConfig = promptConfig.distortion;
+    if (!distortionConfig?.enabled) return;
+
+    const source = context.getImageData(0, 0, width, height);
+    const output = context.createImageData(width, height);
+    const sourceData = source.data;
+    const outputData = output.data;
+
+    for (let y = 0; y < height; y += 1) {
+        const rowShift = Math.round(Math.sin(y * distortionConfig.rowShiftFrequency) * distortionConfig.rowShiftAmplitude);
+
+        for (let x = 0; x < width; x += 1) {
+            const columnShift = Math.round(Math.sin(x * distortionConfig.columnShiftFrequency) * distortionConfig.columnShiftAmplitude);
+            const sourceX = clamp(x + rowShift, 0, width - 1);
+            const sourceY = clamp(y + columnShift, 0, height - 1);
+            const sourceIndex = ((sourceY * width) + sourceX) * 4;
+            const outputIndex = ((y * width) + x) * 4;
+
+            outputData[outputIndex] = sourceData[sourceIndex];
+            outputData[outputIndex + 1] = sourceData[sourceIndex + 1];
+            outputData[outputIndex + 2] = sourceData[sourceIndex + 2];
+            outputData[outputIndex + 3] = sourceData[sourceIndex + 3];
+        }
+    }
+
+    context.putImageData(output, 0, 0);
+}
+
+function drawPromptCutouts(context, width, height, promptConfig) {
+    if (promptConfig.cutoutCount < 1 || promptConfig.cutoutAlpha <= 0) return;
+
+    context.save();
+    context.globalCompositeOperation = 'destination-out';
+    context.globalAlpha = promptConfig.cutoutAlpha;
+
+    for (let index = 0; index < promptConfig.cutoutCount; index += 1) {
+        context.beginPath();
+        context.arc(
+            Math.random() * width,
+            Math.random() * height,
+            randomBetween(promptConfig.cutoutRadiusMin, promptConfig.cutoutRadiusMax),
+            0,
+            Math.PI * 2,
+        );
+        context.fill();
+    }
+
+    context.restore();
+    context.globalCompositeOperation = 'source-over';
 }
 
 async function createPromptImageAttachment(prompt) {
@@ -423,6 +716,7 @@ async function createPromptImageAttachment(prompt) {
     context.fillStyle = gradient;
     context.fillRect(0, 0, promptConfig.width, height);
 
+    drawPromptBackgroundPattern(context, promptConfig.width, height, palette, promptConfig);
     drawPromptImageNoise(context, promptConfig.width, height, palette, promptConfig);
     drawPromptDecoyGlyphs(context, promptConfig.width, height, palette, promptConfig);
 
@@ -434,9 +728,11 @@ async function createPromptImageAttachment(prompt) {
     lines.forEach((line, index) => {
         const y = startY + (index * promptConfig.lineHeight);
         const x = promptConfig.width / 2;
-        drawPromptTextLine(context, line, x, y, palette, promptConfig);
+        drawPromptTextLine(context, line, x, y, palette, promptConfig, index);
     });
 
+    applyPromptImageDistortion(context, promptConfig.width, height, promptConfig);
+    drawPromptCutouts(context, promptConfig.width, height, promptConfig);
     drawPromptOcclusionLines(context, promptConfig.width, height, promptConfig);
 
     const name = buildPromptImageAttachmentName();
