@@ -25,10 +25,10 @@
             }
         },
         "prompt": {
-            "width": 320,
-            "minHeight": 120,
-            "padding": 24,
-            "fontSize": 24,
+            "width": 960,
+            "minHeight": 320,
+            "padding": 48,
+            "fontSize": 48,
             "lineHeight": 78,
             "curveNoiseCount": 88,
             "pixelNoiseCount": 4800,
