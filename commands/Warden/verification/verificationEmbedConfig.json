@@ -25,48 +25,135 @@
             }
         },
         "prompt": {
-            "width": 960,
+            "width": 920,
             "minHeight": 320,
-            "padding": 54,
-            "fontSize": 54,
-            "lineHeight": 74,
-            "curveNoiseCount": 170,
-            "pixelNoiseCount": 3200,
-            "decoyGlyphs": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&",
-            "decoyGlyphCount": 160,
-            "occlusionLineCount": 26,
-            "maxCharacterRotation": 0.18,
-            "characterJitter": 7,
+            "padding": 48,
+            "fontSize": 52,
+            "lineHeight": 72,
+            "curveNoiseCount": 260,
+            "pixelNoiseCount": 6200,
+            "decoyGlyphs": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&@+=<>",
+            "decoyGlyphCount": 260,
+            "occlusionLineCount": 38,
+            "maxCharacterRotation": 0.32,
+            "characterJitter": 13,
+            "textWaveAmplitude": 18,
+            "textWaveFrequency": 0.8,
+            "textWaveRotation": 0.12,
+            "characterScaleJitter": 0.16,
+            "characterSkewJitter": 0.12,
+            "characterSpacingJitter": 8,
+            "textStrokeWidthMin": 2,
+            "textStrokeWidthMax": 5,
+            "textShadowBlur": 4,
+            "textShadowOffsetMax": 5,
+            "textShadowAlphaMin": 0.35,
+            "textShadowAlphaMax": 0.72,
+            "textAlphaMin": 0.88,
+            "textAlphaMax": 1,
+            "textStrokeAlphaMin": 0.55,
+            "textStrokeAlphaMax": 0.82,
+            "textFillAlphaMin": 0.86,
+            "textFillAlphaMax": 0.98,
+            "textFontWeights": [
+                "700",
+                "800",
+                "900"
+            ],
+            "textFontFamilies": [
+                "Arial",
+                "Helvetica",
+                "Verdana",
+                "Trebuchet MS"
+            ],
+            "textFillColors": [
+                "#f6fbff",
+                "#e8f7ff",
+                "#fff4dc"
+            ],
+            "occlusionLineAlphaMin": 0.14,
+            "occlusionLineAlphaMax": 0.42,
+            "occlusionLineWidthMin": 2,
+            "occlusionLineWidthMax": 9,
+            "occlusionLineCurveAmount": 130,
+            "occlusionLineDashChance": 0.35,
+            "decoyGlyphAlphaMin": 0.08,
+            "decoyGlyphAlphaMax": 0.22,
+            "decoyGlyphSizeMin": 16,
+            "decoyGlyphSizeMax": 64,
+            "decoyGlyphRotationMax": 1.4,
+            "cutoutCount": 14,
+            "cutoutRadiusMin": 2,
+            "cutoutRadiusMax": 6,
+            "cutoutAlpha": 0.28,
+            "backgroundPattern": {
+                "enabled": true,
+                "gridLineCount": 24,
+                "ringCount": 16,
+                "microLineCount": 120,
+                "alpha": 0.13
+            },
+            "distortion": {
+                "enabled": true,
+                "rowShiftAmplitude": 10,
+                "rowShiftFrequency": 0.045,
+                "columnShiftAmplitude": 4,
+                "columnShiftFrequency": 0.035
+            },
             "palettes": [
                 {
-                    "background": ["#07111f", "#14213d", "#0b1020"],
-                    "curve": ["#76d7ff", "#f5b7ff"],
-                    "glyph": ["#d9f3ff", "#ffd9fb"],
-                    "stroke": "rgba(118, 215, 255, 0.70)"
+                    "background": [
+                        "#07111f",
+                        "#14213d",
+                        "#0b1020"
+                    ],
+                    "curve": [
+                        "#76d7ff",
+                        "#f5b7ff",
+                        "#ff7100"
+                    ],
+                    "glyph": [
+                        "#d9f3ff",
+                        "#ffd9fb",
+                        "#ffc68a"
+                    ],
+                    "stroke": "rgba(118, 215, 255, 0.78)"
                 },
                 {
-                    "background": ["#1c0b2b", "#3d145c", "#10091f"],
-                    "curve": ["#ff9cf5", "#8ad8ff"],
-                    "glyph": ["#ffe2fb", "#d8f4ff"],
-                    "stroke": "rgba(255, 156, 245, 0.70)"
+                    "background": [
+                        "#1c0b2b",
+                        "#3d145c",
+                        "#10091f"
+                    ],
+                    "curve": [
+                        "#ff9cf5",
+                        "#8ad8ff",
+                        "#ff7100"
+                    ],
+                    "glyph": [
+                        "#ffe2fb",
+                        "#d8f4ff",
+                        "#ffd6a6"
+                    ],
+                    "stroke": "rgba(255, 156, 245, 0.78)"
                 },
                 {
-                    "background": ["#06261d", "#115740", "#071611"],
-                    "curve": ["#8dffcc", "#ffe08a"],
-                    "glyph": ["#dcfff0", "#fff2cc"],
-                    "stroke": "rgba(141, 255, 204, 0.70)"
-                },
-                {
-                    "background": ["#2b1608", "#5a3112", "#120904"],
-                    "curve": ["#ffcf8a", "#8ac7ff"],
-                    "glyph": ["#fff1d8", "#d8ecff"],
-                    "stroke": "rgba(255, 207, 138, 0.70)"
-                },
-                {
-                    "background": ["#25110f", "#5b1f2d", "#120708"],
-                    "curve": ["#ff8aa8", "#ffd36e"],
-                    "glyph": ["#ffe0e7", "#fff0c5"],
-                    "stroke": "rgba(255, 138, 168, 0.70)"
+                    "background": [
+                        "#06261d",
+                        "#115740",
+                        "#071611"
+                    ],
+                    "curve": [
+                        "#8dffcc",
+                        "#ffe08a",
+                        "#ff7100"
+                    ],
+                    "glyph": [
+                        "#dcfff0",
+                        "#fff2cc",
+                        "#ffc68a"
+                    ],
+                    "stroke": "rgba(141, 255, 204, 0.78)"
                 }
             ]
         }
