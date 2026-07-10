@@ -287,12 +287,24 @@ function hasNextVerificationChallengeStep(challengeId, stepIndex = 0) {
     return stepIndex + 1 < steps.length;
 }
 
+function isGalleryImageChallenge(challenge) {
+    return Boolean(
+        challenge?.imagePoolId
+        && (
+            challenge.renderMode === 'componentsV2Gallery'
+            || challenge.steps?.some((step) => step?.renderMode === 'componentsV2Gallery')
+        ),
+    );
+}
+
 function getMissingChallengeOverrideRequirements(verificationSettings) {
     const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
 
     return enabledChallenges.flatMap((challenge) => {
         const override = getChallengeOverride(challenge.id, verificationSettings);
         const missing = [];
+        const requiresSolutionImages = challenge.requiresConfiguredSolutionImages || isGalleryImageChallenge(challenge);
+        const requiresControlImages = challenge.requiresConfiguredControlImages || isGalleryImageChallenge(challenge);
 
         if (challenge.requiresConfiguredPrompt && !override?.prompt) {
             missing.push('prompt');
@@ -302,11 +314,11 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
             missing.push('answers');
         }
 
-        if (challenge.requiresConfiguredSolutionImages && !override?.solutionImageIds?.length) {
+        if (requiresSolutionImages && !override?.solutionImageIds?.length) {
             missing.push('solution images');
         }
 
-        if (challenge.requiresConfiguredControlImages && !override?.controlImageIds?.length) {
+        if (requiresControlImages && !override?.controlImageIds?.length) {
             missing.push('control images');
         }
 

@@ -1052,10 +1052,45 @@ async function handleVerifySubmit(interaction) {
             await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
         }
 
-        const nextGalleryState = isNextGalleryChallenge
-            ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex, verificationSettings))
-            : undefined;
-        const nextPromptImage = await preparePromptImageAttachment(challenge, nextStep);
+        let nextGalleryState;
+        let nextPromptImage;
+
+        try {
+            nextGalleryState = isNextGalleryChallenge
+                ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex, verificationSettings))
+                : undefined;
+            nextPromptImage = await preparePromptImageAttachment(challenge, nextStep);
+        }
+        catch (err) {
+            console.error('Failed to generate next verification image challenge:', err);
+
+            await botLog(interaction.guild, new Discord.EmbedBuilder()
+                .setTitle('⛔ Verification next image challenge generation failed')
+                .setDescription([
+                    `Challenge: **${challengeId}**`,
+                    `Step: **${nextStepIndex + 1}**`,
+                    `User: <@${interaction.user.id}>`,
+                    '',
+                    '```',
+                    String(err.stack ?? err),
+                    '```',
+                ].join('\n')),
+                2,
+                'error',
+            ).catch((logErr) => console.error('Failed to log next verification image challenge generation error:', logErr));
+
+            clearChallenge(interaction.user.id);
+
+            const retryMessage = err.code === GALLERY_IMAGE_FETCH_TIMEOUT_CODE
+                ? 'Verification could not prepare the next image challenge in time. Please click Verify again to retry.'
+                : 'Verification could not generate the next image challenge. Please contact staff or try again later.';
+
+            return sendInitialInteractionResponse(interaction, {
+                content: retryMessage,
+                flags: Discord.MessageFlags.Ephemeral,
+            });
+        }
+
         const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
         const currentChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
 
