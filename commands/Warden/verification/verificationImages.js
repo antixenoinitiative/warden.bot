@@ -145,65 +145,70 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
     prompt: {
         width: 960,
         minHeight: 320,
-        padding: 54,
-        fontSize: 54,
-        lineHeight: 74,
-        curveNoiseCount: 170,
-        pixelNoiseCount: 3200,
+        padding: 62,
+        fontSize: 56,
+        lineHeight: 78,
+        curveNoiseCount: 88,
+        pixelNoiseCount: 4800,
         decoyGlyphs: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?/#%&',
-        decoyGlyphCount: 160,
-        occlusionLineCount: 26,
-        maxCharacterRotation: 0.18,
-        characterJitter: 7,
-        textWaveAmplitude: 18,
+        decoyGlyphCount: 300,
+        occlusionLineCount: 34,
+        maxCharacterRotation: 0.28,
+        characterJitter: 10,
+        textWaveAmplitude: 16,
         textWaveFrequency: 0.8,
         textWaveRotation: 0.12,
-        characterScaleJitter: 0.16,
-        characterSkewJitter: 0.12,
-        characterSpacingJitter: 8,
+        characterScaleJitter: 0.14,
+        characterSkewJitter: 0.10,
+        characterSpacingJitter: 6,
+        characterPositionMarginX: 58,
+        characterPositionMarginY: 58,
+        fontSizeJitter: 6,
         textStrokeWidthMin: 2,
-        textStrokeWidthMax: 5,
-        textShadowBlur: 4,
-        textShadowOffsetMax: 5,
+        textStrokeWidthMax: 4.5,
+        textShadowBlur: 3,
+        textShadowOffsetMax: 4,
         textShadowAlphaMin: 0.35,
-        textShadowAlphaMax: 0.72,
+        textShadowAlphaMax: 0.62,
         textAlphaMin: 0.88,
         textAlphaMax: 1,
-        textStrokeAlphaMin: 0.55,
-        textStrokeAlphaMax: 0.82,
-        textFillAlphaMin: 0.86,
+        textStrokeAlphaMin: 0.62,
+        textStrokeAlphaMax: 0.86,
+        textFillAlphaMin: 0.90,
         textFillAlphaMax: 0.98,
         textFontWeights: ['700', '800', '900'],
         textFontFamilies: ['Arial', 'Helvetica', 'Verdana', 'Trebuchet MS'],
         textFillColors: ['#f6fbff', '#e8f7ff', '#fff4dc'],
-        occlusionLineAlphaMin: 0.14,
-        occlusionLineAlphaMax: 0.42,
+        occlusionLineAlphaMin: 0.10,
+        occlusionLineAlphaMax: 0.34,
         occlusionLineWidthMin: 2,
-        occlusionLineWidthMax: 9,
+        occlusionLineWidthMax: 7,
         occlusionLineCurveAmount: 130,
         occlusionLineDashChance: 0.35,
-        decoyGlyphAlphaMin: 0.08,
-        decoyGlyphAlphaMax: 0.22,
+        decoyGlyphAlphaMin: 0.06,
+        decoyGlyphAlphaMax: 0.18,
         decoyGlyphSizeMin: 16,
-        decoyGlyphSizeMax: 64,
+        decoyGlyphSizeMax: 58,
         decoyGlyphRotationMax: 1.4,
-        cutoutCount: 14,
+        cutoutCount: 10,
         cutoutRadiusMin: 2,
         cutoutRadiusMax: 6,
-        cutoutAlpha: 0.28,
+        cutoutAlpha: 0.20,
         backgroundPattern: {
             enabled: true,
-            gridLineCount: 24,
-            ringCount: 16,
+            gridLineCount: 34,
+            ringCount: 0,
             microLineCount: 120,
-            alpha: 0.13,
+            tileSize: 56,
+            motifSize: 9,
+            alpha: 0.11,
         },
         distortion: {
             enabled: true,
-            rowShiftAmplitude: 10,
-            rowShiftFrequency: 0.045,
-            columnShiftAmplitude: 4,
-            columnShiftFrequency: 0.035,
+            rowShiftAmplitude: 8,
+            rowShiftFrequency: 0.040,
+            columnShiftAmplitude: 3,
+            columnShiftFrequency: 0.030,
         },
         palettes: [
             { background: ['#07111f', '#14213d', '#0b1020'], curve: ['#76d7ff', '#f5b7ff'], glyph: ['#d9f3ff', '#ffd9fb'], stroke: 'rgba(118, 215, 255, 0.70)' },
@@ -382,7 +387,10 @@ function getImageGenerationConfig() {
             textWaveRotation: getBoundedNumber(prompt.textWaveRotation, defaultPrompt.textWaveRotation, 0, 0.5),
             characterScaleJitter: getBoundedNumber(prompt.characterScaleJitter, defaultPrompt.characterScaleJitter, 0, 0.35),
             characterSkewJitter: getBoundedNumber(prompt.characterSkewJitter, defaultPrompt.characterSkewJitter, 0, 0.35),
-            characterSpacingJitter: getBoundedNumber(prompt.characterSpacingJitter, defaultPrompt.characterSpacingJitter, 0, 20),
+            characterSpacingJitter: getBoundedNumber(prompt.characterSpacingJitter, defaultPrompt.characterSpacingJitter, 0, 16),
+            characterPositionMarginX: getBoundedNumber(prompt.characterPositionMarginX, defaultPrompt.characterPositionMarginX, 0, 160),
+            characterPositionMarginY: getBoundedNumber(prompt.characterPositionMarginY, defaultPrompt.characterPositionMarginY, 0, 160),
+            fontSizeJitter: getBoundedNumber(prompt.fontSizeJitter, defaultPrompt.fontSizeJitter, 0, 14),
             textStrokeWidthMin: textStrokeWidth.min,
             textStrokeWidthMax: textStrokeWidth.max,
             textShadowBlur: getBoundedNumber(prompt.textShadowBlur, defaultPrompt.textShadowBlur, 0, 16),
@@ -418,6 +426,8 @@ function getImageGenerationConfig() {
                 gridLineCount: getBoundedNumber(promptBackgroundPattern.gridLineCount, defaultBackgroundPattern.gridLineCount, 0, 400),
                 ringCount: getBoundedNumber(promptBackgroundPattern.ringCount, defaultBackgroundPattern.ringCount, 0, 400),
                 microLineCount: getBoundedNumber(promptBackgroundPattern.microLineCount, defaultBackgroundPattern.microLineCount, 0, 400),
+                tileSize: getBoundedNumber(promptBackgroundPattern.tileSize, defaultBackgroundPattern.tileSize, 18, 140),
+                motifSize: getBoundedNumber(promptBackgroundPattern.motifSize, defaultBackgroundPattern.motifSize, 3, 28),
                 alpha: getBoundedNumber(promptBackgroundPattern.alpha, defaultBackgroundPattern.alpha, 0, 0.5),
             },
             distortion: {
@@ -471,42 +481,65 @@ function drawPromptBackgroundPattern(context, width, height, palette, promptConf
     const patternConfig = promptConfig.backgroundPattern;
     if (!patternConfig?.enabled) return;
 
+    const tileSize = Math.max(18, patternConfig.tileSize);
+    const motifSize = Math.min(patternConfig.motifSize, tileSize / 3);
+    const offsetStep = (width + height) / Math.max(1, patternConfig.gridLineCount);
+    const motifColumns = Math.ceil(width / tileSize) + 1;
+    const motifRows = Math.ceil(height / tileSize) + 1;
+
     context.save();
     context.globalAlpha = patternConfig.alpha;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
 
     for (let index = 0; index < patternConfig.gridLineCount; index += 1) {
+        const offset = index * offsetStep;
         context.strokeStyle = palette.curve[index % palette.curve.length];
-        context.lineWidth = 1;
+        context.lineWidth = index % 3 === 0 ? 1.4 : 0.8;
         context.beginPath();
-
-        const offset = (index / Math.max(1, patternConfig.gridLineCount)) * (width + height);
         context.moveTo(offset - height, 0);
         context.lineTo(offset, height);
         context.stroke();
+
+        if (index % 2 === 0) {
+            context.strokeStyle = palette.glyph[index % palette.glyph.length];
+            context.beginPath();
+            context.moveTo(width - offset + height, 0);
+            context.lineTo(width - offset, height);
+            context.stroke();
+        }
     }
 
-    for (let index = 0; index < patternConfig.ringCount; index += 1) {
-        context.strokeStyle = palette.glyph[index % palette.glyph.length];
-        context.lineWidth = 1 + Math.random() * 2;
-        context.beginPath();
-        context.arc(
-            Math.random() * width,
-            Math.random() * height,
-            18 + Math.random() * 120,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI * 2,
-        );
-        context.stroke();
+    for (let row = 0; row < motifRows; row += 1) {
+        for (let column = 0; column < motifColumns; column += 1) {
+            const x = (column * tileSize) + ((row % 2) * tileSize / 2);
+            const y = row * tileSize;
+            const motifIndex = row + column;
+
+            context.strokeStyle = motifIndex % 2 === 0 ? palette.glyph[motifIndex % palette.glyph.length] : palette.curve[motifIndex % palette.curve.length];
+            context.lineWidth = 1;
+            context.beginPath();
+            context.moveTo(x, y - motifSize);
+            context.lineTo(x + motifSize, y);
+            context.lineTo(x, y + motifSize);
+            context.lineTo(x - motifSize, y);
+            context.closePath();
+            context.stroke();
+        }
     }
 
     for (let index = 0; index < patternConfig.microLineCount; index += 1) {
-        const x = Math.random() * width;
-        const y = Math.random() * height;
-        context.strokeStyle = Math.random() > 0.5 ? palette.curve[0] : palette.glyph[0];
-        context.lineWidth = 1;
+        const column = index % Math.max(1, Math.ceil(width / (tileSize / 2)));
+        const row = Math.floor(index / Math.max(1, Math.ceil(width / (tileSize / 2))));
+        const x = (column * tileSize / 2) + ((row % 2) * motifSize);
+        const y = (row * tileSize / 2) % (height + tileSize);
+        const hatchLength = motifSize * 1.4;
+
+        context.strokeStyle = index % 2 === 0 ? palette.curve[0] : palette.glyph[0];
+        context.lineWidth = 0.8;
         context.beginPath();
-        context.moveTo(x, y);
-        context.lineTo(x + randomBetween(-22, 22), y + randomBetween(-22, 22));
+        context.moveTo(x - hatchLength / 2, y - hatchLength / 2);
+        context.lineTo(x + hatchLength / 2, y + hatchLength / 2);
         context.stroke();
     }
 
@@ -514,20 +547,28 @@ function drawPromptBackgroundPattern(context, width, height, palette, promptConf
 }
 
 function drawPromptImageNoise(context, width, height, palette, promptConfig) {
+    const patternStride = Math.max(12, height / Math.max(1, promptConfig.curveNoiseCount / 4));
+
     for (let index = 0; index < promptConfig.curveNoiseCount; index += 1) {
+        const row = index % Math.max(1, Math.ceil(height / patternStride));
+        const band = Math.floor(index / Math.max(1, Math.ceil(height / patternStride)));
+        const y = (row * patternStride) + ((band % 4) * patternStride / 4);
+        const wave = 18 + ((index % 5) * 4);
+        const direction = index % 2 === 0 ? 1 : -1;
+
         context.save();
-        context.globalAlpha = 0.16 + Math.random() * 0.26;
+        context.globalAlpha = 0.10 + ((index % 4) * 0.035);
         context.strokeStyle = palette.curve[index % palette.curve.length];
-        context.lineWidth = 1 + Math.random() * 5;
+        context.lineWidth = 0.8 + (index % 3);
         context.beginPath();
-        context.moveTo(Math.random() * width, Math.random() * height);
+        context.moveTo(-24, y);
         context.bezierCurveTo(
-            Math.random() * width,
-            Math.random() * height,
-            Math.random() * width,
-            Math.random() * height,
-            Math.random() * width,
-            Math.random() * height,
+            width * 0.28,
+            y + (wave * direction),
+            width * 0.72,
+            y - (wave * direction),
+            width + 24,
+            y,
         );
         context.stroke();
         context.restore();
@@ -589,7 +630,7 @@ function drawPromptOcclusionLines(context, width, height, promptConfig) {
     }
 }
 
-function drawPromptTextLine(context, line, centerX, centerY, palette, promptConfig, lineIndex = 0) {
+function drawPromptTextLine(context, line, centerX, centerY, palette, promptConfig, lineIndex = 0, canvasWidth = promptConfig.width, canvasHeight = promptConfig.minHeight) {
     const characters = [...line];
     const characterWidths = characters.map((character) => context.measureText(character).width);
     const totalWidth = characterWidths.reduce((sum, width) => sum + width, 0);
@@ -600,9 +641,13 @@ function drawPromptTextLine(context, line, centerX, centerY, palette, promptConf
         const characterWidth = characterWidths[index];
         const wave = Math.sin((index * promptConfig.textWaveFrequency) + wavePhase);
         const spacingJitter = randomBetween(-promptConfig.characterSpacingJitter, promptConfig.characterSpacingJitter);
-        const x = currentX + (characterWidth / 2) + randomBetween(-promptConfig.characterJitter, promptConfig.characterJitter);
-        const y = centerY + (wave * promptConfig.textWaveAmplitude) + randomBetween(-promptConfig.characterJitter, promptConfig.characterJitter);
-        const fontSize = promptConfig.fontSize + randomBetween(-8, 8);
+        const rawX = currentX + (characterWidth / 2) + randomBetween(-promptConfig.characterJitter, promptConfig.characterJitter);
+        const rawY = centerY + (wave * promptConfig.textWaveAmplitude) + randomBetween(-promptConfig.characterJitter, promptConfig.characterJitter);
+        const safeMarginX = Math.min(promptConfig.characterPositionMarginX, Math.floor(canvasWidth / 2));
+        const safeMarginY = Math.min(promptConfig.characterPositionMarginY, Math.floor(canvasHeight / 2));
+        const x = clamp(rawX, safeMarginX, canvasWidth - safeMarginX);
+        const y = clamp(rawY, safeMarginY, canvasHeight - safeMarginY);
+        const fontSize = promptConfig.fontSize + randomBetween(-promptConfig.fontSizeJitter, promptConfig.fontSizeJitter);
         const rotation = randomBetween(-promptConfig.maxCharacterRotation, promptConfig.maxCharacterRotation) + (wave * promptConfig.textWaveRotation);
         const scaleX = 1 + randomBetween(-promptConfig.characterScaleJitter, promptConfig.characterScaleJitter);
         const scaleY = 1 + randomBetween(-promptConfig.characterScaleJitter, promptConfig.characterScaleJitter);
@@ -728,7 +773,7 @@ async function createPromptImageAttachment(prompt) {
     lines.forEach((line, index) => {
         const y = startY + (index * promptConfig.lineHeight);
         const x = promptConfig.width / 2;
-        drawPromptTextLine(context, line, x, y, palette, promptConfig, index);
+        drawPromptTextLine(context, line, x, y, palette, promptConfig, index, promptConfig.width, height);
     });
 
     applyPromptImageDistortion(context, promptConfig.width, height, promptConfig);
