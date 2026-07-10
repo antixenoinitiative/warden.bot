@@ -19,6 +19,8 @@ const {
     hasNextVerificationChallengeStep,
     validateAnswer,
     resolvePrompt,
+    resolveSolutionImageIds,
+    resolveControlImageIds,
 } = require('./verificationChallenges');
 const { getVerificationImagePool } = require('./verificationImagePools');
 const {
@@ -434,21 +436,7 @@ async function fetchRemoteGalleryImageAttachment(image) {
 
 async function fetchGalleryImageAttachment(image) {
     if (isLocalGalleryImage(image)) {
-        try {
-            return await readLocalGalleryImageAttachment(image);
-        }
-        catch (err) {
-            if (!image.fallbackUrl) {
-                throw err;
-            }
-
-            console.warn(`Failed to read local verification gallery image "${image.fileName ?? image.url}" for position ${image.position}; falling back to configured remote attachment source.`, err);
-            return fetchRemoteGalleryImageAttachment({
-                ...image,
-                directory: undefined,
-                url: image.fallbackUrl,
-            });
-        }
+        return readLocalGalleryImageAttachment(image);
     }
 
     return fetchRemoteGalleryImageAttachment(image);
@@ -652,7 +640,26 @@ function resolveGalleryImageCounts(challenge, step) {
     return { gallerySize, solutionCount, controlCount };
 }
 
-function createGalleryState(challenge, stepIndex = 0) {
+function getPoolImagesByIds(imagePool, imageIds, roleName, challengeId) {
+    const imageMap = new Map((imagePool.images ?? []).map((image) => [image.id, image]));
+    const images = [];
+
+    for (const imageId of imageIds) {
+        const image = imageMap.get(imageId);
+        if (!image) {
+            throw new Error(`Verification challenge "${challengeId}" references unknown ${roleName} image ID "${imageId}" in pool "${imagePool.id}".`);
+        }
+
+        images.push({
+            ...image,
+            role: roleName,
+        });
+    }
+
+    return images;
+}
+
+function createGalleryState(challenge, stepIndex = 0, verificationSettings) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
     const imagePoolId = step?.imagePoolId ?? challenge.imagePoolId;
     const imagePool = getVerificationImagePool(imagePoolId);
@@ -662,8 +669,19 @@ function createGalleryState(challenge, stepIndex = 0) {
     }
 
     const { solutionCount, controlCount } = resolveGalleryImageCounts(challenge, step);
-    const solutionImages = imagePool.images.filter((image) => image.role === 'solution');
-    const controlImages = imagePool.images.filter((image) => image.role === 'control');
+    const solutionImageIds = resolveSolutionImageIds(challenge, step, verificationSettings);
+    const controlImageIds = resolveControlImageIds(challenge, step, verificationSettings);
+
+    if (solutionImageIds.length < 1) {
+        throw new Error(`Verification challenge "${challenge.id}" has no configured solution image IDs.`);
+    }
+
+    if (controlImageIds.length < 1) {
+        throw new Error(`Verification challenge "${challenge.id}" has no configured control image IDs.`);
+    }
+
+    const solutionImages = getPoolImagesByIds(imagePool, solutionImageIds, 'solution', challenge.id);
+    const controlImages = getPoolImagesByIds(imagePool, controlImageIds, 'control', challenge.id);
     const maxControlImageRepeats = step?.maxControlImageRepeats ?? challenge.maxControlImageRepeats ?? 1;
     const selectedImages = shuffleArray([
         ...pickRandomItemsWithRepeats(solutionImages, solutionCount, 'solution'),
@@ -825,7 +843,7 @@ async function handleVerifyStart(interaction) {
     let promptImage;
     try {
         galleryState = isGalleryChallenge
-            ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex))
+            ? await prepareGalleryImageAttachments(createGalleryState(challenge, stepIndex, verificationSettings))
             : undefined;
         promptImage = await preparePromptImageAttachment(challenge, step);
     }
@@ -835,13 +853,28 @@ async function handleVerifyStart(interaction) {
             clearChallenge(interaction.user.id);
         }
 
-        if (err.code !== GALLERY_IMAGE_FETCH_TIMEOUT_CODE) {
-            throw err;
-        }
+        console.error('Failed to generate verification image challenge:', err);
 
-        console.error('Failed to prepare verification gallery challenge:', err);
+        await botLog(interaction.guild, new Discord.EmbedBuilder()
+            .setTitle('⛔ Verification image challenge generation failed')
+            .setDescription([
+                `Challenge: **${challengeId}**`,
+                `User: <@${interaction.user.id}>`,
+                '',
+                '```',
+                String(err.stack ?? err),
+                '```',
+            ].join('\n')),
+            2,
+            'error',
+        ).catch((logErr) => console.error('Failed to log verification image challenge generation error:', logErr));
+
+        const retryMessage = err.code === GALLERY_IMAGE_FETCH_TIMEOUT_CODE
+            ? 'Verification could not prepare the image challenge in time. Please click Verify again to retry.'
+            : 'Verification could not generate the image challenge. Please contact staff or try again later.';
+
         return sendInitialInteractionResponse(interaction, {
-            content: 'Verification could not prepare the image challenge in time. Please click Verify again to retry.',
+            content: retryMessage,
             flags: Discord.MessageFlags.Ephemeral,
         });
     }
@@ -1020,7 +1053,7 @@ async function handleVerifySubmit(interaction) {
         }
 
         const nextGalleryState = isNextGalleryChallenge
-            ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex))
+            ? await prepareGalleryImageAttachments(createGalleryState(challenge, nextStepIndex, verificationSettings))
             : undefined;
         const nextPromptImage = await preparePromptImageAttachment(challenge, nextStep);
         const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);

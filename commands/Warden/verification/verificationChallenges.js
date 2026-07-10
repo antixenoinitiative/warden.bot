@@ -128,6 +128,8 @@ const verificationChallenges = {
         maxControlImageRepeats: 2,
         requiresConfiguredPrompt: true,
         requiresConfiguredAnswers: true,
+        requiresConfiguredSolutionImages: true,
+        requiresConfiguredControlImages: true,
         steps: [
             {
                 title: 'Verification Challenge',
@@ -165,6 +167,16 @@ function applyVerificationChallengeOverrides(challenge, verificationSettings) {
         overriddenChallenge.hasAnswerOverride = true;
     }
 
+    if (override.solutionImageIds?.length) {
+        overriddenChallenge.solutionImageIds = override.solutionImageIds;
+        overriddenChallenge.hasSolutionImageOverride = true;
+    }
+
+    if (override.controlImageIds?.length) {
+        overriddenChallenge.controlImageIds = override.controlImageIds;
+        overriddenChallenge.hasControlImageOverride = true;
+    }
+
     if (Array.isArray(challenge.steps) && challenge.steps.length > 0) {
         overriddenChallenge.steps = challenge.steps.map((step, index) => {
             if (index !== 0) return { ...step };
@@ -173,6 +185,8 @@ function applyVerificationChallengeOverrides(challenge, verificationSettings) {
                 ...step,
                 ...(override.prompt ? { prompt: override.prompt } : {}),
                 ...(override.answers?.length ? { answers: override.answers } : {}),
+                ...(override.solutionImageIds?.length ? { solutionImageIds: override.solutionImageIds } : {}),
+                ...(override.controlImageIds?.length ? { controlImageIds: override.controlImageIds } : {}),
             };
         });
     }
@@ -205,6 +219,24 @@ function resolveAnswers(challenge, step, verificationSettings) {
     }
 
     return step?.answers ?? challenge?.answers ?? [];
+}
+
+function resolveSolutionImageIds(challenge, step, verificationSettings) {
+    const override = getChallengeOverride(challenge?.id, verificationSettings);
+
+    return override?.solutionImageIds
+        ?? step?.solutionImageIds
+        ?? challenge?.solutionImageIds
+        ?? [];
+}
+
+function resolveControlImageIds(challenge, step, verificationSettings) {
+    const override = getChallengeOverride(challenge?.id, verificationSettings);
+
+    return override?.controlImageIds
+        ?? step?.controlImageIds
+        ?? challenge?.controlImageIds
+        ?? [];
 }
 
 function normalizeAnswer(answer) {
@@ -268,6 +300,14 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
 
         if (challenge.requiresConfiguredAnswers && !override?.answers?.length) {
             missing.push('answers');
+        }
+
+        if (challenge.requiresConfiguredSolutionImages && !override?.solutionImageIds?.length) {
+            missing.push('solution images');
+        }
+
+        if (challenge.requiresConfiguredControlImages && !override?.controlImageIds?.length) {
+            missing.push('control images');
         }
 
         if (missing.length < 1) return [];
@@ -338,5 +378,7 @@ module.exports = {
     normalizeAnswer,
     resolvePrompt,
     resolveAnswers,
+    resolveSolutionImageIds,
+    resolveControlImageIds,
     validateAnswer,
 };
