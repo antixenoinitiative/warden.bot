@@ -15,7 +15,7 @@ const {
     verificationChallenges,
     getEnabledVerificationChallenges,
 } = require('../verification/verificationChallenges');
-const { getVerificationImagePool } = require('../verification/verificationImagePools');
+const { getVerificationImagePool } = require('../verification/verificationImages');
 const {
     VERIFICATION_MODES,
     getVerificationSettings,
