@@ -8,6 +8,7 @@
  * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step.
+ * - `omitAnswerInput`: true when a gallery-only step should not ask for a separate text answer.
  * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
  * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
  * - `title`: optional embed title for the step.
@@ -152,6 +153,8 @@ const verificationChallenges = {
         gallerySize: 9,
         solutionImageCount: { min: 1, max: 1 },
         requiresConfiguredSolutionImageDirections: true,
+        omitAnswerInput: true,
+        answers: ['aligned'],
         generatedGallery: {
             type: 'rotationAlignment',
             centerImageIds: ['station_mailslot_white'],
@@ -181,6 +184,8 @@ const verificationChallenges = {
                 galleryPrompt: 'Pick the ONE image where the ship and station are facing each other correctly.',
                 positionInputLabel: 'Image tag (1-9)',
                 positionInputPlaceholder: 'Enter one number only',
+                omitAnswerInput: true,
+                answers: ['aligned'],
             },
         ],
     },
@@ -454,12 +459,20 @@ function getActiveVerificationChallenge(config) {
     return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
 }
 
+function shouldOmitAnswerInput(challenge, step) {
+    return step?.omitAnswerInput === true || challenge?.omitAnswerInput === true;
+}
+
 function validateAnswer(challengeId, answer, stepIndex = 0, verificationSettings) {
     const challenge = applyVerificationChallengeOverrides(getVerificationChallenge(challengeId), verificationSettings);
     const step = getVerificationChallengeSteps(challenge)[stepIndex];
 
     if (!challenge || !step) {
         return { ok: false, reason: 'not_found' };
+    }
+
+    if (shouldOmitAnswerInput(challenge, step)) {
+        return { ok: true };
     }
 
     const normalizer = step.normalizer ?? challenge.normalizer ?? normalizeAnswer;
@@ -491,5 +504,6 @@ module.exports = {
     resolveControlImageIds,
     resolveSolutionImageDirections,
     isRotationAlignmentGeneratedGalleryChallenge,
+    shouldOmitAnswerInput,
     validateAnswer,
 };

@@ -6,6 +6,7 @@ const {
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
     resolvePrompt,
+    shouldOmitAnswerInput,
 } = require('./verificationChallenges');
 
 const DESCRIPTION_LIMIT = 4096;
@@ -752,16 +753,21 @@ function buildGiveAnswerRow(challengeId, stepIndex = 0, token) {
 function buildAnswerModal(challengeId, stepIndex = 0, activeChallenge) {
     const challenge = verificationChallenges[challengeId];
     const step = getVerificationChallengeStep(challengeId, stepIndex);
-    const answerInput = new Discord.TextInputBuilder()
-        .setCustomId('answer')
-        .setLabel('Verification answer')
-        .setPlaceholder('Enter your Answer here')
-        .setStyle(Discord.TextInputStyle.Short)
-        .setRequired(true);
+    const omitAnswerInput = shouldOmitAnswerInput(challenge, step);
     const modal = new Discord.ModalBuilder()
         .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', challengeId, stepIndex, activeChallenge?.gallery?.token))
-        .setTitle('Verify')
-        .addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
+        .setTitle('Verify');
+
+    if (!omitAnswerInput) {
+        const answerInput = new Discord.TextInputBuilder()
+            .setCustomId('answer')
+            .setLabel('Verification answer')
+            .setPlaceholder('Enter your Answer here')
+            .setStyle(Discord.TextInputStyle.Short)
+            .setRequired(true);
+
+        modal.addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
+    }
 
     if (isComponentsV2GalleryChallenge(challenge, step) || activeChallenge?.gallery) {
         const positionInput = new Discord.TextInputBuilder()

@@ -14,6 +14,7 @@ const {
     getVerificationChallengeStep,
     hasNextVerificationChallengeStep,
     validateAnswer,
+    shouldOmitAnswerInput,
 } = require('./verificationChallenges');
 const {
     GALLERY_IMAGE_FETCH_TIMEOUT_CODE,
@@ -408,10 +409,12 @@ async function handleVerifySubmit(interaction) {
         ));
     }
 
-    const answer = interaction.fields.getTextInputValue('answer');
-    const result = validateAnswer(challengeId, answer, stepIndex, verificationSettings);
     const challenge = applyVerificationChallengeOverrides(verificationChallenges[challengeId], verificationSettings) ?? getActiveVerificationChallenge({ verification: verificationSettings });
     const step = getVerificationChallengeStep(challengeId, stepIndex);
+    const answer = shouldOmitAnswerInput(challenge, step)
+        ? ''
+        : interaction.fields.getTextInputValue('answer');
+    const result = validateAnswer(challengeId, answer, stepIndex, verificationSettings);
     const galleryState = activeChallenge.gallery;
     const galleryResultOk = !isComponentsV2GalleryChallenge(challenge, step)
         || validatePositionAnswer(
