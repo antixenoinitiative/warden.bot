@@ -156,10 +156,10 @@ const verificationChallenges = {
         promptImageGallery: true,
         compositeImageGallery: true,
         imagePoolId: 'eliteRotationAlignmentAssets',
-        gallerySize: 9,
+        gallerySize: 6,
         solutionImageCount: { 
             min: 1,
-            max: 3 
+            max: 1 
         },
         requiresConfiguredSolutionImageDirections: true,
         omitAnswerInput: true,
