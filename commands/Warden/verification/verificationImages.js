@@ -1436,11 +1436,12 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     context.lineTo(frameX + labelEdge, frameY);
     context.lineTo(frameX, frameY + labelEdge);
     context.closePath();
-    context.fillStyle = 'rgba(0, 0, 0, 0.56)';
+
+    const frameGradient = context.createLinearGradient(frameX, frameY, frameX + labelEdge, frameY + labelEdge);
+    frameGradient.addColorStop(0, '#ff7100');
+    frameGradient.addColorStop(1, 'rgba(255, 113, 0, 0)');
+    context.fillStyle = frameGradient;
     context.fill();
-    context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-    context.lineWidth = 3;
-    context.stroke();
 
     context.fillStyle = 'rgba(255, 255, 255, 0.9)';
     context.fillText(label, frameX + compositeConfig.labelPadding, frameY + (compositeConfig.labelPadding / 2));
