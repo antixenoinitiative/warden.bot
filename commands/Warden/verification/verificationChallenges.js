@@ -7,8 +7,9 @@
  * - `prompt`: user-facing question, riddle, or challenge text.
  * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
- * - `answers`: accepted answers for that step.
- * - `requirePrompt`: false when a gallery-only step should skip prompt rendering and text answers.
+ * - `answers`: accepted answers for that step. Static answers are only valid for bundled
+ *   self-contained challenges; challenges with `requiresConfiguredAnswers` must use DB overrides.
+ * - `generatePrompt`: false when a gallery-only step should skip prompt rendering and text answers.
  * - `omitAnswerInput`: true when a prompted step should not ask for a separate text answer.
  * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
  * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
@@ -30,8 +31,9 @@
  * How to add a new verification challenge for future admin selection:
  * 1. Add a stable ID as a new key in `verificationChallenges`.
  * 2. Add either a single-step `prompt`/`answers` pair or a multi-step `steps` array.
- * 3. Add every accepted answer to `answers`; answers are normalized with `normalizeAnswer`
- *    unless the challenge defines a custom `normalizer`.
+ * 3. Add every accepted static answer to `answers` for self-contained bundled challenges;
+ *    DB-configured answer challenges should set `requiresConfiguredAnswers` instead. Answers
+ *    are normalized with `normalizeAnswer` unless the challenge defines a custom `normalizer`.
  * 4. Include the challenge in `/verification challenge set <id>` or add it to `config.Warden.verification.activeChallengeIds` as a boot fallback.
  */
 const DEFAULT_CHALLENGE_ID = 'placeholder';
@@ -148,14 +150,14 @@ const verificationChallenges = {
         id: 'onTheBlueDanube',
         enabled: false,
         renderMode: 'componentsV2Gallery',
-        requirePrompt: true,
+        generatePrompt: true,
+        promptImageGallery: true,
         compositeImageGallery: true,
         imagePoolId: 'eliteRotationAlignmentAssets',
         gallerySize: 9,
         solutionImageCount: { min: 1, max: 1 },
         requiresConfiguredSolutionImageDirections: true,
         omitAnswerInput: true,
-        answers: ['aligned'],
         generatedGallery: {
             type: 'rotationAlignment',
             clockPositionDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
@@ -183,9 +185,7 @@ const verificationChallenges = {
                 galleryPrompt: 'Find all images depicting what we are looking for. It may be multiple. Remember their tag number.',
                 positionInputLabel: 'Image tag (1-9)',
                 positionInputPlaceholder: 'Enter one number only',
-                requirePrompt: false,
                 omitAnswerInput: true,
-                answers: ['aligned'],
             },
         ],
     },
@@ -270,6 +270,10 @@ function resolveAnswers(challenge, step, verificationSettings) {
 
     if (override?.answers?.length) {
         return override.answers;
+    }
+
+    if (step?.requiresConfiguredAnswers === true || challenge?.requiresConfiguredAnswers === true) {
+        return [];
     }
 
     return step?.answers ?? challenge?.answers ?? [];
@@ -410,7 +414,10 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
             missing.push('prompt');
         }
 
-        if (challenge.requiresConfiguredAnswers && !override?.answers?.length) {
+        const steps = getVerificationChallengeSteps(challenge);
+        const requiresTextAnswer = steps.some((step) => !shouldOmitAnswerInput(challenge, step));
+
+        if (challenge.requiresConfiguredAnswers && requiresTextAnswer && !override?.answers?.length) {
             missing.push('answers');
         }
 
@@ -467,12 +474,12 @@ function getActiveVerificationChallenge(config) {
     return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
 }
 
-function shouldRequirePrompt(challenge, step) {
-    return (step?.requirePrompt ?? challenge?.requirePrompt) !== false;
+function shouldGeneratePrompt(challenge, step) {
+    return (step?.generatePrompt ?? challenge?.generatePrompt) !== false;
 }
 
 function shouldOmitAnswerInput(challenge, step) {
-    return !shouldRequirePrompt(challenge, step)
+    return !shouldGeneratePrompt(challenge, step)
         || step?.omitAnswerInput === true
         || challenge?.omitAnswerInput === true;
 }
@@ -518,7 +525,7 @@ module.exports = {
     resolveControlImageIds,
     resolveSolutionImageDirections,
     isRotationAlignmentGeneratedGalleryChallenge,
-    shouldRequirePrompt,
+    shouldGeneratePrompt,
     shouldOmitAnswerInput,
     validateAnswer,
 };
