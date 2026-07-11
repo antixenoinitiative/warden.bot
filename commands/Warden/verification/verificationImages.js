@@ -166,9 +166,9 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         fetchTimeoutMs: 10000,
         composite: {
             gridColumns: 3,
-            tileSize: 320,
-            labelPadding: 16,
-            labelSize: 72,
+            tileSize: 336,
+            labelPadding: 14,
+            labelSize: 64,
         },
     },
     prompt: {
@@ -1425,16 +1425,21 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     context.font = `700 ${compositeConfig.labelSize}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'top';
     context.textAlign = 'left';
-    const metrics = context.measureText(label);
-    const labelWidth = metrics.width + (compositeConfig.labelPadding * 2);
-    const labelHeight = compositeConfig.labelSize + (compositeConfig.labelPadding * 1.5);
 
-    context.fillStyle = 'rgba(0, 0, 0, 0.72)';
-    context.fillRect(x, y, labelWidth, labelHeight);
-    context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    context.lineWidth = 4;
-    context.strokeRect(x, y, labelWidth, labelHeight);
-    context.fillStyle = '#ffffff';
+    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 2.75));
+
+    context.beginPath();
+    context.moveTo(x, y);
+    context.lineTo(x + labelEdge, y);
+    context.lineTo(x, y + labelEdge);
+    context.closePath();
+    context.fillStyle = 'rgba(0, 0, 0, 0.56)';
+    context.fill();
+    context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+    context.lineWidth = 3;
+    context.stroke();
+
+    context.fillStyle = 'rgba(255, 255, 255, 0.9)';
     context.fillText(label, x + compositeConfig.labelPadding, y + (compositeConfig.labelPadding / 2));
     context.restore();
 }
@@ -1462,7 +1467,7 @@ async function createGalleryCompositeAttachment(selectedImages) {
         const y = row * compositeConfig.tileSize;
 
         drawImageCover(context, loadedImage, x, y, compositeConfig.tileSize, compositeConfig.tileSize);
-        drawGalleryCompositeLabel(context, String(image.position), x + 12, y + 12, compositeConfig);
+        drawGalleryCompositeLabel(context, String(image.position), x, y, compositeConfig);
     });
 
     const name = buildGalleryCompositeAttachmentName();
