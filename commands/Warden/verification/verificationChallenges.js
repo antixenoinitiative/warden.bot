@@ -9,7 +9,9 @@
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step. Static answers are only valid for bundled
  *   self-contained challenges; challenges with `requiresConfiguredAnswers` must use DB overrides.
- * - `generatePrompt`: false when a gallery-only step should skip prompt rendering and text answers.
+ * - `generatePrompt`: controls prompt rendering. Use `true` to always render prompt text
+ *   (falling back to default copy), `false` to keep a gallery-only step, or `'configured'`
+ *   to render only when a static or DB-configured prompt exists.
  * - `omitAnswerInput`: true when a prompted step should not ask for a separate text answer.
  * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
  * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
@@ -150,7 +152,7 @@ const verificationChallenges = {
         id: 'onTheBlueDanube',
         enabled: false,
         renderMode: 'componentsV2Gallery',
-        generatePrompt: true,
+        generatePrompt: 'configured',
         promptImageGallery: true,
         compositeImageGallery: true,
         imagePoolId: 'eliteRotationAlignmentAssets',
@@ -474,8 +476,25 @@ function getActiveVerificationChallenge(config) {
     return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
 }
 
+function hasConfiguredPrompt(challenge, step) {
+    return Boolean(
+        (typeof step?.prompt === 'string' && step.prompt.trim())
+        || (typeof challenge?.prompt === 'string' && challenge.prompt.trim()),
+    );
+}
+
 function shouldGeneratePrompt(challenge, step) {
-    return (step?.generatePrompt ?? challenge?.generatePrompt) !== false;
+    const generatePrompt = step?.generatePrompt ?? challenge?.generatePrompt;
+
+    if (generatePrompt === false) {
+        return false;
+    }
+
+    if (generatePrompt === 'configured') {
+        return hasConfiguredPrompt(challenge, step);
+    }
+
+    return true;
 }
 
 function shouldOmitAnswerInput(challenge, step) {
