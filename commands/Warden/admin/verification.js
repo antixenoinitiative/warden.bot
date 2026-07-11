@@ -28,6 +28,8 @@ const {
     setChallengeAnswerOverrides,
     setChallengeSolutionImageIds,
     setChallengeControlImageIds,
+    setChallengeSolutionImageDirections,
+    clearChallengeSolutionImageDirections,
 } = require('../verification/verificationSettings');
 
 function userErrorEmbed(message) {
@@ -59,6 +61,26 @@ function parseIdList(input) {
         .split(/[\s,]+/)
         .map((challengeId) => challengeId.trim())
         .filter(Boolean))];
+}
+
+function normalizeDegreeValue(value) {
+    const numeric = Number(value);
+
+    if (!Number.isInteger(numeric) || numeric < 0 || numeric > 360 || numeric % 45 !== 0) {
+        throw new Error(`Invalid degree "${value}". Use 0,45,90,135,180,225,270,315.`);
+    }
+
+    return numeric === 360 ? 0 : numeric;
+}
+
+function parseDegreeList(input) {
+    const values = String(input ?? '')
+        .split(/[\s,]+/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map(normalizeDegreeValue);
+
+    return [...new Set(values)].sort((left, right) => left - right);
 }
 
 function parseAnswerOverrideList(input) {
@@ -106,6 +128,9 @@ function getChallengeOverrideFields(verificationSettings, challengeId) {
     const controlImageIds = override?.controlImageIds?.length
         ? override.controlImageIds.map((imageId) => `- ${imageId}`).join('\n')
         : 'Not set';
+    const solutionImageDirections = Object.keys(override?.solutionImageDirections ?? {}).length > 0
+        ? Object.entries(override.solutionImageDirections).map(([imageId, degrees]) => `- ${imageId}: ${degrees.join(', ')}`).join('\n')
+        : 'Not set';
 
     return [
         {
@@ -126,6 +151,11 @@ function getChallengeOverrideFields(verificationSettings, challengeId) {
         {
             name: 'Control image IDs',
             value: controlImageIds,
+            inline: false,
+        },
+        {
+            name: 'Solution image directions',
+            value: solutionImageDirections,
             inline: false,
         },
     ];
@@ -520,6 +550,99 @@ async function handleChallengeImageIds(interaction, guildId, imageRole) {
     ));
 }
 
+
+async function handleChallengeSolutionDirections(interaction, guildId) {
+    const { challengeId, error } = getSingleKnownChallengeId(interaction);
+    if (error) {
+        return interaction.editReply({ embeds: [error] });
+    }
+
+    const idsInput = interaction.options.getString('ids');
+    const degreesInput = interaction.options.getString('degrees');
+
+    if (!idsInput?.trim()) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more image IDs in `ids`.')] });
+    }
+
+    if (!degreesInput?.trim()) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more direction degrees in `degrees`.')] });
+    }
+
+    const imageIds = parseIdList(idsInput);
+    let degrees;
+
+    try {
+        degrees = parseDegreeList(degreesInput);
+    }
+    catch (err) {
+        return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
+    }
+
+    if (imageIds.length < 1 || degrees.length < 1) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide image IDs and direction degrees.')] });
+    }
+
+    const { imagePool, error: poolError } = getChallengeImagePool(challengeId);
+    if (poolError) {
+        return interaction.editReply({ embeds: [poolError] });
+    }
+
+    const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
+    if (unknownImageIds.length > 0) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for this challenge image pool: ${unknownImageIds.join(', ')}`)] });
+    }
+
+    const updatedSettings = await setChallengeSolutionImageDirections(guildId, challengeId, imageIds, degrees, interaction.user.id);
+    return interaction.editReply(buildChallengeOverrideSummaryResponse(
+        'Challenge Solution Directions Updated',
+        `Solution image directions updated for **${challengeId}**.`,
+        updatedSettings,
+        challengeId,
+        'success',
+    ));
+}
+
+async function handleChallengeSolutionDirectionsClear(interaction, guildId) {
+    const { challengeId, error } = getSingleKnownChallengeId(interaction);
+    if (error) {
+        return interaction.editReply({ embeds: [error] });
+    }
+
+    const idsInput = interaction.options.getString('ids');
+    if (!idsInput?.trim()) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more image IDs in `ids`.')] });
+    }
+
+    const imageIds = parseIdList(idsInput);
+    if (imageIds.length < 1) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more image IDs in `ids`.')] });
+    }
+
+    const updatedSettings = await clearChallengeSolutionImageDirections(guildId, challengeId, imageIds, interaction.user.id);
+    return interaction.editReply(buildChallengeOverrideSummaryResponse(
+        'Challenge Solution Directions Cleared',
+        `Solution image directions cleared for **${challengeId}**.`,
+        updatedSettings,
+        challengeId,
+        'success',
+    ));
+}
+
+async function handleChallengeSolutionDirectionsView(interaction, verificationSettings) {
+    const { challengeId, error } = getSingleKnownChallengeId(interaction);
+    if (error) {
+        return interaction.editReply({ embeds: [error] });
+    }
+
+    return interaction.editReply(buildChallengeOverrideSummaryResponse(
+        'Challenge Solution Directions',
+        `Solution image directions for **${challengeId}**:`,
+        verificationSettings,
+        challengeId,
+        'info',
+    ));
+}
+
 const CHALLENGE_DURATION_COMMANDS = {
     timer: {
         title: 'Challenge Timer',
@@ -558,6 +681,12 @@ async function handleVerificationChallengeCommand(interaction, guildId) {
             return handleChallengeImageIds(interaction, guildId, 'solution');
         case 'control-images':
             return handleChallengeImageIds(interaction, guildId, 'control');
+        case 'solution-directions':
+            return handleChallengeSolutionDirections(interaction, guildId);
+        case 'solution-directions-clear':
+            return handleChallengeSolutionDirectionsClear(interaction, guildId);
+        case 'solution-directions-view':
+            return handleChallengeSolutionDirectionsView(interaction, verificationSettings);
         default:
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge action.')] });
     }
@@ -636,6 +765,27 @@ function buildChallengeIdsAutocompleteChoices(focusedValue) {
 
 function buildContextualIdsAutocompleteChoices(interaction, focusedValue) {
     const action = interaction.options.getString('action');
+
+    if (action === 'solution-directions' || action === 'solution-directions-clear') {
+        const challengeId = String(interaction.options.getString('id') ?? '').trim();
+        const challenge = verificationChallenges[challengeId];
+        if (!challenge) {
+            return [];
+        }
+
+        const step = challenge.steps?.[0];
+        const generatedGallery = step?.generatedGallery ?? challenge.generatedGallery;
+        const generatedIds = generatedGallery?.type === 'rotationAlignment'
+            ? [...new Set([...(generatedGallery.centerImageIds ?? []), ...(generatedGallery.outerImageIds ?? [])])]
+            : [];
+
+        if (generatedIds.length > 0) {
+            return buildDelimitedAutocompleteChoices(focusedValue, generatedIds);
+        }
+
+        const { imagePool } = getChallengeImagePool(challengeId);
+        return imagePool ? buildDelimitedAutocompleteChoices(focusedValue, getImagePoolIds(imagePool)) : [];
+    }
 
     if (action === 'solution-images' || action === 'control-images') {
         const challengeId = String(interaction.options.getString('id') ?? '').trim();
@@ -781,51 +931,36 @@ module.exports = {
             'Autokick delay, such as 10m, 600s, or 10 minutes',
             { required: false },
         ))
-        .addSubcommand(subcommand => addStringOption(
-            addStringOption(
-                addStringOption(
-                    addStringOption(
-                        addStringOption(
-                            addStringOption(
-                                subcommand
-                                    .setName('challenge')
-                                    .setDescription('Manage verification challenges'),
-                                'action',
-                                'Challenge setting to inspect or update',
-                                {
-                                    choices: [
-                                        { name: 'List configured challenge info', value: 'list' },
-                                        { name: 'Set active challenge list', value: 'active-set' },
-                                        { name: 'Set prompt expiry timer', value: 'timer' },
-                                        { name: 'Set retry cooldown timer', value: 'cooldown' },
-                                        { name: 'View prompt and answer entries', value: 'overrides-view' },
-                                        { name: 'Set prompt entry', value: 'prompt' },
-                                        { name: 'Set answer entry', value: 'answers' },
-                                        { name: 'Set solution image IDs', value: 'solution-images' },
-                                        { name: 'Set control image IDs', value: 'control-images' },
-                                    ],
-                                },
-                            ),
-                            'id',
-                            'Challenge ID',
-                            { required: false, autocomplete: true },
-                        ),
-                        'ids',
-                        'Comma/space IDs. active-set: challenges; image actions: images.',
-                        { required: false, autocomplete: true },
-                    ),
-                    'time',
-                    'Duration such as 90s, 2m, or 2 minutes',
-                    { required: false },
-                ),
-                'prompt',
-                'Configured prompt text',
-                { required: false },
-            ),
-            'answers',
-            'One answer, or multiple answers separated by commas',
-            { required: false },
-        )),
+        .addSubcommand(subcommand => {
+            let builder = subcommand
+                .setName('challenge')
+                .setDescription('Manage verification challenges');
+
+            builder = addStringOption(builder, 'action', 'Challenge setting to inspect or update', {
+                choices: [
+                    { name: 'List configured challenge info', value: 'list' },
+                    { name: 'Set active challenge list', value: 'active-set' },
+                    { name: 'Set prompt expiry timer', value: 'timer' },
+                    { name: 'Set retry cooldown timer', value: 'cooldown' },
+                    { name: 'View prompt and answer entries', value: 'overrides-view' },
+                    { name: 'Set prompt entry', value: 'prompt' },
+                    { name: 'Set answer entry', value: 'answers' },
+                    { name: 'Set solution image IDs', value: 'solution-images' },
+                    { name: 'Set control image IDs', value: 'control-images' },
+                    { name: 'Set solution directions', value: 'solution-directions' },
+                    { name: 'Clear solution directions', value: 'solution-directions-clear' },
+                    { name: 'View solution directions', value: 'solution-directions-view' },
+                ],
+            });
+            builder = addStringOption(builder, 'id', 'Challenge ID', { required: false, autocomplete: true });
+            builder = addStringOption(builder, 'ids', 'IDs for the selected action. Separate with commas or spaces.', { required: false, autocomplete: true });
+            builder = addStringOption(builder, 'time', 'Duration such as 90s, 2m, or 2 minutes', { required: false });
+            builder = addStringOption(builder, 'prompt', 'Configured prompt text', { required: false });
+            builder = addStringOption(builder, 'answers', 'One answer, or multiple answers separated by commas', { required: false });
+            builder = addStringOption(builder, 'degrees', 'Valid axes: 0,45,90,135,180,225,270,315.', { required: false });
+
+            return builder;
+        }),
     async autocomplete(interaction) {
         return handleVerificationAutocomplete(interaction);
     },

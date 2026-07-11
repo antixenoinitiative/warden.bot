@@ -85,6 +85,32 @@ function normalizeOverrideIdList(value) {
         .filter(Boolean))];
 }
 
+function normalizeDirectionList(value) {
+    const values = Array.isArray(value) ? value : String(value ?? '').split(/[\s,]+/);
+
+    return [...new Set(values
+        .map((degrees) => Number(degrees))
+        .filter((degrees) => Number.isInteger(degrees) && degrees >= 0 && degrees < 360 && degrees % 45 === 0))]
+        .sort((left, right) => left - right);
+}
+
+function normalizeSolutionImageDirections(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return {};
+    }
+
+    return Object.entries(value).reduce((directions, [imageId, degreeList]) => {
+        const normalizedImageId = String(imageId ?? '').trim();
+        const normalizedDegrees = normalizeDirectionList(degreeList);
+
+        if (normalizedImageId && normalizedDegrees.length > 0) {
+            directions[normalizedImageId] = normalizedDegrees;
+        }
+
+        return directions;
+    }, {});
+}
+
 function normalizeChallengeOverrideEntry(entry) {
     const normalizedEntry = {};
 
@@ -102,6 +128,7 @@ function normalizeChallengeOverrideEntry(entry) {
 
     const solutionImageIds = normalizeOverrideIdList(entry?.solutionImageIds);
     const controlImageIds = normalizeOverrideIdList(entry?.controlImageIds);
+    const solutionImageDirections = normalizeSolutionImageDirections(entry?.solutionImageDirections);
 
     if (solutionImageIds.length > 0) {
         normalizedEntry.solutionImageIds = solutionImageIds;
@@ -109,6 +136,10 @@ function normalizeChallengeOverrideEntry(entry) {
 
     if (controlImageIds.length > 0) {
         normalizedEntry.controlImageIds = controlImageIds;
+    }
+
+    if (Object.keys(solutionImageDirections).length > 0) {
+        normalizedEntry.solutionImageDirections = solutionImageDirections;
     }
 
     if (entry?.updatedBy) {
@@ -137,6 +168,7 @@ function normalizeChallengeOverrides(challengeOverrides) {
             || normalizedEntry.answers?.length
             || normalizedEntry.solutionImageIds?.length
             || normalizedEntry.controlImageIds?.length
+            || Object.keys(normalizedEntry.solutionImageDirections ?? {}).length > 0
         ) {
             normalizedOverrides[normalizedChallengeId] = normalizedEntry;
         }
@@ -352,6 +384,7 @@ function buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, u
         || updatedEntry.answers?.length
         || updatedEntry.solutionImageIds?.length
         || updatedEntry.controlImageIds?.length
+        || Object.keys(updatedEntry.solutionImageDirections ?? {}).length > 0
     ) {
         updatedOverrides[normalizedChallengeId] = updatedEntry;
     }
@@ -422,6 +455,43 @@ async function setChallengeControlImageIds(guildId, challengeId, imageIds, updat
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+
+async function setChallengeSolutionImageDirections(guildId, challengeId, imageIds, degrees, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => {
+        const solutionImageDirections = { ...(currentEntry.solutionImageDirections ?? {}) };
+
+        for (const imageId of imageIds) {
+            solutionImageDirections[imageId] = degrees;
+        }
+
+        return {
+            ...currentEntry,
+            solutionImageDirections,
+        };
+    });
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function clearChallengeSolutionImageDirections(guildId, challengeId, imageIds, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, updatedBy, (currentEntry) => {
+        const solutionImageDirections = { ...(currentEntry.solutionImageDirections ?? {}) };
+
+        for (const imageId of imageIds) {
+            delete solutionImageDirections[imageId];
+        }
+
+        return {
+            ...currentEntry,
+            solutionImageDirections,
+        };
+    });
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 module.exports = {
     VERIFICATION_MODES,
     VALID_VERIFICATION_MODES,
@@ -441,4 +511,6 @@ module.exports = {
     clearChallengeAnswerOverrides,
     setChallengeSolutionImageIds,
     setChallengeControlImageIds,
+    setChallengeSolutionImageDirections,
+    clearChallengeSolutionImageDirections,
 };

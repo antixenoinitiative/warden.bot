@@ -8,6 +8,7 @@ const {
     resolvePrompt,
     resolveSolutionImageIds,
     resolveControlImageIds,
+    resolveSolutionImageDirections,
 } = require('./verificationChallenges');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 
@@ -69,6 +70,23 @@ const verificationImagesRegistry = {
             {
                 id: 'ev7',
                 url: 'https://antixenoinitiative.com/wp-content/uploads/elitevessel7_c.png',
+            },
+        ],
+    },
+    eliteRotationAlignmentAssets: {
+        id: 'eliteRotationAlignmentAssets',
+        description: 'Local source assets for generated station/ship rotation-alignment verification tiles.',
+        directory: '/home/container/verificationPool/',
+        images: [
+            {
+                id: 'station_mailslot_white',
+                fileName: 'station_mailslot_white.png',
+                generatedRole: 'center',
+            },
+            {
+                id: 'ship_silhouette_white',
+                fileName: 'ship_silhouette_white.png',
+                generatedRole: 'outer',
             },
         ],
     },
@@ -255,6 +273,66 @@ const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
 const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
 const GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX = 'warden-gallery-grid';
 const PROMPT_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-prompt';
+const FULL_TURN_DEGREES = 360;
+const DEFAULT_ROTATION_ALIGNMENT_DEGREES = [0, 45, 90, 135, 180, 225, 270, 315];
+
+
+function normalizeDegrees(degrees) {
+    const normalized = Number(degrees) % FULL_TURN_DEGREES;
+    return normalized < 0 ? normalized + FULL_TURN_DEGREES : normalized;
+}
+
+function isAllowedRotationDegree(degrees) {
+    return Number.isInteger(Number(degrees))
+        && Number(degrees) >= 0
+        && Number(degrees) < FULL_TURN_DEGREES
+        && Number(degrees) % 45 === 0;
+}
+
+function getDegreeList(value, fallback = DEFAULT_ROTATION_ALIGNMENT_DEGREES) {
+    if (!Array.isArray(value)) return fallback;
+
+    const degrees = [...new Set(value
+        .map((entry) => Number(entry))
+        .filter(isAllowedRotationDegree)
+        .map(normalizeDegrees))]
+        .sort((left, right) => left - right);
+
+    return degrees.length > 0 ? degrees : fallback;
+}
+
+function hasDirection(directionList, targetDegrees) {
+    const normalizedTarget = normalizeDegrees(targetDegrees);
+    return directionList.some((degrees) => normalizeDegrees(degrees) === normalizedTarget);
+}
+
+function getClockPositionPoint(centerX, centerY, radius, degrees) {
+    const radians = normalizeDegrees(degrees) * Math.PI / 180;
+
+    return {
+        x: centerX + (Math.sin(radians) * radius),
+        y: centerY - (Math.cos(radians) * radius),
+    };
+}
+
+function getWorldDirections(localDirections, rotationDegrees) {
+    return localDirections.map((degrees) => normalizeDegrees(degrees + rotationDegrees));
+}
+
+function isRotationAlignmentCorrect({
+    clockPositionDegrees,
+    centerRotationDegrees,
+    outerRotationDegrees,
+    centerDirections,
+    outerDirections,
+    alignmentRule,
+}) {
+    const requiredCenterWorldDirection = normalizeDegrees(clockPositionDegrees + alignmentRule.centerTargetOffsetDegrees);
+    const requiredOuterWorldDirection = normalizeDegrees(clockPositionDegrees + alignmentRule.outerTargetOffsetDegrees);
+
+    return hasDirection(getWorldDirections(centerDirections, centerRotationDegrees), requiredCenterWorldDirection)
+        && hasDirection(getWorldDirections(outerDirections, outerRotationDegrees), requiredOuterWorldDirection);
+}
 
 function getPositiveInteger(value, fallback) {
     const numericValue = Number(value);
@@ -1200,11 +1278,111 @@ async function fetchRemoteGalleryImageAttachment(image) {
 }
 
 async function fetchGalleryImageAttachment(image) {
+    if (image?.generatedTile?.type === 'rotationAlignment') {
+        return createRotationAlignmentTileAttachment(image);
+    }
+
     if (isLocalGalleryImage(image)) {
         return readLocalGalleryImageAttachment(image);
     }
 
     return fetchRemoteGalleryImageAttachment(image);
+}
+
+
+function drawRotationAlignmentTileBackground(context, canvasConfig) {
+    context.fillStyle = canvasConfig.background;
+    context.fillRect(0, 0, canvasConfig.width, canvasConfig.height);
+
+    const centerX = canvasConfig.width / 2;
+    const centerY = canvasConfig.height / 2;
+
+    context.save();
+    context.globalAlpha = 0.22;
+    context.strokeStyle = 'rgba(255, 113, 0, 0.45)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.arc(centerX, centerY, canvasConfig.outerRadius, 0, Math.PI * 2);
+    context.stroke();
+    context.restore();
+}
+
+function drawRotationAlignmentImage(context, loadedImage, centerX, centerY, maxSize, rotationDegrees, glowColor) {
+    const scale = Math.min(maxSize / loadedImage.width, maxSize / loadedImage.height);
+    const width = loadedImage.width * scale;
+    const height = loadedImage.height * scale;
+
+    context.save();
+    context.translate(centerX, centerY);
+    context.rotate(normalizeDegrees(rotationDegrees) * Math.PI / 180);
+
+    if (glowColor) {
+        context.shadowColor = glowColor;
+        context.shadowBlur = 18;
+    }
+
+    context.drawImage(loadedImage, -width / 2, -height / 2, width, height);
+    context.restore();
+}
+
+async function readGallerySourceImageBuffer(imagePool, sourceImage, position) {
+    const image = { ...sourceImage, directory: imagePool.directory, position };
+
+    if (isLocalGalleryImage(image)) {
+        return readCachedLocalImageBuffer(resolveLocalGalleryImagePath(image));
+    }
+
+    const fetched = await fetchRemoteGalleryImageAttachment(image);
+    return fetched.buffer;
+}
+
+async function createRotationAlignmentTileAttachment(image) {
+    const { createCanvas, loadImage } = getCanvasApi();
+    const tile = image.generatedTile;
+    const imagePool = getVerificationImagePool(tile.imagePoolId);
+    const centerSource = imagePool?.images?.find((entry) => entry.id === tile.centerImageId);
+    const outerSource = imagePool?.images?.find((entry) => entry.id === tile.outerImageId);
+
+    if (!imagePool || !centerSource || !outerSource) {
+        throw new Error(`Unknown rotation-alignment tile source for position ${image.position}.`);
+    }
+
+    const canvasConfig = {
+        width: getPositiveInteger(tile.tileCanvas?.width, 512),
+        height: getPositiveInteger(tile.tileCanvas?.height, 512),
+        background: getString(tile.tileCanvas?.background, '#05070d'),
+        centerScale: getBoundedNumber(tile.tileCanvas?.centerScale, 0.38, 0.01, 1),
+        outerScale: getBoundedNumber(tile.tileCanvas?.outerScale, 0.26, 0.01, 1),
+        outerRadius: getNonNegativeNumber(tile.tileCanvas?.outerRadius, 178),
+        glow: tile.tileCanvas?.glow === true,
+    };
+    const [centerBuffer, outerBuffer] = await Promise.all([
+        readGallerySourceImageBuffer(imagePool, centerSource, image.position),
+        readGallerySourceImageBuffer(imagePool, outerSource, image.position),
+    ]);
+    const [centerLoadedImage, outerLoadedImage] = await Promise.all([
+        loadImage(centerBuffer),
+        loadImage(outerBuffer),
+    ]);
+    const canvas = createCanvas(canvasConfig.width, canvasConfig.height);
+    const context = canvas.getContext('2d');
+    const centerX = canvasConfig.width / 2;
+    const centerY = canvasConfig.height / 2;
+    const outerPoint = getClockPositionPoint(centerX, centerY, canvasConfig.outerRadius, tile.clockPositionDegrees);
+
+    drawRotationAlignmentTileBackground(context, canvasConfig);
+    drawRotationAlignmentImage(context, centerLoadedImage, centerX, centerY, Math.min(canvasConfig.width, canvasConfig.height) * canvasConfig.centerScale, tile.centerRotationDegrees, canvasConfig.glow ? 'rgba(118, 215, 255, 0.75)' : undefined);
+    drawRotationAlignmentImage(context, outerLoadedImage, outerPoint.x, outerPoint.y, Math.min(canvasConfig.width, canvasConfig.height) * canvasConfig.outerScale, tile.outerRotationDegrees, canvasConfig.glow ? 'rgba(255, 113, 0, 0.75)' : undefined);
+
+    const name = buildGalleryAttachmentName(image, 'png');
+    const buffer = await canvas.encode('png');
+
+    return {
+        ...image,
+        displayUrl: `attachment://${name}`,
+        attachment: new Discord.AttachmentBuilder(buffer, { name }),
+        buffer,
+    };
 }
 
 function drawImageCover(context, image, x, y, width, height) {
@@ -1427,7 +1605,7 @@ function getPoolImagesByIds(imagePool, imageIds, roleName, challengeId) {
     return images;
 }
 
-function createGalleryState(challenge, stepIndex = 0, verificationSettings) {
+function createStandardImageGalleryState(challenge, stepIndex = 0, verificationSettings) {
     const step = getVerificationChallengeStep(challenge.id, stepIndex);
     const imagePoolId = step?.imagePoolId ?? challenge.imagePoolId;
     const imagePool = getVerificationImagePool(imagePoolId);
@@ -1472,6 +1650,153 @@ function createGalleryState(challenge, stepIndex = 0, verificationSettings) {
     };
 }
 
+
+function getRotationAlignmentDirections(solutionImageDirections, imageId, challengeId) {
+    const directions = getDegreeList(solutionImageDirections?.[imageId], []);
+
+    if (directions.length < 1) {
+        throw new Error(`Verification challenge "${challengeId}" has no configured solution image directions for "${imageId}".`);
+    }
+
+    return directions;
+}
+
+function pickClockPositionDegrees(clockDegrees, gallerySize, maxRepeats) {
+    const limit = Math.max(1, Math.floor(Number(maxRepeats ?? gallerySize)));
+    const counts = new Map();
+    const selected = [];
+
+    for (let index = 0; index < gallerySize; index += 1) {
+        const available = clockDegrees.filter((degrees) => (counts.get(degrees) ?? 0) < limit);
+        const candidates = available.length > 0 ? available : clockDegrees;
+        const degrees = pickRandomItem(candidates);
+        counts.set(degrees, (counts.get(degrees) ?? 0) + 1);
+        selected.push(degrees);
+    }
+
+    return selected;
+}
+
+function createCorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule) {
+    const centerDirection = pickRandomItem(centerDirections);
+    const outerDirection = pickRandomItem(outerDirections);
+
+    return {
+        centerRotationDegrees: normalizeDegrees(clockPositionDegrees + alignmentRule.centerTargetOffsetDegrees - centerDirection),
+        outerRotationDegrees: normalizeDegrees(clockPositionDegrees + alignmentRule.outerTargetOffsetDegrees - outerDirection),
+    };
+}
+
+function createIncorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule, rotationDegrees) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+        const rotations = {
+            centerRotationDegrees: pickRandomItem(rotationDegrees),
+            outerRotationDegrees: pickRandomItem(rotationDegrees),
+        };
+
+        if (!isRotationAlignmentCorrect({ clockPositionDegrees, ...rotations, centerDirections, outerDirections, alignmentRule })) {
+            return rotations;
+        }
+    }
+
+    const correct = createCorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule);
+
+    for (const offset of DEFAULT_ROTATION_ALIGNMENT_DEGREES.slice(1)) {
+        const rotations = {
+            ...correct,
+            outerRotationDegrees: normalizeDegrees(correct.outerRotationDegrees + offset),
+        };
+
+        if (!isRotationAlignmentCorrect({ clockPositionDegrees, ...rotations, centerDirections, outerDirections, alignmentRule })) {
+            return rotations;
+        }
+    }
+
+    throw new Error('Unable to generate an incorrect rotation-alignment control tile.');
+}
+
+function createRotationAlignmentGalleryState(challenge, stepIndex = 0, verificationSettings, generatedGallery) {
+    const step = getVerificationChallengeStep(challenge.id, stepIndex);
+    const imagePoolId = step?.imagePoolId ?? challenge.imagePoolId;
+    const imagePool = getVerificationImagePool(imagePoolId);
+
+    if (!imagePool) {
+        throw new Error(`Unknown verification image pool "${imagePoolId}" for challenge "${challenge.id}".`);
+    }
+
+    const { gallerySize, solutionCount } = resolveGalleryImageCounts(challenge, step);
+    const centerImageIds = generatedGallery.centerImageIds ?? [];
+    const outerImageIds = generatedGallery.outerImageIds ?? [];
+    const rotationDegrees = getDegreeList(generatedGallery.rotationDegrees);
+    const clockDegrees = getDegreeList(generatedGallery.clockPositionDegrees);
+    const alignmentRule = {
+        centerTargetOffsetDegrees: normalizeDegrees(generatedGallery.alignmentRule?.centerTargetOffsetDegrees ?? 0),
+        outerTargetOffsetDegrees: normalizeDegrees(generatedGallery.alignmentRule?.outerTargetOffsetDegrees ?? 180),
+    };
+    const solutionImageDirections = resolveSolutionImageDirections(challenge, step, verificationSettings);
+    const token = createGalleryToken();
+    const solutionIndexes = new Set(pickRandomItems([...Array(gallerySize).keys()], solutionCount, 'solution tile indexes'));
+    const clockPositions = pickClockPositionDegrees(clockDegrees, gallerySize, generatedGallery.maxImageOrientationRepeats);
+    const generatedImages = [];
+
+    if (centerImageIds.length < 1 || outerImageIds.length < 1) {
+        throw new Error(`Verification challenge "${challenge.id}" requires center and outer image IDs for rotation-alignment galleries.`);
+    }
+
+    for (let index = 0; index < gallerySize; index += 1) {
+        const centerImageId = pickRandomItem(centerImageIds);
+        const outerImageId = pickRandomItem(outerImageIds);
+        const centerDirections = getRotationAlignmentDirections(solutionImageDirections, centerImageId, challenge.id);
+        const outerDirections = getRotationAlignmentDirections(solutionImageDirections, outerImageId, challenge.id);
+        const clockPositionDegrees = clockPositions[index];
+        const isSolution = solutionIndexes.has(index);
+        const rotations = isSolution
+            ? createCorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule)
+            : createIncorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule, rotationDegrees);
+
+        generatedImages.push({
+            id: `rotation-alignment-${token}-${index}`,
+            role: isSolution ? 'solution' : 'control',
+            generatedTile: {
+                type: 'rotationAlignment',
+                imagePoolId,
+                centerImageId,
+                outerImageId,
+                clockPositionDegrees,
+                centerRotationDegrees: rotations.centerRotationDegrees,
+                outerRotationDegrees: rotations.outerRotationDegrees,
+                tileCanvas: generatedGallery.tileCanvas,
+            },
+        });
+    }
+
+    const selectedImages = shuffleArray(generatedImages).map((image, index) => ({
+        ...image,
+        position: index + 1,
+    }));
+
+    return {
+        token,
+        imagePoolId,
+        selectedImages,
+        useCompositeImage: shouldUseCompositeGallery(challenge, step),
+        solutionPositions: selectedImages
+            .filter((image) => image.role === 'solution')
+            .map((image) => image.position)
+            .sort((left, right) => left - right),
+    };
+}
+
+function createGalleryState(challenge, stepIndex = 0, verificationSettings) {
+    const step = getVerificationChallengeStep(challenge.id, stepIndex);
+    const generatedGallery = step?.generatedGallery ?? challenge.generatedGallery;
+
+    if (generatedGallery?.type === 'rotationAlignment') {
+        return createRotationAlignmentGalleryState(challenge, stepIndex, verificationSettings, generatedGallery);
+    }
+
+    return createStandardImageGalleryState(challenge, stepIndex, verificationSettings);
+}
 
 function getVerificationImagePool(poolId) {
     if (!poolId) return undefined;
