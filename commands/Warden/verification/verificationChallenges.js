@@ -8,7 +8,8 @@
  * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step.
- * - `omitAnswerInput`: true when a gallery-only step should not ask for a separate text answer.
+ * - `requirePrompt`: false when a gallery-only step should skip prompt rendering and text answers.
+ * - `omitAnswerInput`: true when a prompted step should not ask for a separate text answer.
  * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
  * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
  * - `title`: optional embed title for the step.
@@ -147,7 +148,7 @@ const verificationChallenges = {
         id: 'eliteStationShipAlignment',
         enabled: false,
         renderMode: 'componentsV2Gallery',
-        promptImageGallery: true,
+        requirePrompt: false,
         compositeImageGallery: true,
         imagePoolId: 'eliteRotationAlignmentAssets',
         gallerySize: 9,
@@ -184,6 +185,7 @@ const verificationChallenges = {
                 galleryPrompt: 'Pick the ONE image where the ship and station are facing each other correctly.',
                 positionInputLabel: 'Image tag (1-9)',
                 positionInputPlaceholder: 'Enter one number only',
+                requirePrompt: false,
                 omitAnswerInput: true,
                 answers: ['aligned'],
             },
@@ -459,8 +461,14 @@ function getActiveVerificationChallenge(config) {
     return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
 }
 
+function shouldRequirePrompt(challenge, step) {
+    return (step?.requirePrompt ?? challenge?.requirePrompt) !== false;
+}
+
 function shouldOmitAnswerInput(challenge, step) {
-    return step?.omitAnswerInput === true || challenge?.omitAnswerInput === true;
+    return !shouldRequirePrompt(challenge, step)
+        || step?.omitAnswerInput === true
+        || challenge?.omitAnswerInput === true;
 }
 
 function validateAnswer(challengeId, answer, stepIndex = 0, verificationSettings) {
@@ -504,6 +512,7 @@ module.exports = {
     resolveControlImageIds,
     resolveSolutionImageDirections,
     isRotationAlignmentGeneratedGalleryChallenge,
+    shouldRequirePrompt,
     shouldOmitAnswerInput,
     validateAnswer,
 };

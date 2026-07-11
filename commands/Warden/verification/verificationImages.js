@@ -9,6 +9,7 @@ const {
     resolveSolutionImageIds,
     resolveControlImageIds,
     resolveSolutionImageDirections,
+    shouldRequirePrompt,
 } = require('./verificationChallenges');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 
@@ -1135,6 +1136,10 @@ async function createPromptImageAttachment(prompt) {
 }
 
 async function preparePromptImageAttachment(challenge, step) {
+    if (!shouldRequirePrompt(challenge, step)) {
+        return undefined;
+    }
+
     if (!step?.promptImageGallery && !challenge?.promptImageGallery) {
         return undefined;
     }
