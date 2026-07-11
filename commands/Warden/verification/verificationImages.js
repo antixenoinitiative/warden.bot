@@ -1740,8 +1740,12 @@ function createRotationAlignmentGalleryState(challenge, stepIndex = 0, verificat
     }
 
     const { gallerySize, solutionCount } = resolveGalleryImageCounts(challenge, step);
-    const centerImageIds = generatedGallery.centerImageIds ?? [];
-    const outerImageIds = generatedGallery.outerImageIds ?? [];
+    const centerImageIds = Array.isArray(generatedGallery.centerImageIds) && generatedGallery.centerImageIds.length > 0
+        ? generatedGallery.centerImageIds
+        : resolveSolutionImageIds(challenge, step, verificationSettings);
+    const outerImageIds = Array.isArray(generatedGallery.outerImageIds) && generatedGallery.outerImageIds.length > 0
+        ? generatedGallery.outerImageIds
+        : resolveControlImageIds(challenge, step, verificationSettings);
     const rotationDegrees = getDegreeList(generatedGallery.rotationDegrees);
     const clockDegrees = getDegreeList(generatedGallery.clockPositionDegrees);
     const alignmentRule = {
