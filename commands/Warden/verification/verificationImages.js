@@ -1429,7 +1429,7 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     const frameInset = 8;
     const frameX = x + frameInset;
     const frameY = y + frameInset;
-    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 4.95));
+    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 5.62));
 
     context.beginPath();
     context.moveTo(frameX, frameY);
