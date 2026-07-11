@@ -6,7 +6,7 @@ const {
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
     resolvePrompt,
-    shouldRequirePrompt,
+    shouldGeneratePrompt,
     shouldOmitAnswerInput,
 } = require('./verificationChallenges');
 
@@ -459,8 +459,8 @@ function resolveChallengePresentation(challenge, stepIndex = 0, expiresAt, galle
     const totalSteps = steps.length || 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
     const expiryLine = buildExpiryLine(expiresAt);
-    const promptRequired = shouldRequirePrompt(challenge, step);
-    const prompt = promptRequired ? resolvePrompt(challenge, step) : undefined;
+    const promptGenerated = shouldGeneratePrompt(challenge, step);
+    const prompt = promptGenerated ? resolvePrompt(challenge, step) : undefined;
     const questionText = step?.questionText ?? challenge.questionText;
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
 
@@ -473,7 +473,7 @@ function resolveChallengePresentation(challenge, stepIndex = 0, expiresAt, galle
         stepLabel,
         expiryLine,
         prompt,
-        promptRequired,
+        promptGenerated,
         questionText,
         galleryPrompt,
         selectedImages: galleryState?.selectedImages ?? [],
@@ -492,7 +492,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     assertComponentsV2Support();
 
     const view = resolveChallengePresentation(challenge, stepIndex, expiresAt, galleryState, promptImage);
-    const { step, stepLabel, title, prompt, promptRequired, questionText, galleryPrompt, selectedImages, displayImages, expiryLine } = view;
+    const { step, stepLabel, title, prompt, promptGenerated, questionText, galleryPrompt, selectedImages, displayImages, expiryLine } = view;
 
     if (selectedImages.length < 1) {
         throw new Error(`No gallery images were selected for challenge "${challenge.id}".`);
@@ -511,7 +511,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
         );
     }
 
-    if (promptRequired) {
+    if (promptGenerated) {
         container.addTextDisplayComponents(
             new Discord.TextDisplayBuilder().setContent('**Question 1**'),
         );
@@ -544,7 +544,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     }
 
     if (galleryPrompt) {
-        const galleryQuestionLabel = promptRequired ? 'Question 2' : 'Question 1';
+        const galleryQuestionLabel = promptGenerated ? 'Question 2' : 'Question 1';
         container.addTextDisplayComponents(
             new Discord.TextDisplayBuilder().setContent(`**${galleryQuestionLabel}**\n${galleryPrompt}${stepLabel}`),
         );
@@ -625,15 +625,15 @@ function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState, expi
 
 function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
     const view = resolveChallengePresentation(challenge, stepIndex, expiresAt, galleryState, promptImage);
-    const { step, stepLabel, prompt, promptRequired, questionText, galleryPrompt } = view;
-    const promptDescription = promptRequired
+    const { step, stepLabel, prompt, promptGenerated, questionText, galleryPrompt } = view;
+    const promptDescription = promptGenerated
         ? (
             promptImage?.displayUrl
                 ? ['**Question 1**', questionText].filter(Boolean).join('\n')
                 : `**Question 1**\n${questionText ? `${questionText}\n` : ''}${prompt}`
         )
         : questionText;
-    const galleryQuestionLabel = promptRequired ? 'Question 2' : 'Question 1';
+    const galleryQuestionLabel = promptGenerated ? 'Question 2' : 'Question 1';
     const challengeEmbed = new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor(view.color))
         .setTitle(view.title)
