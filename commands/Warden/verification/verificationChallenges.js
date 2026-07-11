@@ -165,7 +165,7 @@ const verificationChallenges = {
             max: 1 
         },
         requiresConfiguredSolutionImageDirections: true,
-        omitAnswerInput: true,
+        omitAnswerInput: false,
         generatedGallery: {
             type: 'rotationAlignment',
             clockPositionDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
