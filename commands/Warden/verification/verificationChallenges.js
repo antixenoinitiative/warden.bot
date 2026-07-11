@@ -8,6 +8,8 @@
  * - `questionText`: optional text shown under the question heading before the prompt image/text.
  * - `description`: optional description text used before the prompt.
  * - `answers`: accepted answers for that step.
+ * - `requirePrompt`: false when a gallery-only step should skip prompt rendering and text answers.
+ * - `omitAnswerInput`: true when a prompted step should not ask for a separate text answer.
  * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
  * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
  * - `title`: optional embed title for the step.
@@ -141,6 +143,54 @@ const verificationChallenges = {
             },
         ],
     },
+
+    eliteStationShipAlignment: {
+        id: 'eliteStationShipAlignment',
+        enabled: false,
+        renderMode: 'componentsV2Gallery',
+        requirePrompt: false,
+        compositeImageGallery: true,
+        imagePoolId: 'eliteRotationAlignmentAssets',
+        gallerySize: 9,
+        solutionImageCount: { min: 1, max: 1 },
+        requiresConfiguredSolutionImageDirections: true,
+        omitAnswerInput: true,
+        answers: ['aligned'],
+        generatedGallery: {
+            type: 'rotationAlignment',
+            centerImageIds: ['station_mailslot_white'],
+            outerImageIds: ['ship_silhouette_white'],
+            clockPositionDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
+            maxImageOrientationRepeats: 2,
+            rotationDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
+            alignmentRule: {
+                centerTargetOffsetDegrees: 0,
+                outerTargetOffsetDegrees: 180,
+            },
+            tileCanvas: {
+                width: 512,
+                height: 512,
+                background: '#05070d',
+                centerScale: 0.38,
+                outerScale: 0.26,
+                outerRadius: 178,
+                glow: true,
+            },
+        },
+        steps: [
+            {
+                title: 'Verification Challenge',
+                description: 'Look carefully at the generated gallery.',
+                questionText: 'Which image shows the ship and station correctly aligned?',
+                galleryPrompt: 'Pick the ONE image where the ship and station are facing each other correctly.',
+                positionInputLabel: 'Image tag (1-9)',
+                positionInputPlaceholder: 'Enter one number only',
+                requirePrompt: false,
+                omitAnswerInput: true,
+                answers: ['aligned'],
+            },
+        ],
+    },
 };
 
 function getChallengeOverride(challengeId, verificationSettings) {
@@ -177,6 +227,11 @@ function applyVerificationChallengeOverrides(challenge, verificationSettings) {
         overriddenChallenge.hasControlImageOverride = true;
     }
 
+    if (override.solutionImageDirections && typeof override.solutionImageDirections === 'object') {
+        overriddenChallenge.solutionImageDirections = override.solutionImageDirections;
+        overriddenChallenge.hasSolutionImageDirectionOverride = true;
+    }
+
     if (Array.isArray(challenge.steps) && challenge.steps.length > 0) {
         overriddenChallenge.steps = challenge.steps.map((step, index) => {
             if (index !== 0) return { ...step };
@@ -187,6 +242,7 @@ function applyVerificationChallengeOverrides(challenge, verificationSettings) {
                 ...(override.answers?.length ? { answers: override.answers } : {}),
                 ...(override.solutionImageIds?.length ? { solutionImageIds: override.solutionImageIds } : {}),
                 ...(override.controlImageIds?.length ? { controlImageIds: override.controlImageIds } : {}),
+                ...(override.solutionImageDirections ? { solutionImageDirections: override.solutionImageDirections } : {}),
             };
         });
     }
@@ -237,6 +293,15 @@ function resolveControlImageIds(challenge, step, verificationSettings) {
         ?? step?.controlImageIds
         ?? challenge?.controlImageIds
         ?? [];
+}
+
+function resolveSolutionImageDirections(challenge, step, verificationSettings) {
+    const override = getChallengeOverride(challenge?.id, verificationSettings);
+
+    return override?.solutionImageDirections
+        ?? step?.solutionImageDirections
+        ?? challenge?.solutionImageDirections
+        ?? {};
 }
 
 function normalizeAnswer(answer) {
@@ -302,14 +367,38 @@ function isGalleryImageChallenge(challenge) {
     );
 }
 
+function isRotationAlignmentGeneratedGalleryChallenge(challenge) {
+    const steps = Array.isArray(challenge?.steps) ? challenge.steps : [];
+
+    return Boolean(
+        challenge?.renderMode === 'componentsV2Gallery'
+        && (
+            challenge?.generatedGallery?.type === 'rotationAlignment'
+            || steps.some((step) => step?.generatedGallery?.type === 'rotationAlignment')
+        )
+    );
+}
+
+function getRotationAlignmentRequiredDirectionIds(challenge) {
+    const steps = Array.isArray(challenge?.steps) ? challenge.steps : [];
+    const galleries = [challenge?.generatedGallery, ...steps.map((step) => step?.generatedGallery)]
+        .filter((gallery) => gallery?.type === 'rotationAlignment');
+
+    return [...new Set(galleries.flatMap((gallery) => [
+        ...(Array.isArray(gallery.centerImageIds) ? gallery.centerImageIds : []),
+        ...(Array.isArray(gallery.outerImageIds) ? gallery.outerImageIds : []),
+    ]))];
+}
+
 function getMissingChallengeOverrideRequirements(verificationSettings) {
     const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
 
     return enabledChallenges.flatMap((challenge) => {
         const override = getChallengeOverride(challenge.id, verificationSettings);
         const missing = [];
-        const requiresSolutionImages = challenge.requiresConfiguredSolutionImages || isGalleryImageChallenge(challenge);
-        const requiresControlImages = challenge.requiresConfiguredControlImages || isGalleryImageChallenge(challenge);
+        const isRotationAlignmentGallery = isRotationAlignmentGeneratedGalleryChallenge(challenge);
+        const requiresSolutionImages = !isRotationAlignmentGallery && (challenge.requiresConfiguredSolutionImages || isGalleryImageChallenge(challenge));
+        const requiresControlImages = !isRotationAlignmentGallery && (challenge.requiresConfiguredControlImages || isGalleryImageChallenge(challenge));
 
         if (challenge.requiresConfiguredPrompt && !override?.prompt) {
             missing.push('prompt');
@@ -325,6 +414,16 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
 
         if (requiresControlImages && !override?.controlImageIds?.length) {
             missing.push('control images');
+        }
+
+        if (isRotationAlignmentGallery || challenge.requiresConfiguredSolutionImageDirections) {
+            const directions = override?.solutionImageDirections ?? {};
+            const missingDirectionIds = getRotationAlignmentRequiredDirectionIds(challenge)
+                .filter((imageId) => !Array.isArray(directions[imageId]) || directions[imageId].length < 1);
+
+            if (missingDirectionIds.length > 0) {
+                missing.push(`solution image directions (${missingDirectionIds.join(', ')})`);
+            }
         }
 
         if (missing.length < 1) return [];
@@ -362,12 +461,26 @@ function getActiveVerificationChallenge(config) {
     return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
 }
 
+function shouldRequirePrompt(challenge, step) {
+    return (step?.requirePrompt ?? challenge?.requirePrompt) !== false;
+}
+
+function shouldOmitAnswerInput(challenge, step) {
+    return !shouldRequirePrompt(challenge, step)
+        || step?.omitAnswerInput === true
+        || challenge?.omitAnswerInput === true;
+}
+
 function validateAnswer(challengeId, answer, stepIndex = 0, verificationSettings) {
     const challenge = applyVerificationChallengeOverrides(getVerificationChallenge(challengeId), verificationSettings);
     const step = getVerificationChallengeSteps(challenge)[stepIndex];
 
     if (!challenge || !step) {
         return { ok: false, reason: 'not_found' };
+    }
+
+    if (shouldOmitAnswerInput(challenge, step)) {
+        return { ok: true };
     }
 
     const normalizer = step.normalizer ?? challenge.normalizer ?? normalizeAnswer;
@@ -397,5 +510,9 @@ module.exports = {
     resolveAnswers,
     resolveSolutionImageIds,
     resolveControlImageIds,
+    resolveSolutionImageDirections,
+    isRotationAlignmentGeneratedGalleryChallenge,
+    shouldRequirePrompt,
+    shouldOmitAnswerInput,
     validateAnswer,
 };

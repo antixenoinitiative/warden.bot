@@ -6,6 +6,8 @@ const {
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
     resolvePrompt,
+    shouldRequirePrompt,
+    shouldOmitAnswerInput,
 } = require('./verificationChallenges');
 
 const DESCRIPTION_LIMIT = 4096;
@@ -457,7 +459,8 @@ function resolveChallengePresentation(challenge, stepIndex = 0, expiresAt, galle
     const totalSteps = steps.length || 1;
     const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
     const expiryLine = buildExpiryLine(expiresAt);
-    const prompt = resolvePrompt(challenge, step);
+    const promptRequired = shouldRequirePrompt(challenge, step);
+    const prompt = promptRequired ? resolvePrompt(challenge, step) : undefined;
     const questionText = step?.questionText ?? challenge.questionText;
     const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
 
@@ -470,6 +473,7 @@ function resolveChallengePresentation(challenge, stepIndex = 0, expiresAt, galle
         stepLabel,
         expiryLine,
         prompt,
+        promptRequired,
         questionText,
         galleryPrompt,
         selectedImages: galleryState?.selectedImages ?? [],
@@ -488,7 +492,7 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
     assertComponentsV2Support();
 
     const view = resolveChallengePresentation(challenge, stepIndex, expiresAt, galleryState, promptImage);
-    const { step, stepLabel, title, prompt, questionText, galleryPrompt, selectedImages, displayImages, expiryLine } = view;
+    const { step, stepLabel, title, prompt, promptRequired, questionText, galleryPrompt, selectedImages, displayImages, expiryLine } = view;
 
     if (selectedImages.length < 1) {
         throw new Error(`No gallery images were selected for challenge "${challenge.id}".`);
@@ -507,34 +511,42 @@ function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expi
         );
     }
 
-    container.addTextDisplayComponents(
-        new Discord.TextDisplayBuilder().setContent('**Question 1**'),
-    );
+    if (promptRequired) {
+        container.addTextDisplayComponents(
+            new Discord.TextDisplayBuilder().setContent('**Question 1**'),
+        );
 
-    if (questionText) {
+        if (questionText) {
+            container.addTextDisplayComponents(
+                new Discord.TextDisplayBuilder().setContent(questionText),
+            );
+        }
+
+        if (promptImage?.displayUrl) {
+            container.addMediaGalleryComponents(
+                new Discord.MediaGalleryBuilder().addItems(
+                    new Discord.MediaGalleryItemBuilder()
+                        .setURL(promptImage.displayUrl)
+                        .setDescription('Question 1 prompt'),
+                ),
+            );
+        }
+        else if (prompt) {
+            container.addTextDisplayComponents(
+                new Discord.TextDisplayBuilder().setContent(prompt),
+            );
+        }
+    }
+    else if (questionText) {
         container.addTextDisplayComponents(
             new Discord.TextDisplayBuilder().setContent(questionText),
         );
     }
 
-    if (promptImage?.displayUrl) {
-        container.addMediaGalleryComponents(
-            new Discord.MediaGalleryBuilder().addItems(
-                new Discord.MediaGalleryItemBuilder()
-                    .setURL(promptImage.displayUrl)
-                    .setDescription('Question 1 prompt'),
-            ),
-        );
-    }
-    else {
-        container.addTextDisplayComponents(
-            new Discord.TextDisplayBuilder().setContent(prompt),
-        );
-    }
-
     if (galleryPrompt) {
+        const galleryQuestionLabel = promptRequired ? 'Question 2' : 'Question 1';
         container.addTextDisplayComponents(
-            new Discord.TextDisplayBuilder().setContent(`**Question 2**\n${galleryPrompt}${stepLabel}`),
+            new Discord.TextDisplayBuilder().setContent(`**${galleryQuestionLabel}**\n${galleryPrompt}${stepLabel}`),
         );
     }
 
@@ -613,18 +625,25 @@ function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState, expi
 
 function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
     const view = resolveChallengePresentation(challenge, stepIndex, expiresAt, galleryState, promptImage);
-    const { step, stepLabel, prompt, questionText, galleryPrompt } = view;
+    const { step, stepLabel, prompt, promptRequired, questionText, galleryPrompt } = view;
+    const promptDescription = promptRequired
+        ? (
+            promptImage?.displayUrl
+                ? ['**Question 1**', questionText].filter(Boolean).join('\n')
+                : `**Question 1**\n${questionText ? `${questionText}\n` : ''}${prompt}`
+        )
+        : questionText;
+    const galleryQuestionLabel = promptRequired ? 'Question 2' : 'Question 1';
     const challengeEmbed = new Discord.EmbedBuilder()
         .setColor(resolveEmbedColor(view.color))
         .setTitle(view.title)
         .setDescription([
             step?.description,
-            promptImage?.displayUrl
-                ? ['**Question 1**', questionText].filter(Boolean).join('\n')
-                : `**Question 1**\n${questionText ? `${questionText}\n` : ''}${prompt}`,
-            galleryPrompt ? `**Question 2**\n${galleryPrompt}${stepLabel}` : undefined,
+            promptDescription,
+            galleryPrompt ? `**${galleryQuestionLabel}**\n${galleryPrompt}${stepLabel}` : undefined,
             buildExpiryLine(expiresAt),
         ].filter(Boolean).join('\n\n'));
+
 
     if (promptImage?.displayUrl) {
         challengeEmbed.setImage(promptImage.displayUrl);
@@ -752,16 +771,21 @@ function buildGiveAnswerRow(challengeId, stepIndex = 0, token) {
 function buildAnswerModal(challengeId, stepIndex = 0, activeChallenge) {
     const challenge = verificationChallenges[challengeId];
     const step = getVerificationChallengeStep(challengeId, stepIndex);
-    const answerInput = new Discord.TextInputBuilder()
-        .setCustomId('answer')
-        .setLabel('Verification answer')
-        .setPlaceholder('Enter your Answer here')
-        .setStyle(Discord.TextInputStyle.Short)
-        .setRequired(true);
+    const omitAnswerInput = shouldOmitAnswerInput(challenge, step);
     const modal = new Discord.ModalBuilder()
         .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', challengeId, stepIndex, activeChallenge?.gallery?.token))
-        .setTitle('Verify')
-        .addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
+        .setTitle('Verify');
+
+    if (!omitAnswerInput) {
+        const answerInput = new Discord.TextInputBuilder()
+            .setCustomId('answer')
+            .setLabel('Verification answer')
+            .setPlaceholder('Enter your Answer here')
+            .setStyle(Discord.TextInputStyle.Short)
+            .setRequired(true);
+
+        modal.addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
+    }
 
     if (isComponentsV2GalleryChallenge(challenge, step) || activeChallenge?.gallery) {
         const positionInput = new Discord.TextInputBuilder()
