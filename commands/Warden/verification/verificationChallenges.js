@@ -381,11 +381,19 @@ function getRotationAlignmentRequiredDirectionIds(challenge) {
     const steps = Array.isArray(challenge?.steps) ? challenge.steps : [];
     const galleries = [challenge?.generatedGallery, ...steps.map((step) => step?.generatedGallery)]
         .filter((gallery) => gallery?.type === 'rotationAlignment');
+    const configuredCenterIds = steps.flatMap((step) => step?.solutionImageIds ?? []);
+    const configuredOuterIds = steps.flatMap((step) => step?.controlImageIds ?? []);
 
-    return [...new Set(galleries.flatMap((gallery) => [
-        ...(Array.isArray(gallery.centerImageIds) ? gallery.centerImageIds : []),
-        ...(Array.isArray(gallery.outerImageIds) ? gallery.outerImageIds : []),
-    ]))];
+    return [...new Set([
+        ...(challenge?.solutionImageIds ?? []),
+        ...(challenge?.controlImageIds ?? []),
+        ...configuredCenterIds,
+        ...configuredOuterIds,
+        ...galleries.flatMap((gallery) => [
+            ...(Array.isArray(gallery.centerImageIds) ? gallery.centerImageIds : []),
+            ...(Array.isArray(gallery.outerImageIds) ? gallery.outerImageIds : []),
+        ]),
+    ])];
 }
 
 function getMissingChallengeOverrideRequirements(verificationSettings) {
@@ -395,8 +403,8 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
         const override = getChallengeOverride(challenge.id, verificationSettings);
         const missing = [];
         const isRotationAlignmentGallery = isRotationAlignmentGeneratedGalleryChallenge(challenge);
-        const requiresSolutionImages = !isRotationAlignmentGallery && (challenge.requiresConfiguredSolutionImages || isGalleryImageChallenge(challenge));
-        const requiresControlImages = !isRotationAlignmentGallery && (challenge.requiresConfiguredControlImages || isGalleryImageChallenge(challenge));
+        const requiresSolutionImages = challenge.requiresConfiguredSolutionImages || isGalleryImageChallenge(challenge);
+        const requiresControlImages = challenge.requiresConfiguredControlImages || isGalleryImageChallenge(challenge);
 
         if (challenge.requiresConfiguredPrompt && !override?.prompt) {
             missing.push('prompt');
@@ -407,11 +415,11 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
         }
 
         if (requiresSolutionImages && !override?.solutionImageIds?.length) {
-            missing.push('solution images');
+            missing.push(isRotationAlignmentGallery ? 'center images' : 'solution images');
         }
 
         if (requiresControlImages && !override?.controlImageIds?.length) {
-            missing.push('control images');
+            missing.push(isRotationAlignmentGallery ? 'outer images' : 'control images');
         }
 
         if (isRotationAlignmentGallery || challenge.requiresConfiguredSolutionImageDirections) {

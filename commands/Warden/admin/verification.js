@@ -118,6 +118,9 @@ function getChallengeOverrideSummary(verificationSettings, challengeId) {
 
 function getChallengeOverrideFields(verificationSettings, challengeId) {
     const override = verificationSettings.challengeOverrides?.[challengeId];
+    const challenge = verificationChallenges[challengeId];
+    const solutionLabels = getChallengeImageRoleLabels(challenge, 'solution');
+    const controlLabels = getChallengeImageRoleLabels(challenge, 'control');
     const prompt = override?.prompt || 'Not set';
     const answers = override?.answers?.length
         ? override.answers.map((answer) => `- ${answer}`).join('\n')
@@ -144,12 +147,12 @@ function getChallengeOverrideFields(verificationSettings, challengeId) {
             inline: false,
         },
         {
-            name: 'Solution image IDs',
+            name: solutionLabels.description,
             value: solutionImageIds,
             inline: false,
         },
         {
-            name: 'Control image IDs',
+            name: controlLabels.description,
             value: controlImageIds,
             inline: false,
         },
@@ -393,6 +396,25 @@ async function handleChallengePrompt(interaction, guildId) {
     ));
 }
 
+function isRotationAlignmentChallenge(challenge) {
+    const step = challenge?.steps?.[0];
+    return (step?.generatedGallery ?? challenge?.generatedGallery)?.type === 'rotationAlignment';
+}
+
+function getChallengeImageRoleLabels(challenge, imageRole) {
+    const rotationAlignment = isRotationAlignmentChallenge(challenge);
+
+    if (imageRole === 'solution') {
+        return rotationAlignment
+            ? { noun: 'center', title: 'Challenge Center Images Updated', description: 'Center image IDs' }
+            : { noun: 'solution', title: 'Challenge Solution Images Updated', description: 'Solution image IDs' };
+    }
+
+    return rotationAlignment
+        ? { noun: 'outer', title: 'Challenge Outer Images Updated', description: 'Outer image IDs' }
+        : { noun: 'control', title: 'Challenge Control Images Updated', description: 'Control image IDs' };
+}
+
 function getChallengeImagePool(challengeId) {
     const challenge = verificationChallenges[challengeId];
     const step = challenge?.steps?.[0];
@@ -492,19 +514,20 @@ async function handleChallengeImageIds(interaction, guildId, imageRole) {
         return interaction.editReply({ embeds: [error] });
     }
 
+    const { challenge, step, imagePool, error: poolError } = getChallengeImagePool(challengeId);
+    if (poolError) {
+        return interaction.editReply({ embeds: [poolError] });
+    }
+
+    const roleLabels = getChallengeImageRoleLabels(challenge, imageRole);
     const idsInput = interaction.options.getString('ids');
     if (!idsInput?.trim()) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${imageRole} image IDs in \`ids\`.`)] });
+        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${roleLabels.noun} image IDs in \`ids\`.`)] });
     }
 
     const imageIds = parseIdList(idsInput);
     if (imageIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${imageRole} image IDs in \`ids\`.`)] });
-    }
-
-    const { challenge, step, imagePool, error: poolError } = getChallengeImagePool(challengeId);
-    if (poolError) {
-        return interaction.editReply({ embeds: [poolError] });
+        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${roleLabels.noun} image IDs in \`ids\`.`)] });
     }
 
     const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
@@ -527,10 +550,10 @@ async function handleChallengeImageIds(interaction, guildId, imageRole) {
 
     const overlap = findImageIdOverlap(nextSolutionImageIds, nextControlImageIds);
     if (overlap.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Image ID${overlap.length === 1 ? '' : 's'} cannot be both solution and control: ${overlap.join(', ')}`)] });
+        return interaction.editReply({ embeds: [userErrorEmbed(`Image ID${overlap.length === 1 ? '' : 's'} cannot be both ${getChallengeImageRoleLabels(challenge, 'solution').noun} and ${getChallengeImageRoleLabels(challenge, 'control').noun}: ${overlap.join(', ')}`)] });
     }
 
-    if (nextSolutionImageIds.length > 0 && nextControlImageIds.length > 0) {
+    if (!isRotationAlignmentChallenge(challenge) && nextSolutionImageIds.length > 0 && nextControlImageIds.length > 0) {
         const capacityError = validateGalleryImageCapacity(challenge, step, nextSolutionImageIds, nextControlImageIds);
         if (capacityError) {
             return interaction.editReply({ embeds: [userErrorEmbed(capacityError)] });
@@ -542,8 +565,8 @@ async function handleChallengeImageIds(interaction, guildId, imageRole) {
         : await setChallengeControlImageIds(guildId, challengeId, imageIds, interaction.user.id);
 
     return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        imageRole === 'solution' ? 'Challenge Solution Images Updated' : 'Challenge Control Images Updated',
-        `${imageRole === 'solution' ? 'Solution' : 'Control'} image IDs updated for **${challengeId}**.`,
+        roleLabels.title,
+        `${roleLabels.description} updated for **${challengeId}**.`,
         updatedSettings,
         challengeId,
         'success',
@@ -945,15 +968,15 @@ module.exports = {
                     { name: 'View prompt and answer entries', value: 'overrides-view' },
                     { name: 'Set prompt entry', value: 'prompt' },
                     { name: 'Set answer entry', value: 'answers' },
-                    { name: 'Set solution image IDs', value: 'solution-images' },
-                    { name: 'Set control image IDs', value: 'control-images' },
+                    { name: 'Set solution/center image IDs', value: 'solution-images' },
+                    { name: 'Set control/outer image IDs', value: 'control-images' },
                     { name: 'Set solution directions', value: 'solution-directions' },
                     { name: 'Clear solution directions', value: 'solution-directions-clear' },
                     { name: 'View solution directions', value: 'solution-directions-view' },
                 ],
             });
             builder = addStringOption(builder, 'id', 'Challenge ID', { required: false, autocomplete: true });
-            builder = addStringOption(builder, 'ids', 'IDs for the selected action. Separate with commas or spaces.', { required: false, autocomplete: true });
+            builder = addStringOption(builder, 'ids', 'Image/challenge IDs for the selected action. Separate with commas or spaces.', { required: false, autocomplete: true });
             builder = addStringOption(builder, 'time', 'Duration such as 90s, 2m, or 2 minutes', { required: false });
             builder = addStringOption(builder, 'prompt', 'Configured prompt text', { required: false });
             builder = addStringOption(builder, 'answers', 'One answer, or multiple answers separated by commas', { required: false });
