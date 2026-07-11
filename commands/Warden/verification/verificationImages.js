@@ -80,13 +80,23 @@ const verificationImagesRegistry = {
         directory: '/home/container/verificationPool/',
         images: [
             {
-                id: 'station_mailslot_white',
-                fileName: 'station_mailslot_white.png',
+                id: 'station1',
+                fileName: 'station1.png',
                 generatedRole: 'center',
             },
             {
-                id: 'ship_silhouette_white',
-                fileName: 'ship_silhouette_white.png',
+                id: 'station2',
+                fileName: 'station2.png',
+                generatedRole: 'center',
+            },
+            {
+                id: 'station3',
+                fileName: 'station3.png',
+                generatedRole: 'center',
+            },
+            {
+                id: 'ship',
+                fileName: 'ship.png',
                 generatedRole: 'outer',
             },
         ],
