@@ -157,7 +157,10 @@ const verificationChallenges = {
         compositeImageGallery: true,
         imagePoolId: 'eliteRotationAlignmentAssets',
         gallerySize: 9,
-        solutionImageCount: { min: 1, max: 2 },
+        solutionImageCount: { 
+            min: 1,
+            max: 3 
+        },
         requiresConfiguredSolutionImageDirections: true,
         omitAnswerInput: true,
         generatedGallery: {
@@ -182,9 +185,9 @@ const verificationChallenges = {
         steps: [
             {
                 title: 'Verification Challenge',
-                description: 'Look carefully at the generated gallery.',
-                questionText: 'Which images show the ship and station correctly aligned to [...]?',
-                galleryPrompt: 'Find all images depicting what we are looking for. It may be multiple. Remember their tag number.',
+                description: 'Look carefully at the generated imagery.',
+                questionText: 'Which image shows objects perfectly aligned for *[...]* ?',
+                galleryPrompt: 'Find all images depicting what we are looking for. **It may be multiple.** Note their tag number.',
                 positionInputLabel: 'Image tag (1-9)',
                 positionInputPlaceholder: 'Enter one number only',
                 omitAnswerInput: true,
