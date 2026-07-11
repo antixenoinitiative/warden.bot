@@ -3,6 +3,7 @@ const { botIdent } = require('../../../functions');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 const {
     verificationChallenges,
+    applyVerificationChallengeOverrides,
     getVerificationChallengeStep,
     getVerificationChallengeSteps,
     resolvePrompt,
@@ -768,9 +769,9 @@ function buildGiveAnswerRow(challengeId, stepIndex = 0, token) {
         );
 }
 
-function buildAnswerModal(challengeId, stepIndex = 0, activeChallenge) {
-    const challenge = verificationChallenges[challengeId];
-    const step = getVerificationChallengeStep(challengeId, stepIndex);
+function buildAnswerModal(challengeId, stepIndex = 0, activeChallenge, verificationSettings) {
+    const challenge = applyVerificationChallengeOverrides(verificationChallenges[challengeId], verificationSettings);
+    const step = getVerificationChallengeSteps(challenge)[stepIndex];
     const omitAnswerInput = shouldOmitAnswerInput(challenge, step);
     const modal = new Discord.ModalBuilder()
         .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', challengeId, stepIndex, activeChallenge?.gallery?.token))

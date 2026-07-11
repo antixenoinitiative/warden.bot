@@ -12,6 +12,7 @@ const {
     applyVerificationChallengeOverrides,
     getEnabledVerificationChallenges,
     getVerificationChallengeStep,
+    getVerificationChallengeSteps,
     hasNextVerificationChallengeStep,
     validateAnswer,
     shouldOmitAnswerInput,
@@ -71,6 +72,19 @@ function getChallenge(userId, expiryMs = DEFAULT_CHALLENGE_EXPIRY_MS) {
 
 function clearChallenge(userId) {
     activeChallenges.delete(userId);
+}
+
+function getModalTextInputValue(interaction, customId) {
+    try {
+        return interaction.fields.getTextInputValue(customId);
+    }
+    catch (err) {
+        if (err?.code !== 'ModalSubmitInteractionFieldNotFound') {
+            throw err;
+        }
+
+        return '';
+    }
 }
 
 function setCooldown(userId, retryAt) {
@@ -288,7 +302,8 @@ async function handleVerifyStart(interaction) {
 }
 
 async function handleVerifyAnswer(interaction) {
-    const activeChallenge = getChallenge(interaction.user.id);
+    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
+    const activeChallenge = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
 
     if (!activeChallenge) {
         return interaction.reply(buildVerificationExpiredResponse());
@@ -311,7 +326,7 @@ async function handleVerifyAnswer(interaction) {
         ));
     }
 
-    return interaction.showModal(buildAnswerModal(challengeId, stepIndex, activeChallenge));
+    return interaction.showModal(buildAnswerModal(challengeId, stepIndex, activeChallenge, verificationSettings));
 }
 
 async function handleVerifyOldVersion(interaction) {
@@ -410,15 +425,15 @@ async function handleVerifySubmit(interaction) {
     }
 
     const challenge = applyVerificationChallengeOverrides(verificationChallenges[challengeId], verificationSettings) ?? getActiveVerificationChallenge({ verification: verificationSettings });
-    const step = getVerificationChallengeStep(challengeId, stepIndex);
+    const step = getVerificationChallengeSteps(challenge)[stepIndex];
     const answer = shouldOmitAnswerInput(challenge, step)
         ? ''
-        : interaction.fields.getTextInputValue('answer');
+        : getModalTextInputValue(interaction, 'answer');
     const result = validateAnswer(challengeId, answer, stepIndex, verificationSettings);
     const galleryState = activeChallenge.gallery;
     const galleryResultOk = !isComponentsV2GalleryChallenge(challenge, step)
         || validatePositionAnswer(
-            interaction.fields.getTextInputValue('positions'),
+            getModalTextInputValue(interaction, 'positions'),
             galleryState?.solutionPositions ?? [],
             galleryState?.selectedImages?.length ?? 0,
         );
