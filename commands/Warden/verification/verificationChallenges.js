@@ -187,7 +187,7 @@ const verificationChallenges = {
                 title: 'Verification Challenge',
                 description: 'Look carefully at the generated imagery.',
                 questionText: 'Which image shows its objects perfectly aligned to [...] ?',
-                galleryPrompt: 'Find all images depicting what we are looking for.\n**It may be multiple.** Note their tag number.',
+                galleryPrompt: 'Find what we are looking for. Note the tag number.',
                 positionInputLabel: 'Image tag (1-9)',
                 positionInputPlaceholder: 'Enter one number only',
                 omitAnswerInput: true,
