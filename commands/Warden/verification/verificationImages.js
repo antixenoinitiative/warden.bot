@@ -166,9 +166,9 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         fetchTimeoutMs: 10000,
         composite: {
             gridColumns: 3,
-            tileSize: 336,
-            labelPadding: 14,
-            labelSize: 64,
+            tileSize: 352,
+            labelPadding: 11,
+            labelSize: 60,
         },
     },
     prompt: {
@@ -1366,8 +1366,8 @@ async function createRotationAlignmentTileAttachment(image) {
         width: getPositiveInteger(tile.tileCanvas?.width, 512),
         height: getPositiveInteger(tile.tileCanvas?.height, 512),
         background: getString(tile.tileCanvas?.background, '#05070d'),
-        centerScale: getBoundedNumber(tile.tileCanvas?.centerScale, 0.38, 0.01, 1),
-        outerScale: getBoundedNumber(tile.tileCanvas?.outerScale, 0.26, 0.01, 1),
+        centerScale: getBoundedNumber(tile.tileCanvas?.centerScale, 0.40, 0.01, 1),
+        outerScale: getBoundedNumber(tile.tileCanvas?.outerScale, 0.247, 0.01, 1),
         outerRadius: getNonNegativeNumber(tile.tileCanvas?.outerRadius, 178),
         glow: tile.tileCanvas?.glow === true,
     };
@@ -1426,12 +1426,15 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     context.textBaseline = 'top';
     context.textAlign = 'left';
 
-    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 2.75));
+    const frameInset = 6;
+    const frameX = x + frameInset;
+    const frameY = y + frameInset;
+    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 4.35));
 
     context.beginPath();
-    context.moveTo(x, y);
-    context.lineTo(x + labelEdge, y);
-    context.lineTo(x, y + labelEdge);
+    context.moveTo(frameX, frameY);
+    context.lineTo(frameX + labelEdge, frameY);
+    context.lineTo(frameX, frameY + labelEdge);
     context.closePath();
     context.fillStyle = 'rgba(0, 0, 0, 0.56)';
     context.fill();
@@ -1440,7 +1443,7 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     context.stroke();
 
     context.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    context.fillText(label, x + compositeConfig.labelPadding, y + (compositeConfig.labelPadding / 2));
+    context.fillText(label, frameX + compositeConfig.labelPadding, frameY + (compositeConfig.labelPadding / 2));
     context.restore();
 }
 

@@ -19,9 +19,9 @@
             "fetchTimeoutMs": 10000,
             "composite": {
                 "gridColumns": 3,
-                "tileSize": 336,
-                "labelPadding": 14,
-                "labelSize": 64
+                "tileSize": 352,
+                "labelPadding": 11,
+                "labelSize": 60
             }
         },
         "prompt": {
