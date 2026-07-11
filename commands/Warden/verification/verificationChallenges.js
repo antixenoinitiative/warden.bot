@@ -144,11 +144,11 @@ const verificationChallenges = {
         ],
     },
 
-    eliteStationShipAlignment: {
-        id: 'eliteStationShipAlignment',
+    onTheBlueDanube: {
+        id: 'onTheBlueDanube',
         enabled: false,
         renderMode: 'componentsV2Gallery',
-        requirePrompt: false,
+        requirePrompt: true,
         compositeImageGallery: true,
         imagePoolId: 'eliteRotationAlignmentAssets',
         gallerySize: 9,
@@ -158,8 +158,6 @@ const verificationChallenges = {
         answers: ['aligned'],
         generatedGallery: {
             type: 'rotationAlignment',
-            centerImageIds: ['station_mailslot_white'],
-            outerImageIds: ['ship_silhouette_white'],
             clockPositionDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
             maxImageOrientationRepeats: 2,
             rotationDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
@@ -181,8 +179,8 @@ const verificationChallenges = {
             {
                 title: 'Verification Challenge',
                 description: 'Look carefully at the generated gallery.',
-                questionText: 'Which image shows the ship and station correctly aligned?',
-                galleryPrompt: 'Pick the ONE image where the ship and station are facing each other correctly.',
+                questionText: 'Which images show the ship and station correctly aligned to [...]?',
+                galleryPrompt: 'Find all images depicting what we are looking for. It may be multiple. Remember their tag number.',
                 positionInputLabel: 'Image tag (1-9)',
                 positionInputPlaceholder: 'Enter one number only',
                 requirePrompt: false,
