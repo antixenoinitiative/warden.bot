@@ -13,6 +13,7 @@
  *   (falling back to default copy), `false` to keep a gallery-only step, or `'configured'`
  *   to render only when a static or DB-configured prompt exists.
  * - `omitAnswerInput`: true when a prompted step should not ask for a separate text answer.
+ * - `answerInputPlaceholder`: optional placeholder text for the prompted answer modal input.
  * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
  * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
  * - `title`: optional embed title for the step.
@@ -113,6 +114,7 @@ const verificationChallenges = {
                 prompt: 'What is the name of the starter ship in Elite Dangerous?',
                 galleryPrompt: 'Find all images depicting the starter ship. It may be multiple. Remember their position in the order.',
                 answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
+                answerInputPlaceholder: 'Enter the ship name',
                 positionInputLabel: 'Image position(s) (1-9)',
                 positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
             },
@@ -142,6 +144,7 @@ const verificationChallenges = {
                 description: 'Answer both questions below.',
                 questionText: 'What is the name of the following object from Elite Dangerous?',
                 galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
+                answerInputPlaceholder: 'Enter the object name',
                 positionInputLabel: 'Image tags (1-9)',
                 positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
             },
@@ -336,6 +339,7 @@ function getVerificationChallengeSteps(challenge) {
             prompt: challenge.prompt,
             description: challenge.description,
             answers: challenge.answers ?? [],
+            answerInputPlaceholder: challenge.answerInputPlaceholder,
             title: challenge.title,
             imageUrl: challenge.imageUrl,
             thumbnailUrl: challenge.thumbnailUrl,

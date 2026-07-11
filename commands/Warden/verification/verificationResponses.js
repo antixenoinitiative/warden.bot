@@ -780,7 +780,7 @@ function buildAnswerModal(challengeId, stepIndex = 0, activeChallenge) {
         const answerInput = new Discord.TextInputBuilder()
             .setCustomId('answer')
             .setLabel('Verification answer')
-            .setPlaceholder('Enter your Answer here')
+            .setPlaceholder(step?.answerInputPlaceholder ?? 'Enter your Answer here')
             .setStyle(Discord.TextInputStyle.Short)
             .setRequired(true);
 
