@@ -166,9 +166,9 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         fetchTimeoutMs: 10000,
         composite: {
             gridColumns: 3,
-            tileSize: 320,
-            labelPadding: 16,
-            labelSize: 72,
+            tileSize: 352,
+            labelPadding: 11,
+            labelSize: 60,
         },
     },
     prompt: {
@@ -1366,8 +1366,8 @@ async function createRotationAlignmentTileAttachment(image) {
         width: getPositiveInteger(tile.tileCanvas?.width, 512),
         height: getPositiveInteger(tile.tileCanvas?.height, 512),
         background: getString(tile.tileCanvas?.background, '#05070d'),
-        centerScale: getBoundedNumber(tile.tileCanvas?.centerScale, 0.38, 0.01, 1),
-        outerScale: getBoundedNumber(tile.tileCanvas?.outerScale, 0.26, 0.01, 1),
+        centerScale: getBoundedNumber(tile.tileCanvas?.centerScale, 0.40, 0.01, 1),
+        outerScale: getBoundedNumber(tile.tileCanvas?.outerScale, 0.247, 0.01, 1),
         outerRadius: getNonNegativeNumber(tile.tileCanvas?.outerRadius, 178),
         glow: tile.tileCanvas?.glow === true,
     };
@@ -1425,17 +1425,25 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     context.font = `700 ${compositeConfig.labelSize}px Arial, Helvetica, sans-serif`;
     context.textBaseline = 'top';
     context.textAlign = 'left';
-    const metrics = context.measureText(label);
-    const labelWidth = metrics.width + (compositeConfig.labelPadding * 2);
-    const labelHeight = compositeConfig.labelSize + (compositeConfig.labelPadding * 1.5);
 
-    context.fillStyle = 'rgba(0, 0, 0, 0.72)';
-    context.fillRect(x, y, labelWidth, labelHeight);
-    context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-    context.lineWidth = 4;
-    context.strokeRect(x, y, labelWidth, labelHeight);
-    context.fillStyle = '#ffffff';
-    context.fillText(label, x + compositeConfig.labelPadding, y + (compositeConfig.labelPadding / 2));
+    const frameInset = 6;
+    const frameX = x + frameInset;
+    const frameY = y + frameInset;
+    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 4.35));
+
+    context.beginPath();
+    context.moveTo(frameX, frameY);
+    context.lineTo(frameX + labelEdge, frameY);
+    context.lineTo(frameX, frameY + labelEdge);
+    context.closePath();
+    context.fillStyle = 'rgba(0, 0, 0, 0.56)';
+    context.fill();
+    context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+    context.lineWidth = 3;
+    context.stroke();
+
+    context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    context.fillText(label, frameX + compositeConfig.labelPadding, frameY + (compositeConfig.labelPadding / 2));
     context.restore();
 }
 
@@ -1462,7 +1470,7 @@ async function createGalleryCompositeAttachment(selectedImages) {
         const y = row * compositeConfig.tileSize;
 
         drawImageCover(context, loadedImage, x, y, compositeConfig.tileSize, compositeConfig.tileSize);
-        drawGalleryCompositeLabel(context, String(image.position), x + 12, y + 12, compositeConfig);
+        drawGalleryCompositeLabel(context, String(image.position), x, y, compositeConfig);
     });
 
     const name = buildGalleryCompositeAttachmentName();
