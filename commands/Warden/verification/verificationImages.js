@@ -166,8 +166,8 @@ const DEFAULT_IMAGE_GENERATION_CONFIG = {
         fetchTimeoutMs: 10000,
         composite: {
             gridColumns: 3,
-            tileSize: 352,
-            labelPadding: 11,
+            tileSize: 358,
+            labelPadding: 8,
             labelSize: 60,
         },
     },
