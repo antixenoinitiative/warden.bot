@@ -177,7 +177,7 @@ const verificationChallenges = {
                 height: 512,
                 background: '#05070d',
                 centerScale: 0.40,
-                outerScale: 0.247,
+                outerScale: 0.20,
                 outerRadius: 178,
                 glow: true,
             },
