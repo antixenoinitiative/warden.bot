@@ -1429,7 +1429,7 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     const frameInset = 8;
     const frameX = x + frameInset;
     const frameY = y + frameInset;
-    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 4.95));
+    const labelEdge = Math.ceil(compositeConfig.labelSize + (compositeConfig.labelPadding * 5.62));
 
     context.beginPath();
     context.moveTo(frameX, frameY);
@@ -1437,10 +1437,7 @@ function drawGalleryCompositeLabel(context, label, x, y, compositeConfig) {
     context.lineTo(frameX, frameY + labelEdge);
     context.closePath();
 
-    const frameGradient = context.createLinearGradient(frameX, frameY, frameX + labelEdge, frameY + labelEdge);
-    frameGradient.addColorStop(0, '#ff7100');
-    frameGradient.addColorStop(1, 'rgba(255, 113, 0, 0)');
-    context.fillStyle = frameGradient;
+    context.fillStyle = '#ff7100';
     context.fill();
 
     const labelInsetX = Math.max(2, compositeConfig.labelPadding - 2);
