@@ -528,6 +528,55 @@ async function ensureVerificationSettingsTables() {
     return settingsTablesReady;
 }
 
+async function withVerificationSettingsTransaction(callback) {
+    const db = getDatabase();
+
+    if (!db.pool?.getConnection) {
+        await db.query('START TRANSACTION');
+        try {
+            const result = await callback((sql, values) => db.query(sql, values));
+            await db.query('COMMIT');
+            return result;
+        }
+        catch (err) {
+            await db.query('ROLLBACK').catch((rollbackErr) => {
+                console.error('Failed to roll back verification settings transaction:', rollbackErr);
+            });
+            throw err;
+        }
+    }
+
+    const connection = await new Promise((resolve, reject) => {
+        db.pool.getConnection((err, conn) => {
+            if (err) reject(err);
+            else resolve(conn);
+        });
+    });
+
+    const query = (sql, values) => new Promise((resolve, reject) => {
+        connection.query(sql, values, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+        });
+    });
+
+    try {
+        await query('START TRANSACTION');
+        const result = await callback(query);
+        await query('COMMIT');
+        return result;
+    }
+    catch (err) {
+        await query('ROLLBACK').catch((rollbackErr) => {
+            console.error('Failed to roll back verification settings transaction:', rollbackErr);
+        });
+        throw err;
+    }
+    finally {
+        connection.release();
+    }
+}
+
 function questionConfigToRow(guildId, challengeId, questionId, question, updatedBy) {
     const generatedImage = question.generatedImage ?? {};
     const answer = question.answer ?? {};
@@ -561,8 +610,8 @@ function questionConfigToRow(guildId, challengeId, questionId, question, updated
     ];
 }
 
-async function insertChallengeConfigRow(rowValues) {
-    await getDatabase().query(
+async function insertChallengeConfigRow(rowValues, query = (sql, values) => getDatabase().query(sql, values)) {
+    await query(
         `INSERT INTO verification_challenge_config (
             guild_id, challenge_id, question_id, title, description, question_label, question_text, separate_step,
             generate_image, generated_image_type, generated_image_text, answer_required, answer_type,
@@ -578,63 +627,65 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
     const normalizedSettings = normalizeSettings(settings);
 
     await ensureVerificationSettingsTables();
-    await getDatabase().query(
-        `INSERT INTO verification_guild_settings (guild_id, mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-            mode = VALUES(mode),
-            active_challenge_ids_json = VALUES(active_challenge_ids_json),
-            challenge_expiry_seconds = VALUES(challenge_expiry_seconds),
-            cooldown_seconds = VALUES(cooldown_seconds),
-            autokick_enabled = VALUES(autokick_enabled),
-            autokick_seconds = VALUES(autokick_seconds),
-            updated_by = VALUES(updated_by)`,
-        [
-            normalizedGuildId,
-            normalizedSettings.mode,
-            stringifyJsonOrNull(normalizedSettings.activeChallengeIds),
-            normalizedSettings.challengeExpirySeconds,
-            normalizedSettings.cooldownSeconds,
-            normalizedSettings.autokickEnabled ? 1 : 0,
-            normalizedSettings.autokickSeconds,
-            updatedBy ? String(updatedBy) : null,
-        ],
-    );
-
-    await getDatabase().query('DELETE FROM verification_challenge_config WHERE guild_id = ?', [normalizedGuildId]);
-
-    for (const [challengeId, challengeOverride] of Object.entries(normalizedSettings.challengeOverrides)) {
-        if (challengeOverride.title || challengeOverride.description) {
-            await insertChallengeConfigRow([
+    await withVerificationSettingsTransaction(async (query) => {
+        await query(
+            `INSERT INTO verification_guild_settings (guild_id, mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+                mode = VALUES(mode),
+                active_challenge_ids_json = VALUES(active_challenge_ids_json),
+                challenge_expiry_seconds = VALUES(challenge_expiry_seconds),
+                cooldown_seconds = VALUES(cooldown_seconds),
+                autokick_enabled = VALUES(autokick_enabled),
+                autokick_seconds = VALUES(autokick_seconds),
+                updated_by = VALUES(updated_by)`,
+            [
                 normalizedGuildId,
-                challengeId,
-                CHALLENGE_META_QUESTION_ID,
-                challengeOverride.title ?? null,
-                challengeOverride.description ?? null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
+                normalizedSettings.mode,
+                stringifyJsonOrNull(normalizedSettings.activeChallengeIds),
+                normalizedSettings.challengeExpirySeconds,
+                normalizedSettings.cooldownSeconds,
+                normalizedSettings.autokickEnabled ? 1 : 0,
+                normalizedSettings.autokickSeconds,
                 updatedBy ? String(updatedBy) : null,
-            ]);
-        }
+            ],
+        );
 
-        for (const [questionId, questionOverride] of Object.entries(challengeOverride.questions ?? {})) {
-            if (!questionOverrideIsEmpty(questionOverride)) {
-                await insertChallengeConfigRow(questionConfigToRow(normalizedGuildId, challengeId, questionId, questionOverride, updatedBy));
+        await query('DELETE FROM verification_challenge_config WHERE guild_id = ?', [normalizedGuildId]);
+
+        for (const [challengeId, challengeOverride] of Object.entries(normalizedSettings.challengeOverrides)) {
+            if (challengeOverride.title || challengeOverride.description) {
+                await insertChallengeConfigRow([
+                    normalizedGuildId,
+                    challengeId,
+                    CHALLENGE_META_QUESTION_ID,
+                    challengeOverride.title ?? null,
+                    challengeOverride.description ?? null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    updatedBy ? String(updatedBy) : null,
+                ], query);
+            }
+
+            for (const [questionId, questionOverride] of Object.entries(challengeOverride.questions ?? {})) {
+                if (!questionOverrideIsEmpty(questionOverride)) {
+                    await insertChallengeConfigRow(questionConfigToRow(normalizedGuildId, challengeId, questionId, questionOverride, updatedBy), query);
+                }
             }
         }
-    }
+    });
 
     settingsCache.set(normalizedGuildId, normalizedSettings);
     return normalizedSettings;
@@ -941,6 +992,7 @@ module.exports = {
     ALLOWED_IMAGE_DIRECTION_DEGREES,
     ensureVerificationGuildSettingsTable,
     ensureVerificationChallengeConfigTable,
+    ensureVerificationSettingsTable: ensureVerificationSettingsTables,
     ensureVerificationSettingsTables,
     safeParseJson,
     stringifyJsonOrNull,

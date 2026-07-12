@@ -267,8 +267,20 @@ function buildQuestionMessageOptions(challenge, session, { includeIntro = false,
 
     embeds.push(screenEmbed);
 
-    for (const item of displayItems) {
-        if (item.type !== 'image' || !item.displayUrl) continue;
+    const imageDisplayItems = displayItems.filter((item) => item.type === 'image' && item.displayUrl);
+    const remainingEmbedSlots = Math.max(0, 10 - embeds.length);
+    const visibleImageItems = imageDisplayItems.slice(0, remainingEmbedSlots);
+    const omittedImageCount = imageDisplayItems.length - visibleImageItems.length;
+
+    if (omittedImageCount > 0) {
+        screenEmbed.addFields({
+            name: 'Additional images',
+            value: `${omittedImageCount} more verification image${omittedImageCount === 1 ? '' : 's'} attached below.`,
+            inline: false,
+        });
+    }
+
+    for (const item of visibleImageItems) {
         embeds.push(new Discord.EmbedBuilder()
             .setTitle(item.description ?? 'Verification image')
             .setImage(item.displayUrl));
