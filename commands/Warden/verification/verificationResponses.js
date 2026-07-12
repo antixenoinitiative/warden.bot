@@ -428,10 +428,12 @@ function buildScreenActionRows(session) {
             .setStyle(Discord.ButtonStyle.Primary));
     }
 
-    row.addComponents(new Discord.ButtonBuilder()
-        .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
-        .setLabel('Old Version')
-        .setStyle(Discord.ButtonStyle.Secondary));
+    if (session.renderer !== LEGACY_RENDERER) {
+        row.addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
+            .setLabel('Old Version')
+            .setStyle(Discord.ButtonStyle.Secondary));
+    }
 
     return row.components.length > 0 ? [row] : [];
 }
@@ -462,6 +464,26 @@ function addAssetMediaGallery(container, asset) {
         gallery.addItems(galleryItem);
     }
     container.addMediaGalleryComponents(gallery);
+}
+
+function getFileName(file) {
+    return file?.name ?? file?.attachment?.name ?? file?.data?.name;
+}
+
+function getEmbedImageUrl(embed) {
+    return embed?.data?.image?.url;
+}
+
+function getFilesForEmbeds(files, embeds) {
+    const attachmentNames = new Set(embeds
+        .map(getEmbedImageUrl)
+        .filter((url) => typeof url === 'string' && url.startsWith('attachment://'))
+        .map((url) => url.slice('attachment://'.length)));
+
+    if (attachmentNames.size < 1) return [];
+
+    const matchedFiles = files.filter((file) => attachmentNames.has(getFileName(file)));
+    return matchedFiles.length > 0 ? matchedFiles : files;
 }
 
 function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, session, options = {}) {
@@ -502,59 +524,72 @@ function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, s
 }
 
 function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, session, options = {}) {
-    const embeds = [];
-    const introLines = options.includeIntro
-        ? [challenge.description, buildExpiryLine(session.expiresAt)].filter(Boolean)
-        : [buildExpiryLine(session.expiresAt)].filter(Boolean);
-    const introEmbed = new Discord.EmbedBuilder()
-        .setTitle(challenge.title ?? 'Verification Challenge')
-        .setDescription(truncateEmbedText(introLines.join('\n\n'), `Screen ${screen.index + 1} of ${session.screens.length}`));
+    const allFiles = getScreenFiles(screenAssets);
+    const allEmbeds = [];
 
-    for (const field of challenge.fields ?? []) {
-        const value = field.content ?? field.value ?? field.description;
-        if (value) introEmbed.addFields({ name: field.title ?? field.name ?? 'Information', value: truncateEmbedText(value, 'Information'), inline: field.inline === true });
+    if (options.includeIntro) {
+        const introEmbed = new Discord.EmbedBuilder()
+            .setTitle(challenge.title ?? 'Verification Challenge')
+            .setDescription(truncateEmbedText([challenge.description, buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n'), 'Complete the verification questions to continue.'));
+
+        for (const field of challenge.fields ?? []) {
+            const value = field.content ?? field.value ?? field.description;
+            if (value) introEmbed.addFields({ name: field.title ?? field.name ?? 'Information', value: truncateEmbedText(value, 'Information'), inline: field.inline === true });
+        }
+
+        allEmbeds.push(introEmbed);
     }
 
-    embeds.push(introEmbed);
+    for (const question of screen.questions ?? []) {
+        const asset = screenAssets[question.id];
+        const displayItems = getAssetDisplayItems(asset);
+        const isGallery = Boolean(asset?.galleryState);
+        const description = [
+            question.text,
+            isGallery ? 'Use the displayed image positions when answering gallery questions.' : undefined,
+            (session?.screens?.length ?? 0) > 1 ? `Screen ${screen.index + 1} of ${session.screens.length}` : undefined,
+            buildExpiryLine(session.expiresAt),
+        ].filter(Boolean).join('\n\n');
+        const questionEmbed = new Discord.EmbedBuilder()
+            .setTitle(question.label ?? question.id)
+            .setDescription(truncateEmbedText(description, 'Review this question.'));
 
-    const screenEmbed = new Discord.EmbedBuilder()
-        .setTitle(screen.questions.length > 1 ? `Questions ${screen.index + 1}` : (screen.questions[0]?.label ?? `Question ${screen.index + 1}`));
+        if (displayItems.length > 0 && (!isGallery || asset.galleryState?.compositeImage)) {
+            questionEmbed.setImage(displayItems[0].displayUrl);
+        }
 
-    for (const question of screen.questions) {
-        applyQuestionFields(screenEmbed, question);
+        allEmbeds.push(questionEmbed);
+
+        if (isGallery && !asset.galleryState?.compositeImage) {
+            for (const item of displayItems) {
+                allEmbeds.push(new Discord.EmbedBuilder()
+                    .setTitle(item.description ?? 'Verification image')
+                    .setImage(item.displayUrl));
+            }
+        }
     }
 
-    screenEmbed.setFooter({ text: screenRequiresAnswer(screen) ? 'Use the Give Answer button to submit your response.' : (hasNextScreen(session) ? 'Use Next to continue.' : 'Use Complete to finish verification.') });
-    embeds.push(screenEmbed);
-
-    const imageDisplayItems = Object.values(screenAssets).flatMap(getAssetDisplayItems);
-    const visibleImageItems = imageDisplayItems.slice(0, Math.max(0, 10 - embeds.length));
-    const omittedImageCount = imageDisplayItems.length - visibleImageItems.length;
-
-    if (omittedImageCount > 0) {
-        screenEmbed.addFields({
-            name: 'Additional images',
-            value: `${omittedImageCount} more verification image${omittedImageCount === 1 ? '' : 's'} attached below.`,
-            inline: false,
+    const pages = [];
+    for (let index = 0; index < allEmbeds.length; index += 10) {
+        const embeds = allEmbeds.slice(index, index + 10);
+        pages.push({
+            embeds,
+            files: getFilesForEmbeds(allFiles, embeds),
+            components: pages.length === 0 && !options.completed ? buildScreenActionRows({ ...session, renderer: LEGACY_RENDERER }) : [],
+            flags: Discord.MessageFlags.Ephemeral,
         });
     }
 
-    for (const item of visibleImageItems) {
-        embeds.push(new Discord.EmbedBuilder()
-            .setTitle(item.description ?? 'Verification image')
-            .setImage(item.displayUrl));
-    }
-
-    return embeds;
+    return pages.length > 0 ? pages : [{
+        embeds: [new Discord.EmbedBuilder().setTitle(challenge.title ?? 'Verification Challenge').setDescription(buildExpiryLine(session.expiresAt) ?? 'Complete the verification questions to continue.')],
+        files: [],
+        components: !options.completed ? buildScreenActionRows({ ...session, renderer: LEGACY_RENDERER }) : [],
+        flags: Discord.MessageFlags.Ephemeral,
+    }];
 }
 
 function buildQuestionScreenLegacyOptions(challenge, screen, screenAssets = {}, session, options = {}) {
-    return {
-        embeds: buildQuestionScreenLegacyPages(challenge, screen, screenAssets, session, options),
-        components: options.completed ? [] : buildScreenActionRows(session),
-        files: getScreenFiles(screenAssets),
-        flags: Discord.MessageFlags.Ephemeral,
-    };
+    return buildQuestionScreenLegacyPages(challenge, screen, screenAssets, session, options)[0];
 }
 
 function buildQuestionScreenOptions(challenge, screen, screenAssets = {}, session, options = {}) {
@@ -576,7 +611,26 @@ function buildChallengeIntroOptions(challenge, session, options = {}) {
 }
 
 function buildOldVersionFallbackOptions(challenge, session) {
-    return buildQuestionScreenLegacyOptions(challenge, getCurrentScreen(session), session.screenAssets ?? {}, session, { includeIntro: true });
+    return {
+        embeds: [
+            new Discord.EmbedBuilder()
+                .setColor(resolveEmbedColor(verificationEmbedConfig.challengeEmbed?.color))
+                .setTitle('Not working?')
+                .setDescription([
+                    'If you cannot see the Verification Challenge, please update your client or click the Old Version button below.',
+                    buildExpiryLine(session.expiresAt),
+                ].filter(Boolean).join('\n\n')),
+        ],
+        components: [
+            new Discord.ActionRowBuilder().addComponents(
+                new Discord.ButtonBuilder()
+                    .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
+                    .setLabel('Old Version')
+                    .setStyle(Discord.ButtonStyle.Secondary),
+            ),
+        ],
+        flags: Discord.MessageFlags.Ephemeral,
+    };
 }
 
 function buildAnswerModal(session) {

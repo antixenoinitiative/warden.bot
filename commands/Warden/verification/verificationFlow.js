@@ -27,9 +27,11 @@ const {
     buildVerificationErrorEmbed,
     buildChallengeIntroOptions,
     buildQuestionScreenOptions,
+    buildQuestionScreenLegacyPages,
     buildOldVersionFallbackOptions,
     buildAnswerModal,
     buildCompletedQuestionOptions,
+    isComponentsV2Available,
     parseAnswerCustomId,
     parseNextCustomId,
     parseBackCustomId,
@@ -145,6 +147,10 @@ function canGoBack(session) {
     return Boolean(previousScreen && !screenRequiresAnswer(previousScreen) && !session.answeredScreenIndexes?.includes(previousScreen.index));
 }
 
+function shouldSendOldVersionPrompt(session) {
+    return session.renderer === COMPONENTS_V2_RENDERER && isComponentsV2Available();
+}
+
 function buildSubmittedScreenValues(screen, interaction) {
     return (screen?.questions ?? []).reduce((values, question) => {
         const answerType = question.answer?.type;
@@ -166,16 +172,20 @@ async function prepareSessionScreenAssets(session, verificationSettings) {
     return prepareQuestionAssets(getCurrentScreen(session), verificationSettings, session.challengeId);
 }
 
-async function replaceQuestionMessage(interaction, session, options) {
+async function replaceQuestionMessage(interaction, session, options, { forceStoredMessage = false } = {}) {
     const editOptions = { ...options, flags: options.flags ?? Discord.MessageFlags.Ephemeral };
 
     try {
-        if (interaction.isButton?.() && !interaction.deferred && !interaction.replied) {
+        if (!forceStoredMessage && interaction.isButton?.() && !interaction.deferred && !interaction.replied) {
             await interaction.update(editOptions);
             return session.questionMessageId;
         }
 
-        if (interaction.isModalSubmit?.()) {
+        if (forceStoredMessage && interaction.isButton?.() && !interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate();
+        }
+
+        if (interaction.isModalSubmit?.() || forceStoredMessage) {
             const message = await interaction.webhook.editMessage(session.questionMessageId ?? '@original', editOptions);
             return message?.id ?? session.questionMessageId;
         }
@@ -194,6 +204,44 @@ async function replaceQuestionMessage(interaction, session, options) {
         return undefined;
     });
     return message?.id ?? session.questionMessageId;
+}
+
+async function sendOldVersionPromptIfNeeded(interaction, challenge, session) {
+    if (!shouldSendOldVersionPrompt(session)) return undefined;
+
+    const message = await interaction.followUp(buildOldVersionFallbackOptions(challenge, session)).catch((err) => {
+        console.error('Failed to send verification old-version fallback prompt:', err);
+        return undefined;
+    });
+
+    return message?.id;
+}
+
+async function sendLegacyFollowUpPages(interaction, pages) {
+    const messageIds = [];
+
+    for (const page of pages.slice(1)) {
+        const message = await interaction.followUp(page).catch((err) => {
+            console.error('Failed to send verification legacy follow-up page:', err);
+            return undefined;
+        });
+        if (message?.id) messageIds.push(message.id);
+    }
+
+    return messageIds;
+}
+
+async function resolveModalSubmitAfterScreenReplace(interaction, content = 'Answer accepted. Continuing verification...') {
+    if (!interaction.isModalSubmit?.()) return;
+
+    if (interaction.deferred && !interaction.replied) {
+        await interaction.editReply({ content }).catch(async (err) => {
+            console.error('Failed to resolve verification modal reply:', err);
+            await interaction.followUp({ content, flags: Discord.MessageFlags.Ephemeral }).catch((followErr) => {
+                console.error('Failed to send verification modal follow-up:', followErr);
+            });
+        });
+    }
 }
 
 async function deactivateQuestionMessage(interaction, session, message = 'Verification step completed.') {
@@ -283,6 +331,7 @@ async function handleVerifyStart(interaction) {
     const splitMessages = screens.length > 1 || screens.some((screen) => screen.separate === true);
     const createdTimestamp = Date.now();
     const expiresAt = createdTimestamp + challengeExpiryMs;
+    const renderer = isComponentsV2Available() ? COMPONENTS_V2_RENDERER : LEGACY_RENDERER;
     const session = {
         challengeId: challenge.id,
         screenIndex,
@@ -290,10 +339,11 @@ async function handleVerifyStart(interaction) {
         screenAssets: {},
         completedScreens: [],
         answeredScreenIndexes: [],
-        renderer: COMPONENTS_V2_RENDERER,
+        renderer,
         token,
         introMessageId: undefined,
         questionMessageId: undefined,
+        legacyPageMessageIds: [],
         splitMessages,
         createdTimestamp,
         expiresAt,
@@ -324,6 +374,8 @@ async function handleVerifyStart(interaction) {
         const questionMessage = await interaction.editReply(buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: true, renderer: session.renderer }));
         session.questionMessageId = questionMessage?.id;
     }
+
+    await sendOldVersionPromptIfNeeded(interaction, challenge, session);
 
     setChallenge(interaction.user.id, session, challengeExpiryMs);
 }
@@ -414,7 +466,12 @@ async function handleVerifyOldVersion(interaction) {
 
     const challenge = getEnabledVerificationChallenges({ verification: verificationSettings }).find((candidate) => candidate.id === session.challengeId)
         ?? getActiveVerificationChallenge({ verification: verificationSettings });
-    await interaction.reply(buildOldVersionFallbackOptions(challenge, { ...session, renderer: LEGACY_RENDERER }));
+    session.renderer = LEGACY_RENDERER;
+    const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: true });
+    const questionMessageId = await replaceQuestionMessage(interaction, session, pages[0], { forceStoredMessage: true });
+    session.questionMessageId = questionMessageId;
+    session.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
+    setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
 }
 
 async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex) {
@@ -423,9 +480,12 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
     session.screenIndex = targetScreenIndex;
     session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
     session.token = createSessionToken();
+    session.legacyPageMessageIds = [];
 
     const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
     session.questionMessageId = questionMessageId;
+    await resolveModalSubmitAfterScreenReplace(interaction);
+    await sendOldVersionPromptIfNeeded(interaction, challenge, session);
     setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
 }
 
