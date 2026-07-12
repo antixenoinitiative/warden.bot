@@ -245,17 +245,19 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
                 missing.push(`${prefix}: accepted answers`);
             }
 
-            if (generatedImage.type === 'gallery-standard' && generatedImage.requiresConfiguredImageIds) {
+            if (generatedImage.type === 'gallery-standard'
+                && (generatedImage.requiresConfiguredImageIds || getRoleIds(generatedImage, 'solution').length < 1 || getRoleIds(generatedImage, 'control').length < 1)) {
                 if (getRoleIds(generatedImage, 'solution').length < 1) missing.push(`${prefix}: solution image IDs`);
                 if (getRoleIds(generatedImage, 'control').length < 1) missing.push(`${prefix}: control image IDs`);
             }
 
-            if (generatedImage.type === 'gallery-rotation-alignment' && generatedImage.requiresConfiguredImageIds) {
+            if (generatedImage.type === 'gallery-rotation-alignment'
+                && (generatedImage.requiresConfiguredImageIds || getRoleIds(generatedImage, 'center').length < 1 || getRoleIds(generatedImage, 'outer').length < 1)) {
                 if (getRoleIds(generatedImage, 'center').length < 1) missing.push(`${prefix}: center image IDs`);
                 if (getRoleIds(generatedImage, 'outer').length < 1) missing.push(`${prefix}: outer image IDs`);
             }
 
-            if (generatedImage.type === 'gallery-rotation-alignment' && generatedImage.requiresConfiguredImageDirections) {
+            if (generatedImage.type === 'gallery-rotation-alignment' && (generatedImage.requiresConfiguredImageDirections || getRoleIds(generatedImage, 'center').length > 0 || getRoleIds(generatedImage, 'outer').length > 0)) {
                 const directions = generatedImage.imageDirections ?? {};
                 const imageIds = [...new Set([...getRoleIds(generatedImage, 'center'), ...getRoleIds(generatedImage, 'outer')])];
                 const missingDirectionIds = imageIds.filter((imageId) => !Array.isArray(directions[imageId]) || directions[imageId].length < 1);

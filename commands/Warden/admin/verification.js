@@ -352,6 +352,35 @@ function validateImageIdsInPool(imageIds, imagePool) {
     return imageIds.filter((imageId) => !availableImageIds.has(imageId));
 }
 
+function getGallerySize(question) {
+    const gallerySize = Number(question.generatedImage?.gallerySize ?? 0);
+    return Number.isInteger(gallerySize) && gallerySize > 0 ? gallerySize : 9;
+}
+
+function getMinimumSolutionImageCount(question) {
+    const imageCount = question.generatedImage?.solutionImageCount ?? {};
+    const minimum = Number(imageCount.min ?? imageCount.max ?? 1);
+    return Number.isInteger(minimum) && minimum > 0 ? minimum : 1;
+}
+
+function getMaximumControlImageCount(question) {
+    const gallerySize = getGallerySize(question);
+    const controlImageCount = question.generatedImage?.controlImageCount ?? {};
+    const configuredMaximum = Number(controlImageCount.max ?? gallerySize);
+    const controlMaximum = Number.isInteger(configuredMaximum) && configuredMaximum >= 0 ? configuredMaximum : gallerySize;
+    return Math.max(0, Math.min(controlMaximum, gallerySize - getMinimumSolutionImageCount(question)));
+}
+
+function getMaxControlImageRepeats(question) {
+    const repeatLimit = Number(question.generatedImage?.maxControlImageRepeats ?? 1);
+    return Number.isInteger(repeatLimit) && repeatLimit > 0 ? repeatLimit : 1;
+}
+
+function findSharedImageIds(firstIds, secondIds) {
+    const secondIdSet = new Set(secondIds);
+    return firstIds.filter((imageId) => secondIdSet.has(imageId));
+}
+
 function getAllowedRolesForQuestion(question) {
     if (question.generatedImage?.type === 'gallery-standard') return ['solution', 'control'];
     if (question.generatedImage?.type === 'gallery-rotation-alignment') return ['center', 'outer'];
@@ -442,6 +471,44 @@ function validateQuestionImageIds(question, role, imageIds) {
     return undefined;
 }
 
+function validatePendingQuestionImageIds(question, role, imageIds) {
+    const validationError = validateQuestionImageIds(question, role, imageIds);
+    if (validationError) return validationError;
+
+    const pendingImageIds = {
+        ...(question.generatedImage?.imageIds ?? {}),
+        [role]: imageIds,
+    };
+
+    if (question.generatedImage?.type === 'gallery-standard') {
+        const solutionIds = pendingImageIds.solution ?? [];
+        const controlIds = pendingImageIds.control ?? [];
+        const sharedIds = findSharedImageIds(solutionIds, controlIds);
+        if (sharedIds.length > 0) {
+            return `Image ID${sharedIds.length === 1 ? '' : 's'} cannot be both solution and control: ${sharedIds.join(', ')}`;
+        }
+
+        if (controlIds.length > 0) {
+            const requiredControlCapacity = getMaximumControlImageCount({ ...question, generatedImage: { ...(question.generatedImage ?? {}), imageIds: pendingImageIds } });
+            const availableControlCapacity = controlIds.length * getMaxControlImageRepeats(question);
+            if (availableControlCapacity < requiredControlCapacity) {
+                return `Control images can fill at most ${availableControlCapacity} gallery slot${availableControlCapacity === 1 ? '' : 's'}, but this question may need ${requiredControlCapacity}. Add more control IDs or increase maxControlImageRepeats.`;
+            }
+        }
+    }
+
+    if (question.generatedImage?.type === 'gallery-rotation-alignment') {
+        const centerIds = pendingImageIds.center ?? [];
+        const outerIds = pendingImageIds.outer ?? [];
+        const sharedIds = findSharedImageIds(centerIds, outerIds);
+        if (sharedIds.length > 0) {
+            return `Image ID${sharedIds.length === 1 ? '' : 's'} cannot be both center and outer: ${sharedIds.join(', ')}`;
+        }
+    }
+
+    return undefined;
+}
+
 async function handleVerificationQuestionCommand(interaction, guildId) {
     const action = interaction.options.getString('action', true);
     const { challengeId, error } = getKnownChallengeId(interaction, 'challenge');
@@ -491,7 +558,7 @@ async function handleVerificationQuestionCommand(interaction, guildId) {
         const role = String(interaction.options.getString('role') ?? '').trim();
         const imageIds = parseIdList(interaction.options.getString('ids'));
         if (!role || imageIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide `role` and one or more IDs in `ids`.')] });
-        const validationError = validateQuestionImageIds(effectiveQuestion, role, imageIds);
+        const validationError = validatePendingQuestionImageIds(effectiveQuestion, role, imageIds);
         if (validationError) return interaction.editReply({ embeds: [userErrorEmbed(validationError)] });
         const updatedSettings = await setQuestionImageIds(guildId, challengeId, question.id, role, imageIds, interaction.user.id);
         return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
