@@ -1788,14 +1788,24 @@ function getRotationAlignmentDirections(imageDirections, imageId, challengeId) {
 }
 
 function pickClockPositionDegrees(clockDegrees, gallerySize, maxRepeats) {
+    const normalizedClockDegrees = [...new Set(clockDegrees ?? [])];
     const limit = Math.max(1, Math.floor(Number(maxRepeats ?? gallerySize)));
+
+    if (normalizedClockDegrees.length < 1) {
+        throw new Error('Rotation-alignment gallery requires at least one clock position degree.');
+    }
+
+    const capacity = normalizedClockDegrees.length * limit;
+    if (capacity < gallerySize) {
+        throw new Error(`Rotation-alignment gallery does not have enough clock-position capacity. Required ${gallerySize}, capacity ${capacity}. Increase maxImageOrientationRepeats or add clock positions.`);
+    }
+
     const counts = new Map();
     const selected = [];
 
     for (let index = 0; index < gallerySize; index += 1) {
-        const available = clockDegrees.filter((degrees) => (counts.get(degrees) ?? 0) < limit);
-        const candidates = available.length > 0 ? available : clockDegrees;
-        const degrees = pickRandomItem(candidates);
+        const available = normalizedClockDegrees.filter((degrees) => (counts.get(degrees) ?? 0) < limit);
+        const degrees = pickRandomItem(available);
         counts.set(degrees, (counts.get(degrees) ?? 0) + 1);
         selected.push(degrees);
     }

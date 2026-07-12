@@ -39,6 +39,7 @@ const {
     parseBackCustomId,
     parseOldVersionCustomId,
     parseSubmitCustomId,
+    sanitizeMessageEditOptions,
     sendInitialInteractionResponse,
 } = require('./verificationResponses');
 
@@ -170,7 +171,7 @@ async function prepareSessionScreenAssets(session) {
 }
 
 async function replaceQuestionMessage(interaction, session, options, { forceStoredMessage = false } = {}) {
-    const editOptions = { ...options, flags: options.flags ?? Discord.MessageFlags.Ephemeral };
+    const editOptions = sanitizeMessageEditOptions({ ...options, flags: options.flags ?? Discord.MessageFlags.Ephemeral });
 
     try {
         if (!forceStoredMessage && interaction.isButton?.() && !interaction.deferred && !interaction.replied) {
@@ -196,7 +197,7 @@ async function replaceQuestionMessage(interaction, session, options, { forceStor
         console.error('Failed to replace verification question message:', err);
     }
 
-    const message = await interaction.followUp({ ...editOptions, flags: Discord.MessageFlags.Ephemeral }).catch((err) => {
+    const message = await interaction.followUp({ ...options, flags: options.flags ?? Discord.MessageFlags.Ephemeral }).catch((err) => {
         console.error('Failed to send replacement verification question message:', err);
         return undefined;
     });
@@ -206,12 +207,23 @@ async function replaceQuestionMessage(interaction, session, options, { forceStor
 async function sendOldVersionPromptIfNeeded(interaction, challenge, session) {
     if (!shouldSendOldVersionPrompt(session)) return undefined;
 
-    const message = await interaction.followUp(buildOldVersionFallbackOptions(challenge, session)).catch((err) => {
+    const options = buildOldVersionFallbackOptions(challenge, session);
+
+    if (session.oldVersionPromptMessageId) {
+        const editedMessage = await interaction.webhook.editMessage(session.oldVersionPromptMessageId, sanitizeMessageEditOptions(options)).catch((err) => {
+            console.error('Failed to edit verification old-version fallback prompt:', err);
+            return undefined;
+        });
+
+        if (editedMessage?.id) return editedMessage.id;
+    }
+
+    const message = await interaction.followUp(options).catch((err) => {
         console.error('Failed to send verification old-version fallback prompt:', err);
         return undefined;
     });
 
-    return message?.id;
+    return message?.id ?? session.oldVersionPromptMessageId;
 }
 
 async function sendLegacyFollowUpPages(interaction, pages) {
@@ -244,7 +256,7 @@ async function resolveModalSubmitAfterScreenReplace(interaction, content = 'Answ
 async function deactivateQuestionMessage(interaction, session, message = 'Verification step completed.') {
     if (!session?.questionMessageId) return;
 
-    await interaction.webhook.editMessage(session.questionMessageId, buildCompletedQuestionOptions(message)).catch((err) => {
+    await interaction.webhook.editMessage(session.questionMessageId, sanitizeMessageEditOptions(buildCompletedQuestionOptions(message))).catch((err) => {
         console.error('Failed to deactivate verification question message:', err);
     });
 }
@@ -344,6 +356,7 @@ async function handleVerifyStart(interaction) {
     const renderer = isComponentsV2Available() ? COMPONENTS_V2_RENDERER : LEGACY_RENDERER;
     const session = {
         challengeId: challenge.id,
+        challenge,
         screenIndex,
         screens,
         screenAssets: {},
@@ -353,6 +366,7 @@ async function handleVerifyStart(interaction) {
         token,
         introMessageId: undefined,
         questionMessageId: undefined,
+        oldVersionPromptMessageId: undefined,
         legacyPageMessageIds: [],
         splitMessages,
         createdTimestamp,
@@ -385,7 +399,7 @@ async function handleVerifyStart(interaction) {
         session.questionMessageId = questionMessage?.id;
     }
 
-    await sendOldVersionPromptIfNeeded(interaction, challenge, session);
+    session.oldVersionPromptMessageId = await sendOldVersionPromptIfNeeded(interaction, challenge, session);
 
     setChallenge(interaction.user.id, session, challengeExpiryMs);
 }
@@ -474,9 +488,17 @@ async function handleVerifyOldVersion(interaction) {
         return interaction.reply(buildVerificationExpiredResponse('This old version button is no longer current. Please use the latest verification challenge message.'));
     }
 
-    const challenge = getEnabledVerificationChallenges({ verification: verificationSettings }).find((candidate) => candidate.id === session.challengeId)
-        ?? getActiveVerificationChallenge({ verification: verificationSettings });
+    const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
     session.renderer = LEGACY_RENDERER;
+    if (session.oldVersionPromptMessageId) {
+        await interaction.webhook.editMessage(session.oldVersionPromptMessageId, sanitizeMessageEditOptions({
+            embeds: [new Discord.EmbedBuilder()
+                .setTitle('Old Version enabled')
+                .setDescription('This verification challenge is now shown in the old embed format.')],
+            components: [],
+            flags: Discord.MessageFlags.Ephemeral,
+        })).catch((err) => console.error('Failed to deactivate verification old-version prompt:', err));
+    }
     const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: true });
     const questionMessageId = await replaceQuestionMessage(interaction, session, pages[0], { forceStoredMessage: true });
     session.questionMessageId = questionMessageId;
@@ -485,8 +507,7 @@ async function handleVerifyOldVersion(interaction) {
 }
 
 async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex) {
-    const challenge = getEnabledVerificationChallenges({ verification: verificationSettings }).find((candidate) => candidate.id === session.challengeId)
-        ?? getActiveVerificationChallenge({ verification: verificationSettings });
+    const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
     session.screenIndex = targetScreenIndex;
     session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
     session.token = createSessionToken();
@@ -495,7 +516,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
     const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
     session.questionMessageId = questionMessageId;
     await resolveModalSubmitAfterScreenReplace(interaction);
-    await sendOldVersionPromptIfNeeded(interaction, challenge, session);
+    session.oldVersionPromptMessageId = await sendOldVersionPromptIfNeeded(interaction, challenge, session);
     setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
 }
 

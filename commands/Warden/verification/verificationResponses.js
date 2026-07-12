@@ -431,13 +431,6 @@ function buildScreenActionRows(session) {
             .setStyle(Discord.ButtonStyle.Primary));
     }
 
-    if (session.renderer !== LEGACY_RENDERER) {
-        row.addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
-            .setLabel('Old Version')
-            .setStyle(Discord.ButtonStyle.Secondary));
-    }
-
     return row.components.length > 0 ? [row] : [];
 }
 
@@ -675,7 +668,7 @@ function buildCompletedQuestionOptions(message = 'Verification step completed.')
 
 async function sendInitialInteractionResponse(interaction, options) {
     if (interaction.deferred) {
-        return interaction.editReply(removeInitialOnlyResponseOptions(options));
+        return interaction.editReply(sanitizeMessageEditOptions(options));
     }
 
     if (interaction.replied) {
@@ -685,7 +678,7 @@ async function sendInitialInteractionResponse(interaction, options) {
     return interaction.reply(options);
 }
 
-function removeInitialOnlyResponseOptions(options) {
+function sanitizeMessageEditOptions(options = {}) {
     const editOptions = { ...options };
 
     delete editOptions.ephemeral;
@@ -744,5 +737,6 @@ module.exports = {
     parseOldVersionCustomId,
     parseSubmitCustomId,
     buildCompletedQuestionOptions,
+    sanitizeMessageEditOptions,
     sendInitialInteractionResponse,
 };
