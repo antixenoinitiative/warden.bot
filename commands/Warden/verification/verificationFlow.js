@@ -515,6 +515,7 @@ async function handleVerifyOldVersion(interaction) {
     const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
     const legacySession = {
         ...session,
+        challenge,
         renderer: LEGACY_RENDERER,
         token: createSessionToken(),
         v2QuestionMessageId: session.v2QuestionMessageId ?? session.questionMessageId,
@@ -532,7 +533,12 @@ async function handleVerifyOldVersion(interaction) {
     });
 
     const firstLegacyMessage = await interaction.followUp(pages[0]);
-    legacySession.questionMessageId = firstLegacyMessage?.id ?? legacySession.questionMessageId;
+
+    if (!firstLegacyMessage?.id) {
+        throw new Error('Failed to send or store the legacy verification message.');
+    }
+
+    legacySession.questionMessageId = firstLegacyMessage.id;
     legacySession.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
     setChallenge(interaction.user.id, legacySession, resolveChallengeExpiryMs(verificationSettings));
 }
