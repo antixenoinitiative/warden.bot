@@ -111,6 +111,10 @@ function selectVerificationChallenge(verificationSettings) {
     return enabledChallenges[Math.floor(Math.random() * enabledChallenges.length)];
 }
 
+function createSessionToken() {
+    return crypto.randomUUID().replaceAll('-', '');
+}
+
 function buildChallengeComponentCustomId(prefix, challengeId, screenIndex = 0, token) {
     return `${prefix}${challengeId}-${screenIndex}${token ? `-${token}` : ''}`;
 }
@@ -445,7 +449,7 @@ async function handleVerifyStart(interaction) {
     const challenge = selectVerificationChallenge(verificationSettings);
     const screens = buildQuestionScreens(challenge);
     const screenIndex = 0;
-    const token = crypto.randomUUID();
+    const token = createSessionToken();
     const splitMessages = screens.length > 1 || screens.some((screen) => screen.separate === true);
     const createdTimestamp = Date.now();
     const expiresAt = createdTimestamp + challengeExpiryMs;
@@ -588,7 +592,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
         ?? getActiveVerificationChallenge({ verification: verificationSettings });
     session.screenIndex = targetScreenIndex;
     session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
-    session.token = crypto.randomUUID();
+    session.token = createSessionToken();
 
     const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionMessageOptions(challenge, session));
     session.questionMessageId = questionMessageId;
