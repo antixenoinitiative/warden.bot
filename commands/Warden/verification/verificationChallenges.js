@@ -1,319 +1,20 @@
 /**
- * Warden verification challenge registry.
+ * Warden verification challenge runtime helpers.
  *
- * Verification challenges can be single-step or multi-step. Single-step challenges may define
- * `prompt`/`answers` directly. Multi-step challenges should define `steps`, where each step can
- * contain:
- * - `prompt`: user-facing question, riddle, or challenge text.
- * - `questionText`: optional text shown under the question heading before the prompt image/text.
- * - `description`: optional description text used before the prompt.
- * - `answers`: accepted answers for that step. Static answers are only valid for bundled
- *   self-contained challenges; challenges with `requiresConfiguredAnswers` must use DB overrides.
- * - `generatePrompt`: controls prompt rendering. Use `true` to always render prompt text
- *   (falling back to default copy), `false` to keep a gallery-only step, or `'configured'`
- *   to render only when a static or DB-configured prompt exists.
- * - `omitAnswerInput`: true when a prompted step should not ask for a separate text answer.
- * - `answerInputPlaceholder`: optional placeholder text for the prompted answer modal input.
- * - `requiresConfiguredPrompt`: true when staff must set a DB prompt override before using the challenge.
- * - `requiresConfiguredAnswers`: true when staff must set DB answer overrides before using the challenge.
- * - `title`: optional embed title for the step.
- * - `imageUrl`: optional primary image shown on the challenge embed.
- * - `thumbnailUrl`: optional thumbnail shown on the challenge embed.
- * - `fields`: optional content blocks. Each field can define `title`/`name`, `content`/`value`,
- *   `inline`, and/or `imageUrl`. Fields without a title use a blank Discord field name.
- * - `embeds`: optional extra embed blocks for additional images/descriptions.
- * - `renderMode`: optional renderer. Use `componentsV2Gallery` for a Components V2 media gallery.
- * - `imagePoolId`: optional reusable image pool ID for gallery challenges.
- * - `gallerySize`: optional number of images to show for gallery challenges.
- * - `solutionImageCount`: optional `{ min, max }` range for solution image slots. Solution
- *   images may repeat if the requested slot count is larger than the number of solution URLs.
- * - `controlImageCount`: optional `{ min, max }` range for control images.
- * - `maxControlImageRepeats`: optional maximum number of times the same control image can appear.
- * - `compositeImageGallery`: optional boolean that renders selected gallery images as one labeled grid.
- *
- * How to add a new verification challenge for future admin selection:
- * 1. Add a stable ID as a new key in `verificationChallenges`.
- * 2. Add either a single-step `prompt`/`answers` pair or a multi-step `steps` array.
- * 3. Add every accepted static answer to `answers` for self-contained bundled challenges;
- *    DB-configured answer challenges should set `requiresConfiguredAnswers` instead. Answers
- *    are normalized with `normalizeAnswer` unless the challenge defines a custom `normalizer`.
- * 4. Include the challenge in `/verification challenge set <id>` or add it to `config.Warden.verification.activeChallengeIds` as a boot fallback.
+ * Static challenge definitions live in verificationChallengesConfig.js. This file
+ * owns challenge normalization, DB override application, runtime screen planning,
+ * and answer validation. A challenge is metadata plus ordered questions[]. Runtime
+ * screens are groups of questions: separateStep:true questions become their own
+ * screen, while consecutive separateStep:false questions are grouped together.
  */
-const DEFAULT_CHALLENGE_ID = 'placeholder';
+const {
+    DEFAULT_CHALLENGE_ID,
+    verificationChallenges,
+} = require('./verificationChallengesConfig');
 
-const verificationChallenges = {
-    [DEFAULT_CHALLENGE_ID]: {
-        id: DEFAULT_CHALLENGE_ID,
-        enabled: true,
-        steps: [
-            {
-                title: 'Verification Challenge',
-                prompt: 'Type "AXI" to verify.',
-                answers: ['axi'],
-                fields: [
-                    {
-                        title: 'Answer format',
-                        content: 'Enter the three letters shown in the prompt.',
-                        inline: false,
-                    },
-                ],
-            },
-        ],
-    },
-    multiFieldExample: {
-        id: 'multiFieldExample',
-        enabled: false,
-        steps: [
-            {
-                title: 'Multi-field Verification Challenge',
-                description: 'Review the information below, then answer the prompt.',
-                prompt: 'What three-letter group does this server stand for?',
-                answers: ['axi', 'anti-xeno initiative', 'antixenoinitiative'],
-                thumbnailUrl: 'https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png',
-                fields: [
-                    {
-                        title: 'Hint',
-                        content: 'The answer is visible in the Anti-Xeno Initiative name.',
-                        inline: false,
-                    },
-                    {
-                        content: 'This field intentionally has no visible title, only content.',
-                        inline: false,
-                    },
-                    {
-                        title: 'Reference image',
-                        imageUrl: 'https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png',
-                    },
-                ],
-                embeds: [
-                    {
-                        title: 'Additional image example',
-                        description: 'Optional extra embeds can carry more pictures for multi-picture challenges.',
-                        imageUrl: 'https://antixenoinitiative.com/wp-content/uploads/2024/09/cropped-AXI_Logo_New2.png',
-                    },
-                ],
-            },
-        ],
-    },
-    
-    eliteVesselGallery: {
-        id: 'eliteVesselGallery',
-        enabled: false,
-        renderMode: 'componentsV2Gallery',
-        imagePoolId: 'eliteVessels_c',
-        gallerySize: 9,
-        solutionImageCount: {
-            min: 1,
-            max: 2,
-        },
-        maxControlImageRepeats: 2,
-        steps: [
-            {
-                title: 'Verification Challenge',
-                description: 'Answer both questions below.',
-                prompt: 'What is the name of the starter ship in Elite Dangerous?',
-                galleryPrompt: 'Find all images depicting the starter ship. It may be multiple. Remember their position in the order.',
-                answers: ['sidewinder', 'sidewinder mk i', 'sidewinder mki', 'sidewinder mk1', 'sidewindermki', 'sidewindermk1', 'sidewinder mk.i', 'sidewinder mk.1'],
-                answerInputPlaceholder: 'Enter the ship name',
-                positionInputLabel: 'Image position(s) (1-9)',
-                positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
-            },
-        ],
-    },
-    
-    eliteVesselGalleryEnhanced: {
-        id: 'eliteVesselGalleryEnhanced',
-        enabled: false,
-        renderMode: 'componentsV2Gallery',
-        promptImageGallery: true,
-        compositeImageGallery: true,
-        imagePoolId: 'eliteVessels_c_local',
-        gallerySize: 9,
-        solutionImageCount: {
-            min: 1,
-            max: 2,
-        },
-        maxControlImageRepeats: 2,
-        requiresConfiguredPrompt: true,
-        requiresConfiguredAnswers: true,
-        requiresConfiguredSolutionImages: true,
-        requiresConfiguredControlImages: true,
-        steps: [
-            {
-                title: 'Verification Challenge',
-                description: 'Answer both questions below.',
-                questionText: 'What is the name of the following object from Elite Dangerous?',
-                galleryPrompt: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
-                answerInputPlaceholder: 'Enter the object name',
-                positionInputLabel: 'Image tags (1-9)',
-                positionInputPlaceholder: 'Enter their number. If multiple, seperate by commas or spaces',
-            },
-        ],
-    },
-
-    onTheBlueDanube: {
-        id: 'onTheBlueDanube',
-        enabled: false,
-        renderMode: 'componentsV2Gallery',
-        generatePrompt: 'configured',
-        promptImageGallery: true,
-        compositeImageGallery: true,
-        imagePoolId: 'eliteRotationAlignmentAssets',
-        gallerySize: 6,
-        solutionImageCount: { 
-            min: 1,
-            max: 1 
-        },
-        requiresConfiguredSolutionImageDirections: true,
-        omitAnswerInput: false,
-        generatedGallery: {
-            type: 'rotationAlignment',
-            clockPositionDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
-            maxImageOrientationRepeats: 2,
-            rotationDegrees: [0, 45, 90, 135, 180, 225, 270, 315],
-            alignmentRule: {
-                centerTargetOffsetDegrees: 0,
-                outerTargetOffsetDegrees: 180,
-            },
-            tileCanvas: {
-                width: 512,
-                height: 512,
-                background: '#05070d',
-                centerScale: 0.40,
-                outerScale: 0.20,
-                outerRadius: 178,
-                glow: true,
-            },
-        },
-        steps: [
-            {
-                title: 'Verification Challenge',
-                description: 'Look carefully at the generated imagery.',
-                questionText: 'Which image shows its objects perfectly aligned to [...] ?',
-                galleryPrompt: 'Find what we are looking for. Note the tag number.',
-                omitAnswerInput: false,
-                answerInputPlaceholder: 'Repeat whats written in the first image.',
-                positionInputLabel: 'Image tag (1-9)',
-                positionInputPlaceholder: 'Enter one number only',
-            },
-        ],
-    },
-};
-
-function getChallengeOverride(challengeId, verificationSettings) {
-    if (!challengeId) return undefined;
-
-    return verificationSettings?.challengeOverrides?.[challengeId];
-}
-
-function applyVerificationChallengeOverrides(challenge, verificationSettings) {
-    if (!challenge) return challenge;
-
-    const override = getChallengeOverride(challenge.id, verificationSettings);
-    if (!override) return challenge;
-
-    const overriddenChallenge = { ...challenge };
-
-    if (override.prompt) {
-        overriddenChallenge.prompt = override.prompt;
-        overriddenChallenge.hasPromptOverride = true;
-    }
-
-    if (override.answers?.length) {
-        overriddenChallenge.answers = override.answers;
-        overriddenChallenge.hasAnswerOverride = true;
-    }
-
-    if (override.solutionImageIds?.length) {
-        overriddenChallenge.solutionImageIds = override.solutionImageIds;
-        overriddenChallenge.hasSolutionImageOverride = true;
-    }
-
-    if (override.controlImageIds?.length) {
-        overriddenChallenge.controlImageIds = override.controlImageIds;
-        overriddenChallenge.hasControlImageOverride = true;
-    }
-
-    if (override.solutionImageDirections && typeof override.solutionImageDirections === 'object') {
-        overriddenChallenge.solutionImageDirections = override.solutionImageDirections;
-        overriddenChallenge.hasSolutionImageDirectionOverride = true;
-    }
-
-    if (Array.isArray(challenge.steps) && challenge.steps.length > 0) {
-        overriddenChallenge.steps = challenge.steps.map((step, index) => {
-            if (index !== 0) return { ...step };
-
-            return {
-                ...step,
-                ...(override.prompt ? { prompt: override.prompt } : {}),
-                ...(override.answers?.length ? { answers: override.answers } : {}),
-                ...(override.solutionImageIds?.length ? { solutionImageIds: override.solutionImageIds } : {}),
-                ...(override.controlImageIds?.length ? { controlImageIds: override.controlImageIds } : {}),
-                ...(override.solutionImageDirections ? { solutionImageDirections: override.solutionImageDirections } : {}),
-            };
-        });
-    }
-
-    return overriddenChallenge;
-}
-
-function resolvePrompt(challenge, step, verificationSettings) {
-    const override = getChallengeOverride(challenge?.id, verificationSettings);
-
-    if (challenge?.hasPromptOverride && challenge.prompt) {
-        return challenge.prompt;
-    }
-
-    return override?.prompt
-        ?? step?.prompt
-        ?? challenge?.prompt
-        ?? 'Please answer the verification challenge.';
-}
-
-function resolveAnswers(challenge, step, verificationSettings) {
-    const override = getChallengeOverride(challenge?.id, verificationSettings);
-
-    if (challenge?.hasAnswerOverride && challenge.answers?.length) {
-        return challenge.answers;
-    }
-
-    if (override?.answers?.length) {
-        return override.answers;
-    }
-
-    if (step?.requiresConfiguredAnswers === true || challenge?.requiresConfiguredAnswers === true) {
-        return [];
-    }
-
-    return step?.answers ?? challenge?.answers ?? [];
-}
-
-function resolveSolutionImageIds(challenge, step, verificationSettings) {
-    const override = getChallengeOverride(challenge?.id, verificationSettings);
-
-    return override?.solutionImageIds
-        ?? step?.solutionImageIds
-        ?? challenge?.solutionImageIds
-        ?? [];
-}
-
-function resolveControlImageIds(challenge, step, verificationSettings) {
-    const override = getChallengeOverride(challenge?.id, verificationSettings);
-
-    return override?.controlImageIds
-        ?? step?.controlImageIds
-        ?? challenge?.controlImageIds
-        ?? [];
-}
-
-function resolveSolutionImageDirections(challenge, step, verificationSettings) {
-    const override = getChallengeOverride(challenge?.id, verificationSettings);
-
-    return override?.solutionImageDirections
-        ?? step?.solutionImageDirections
-        ?? challenge?.solutionImageDirections
-        ?? {};
-}
+const DEFAULT_GENERATED_IMAGE = Object.freeze({ enabled: false, type: 'none' });
+const DEFAULT_ANSWER = Object.freeze({ required: false, type: 'none' });
+const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
 
 function normalizeAnswer(answer) {
     return String(answer ?? '')
@@ -322,130 +23,269 @@ function normalizeAnswer(answer) {
         .replace(/\s+/g, ' ');
 }
 
+function normalizeGeneratedImage(generatedImage = {}) {
+    const enabled = generatedImage.enabled === true;
+    return {
+        ...DEFAULT_GENERATED_IMAGE,
+        ...generatedImage,
+        enabled,
+        type: generatedImage.type ?? (enabled ? 'prompt-text' : 'none'),
+    };
+}
+
+function normalizeQuestionAnswer(answer = {}) {
+    return {
+        ...DEFAULT_ANSWER,
+        ...answer,
+        required: answer.required === true,
+        type: answer.type ?? (answer.required ? 'text' : 'none'),
+        accepted: Array.isArray(answer.accepted) ? answer.accepted : [],
+    };
+}
+
+function getChallengeOverride(challengeId, verificationSettings) {
+    if (!challengeId) return undefined;
+    return verificationSettings?.challengeOverrides?.[challengeId];
+}
+
+function applyConfiguredQuestionValues(question, challengeId, verificationSettings) {
+    const challengeOverride = getChallengeOverride(challengeId, verificationSettings);
+    const questionOverride = challengeOverride?.questions?.[question.id];
+    if (!questionOverride) return question;
+
+    const generatedImage = {
+        ...question.generatedImage,
+        ...(questionOverride.generatedImage ?? {}),
+    };
+    const answer = {
+        ...question.answer,
+        ...(questionOverride.answer ?? {}),
+    };
+
+    if (questionOverride.label) question.label = questionOverride.label;
+    if (questionOverride.text) question.text = questionOverride.text;
+    if (questionOverride.separateStep !== undefined) question.separateStep = questionOverride.separateStep === true;
+
+    if (generatedImage.config && typeof generatedImage.config === 'object') {
+        Object.assign(generatedImage, generatedImage.config);
+    }
+
+    return { ...question, generatedImage, answer };
+}
+
+function normalizeVerificationChallenge(challenge, verificationSettings) {
+    if (!challenge) return challenge;
+
+    const challengeOverride = getChallengeOverride(challenge.id, verificationSettings);
+
+    return {
+        id: challenge.id,
+        enabled: challenge.enabled === true,
+        title: challengeOverride?.title ?? challenge.title,
+        description: challengeOverride?.description ?? challenge.description,
+        fields: Array.isArray(challenge.fields) ? challenge.fields : [],
+        questions: getChallengeQuestions(challenge).map((question, index) => applyConfiguredQuestionValues({
+            ...question,
+            id: question.id,
+            label: question.label ?? `Question ${index + 1}`,
+            separateStep: question.separateStep === true,
+            generatedImage: normalizeGeneratedImage(question.generatedImage),
+            answer: normalizeQuestionAnswer(question.answer),
+        }, challenge.id, verificationSettings)),
+    };
+}
+
+function getChallengeQuestions(challenge) {
+    return Array.isArray(challenge?.questions) ? challenge.questions : [];
+}
+
+function getChallengeQuestion(challenge, questionIdOrIndex) {
+    const questions = getChallengeQuestions(challenge);
+    if (Number.isInteger(questionIdOrIndex)) return questions[questionIdOrIndex];
+    return questions.find((question) => question.id === questionIdOrIndex);
+}
+
+function buildQuestionScreens(challenge) {
+    const screens = [];
+    let groupedQuestions = [];
+
+    const pushScreen = (questions, separate) => {
+        if (questions.length < 1) return;
+        screens.push({
+            id: `screen-${screens.length}`,
+            index: screens.length,
+            questions,
+            separate,
+            answerRequired: questions.some((question) => question.answer?.required === true),
+        });
+    };
+
+    for (const question of getChallengeQuestions(challenge)) {
+        if (question.separateStep === true) {
+            pushScreen(groupedQuestions, false);
+            groupedQuestions = [];
+            pushScreen([question], true);
+            continue;
+        }
+        groupedQuestions.push(question);
+    }
+
+    pushScreen(groupedQuestions, false);
+    return screens;
+}
+
+function getScreenAnswerSpec(screen) {
+    return (screen?.questions ?? [])
+        .filter((question) => question.answer?.required === true)
+        .map((question) => ({ questionId: question.id, ...question.answer }));
+}
+
+function screenRequiresAnswer(screen) {
+    return screen?.answerRequired === true || getScreenAnswerSpec(screen).length > 0;
+}
+
+function getScreenRequiredAnswerQuestions(screen) {
+    return (screen?.questions ?? []).filter((question) => question.answer?.required === true && question.answer?.type !== 'none');
+}
+
+function validateQuestionScreens(screens) {
+    const issues = [];
+
+    for (const screen of screens ?? []) {
+        const requiredAnswers = getScreenRequiredAnswerQuestions(screen);
+        if (requiredAnswers.length > 5) {
+            issues.push({
+                screenIndex: screen.index,
+                code: 'too_many_modal_inputs',
+                message: `Screen ${screen.index + 1} has ${requiredAnswers.length} required answer inputs. Discord modals support at most 5. Mark some questions separateStep:true.`,
+            });
+        }
+    }
+
+    return issues;
+}
+
+function screenAllowsBack(session, targetScreenIndex) {
+    const currentScreenIndex = Number(session?.screenIndex ?? 0);
+    if (!Number.isInteger(targetScreenIndex) || targetScreenIndex !== currentScreenIndex - 1) return false;
+    const targetScreen = session?.screens?.[targetScreenIndex];
+    return Boolean(targetScreen && !screenRequiresAnswer(targetScreen) && !session?.answeredScreenIndexes?.includes(targetScreen.index));
+}
+
+function parsePositionAnswer(positionAnswer) {
+    const normalizedInput = String(positionAnswer ?? '').trim();
+    if (!normalizedInput) return [];
+    return normalizedInput.split(/[\s,]+/).filter(Boolean).map((position) => Number(position));
+}
+
+function validatePositionAnswer(positionAnswer, expectedPositions, gallerySize) {
+    const submittedPositions = parsePositionAnswer(positionAnswer);
+    if (submittedPositions.length !== expectedPositions.length) return false;
+    if (submittedPositions.some((position) => !Number.isInteger(position) || position < 1 || position > gallerySize)) return false;
+    if (new Set(submittedPositions).size !== submittedPositions.length) return false;
+    const sortedSubmittedPositions = [...submittedPositions].sort((left, right) => left - right);
+    return expectedPositions.every((expectedPosition, index) => sortedSubmittedPositions[index] === expectedPosition);
+}
+
+function getSubmittedValue(submittedValues, question) {
+    if (submittedValues && typeof submittedValues === 'object' && !Array.isArray(submittedValues)) {
+        return submittedValues[question.id] ?? submittedValues[question.answer?.type] ?? submittedValues.answer ?? submittedValues.positions;
+    }
+    return submittedValues;
+}
+
+function validateQuestionAnswer(question, submittedValue, questionAssets = {}) {
+    const answer = question?.answer ?? DEFAULT_ANSWER;
+    if (answer.required !== true || answer.type === 'none') return { ok: true };
+
+    if (answer.type === 'text') {
+        const normalizer = answer.normalizer ?? normalizeAnswer;
+        const normalizedAnswer = normalizer(submittedValue);
+        const validAnswers = (answer.accepted ?? []).map((validAnswer) => normalizer(validAnswer));
+        return validAnswers.includes(normalizedAnswer) ? { ok: true } : { ok: false, reason: 'incorrect' };
+    }
+
+    if (answer.type === 'positions') {
+        const expectedPositions = questionAssets.solutionPositions ?? questionAssets.expectedPositions ?? [];
+        const gallerySize = questionAssets.gallerySize ?? question.generatedImage?.gallerySize ?? questionAssets.selectedImages?.length ?? 0;
+        return validatePositionAnswer(submittedValue, expectedPositions, gallerySize) ? { ok: true } : { ok: false, reason: 'incorrect' };
+    }
+
+    return { ok: false, reason: 'unsupported_answer_type' };
+}
+
+function validateScreenAnswers(screen, submittedValues, questionAssets = {}) {
+    for (const question of screen?.questions ?? []) {
+        const assets = questionAssets[question.id] ?? questionAssets;
+        const result = validateQuestionAnswer(question, getSubmittedValue(submittedValues, question), assets);
+        if (!result.ok) return { ...result, questionId: question.id };
+    }
+    return { ok: true };
+}
+
+function applyVerificationChallengeOverrides(challenge, verificationSettings) {
+    return normalizeVerificationChallenge(challenge, verificationSettings);
+}
+
 function getVerificationChallenge(challengeId) {
     if (!challengeId) return undefined;
 
     return verificationChallenges[challengeId];
 }
 
-function getVerificationChallengeSteps(challenge) {
-    if (!challenge) return [];
-
-    if (Array.isArray(challenge.steps) && challenge.steps.length > 0) {
-        return challenge.steps;
-    }
-
-    return [
-        {
-            prompt: challenge.prompt,
-            description: challenge.description,
-            answers: challenge.answers ?? [],
-            answerInputPlaceholder: challenge.answerInputPlaceholder,
-            title: challenge.title,
-            imageUrl: challenge.imageUrl,
-            thumbnailUrl: challenge.thumbnailUrl,
-            fields: challenge.fields ?? [],
-            embeds: challenge.embeds ?? [],
-        },
-    ];
+function getRoleIds(generatedImage, role) {
+    return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
 }
 
-function getVerificationChallengeStep(challengeId, stepIndex = 0) {
-    const challenge = getVerificationChallenge(challengeId);
-    const steps = getVerificationChallengeSteps(challenge);
-
-    return steps[stepIndex];
-}
-
-function hasNextVerificationChallengeStep(challengeId, stepIndex = 0) {
-    const challenge = getVerificationChallenge(challengeId);
-    const steps = getVerificationChallengeSteps(challenge);
-
-    return stepIndex + 1 < steps.length;
-}
-
-function isGalleryImageChallenge(challenge) {
-    const steps = Array.isArray(challenge?.steps) ? challenge.steps : [];
-
-    return Boolean(
-        (
-            challenge?.renderMode === 'componentsV2Gallery'
-            && (challenge.imagePoolId || steps.some((step) => step?.imagePoolId))
-        )
-        || steps.some((step) => (
-            step?.renderMode === 'componentsV2Gallery'
-            && (step.imagePoolId || challenge?.imagePoolId)
-        )),
-    );
-}
-
-function isRotationAlignmentGeneratedGalleryChallenge(challenge) {
-    const steps = Array.isArray(challenge?.steps) ? challenge.steps : [];
-
-    return Boolean(
-        challenge?.renderMode === 'componentsV2Gallery'
-        && (
-            challenge?.generatedGallery?.type === 'rotationAlignment'
-            || steps.some((step) => step?.generatedGallery?.type === 'rotationAlignment')
-        )
-    );
-}
-
-function getRotationAlignmentRequiredDirectionIds(challenge) {
-    const steps = Array.isArray(challenge?.steps) ? challenge.steps : [];
-    const galleries = [challenge?.generatedGallery, ...steps.map((step) => step?.generatedGallery)]
-        .filter((gallery) => gallery?.type === 'rotationAlignment');
-    const configuredCenterIds = steps.flatMap((step) => step?.solutionImageIds ?? []);
-    const configuredOuterIds = steps.flatMap((step) => step?.controlImageIds ?? []);
-
-    return [...new Set([
-        ...(challenge?.solutionImageIds ?? []),
-        ...(challenge?.controlImageIds ?? []),
-        ...configuredCenterIds,
-        ...configuredOuterIds,
-        ...galleries.flatMap((gallery) => [
-            ...(Array.isArray(gallery.centerImageIds) ? gallery.centerImageIds : []),
-            ...(Array.isArray(gallery.outerImageIds) ? gallery.outerImageIds : []),
-        ]),
-    ])];
+function getInvalidDirectionValues(directions) {
+    return (Array.isArray(directions) ? directions : [])
+        .filter((degrees) => !Number.isInteger(Number(degrees)) || !ALLOWED_IMAGE_DIRECTION_DEGREES.has(Number(degrees)));
 }
 
 function getMissingChallengeOverrideRequirements(verificationSettings) {
     const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
 
     return enabledChallenges.flatMap((challenge) => {
-        const override = getChallengeOverride(challenge.id, verificationSettings);
-        const missing = [];
-        const isRotationAlignmentGallery = isRotationAlignmentGeneratedGalleryChallenge(challenge);
-        const requiresSolutionImages = challenge.requiresConfiguredSolutionImages || isGalleryImageChallenge(challenge);
-        const requiresControlImages = challenge.requiresConfiguredControlImages || isGalleryImageChallenge(challenge);
+        const missing = validateQuestionScreens(buildQuestionScreens(challenge)).map((issue) => issue.message);
 
-        if (challenge.requiresConfiguredPrompt && !override?.prompt) {
-            missing.push('prompt');
-        }
+        for (const question of challenge.questions ?? []) {
+            const generatedImage = question.generatedImage ?? {};
+            const answer = question.answer ?? {};
+            const prefix = `${challenge.id}/${question.id}`;
 
-        const steps = getVerificationChallengeSteps(challenge);
-        const requiresTextAnswer = steps.some((step) => !shouldOmitAnswerInput(challenge, step));
+            if (generatedImage.requiresConfiguredText && !generatedImage.text) {
+                missing.push(`${prefix}: generated image text`);
+            }
 
-        if (challenge.requiresConfiguredAnswers && requiresTextAnswer && !override?.answers?.length) {
-            missing.push('answers');
-        }
+            if (answer.requiresConfiguredAnswers && answer.required === true && !answer.accepted?.length) {
+                missing.push(`${prefix}: accepted answers`);
+            }
 
-        if (requiresSolutionImages && !override?.solutionImageIds?.length) {
-            missing.push(isRotationAlignmentGallery ? 'center images' : 'solution images');
-        }
+            if (generatedImage.type === 'gallery-standard'
+                && (generatedImage.requiresConfiguredImageIds || getRoleIds(generatedImage, 'solution').length < 1 || getRoleIds(generatedImage, 'control').length < 1)) {
+                if (getRoleIds(generatedImage, 'solution').length < 1) missing.push(`${prefix}: solution image IDs`);
+                if (getRoleIds(generatedImage, 'control').length < 1) missing.push(`${prefix}: control image IDs`);
+            }
 
-        if (requiresControlImages && !override?.controlImageIds?.length) {
-            missing.push(isRotationAlignmentGallery ? 'outer images' : 'control images');
-        }
+            if (generatedImage.type === 'gallery-rotation-alignment'
+                && (generatedImage.requiresConfiguredImageIds || getRoleIds(generatedImage, 'center').length < 1 || getRoleIds(generatedImage, 'outer').length < 1)) {
+                if (getRoleIds(generatedImage, 'center').length < 1) missing.push(`${prefix}: center image IDs`);
+                if (getRoleIds(generatedImage, 'outer').length < 1) missing.push(`${prefix}: outer image IDs`);
+            }
 
-        if (isRotationAlignmentGallery || challenge.requiresConfiguredSolutionImageDirections) {
-            const directions = override?.solutionImageDirections ?? {};
-            const missingDirectionIds = getRotationAlignmentRequiredDirectionIds(challenge)
-                .filter((imageId) => !Array.isArray(directions[imageId]) || directions[imageId].length < 1);
+            if (generatedImage.type === 'gallery-rotation-alignment' && (generatedImage.requiresConfiguredImageDirections || getRoleIds(generatedImage, 'center').length > 0 || getRoleIds(generatedImage, 'outer').length > 0)) {
+                const directions = generatedImage.imageDirections ?? {};
+                const imageIds = [...new Set([...getRoleIds(generatedImage, 'center'), ...getRoleIds(generatedImage, 'outer')])];
+                const missingDirectionIds = imageIds.filter((imageId) => !Array.isArray(directions[imageId]) || directions[imageId].length < 1);
 
-            if (missingDirectionIds.length > 0) {
-                missing.push(`solution image directions (${missingDirectionIds.join(', ')})`);
+                if (missingDirectionIds.length > 0) {
+                    missing.push(`${prefix}: image directions (${missingDirectionIds.join(', ')})`);
+                }
+
+                const invalidDirectionIds = imageIds.filter((imageId) => getInvalidDirectionValues(directions[imageId]).length > 0);
+                if (invalidDirectionIds.length > 0) {
+                    missing.push(`${prefix}: invalid image directions (${invalidDirectionIds.join(', ')})`);
+                }
             }
         }
 
@@ -484,75 +324,27 @@ function getActiveVerificationChallenge(config) {
     return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
 }
 
-function hasConfiguredPrompt(challenge, step) {
-    return Boolean(
-        (typeof step?.prompt === 'string' && step.prompt.trim())
-        || (typeof challenge?.prompt === 'string' && challenge.prompt.trim()),
-    );
-}
-
-function shouldGeneratePrompt(challenge, step) {
-    const generatePrompt = step?.generatePrompt ?? challenge?.generatePrompt;
-
-    if (generatePrompt === false) {
-        return false;
-    }
-
-    if (generatePrompt === 'configured') {
-        return hasConfiguredPrompt(challenge, step);
-    }
-
-    return true;
-}
-
-function shouldOmitAnswerInput(challenge, step) {
-    return !shouldGeneratePrompt(challenge, step)
-        || step?.omitAnswerInput === true
-        || challenge?.omitAnswerInput === true;
-}
-
-function validateAnswer(challengeId, answer, stepIndex = 0, verificationSettings) {
-    const challenge = applyVerificationChallengeOverrides(getVerificationChallenge(challengeId), verificationSettings);
-    const step = getVerificationChallengeSteps(challenge)[stepIndex];
-
-    if (!challenge || !step) {
-        return { ok: false, reason: 'not_found' };
-    }
-
-    if (shouldOmitAnswerInput(challenge, step)) {
-        return { ok: true };
-    }
-
-    const normalizer = step.normalizer ?? challenge.normalizer ?? normalizeAnswer;
-    const normalizedAnswer = normalizer(answer);
-    const validAnswers = resolveAnswers(challenge, step, verificationSettings).map((validAnswer) => normalizer(validAnswer));
-
-    if (validAnswers.includes(normalizedAnswer)) {
-        return { ok: true };
-    }
-
-    return { ok: false, reason: 'incorrect' };
-}
-
 module.exports = {
     DEFAULT_CHALLENGE_ID,
     verificationChallenges,
+
     getVerificationChallenge,
-    applyVerificationChallengeOverrides,
-    getVerificationChallengeStep,
-    getVerificationChallengeSteps,
-    getMissingChallengeOverrideRequirements,
     getEnabledVerificationChallenges,
     getActiveVerificationChallenge,
-    hasNextVerificationChallengeStep,
+
+    normalizeVerificationChallenge,
+    getChallengeQuestion,
+    getChallengeQuestions,
+    buildQuestionScreens,
+    getScreenAnswerSpec,
+    screenRequiresAnswer,
+    getScreenRequiredAnswerQuestions,
+    validateQuestionScreens,
+    screenAllowsBack,
+
     normalizeAnswer,
-    resolvePrompt,
-    resolveAnswers,
-    resolveSolutionImageIds,
-    resolveControlImageIds,
-    resolveSolutionImageDirections,
-    isRotationAlignmentGeneratedGalleryChallenge,
-    shouldGeneratePrompt,
-    shouldOmitAnswerInput,
-    validateAnswer,
+    validateQuestionAnswer,
+    validateScreenAnswers,
+
+    getMissingChallengeOverrideRequirements,
 };

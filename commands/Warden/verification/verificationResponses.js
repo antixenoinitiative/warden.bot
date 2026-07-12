@@ -2,19 +2,21 @@ const Discord = require('discord.js');
 const { botIdent } = require('../../../functions');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 const {
-    verificationChallenges,
-    applyVerificationChallengeOverrides,
-    getVerificationChallengeStep,
-    getVerificationChallengeSteps,
-    resolvePrompt,
-    shouldGeneratePrompt,
-    shouldOmitAnswerInput,
+    screenRequiresAnswer,
+    getScreenRequiredAnswerQuestions,
+    screenAllowsBack,
 } = require('./verificationChallenges');
+const {
+    getQuestionAssetFiles,
+    getQuestionDisplayItems,
+} = require('./verificationImages');
 
 const DESCRIPTION_LIMIT = 4096;
 const FIELD_NAME_LIMIT = 256;
 const FIELD_VALUE_LIMIT = 1024;
 const MAX_FIELDS = 25;
+const COMPONENTS_V2_RENDERER = 'components-v2';
+const LEGACY_RENDERER = 'legacy';
 
 function resolveColorAlias(color) {
     if (typeof color !== 'string') {
@@ -318,395 +320,355 @@ function buildVerificationAutoKickEmbed(member, options = {}) {
 // Challenge response builders
 // -----------------------------------------------------------------------------
 
-const COMPONENTS_V2_RENDER_MODE = 'componentsV2Gallery';
-const LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT = 9;
-const LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT = 10;
+function isComponentsV2Available() {
+    return Boolean(
+        Discord.ContainerBuilder
+        && Discord.TextDisplayBuilder
+        && Discord.MediaGalleryBuilder
+        && Discord.MediaGalleryItemBuilder
+        && Discord.MessageFlags?.IsComponentsV2,
+    );
+}
 
-function isComponentsV2GalleryChallenge(challenge, step) {
-    return challenge?.renderMode === COMPONENTS_V2_RENDER_MODE || step?.renderMode === COMPONENTS_V2_RENDER_MODE;
+function assertComponentsV2Support() {
+    if (!isComponentsV2Available()) {
+        throw new Error('Discord Components V2 builders are not available in this discord.js version.');
+    }
+}
+
+function buildChallengeComponentCustomId(prefix, challengeId, screenIndex = 0, token) {
+    return `${prefix}${challengeId}-${screenIndex}${token ? `-${token}` : ''}`;
+}
+
+function parseChallengeComponentCustomId(customId, prefix) {
+    if (!customId.startsWith(prefix)) return undefined;
+
+    const payload = customId.slice(prefix.length);
+    const tokenSeparatorIndex = payload.lastIndexOf('-');
+    if (tokenSeparatorIndex < 1) return undefined;
+
+    const token = payload.slice(tokenSeparatorIndex + 1);
+    const challengeAndScreen = payload.slice(0, tokenSeparatorIndex);
+    const screenSeparatorIndex = challengeAndScreen.lastIndexOf('-');
+    if (screenSeparatorIndex < 1) return undefined;
+
+    const challengeId = challengeAndScreen.slice(0, screenSeparatorIndex);
+    const screenIndex = Number(challengeAndScreen.slice(screenSeparatorIndex + 1));
+    if (!challengeId || !Number.isInteger(screenIndex) || screenIndex < 0 || !token) return undefined;
+
+    return { challengeId, screenIndex, token };
+}
+
+function parseAnswerCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-answer-');
+}
+
+function parseNextCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-next-');
+}
+
+function parseBackCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-back-');
+}
+
+function parseOldVersionCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-oldVersion-');
+}
+
+function parseSubmitCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-submit-');
+}
+
+function getCurrentScreen(session) {
+    return session.screens[session.screenIndex];
+}
+
+function hasNextScreen(session) {
+    return session.screenIndex + 1 < session.screens.length;
+}
+
+function canGoBack(session) {
+    return screenAllowsBack(session, session.screenIndex - 1);
 }
 
 function buildExpiryLine(expiresAt) {
     if (!expiresAt) return undefined;
-    return `-# This prompt will expire in <t:${Math.floor(expiresAt / 1000)}:R>`;
+    return `This verification challenge expires <t:${Math.floor(expiresAt / 1000)}:R>.`;
 }
 
-function buildGalleryOrderLine(galleryState) {
-    if (galleryState?.compositeImage?.displayUrl) {
-        return '-# **Use the number labels in the top-left of each grid square; positions read left-to-right by row.**';
-    }
-
-    return '-# **Click the gallery to view image order; positions start top-left, left-to-right by row.**';
+function truncateEmbedText(value, fallback = 'Not set') {
+    const text = String(value ?? '').trim() || fallback;
+    return text.length > DESCRIPTION_LIMIT ? `${text.slice(0, DESCRIPTION_LIMIT - 3)}...` : text;
 }
 
-function buildImageEmbed(fieldOrEmbed, embedConfig) {
-    const embed = new Discord.EmbedBuilder()
-        .setColor(resolveEmbedColor(fieldOrEmbed.color ?? embedConfig.color));
-
-    if (fieldOrEmbed.title ?? fieldOrEmbed.name) {
-        embed.setTitle(fieldOrEmbed.title ?? fieldOrEmbed.name);
-    }
-
-    if (fieldOrEmbed.description ?? fieldOrEmbed.content ?? fieldOrEmbed.value) {
-        embed.setDescription(fieldOrEmbed.description ?? fieldOrEmbed.content ?? fieldOrEmbed.value);
-    }
-
-    if (fieldOrEmbed.imageUrl) {
-        embed.setImage(fieldOrEmbed.imageUrl);
-    }
-
-    if (fieldOrEmbed.thumbnailUrl) {
-        embed.setThumbnail(fieldOrEmbed.thumbnailUrl);
-    }
-
-    return embed;
-}
-
-function buildChallengeEmbeds(challenge, stepIndex = 0, expiresAt) {
-    const view = resolveChallengePresentation(challenge, stepIndex, expiresAt);
-    const { step, embedConfig, totalSteps, stepLabel, expiryLine, prompt } = view;
-    const stepDescription = step?.description ? `${step.description}\n\n` : '';
-    let description = embedConfig.description ?? '{challenge}';
-
-    description = description
-        .replaceAll('{challenge}', `${stepDescription}${prompt}`)
-        .replaceAll('{step}', String(stepIndex + 1))
-        .replaceAll('{totalSteps}', String(totalSteps));
-
-    const embed = new Discord.EmbedBuilder()
-        .setColor(resolveEmbedColor(view.color))
-        .setTitle(view.title)
-        .setDescription([`${description}${stepLabel}`, expiryLine].filter(Boolean).join('\n\n'));
-
-    if (view.imageUrl) {
-        embed.setImage(view.imageUrl);
-    }
-
-    if (view.thumbnailUrl) {
-        embed.setThumbnail(view.thumbnailUrl);
-    }
-
-    for (const field of step?.fields ?? []) {
-        applyFieldToEmbed(embed, field);
-    }
-
-    const embeds = [embed];
-
-    for (const field of step?.fields ?? []) {
-        if (field.imageUrl) {
-            embeds.push(buildImageEmbed(field, embedConfig));
-        }
-    }
-
-    for (const extraEmbed of step?.embeds ?? []) {
-        embeds.push(buildImageEmbed(extraEmbed, embedConfig));
-    }
-
-    return embeds.slice(0, 10);
-}
-
-function assertComponentsV2Support() {
-    const requiredBuilders = [
-        'ContainerBuilder',
-        'TextDisplayBuilder',
-        'MediaGalleryBuilder',
-        'MediaGalleryItemBuilder',
-    ];
-    const missingBuilders = requiredBuilders.filter((builderName) => !Discord[builderName]);
-
-    if (missingBuilders.length > 0 || !Discord.MessageFlags?.IsComponentsV2) {
-        throw new Error(`Discord Components V2 support is unavailable. Missing: ${missingBuilders.join(', ') || 'MessageFlags.IsComponentsV2'}`);
+function applyQuestionFields(embed, question) {
+    if (question.text) {
+        embed.addFields({ name: question.label ?? question.id, value: truncateEmbedText(question.text), inline: false });
     }
 }
 
-function markdownHeading(text) {
-    return `# ${text}`;
-}
+function buildScreenActionRows(session) {
+    const screen = getCurrentScreen(session);
+    const row = new Discord.ActionRowBuilder();
 
-function getPromptImageAttachment(promptImage) {
-    return promptImage?.attachment ? [promptImage.attachment] : [];
-}
-
-function getGalleryImageAttachments(selectedImages = [], compositeImage) {
-    if (compositeImage?.attachment) {
-        return [compositeImage.attachment];
+    if (canGoBack(session)) {
+        row.addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildChallengeComponentCustomId('wardenVerify-back-', session.challengeId, session.screenIndex, session.token))
+            .setLabel('Back')
+            .setStyle(Discord.ButtonStyle.Secondary));
     }
 
-    return selectedImages
-        .map((image) => image.attachment)
-        .filter(Boolean);
-}
-
-function getGalleryDisplayImages(galleryState) {
-    if (galleryState?.compositeImage?.displayUrl) {
-        return [{
-            displayUrl: galleryState.compositeImage.displayUrl,
-            position: `1-${galleryState.selectedImages?.length ?? 9}`,
-            description: `Positions 1-${galleryState.selectedImages?.length ?? 9} in a labeled grid`,
-        }];
+    if (screenRequiresAnswer(screen)) {
+        row.addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildChallengeComponentCustomId('wardenVerify-answer-', session.challengeId, session.screenIndex, session.token))
+            .setLabel('Give Answer')
+            .setStyle(Discord.ButtonStyle.Primary));
+    }
+    else {
+        row.addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildChallengeComponentCustomId('wardenVerify-next-', session.challengeId, session.screenIndex, session.token))
+            .setLabel(hasNextScreen(session) ? 'Next' : 'Complete')
+            .setStyle(Discord.ButtonStyle.Primary));
     }
 
-    return galleryState?.selectedImages ?? [];
+    return row.components.length > 0 ? [row] : [];
 }
 
-function getGalleryDisplayUrl(image) {
-    return image.displayUrl ?? image.url;
+function getScreenFiles(screenAssets = {}) {
+    return Object.values(screenAssets).flatMap(getQuestionAssetFiles);
 }
 
-function resolveChallengePresentation(challenge, stepIndex = 0, expiresAt, galleryState, promptImage) {
-    const step = getVerificationChallengeStep(challenge.id, stepIndex);
-    const embedConfig = verificationEmbedConfig.challengeEmbed ?? {};
-    const steps = getVerificationChallengeSteps(challenge);
-    const totalSteps = steps.length || 1;
-    const stepLabel = totalSteps > 1 ? `\n\nStep ${stepIndex + 1} of ${totalSteps}` : '';
-    const expiryLine = buildExpiryLine(expiresAt);
-    const promptGenerated = shouldGeneratePrompt(challenge, step);
-    const prompt = promptGenerated ? resolvePrompt(challenge, step) : undefined;
-    const questionText = step?.questionText ?? challenge.questionText;
-    const galleryPrompt = step?.galleryPrompt ?? challenge.galleryPrompt;
-
-    return {
-        challenge,
-        step,
-        embedConfig,
-        stepIndex,
-        totalSteps,
-        stepLabel,
-        expiryLine,
-        prompt,
-        promptGenerated,
-        questionText,
-        galleryPrompt,
-        selectedImages: galleryState?.selectedImages ?? [],
-        displayImages: getGalleryDisplayImages(galleryState),
-        title: step?.title ?? embedConfig.title ?? 'Verification Challenge',
-        color: step?.color ?? embedConfig.color,
-        fields: step?.fields ?? [],
-        imageUrl: step?.imageUrl ?? challenge.imageUrl,
-        thumbnailUrl: step?.thumbnailUrl ?? challenge.thumbnailUrl,
-        promptImage,
-        galleryState,
-    };
+function getAssetDisplayItems(asset) {
+    return getQuestionDisplayItems(asset).filter((item) => item.type === 'image' && item.displayUrl);
 }
 
-function buildChallengeComponentsV2(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
+function addTextDisplay(container, content) {
+    const text = String(content ?? '').trim();
+    if (!text) return;
+    container.addTextDisplayComponents(new Discord.TextDisplayBuilder().setContent(text.slice(0, 4000)));
+}
+
+function addAssetMediaGallery(container, asset) {
+    const displayItems = getAssetDisplayItems(asset);
+    if (displayItems.length < 1) return;
+
+    const gallery = new Discord.MediaGalleryBuilder();
+    for (const item of displayItems.slice(0, 10)) {
+        const galleryItem = new Discord.MediaGalleryItemBuilder()
+            .setURL(item.displayUrl);
+        if (item.description) galleryItem.setDescription(item.description.slice(0, 256));
+        gallery.addItems(galleryItem);
+    }
+    container.addMediaGalleryComponents(gallery);
+}
+
+function getFileName(file) {
+    return file?.name ?? file?.attachment?.name ?? file?.data?.name;
+}
+
+function getEmbedImageUrl(embed) {
+    return embed?.data?.image?.url;
+}
+
+function getFilesForEmbeds(files, embeds) {
+    const attachmentNames = new Set(embeds
+        .map(getEmbedImageUrl)
+        .filter((url) => typeof url === 'string' && url.startsWith('attachment://'))
+        .map((url) => url.slice('attachment://'.length)));
+
+    if (attachmentNames.size < 1) return [];
+
+    const matchedFiles = files.filter((file) => attachmentNames.has(getFileName(file)));
+    return matchedFiles.length > 0 ? matchedFiles : files;
+}
+
+function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, session, options = {}) {
     assertComponentsV2Support();
 
-    const view = resolveChallengePresentation(challenge, stepIndex, expiresAt, galleryState, promptImage);
-    const { step, stepLabel, title, prompt, promptGenerated, questionText, galleryPrompt, selectedImages, displayImages, expiryLine } = view;
-
-    if (selectedImages.length < 1) {
-        throw new Error(`No gallery images were selected for challenge "${challenge.id}".`);
-    }
-
     const container = new Discord.ContainerBuilder()
-        .setAccentColor(resolveComponentAccentColor(view.color));
+        .setAccentColor(resolveComponentAccentColor(verificationEmbedConfig.responseDefaults?.colors?.info));
 
-    container.addTextDisplayComponents(
-        new Discord.TextDisplayBuilder().setContent(markdownHeading(title)),
-    );
-
-    if (step?.description) {
-        container.addTextDisplayComponents(
-            new Discord.TextDisplayBuilder().setContent(step.description),
-        );
-    }
-
-    if (promptGenerated) {
-        container.addTextDisplayComponents(
-            new Discord.TextDisplayBuilder().setContent('**Question 1**'),
-        );
-
-        if (questionText) {
-            container.addTextDisplayComponents(
-                new Discord.TextDisplayBuilder().setContent(questionText),
-            );
-        }
-
-        if (promptImage?.displayUrl) {
-            container.addMediaGalleryComponents(
-                new Discord.MediaGalleryBuilder().addItems(
-                    new Discord.MediaGalleryItemBuilder()
-                        .setURL(promptImage.displayUrl)
-                        .setDescription('Question 1 prompt'),
-                ),
-            );
-        }
-        else if (prompt) {
-            container.addTextDisplayComponents(
-                new Discord.TextDisplayBuilder().setContent(prompt),
-            );
-        }
-    }
-    else if (questionText) {
-        container.addTextDisplayComponents(
-            new Discord.TextDisplayBuilder().setContent(questionText),
-        );
-    }
-
-    if (galleryPrompt) {
-        const galleryQuestionLabel = promptGenerated ? 'Question 2' : 'Question 1';
-        container.addTextDisplayComponents(
-            new Discord.TextDisplayBuilder().setContent(`**${galleryQuestionLabel}**\n${galleryPrompt}${stepLabel}`),
-        );
-    }
-
-    for (const field of step?.fields ?? []) {
-        const value = field.content ?? field.value ?? field.description;
-        if (value) {
-            container.addTextDisplayComponents(
-                new Discord.TextDisplayBuilder().setContent(`**${field.title ?? field.name ?? 'Information'}**\n${value}`),
-            );
+    if (options.includeIntro) {
+        addTextDisplay(container, `# ${challenge.title ?? 'Verification Challenge'}`);
+        addTextDisplay(container, challenge.description);
+        for (const field of challenge.fields ?? []) {
+            const value = field.content ?? field.value ?? field.description;
+            if (value) addTextDisplay(container, `**${field.title ?? field.name ?? 'Information'}**\n${value}`);
         }
     }
 
-    container.addMediaGalleryComponents(
-        new Discord.MediaGalleryBuilder().addItems(
-            displayImages.map((image) => new Discord.MediaGalleryItemBuilder()
-                .setURL(getGalleryDisplayUrl(image))
-                .setDescription(image.description ?? `Position ${image.position}`)),
-        ),
-    );
-
-    container.addTextDisplayComponents(
-        new Discord.TextDisplayBuilder().setContent(buildGalleryOrderLine(galleryState)),
-    );
-
-    if (expiryLine) {
-        container.addTextDisplayComponents(
-            new Discord.TextDisplayBuilder().setContent(expiryLine),
-        );
+    if ((session?.screens?.length ?? 0) > 1) {
+        addTextDisplay(container, `**Screen ${screen.index + 1} of ${session.screens.length}**`);
     }
 
-    container.addActionRowComponents(buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token));
+    for (const question of screen.questions ?? []) {
+        addTextDisplay(container, `## ${question.label ?? question.id}`);
+        addTextDisplay(container, question.text);
+        addAssetMediaGallery(container, screenAssets[question.id]);
+
+        if (screenAssets[question.id]?.galleryState?.selectedImages?.length) {
+            addTextDisplay(container, 'Use the displayed image positions when answering gallery questions.');
+        }
+    }
+
+    addTextDisplay(container, buildExpiryLine(session?.expiresAt));
+    if (!options.completed) {
+        container.addActionRowComponents(...buildScreenActionRows(session));
+    }
 
     return [container];
 }
 
-function buildChallengeReplyOptions(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
-    const step = getVerificationChallengeStep(challenge.id, stepIndex);
+function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, session, options = {}) {
+    const allFiles = getScreenFiles(screenAssets);
+    const allEmbeds = [];
 
-    if (isComponentsV2GalleryChallenge(challenge, step)) {
-        return {
-            components: buildChallengeComponentsV2(challenge, stepIndex, galleryState, expiresAt, promptImage),
-            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages, galleryState?.compositeImage)],
-            flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
-        };
+    if (options.includeIntro) {
+        const introEmbed = new Discord.EmbedBuilder()
+            .setTitle(challenge.title ?? 'Verification Challenge')
+            .setDescription(truncateEmbedText([challenge.description, buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n'), 'Complete the verification questions to continue.'));
+
+        for (const field of challenge.fields ?? []) {
+            const value = field.content ?? field.value ?? field.description;
+            if (value) introEmbed.addFields({ name: field.title ?? field.name ?? 'Information', value: truncateEmbedText(value, 'Information'), inline: field.inline === true });
+        }
+
+        allEmbeds.push(introEmbed);
+    }
+
+    for (const question of screen.questions ?? []) {
+        const asset = screenAssets[question.id];
+        const displayItems = getAssetDisplayItems(asset);
+        const isGallery = Boolean(asset?.galleryState);
+        const description = [
+            question.text,
+            isGallery ? 'Use the displayed image positions when answering gallery questions.' : undefined,
+            (session?.screens?.length ?? 0) > 1 ? `Screen ${screen.index + 1} of ${session.screens.length}` : undefined,
+            buildExpiryLine(session.expiresAt),
+        ].filter(Boolean).join('\n\n');
+        const questionEmbed = new Discord.EmbedBuilder()
+            .setTitle(question.label ?? question.id)
+            .setDescription(truncateEmbedText(description, 'Review this question.'));
+
+        if (displayItems.length > 0 && (!isGallery || asset.galleryState?.compositeImage)) {
+            questionEmbed.setImage(displayItems[0].displayUrl);
+        }
+
+        allEmbeds.push(questionEmbed);
+
+        if (isGallery && !asset.galleryState?.compositeImage) {
+            for (const item of displayItems) {
+                allEmbeds.push(new Discord.EmbedBuilder()
+                    .setTitle(item.description ?? 'Verification image')
+                    .setImage(item.displayUrl));
+            }
+        }
+    }
+
+    const pages = [];
+    for (let index = 0; index < allEmbeds.length; index += 10) {
+        const embeds = allEmbeds.slice(index, index + 10);
+        pages.push({
+            embeds,
+            files: getFilesForEmbeds(allFiles, embeds),
+            components: pages.length === 0 && !options.completed ? buildScreenActionRows({ ...session, renderer: LEGACY_RENDERER }) : [],
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
+
+    return pages.length > 0 ? pages : [{
+        embeds: [new Discord.EmbedBuilder().setTitle(challenge.title ?? 'Verification Challenge').setDescription(buildExpiryLine(session.expiresAt) ?? 'Complete the verification questions to continue.')],
+        files: [],
+        components: !options.completed ? buildScreenActionRows({ ...session, renderer: LEGACY_RENDERER }) : [],
+        flags: Discord.MessageFlags.Ephemeral,
+    }];
+}
+
+function buildQuestionScreenLegacyOptions(challenge, screen, screenAssets = {}, session, options = {}) {
+    return buildQuestionScreenLegacyPages(challenge, screen, screenAssets, session, options)[0];
+}
+
+function buildQuestionScreenOptions(challenge, screen, screenAssets = {}, session, options = {}) {
+    const renderer = options.renderer ?? session?.renderer ?? COMPONENTS_V2_RENDERER;
+    if (renderer === LEGACY_RENDERER || !isComponentsV2Available()) {
+        return buildQuestionScreenLegacyOptions(challenge, screen, screenAssets, session, options);
     }
 
     return {
-        embeds: buildChallengeEmbeds(challenge, stepIndex, expiresAt),
-        components: [buildGiveAnswerRow(challenge.id, stepIndex)],
-        flags: Discord.MessageFlags.Ephemeral,
+        components: buildQuestionScreenComponentsV2(challenge, screen, screenAssets, session, options),
+        files: getScreenFiles(screenAssets),
+        flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
     };
 }
 
-function buildOldVersionRow(challengeId, stepIndex = 0, token) {
-    return new Discord.ActionRowBuilder()
-        .addComponents(
-            new Discord.ButtonBuilder()
-                .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', challengeId, stepIndex, token))
-                .setLabel('Old Version')
-                .setStyle(Discord.ButtonStyle.Secondary),
-        );
+function buildChallengeIntroOptions(challenge, session, options = {}) {
+    const introScreen = { id: 'intro', index: 0, questions: [], answerRequired: false };
+    return buildQuestionScreenOptions(challenge, introScreen, {}, session, { ...options, includeIntro: true, completed: true });
 }
 
-function buildGalleryFallbackPrompt(challenge, stepIndex = 0, galleryState, expiresAt) {
+function buildOldVersionFallbackOptions(challenge, session) {
     return {
         embeds: [
             new Discord.EmbedBuilder()
                 .setColor(resolveEmbedColor(verificationEmbedConfig.challengeEmbed?.color))
                 .setTitle('Not working?')
-                .setDescription(['If you cannot see the Verification Challenge please update your client, or click the Old Version button below.', buildExpiryLine(expiresAt)].filter(Boolean).join('\n\n')),
+                .setDescription([
+                    'If you cannot see the Verification Challenge, please update your client or click the Old Version button below.',
+                    buildExpiryLine(session.expiresAt),
+                ].filter(Boolean).join('\n\n')),
         ],
-        components: [buildOldVersionRow(challenge.id, stepIndex, galleryState?.token)],
+        components: [
+            new Discord.ActionRowBuilder().addComponents(
+                new Discord.ButtonBuilder()
+                    .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
+                    .setLabel('Old Version')
+                    .setStyle(Discord.ButtonStyle.Secondary),
+            ),
+        ],
         flags: Discord.MessageFlags.Ephemeral,
     };
 }
 
-function buildLegacyGalleryEmbeds(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
-    const view = resolveChallengePresentation(challenge, stepIndex, expiresAt, galleryState, promptImage);
-    const { step, stepLabel, prompt, promptGenerated, questionText, galleryPrompt } = view;
-    const promptDescription = promptGenerated
-        ? (
-            promptImage?.displayUrl
-                ? ['**Question 1**', questionText].filter(Boolean).join('\n')
-                : `**Question 1**\n${questionText ? `${questionText}\n` : ''}${prompt}`
-        )
-        : questionText;
-    const galleryQuestionLabel = promptGenerated ? 'Question 2' : 'Question 1';
-    const challengeEmbed = new Discord.EmbedBuilder()
-        .setColor(resolveEmbedColor(view.color))
-        .setTitle(view.title)
-        .setDescription([
-            step?.description,
-            promptDescription,
-            galleryPrompt ? `**${galleryQuestionLabel}**\n${galleryPrompt}${stepLabel}` : undefined,
-            buildExpiryLine(expiresAt),
-        ].filter(Boolean).join('\n\n'));
-
-
-    if (promptImage?.displayUrl) {
-        challengeEmbed.setImage(promptImage.displayUrl);
+function buildAnswerModal(session) {
+    const screen = getCurrentScreen(session);
+    const requiredAnswerQuestions = getScreenRequiredAnswerQuestions(screen);
+    if (requiredAnswerQuestions.length > 5) {
+        throw new Error('This verification screen has too many answer inputs. Mark some questions separateStep:true.');
     }
 
-    for (const field of step?.fields ?? []) {
-        applyFieldToEmbed(challengeEmbed, field);
+    const modal = new Discord.ModalBuilder()
+        .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', session.challengeId, session.screenIndex, session.token))
+        .setTitle('Verify');
+
+    for (const question of requiredAnswerQuestions) {
+        const answer = question.answer ?? {};
+
+        const input = new Discord.TextInputBuilder()
+            .setCustomId(`q:${question.id}:${answer.type === 'positions' ? 'positions' : 'answer'}`)
+            .setLabel(answer.inputLabel ?? (answer.type === 'positions' ? 'Image position(s)' : 'Verification answer'))
+            .setPlaceholder(answer.inputPlaceholder ?? (answer.type === 'positions' ? 'If multiple, separate position numbers by commas or spaces' : 'Enter your answer here'))
+            .setStyle(Discord.TextInputStyle.Short)
+            .setRequired(true);
+
+        modal.addComponents(new Discord.ActionRowBuilder().addComponents(input));
     }
 
-    const imageEmbeds = getGalleryDisplayImages(galleryState).map((image) => {
-        return new Discord.EmbedBuilder()
-            .setColor(resolveEmbedColor(view.color))
-            .setTitle(image.description ?? `Position ${image.position}`)
-            .setImage(getGalleryDisplayUrl(image));
-    });
-
-    return [challengeEmbed, ...imageEmbeds];
+    return modal;
 }
 
-function buildLegacyGalleryReplyOptions(challenge, stepIndex = 0, galleryState, embeds, expiresAt, files, promptImage) {
+function buildCompletedQuestionOptions(message = 'Verification step completed.') {
     return {
-        embeds: embeds ?? buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt, promptImage),
-        files: files ?? [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(galleryState?.selectedImages, galleryState?.compositeImage)],
-        components: [buildGiveAnswerRow(challenge.id, stepIndex, galleryState?.token)],
+        embeds: [new Discord.EmbedBuilder().setTitle('Verification').setDescription(message)],
+        components: [],
+        files: [],
         flags: Discord.MessageFlags.Ephemeral,
     };
 }
 
-function buildLegacyGalleryEmbedPages(challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
-    const embeds = buildLegacyGalleryEmbeds(challenge, stepIndex, galleryState, expiresAt, promptImage);
-    const challengeEmbed = embeds[0];
-    const imageEmbeds = embeds.slice(1);
-    const selectedImages = galleryState?.selectedImages ?? [];
-    const pages = [
-        {
-            embeds: [challengeEmbed, ...imageEmbeds.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT)].filter(Boolean),
-            files: [...getPromptImageAttachment(promptImage), ...getGalleryImageAttachments(selectedImages.slice(0, LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT), galleryState?.compositeImage)],
-        },
-    ];
-
-    for (let index = LEGACY_GALLERY_FIRST_PAGE_IMAGE_LIMIT; index < imageEmbeds.length; index += LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT) {
-        pages.push({
-            embeds: imageEmbeds.slice(index, index + LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT),
-            files: getGalleryImageAttachments(selectedImages.slice(index, index + LEGACY_GALLERY_FOLLOWUP_IMAGE_LIMIT)),
-        });
-    }
-
-    return pages.filter((page) => page.embeds.length > 0);
-}
-
-async function replyWithLegacyGallery(interaction, challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
-    const [firstPage, ...followUpPages] = buildLegacyGalleryEmbedPages(challenge, stepIndex, galleryState, expiresAt, promptImage);
-    await sendInitialInteractionResponse(interaction, buildLegacyGalleryReplyOptions(challenge, stepIndex, galleryState, firstPage.embeds, expiresAt, firstPage.files, promptImage));
-
-    for (const page of followUpPages) {
-        await interaction.followUp({ embeds: page.embeds, files: page.files, flags: Discord.MessageFlags.Ephemeral });
-    }
-}
 
 async function sendInitialInteractionResponse(interaction, options) {
     if (interaction.deferred) {
-        return interaction.editReply(removeInitialOnlyResponseOptions(options));
+        return interaction.editReply(sanitizeMessageEditOptions(options));
     }
 
     if (interaction.replied) {
@@ -716,7 +678,7 @@ async function sendInitialInteractionResponse(interaction, options) {
     return interaction.reply(options);
 }
 
-function removeInitialOnlyResponseOptions(options) {
+function sanitizeMessageEditOptions(options = {}) {
     const editOptions = { ...options };
 
     delete editOptions.ephemeral;
@@ -732,123 +694,9 @@ function removeInitialOnlyResponseOptions(options) {
     return editOptions;
 }
 
-async function replyWithChallenge(interaction, challenge, stepIndex = 0, galleryState, expiresAt, promptImage) {
-    const step = getVerificationChallengeStep(challenge.id, stepIndex);
-    const isGalleryChallenge = isComponentsV2GalleryChallenge(challenge, step);
-
-    try {
-        await sendInitialInteractionResponse(interaction, buildChallengeReplyOptions(challenge, stepIndex, galleryState, expiresAt, promptImage));
-    }
-    catch (err) {
-        if (!isGalleryChallenge) {
-            throw err;
-        }
-
-        console.error('Failed to send Components V2 verification challenge. Falling back to legacy embeds:', err);
-        return replyWithLegacyGallery(interaction, challenge, stepIndex, galleryState, expiresAt, promptImage);
-    }
-
-    if (isGalleryChallenge) {
-        await interaction.followUp(buildGalleryFallbackPrompt(challenge, stepIndex, galleryState, expiresAt)).catch((err) => {
-            console.error('Failed to send Components V2 verification fallback prompt:', err);
-        });
-    }
-}
-
-function buildChallengeComponentCustomId(prefix, challengeId, stepIndex = 0, token) {
-    return `${prefix}${challengeId}-${stepIndex}${token ? `-${token}` : ''}`;
-}
-
-function buildGiveAnswerRow(challengeId, stepIndex = 0, token) {
-    return new Discord.ActionRowBuilder()
-        .addComponents(
-            new Discord.ButtonBuilder()
-                .setCustomId(buildChallengeComponentCustomId('wardenVerify-answer-', challengeId, stepIndex, token))
-                .setLabel('Give Answer')
-                .setStyle(Discord.ButtonStyle.Primary),
-        );
-}
-
-function buildAnswerModal(challengeId, stepIndex = 0, activeChallenge, verificationSettings) {
-    const challenge = applyVerificationChallengeOverrides(verificationChallenges[challengeId], verificationSettings);
-    const step = getVerificationChallengeSteps(challenge)[stepIndex];
-    const omitAnswerInput = shouldOmitAnswerInput(challenge, step);
-    const modal = new Discord.ModalBuilder()
-        .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', challengeId, stepIndex, activeChallenge?.gallery?.token))
-        .setTitle('Verify');
-
-    if (!omitAnswerInput) {
-        const answerInput = new Discord.TextInputBuilder()
-            .setCustomId('answer')
-            .setLabel('Verification answer')
-            .setPlaceholder(step?.answerInputPlaceholder ?? 'Enter your Answer here')
-            .setStyle(Discord.TextInputStyle.Short)
-            .setRequired(true);
-
-        modal.addComponents(new Discord.ActionRowBuilder().addComponents(answerInput));
-    }
-
-    if (isComponentsV2GalleryChallenge(challenge, step) || activeChallenge?.gallery) {
-        const positionInput = new Discord.TextInputBuilder()
-            .setCustomId('positions')
-            .setLabel(step?.positionInputLabel ?? 'Image position(s)')
-            .setPlaceholder(step?.positionInputPlaceholder ?? 'If multiple, seperate position numbers by commas or spaces')
-            .setStyle(Discord.TextInputStyle.Short)
-            .setRequired(true);
-
-        modal.addComponents(new Discord.ActionRowBuilder().addComponents(positionInput));
-    }
-
-    return modal;
-}
-
-function parseChallengeComponentCustomId(customId, prefix) {
-    if (!customId.startsWith(prefix)) return undefined;
-
-    const payload = customId.slice(prefix.length);
-    const stepSeparatorIndex = payload.lastIndexOf('-');
-
-    if (stepSeparatorIndex < 1) return undefined;
-
-    let challengePayload = payload.slice(0, stepSeparatorIndex);
-    let stepIndex = Number(payload.slice(stepSeparatorIndex + 1));
-    let token;
-
-    if (!Number.isInteger(stepIndex) || stepIndex < 0) {
-        token = payload.slice(stepSeparatorIndex + 1);
-        const tokenSeparatorIndex = challengePayload.lastIndexOf('-');
-
-        if (tokenSeparatorIndex < 1) return undefined;
-
-        stepIndex = Number(challengePayload.slice(tokenSeparatorIndex + 1));
-        challengePayload = challengePayload.slice(0, tokenSeparatorIndex);
-    }
-
-    if (!Number.isInteger(stepIndex) || stepIndex < 0) return undefined;
-
-    return { challengeId: challengePayload, stepIndex, token };
-}
-
-function parseAnswerCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-answer-');
-}
-
-function parseSubmitCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-submit-');
-}
-
-function parseOldVersionCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-oldVersion-');
-}
-
-function isStaleGalleryComponent(parsedChallenge, activeChallenge) {
-    if (!activeChallenge?.gallery?.token) return false;
-
-    return parsedChallenge?.token !== activeChallenge.gallery.token;
-}
-
-
 module.exports = {
+    COMPONENTS_V2_RENDERER,
+    LEGACY_RENDERER,
     resolveEmbedColor,
     resolveComponentAccentColor,
     applyTextReplacements,
@@ -871,13 +719,24 @@ module.exports = {
     buildVerificationErrorResponse,
     buildVerificationAutoKickEmbed,
     buildResultEmbed,
-    isComponentsV2GalleryChallenge,
+    isComponentsV2Available,
+    assertComponentsV2Support,
+    buildChallengeIntroOptions,
+    buildQuestionScreenOptions,
+    buildQuestionScreenComponentsV2,
+    buildQuestionScreenLegacyOptions,
+    buildQuestionScreenLegacyPages,
+    buildOldVersionFallbackOptions,
     buildAnswerModal,
+    buildScreenActionRows,
+    buildChallengeComponentCustomId,
+    parseChallengeComponentCustomId,
     parseAnswerCustomId,
-    parseSubmitCustomId,
+    parseNextCustomId,
+    parseBackCustomId,
     parseOldVersionCustomId,
-    isStaleGalleryComponent,
-    replyWithChallenge,
-    replyWithLegacyGallery,
+    parseSubmitCustomId,
+    buildCompletedQuestionOptions,
+    sanitizeMessageEditOptions,
     sendInitialInteractionResponse,
 };
