@@ -1963,7 +1963,7 @@ function getGalleryDisplayImages(galleryState) {
 
 function getQuestionAssetFiles(questionAsset) {
     if (!questionAsset) return [];
-    if (Array.isArray(questionAsset.files)) return questionAsset.files.filter(Boolean);
+    if (Array.isArray(questionAsset.files) && questionAsset.files.length > 0) return questionAsset.files.filter(Boolean);
     if (questionAsset.promptImage?.attachment) return [questionAsset.promptImage.attachment];
     if (questionAsset.galleryState) {
         if (questionAsset.galleryState.compositeImage?.attachment) return [questionAsset.galleryState.compositeImage.attachment];
@@ -2023,7 +2023,6 @@ async function prepareQuestionImageAsset(question, verificationSettings, challen
         const asset = {
             type,
             galleryState,
-            files: [],
             displayItems: getGalleryDisplayImages(galleryState),
         };
         asset.files = getQuestionAssetFiles(asset);
