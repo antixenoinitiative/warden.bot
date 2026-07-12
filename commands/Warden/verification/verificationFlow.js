@@ -16,15 +16,25 @@ const {
 const {
     GALLERY_IMAGE_FETCH_TIMEOUT_CODE,
     prepareQuestionAssets,
-    getQuestionAssetFiles,
-    getQuestionDisplayItems,
 } = require('./verificationImages');
 const {
+    COMPONENTS_V2_RENDERER,
+    LEGACY_RENDERER,
     buildVerificationPublicResponse,
     buildVerificationInProgressResponse,
     buildVerificationExpiredResponse,
     buildVerificationFailureResponse,
     buildVerificationErrorEmbed,
+    buildChallengeIntroOptions,
+    buildQuestionScreenOptions,
+    buildOldVersionFallbackOptions,
+    buildAnswerModal,
+    buildCompletedQuestionOptions,
+    parseAnswerCustomId,
+    parseNextCustomId,
+    parseBackCustomId,
+    parseOldVersionCustomId,
+    parseSubmitCustomId,
     sendInitialInteractionResponse,
 } = require('./verificationResponses');
 
@@ -115,49 +125,6 @@ function createSessionToken() {
     return crypto.randomUUID().replaceAll('-', '');
 }
 
-function buildChallengeComponentCustomId(prefix, challengeId, screenIndex = 0, token) {
-    return `${prefix}${challengeId}-${screenIndex}${token ? `-${token}` : ''}`;
-}
-
-function parseChallengeComponentCustomId(customId, prefix) {
-    if (!customId.startsWith(prefix)) return undefined;
-
-    const payload = customId.slice(prefix.length);
-    const tokenSeparatorIndex = payload.lastIndexOf('-');
-    if (tokenSeparatorIndex < 1) return undefined;
-
-    const token = payload.slice(tokenSeparatorIndex + 1);
-    const challengeAndScreen = payload.slice(0, tokenSeparatorIndex);
-    const screenSeparatorIndex = challengeAndScreen.lastIndexOf('-');
-    if (screenSeparatorIndex < 1) return undefined;
-
-    const challengeId = challengeAndScreen.slice(0, screenSeparatorIndex);
-    const screenIndex = Number(challengeAndScreen.slice(screenSeparatorIndex + 1));
-    if (!challengeId || !Number.isInteger(screenIndex) || screenIndex < 0 || !token) return undefined;
-
-    return { challengeId, screenIndex, token };
-}
-
-function parseAnswerCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-answer-');
-}
-
-function parseNextCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-next-');
-}
-
-function parseBackCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-back-');
-}
-
-function parseOldVersionCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-oldVersion-');
-}
-
-function parseSubmitCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-submit-');
-}
-
 function isStaleScreenComponent(parsed, session) {
     return !parsed
         || parsed.challengeId !== session.challengeId
@@ -176,155 +143,6 @@ function hasNextScreen(session) {
 function canGoBack(session) {
     const previousScreen = session.screens[session.screenIndex - 1];
     return Boolean(previousScreen && !screenRequiresAnswer(previousScreen) && !session.answeredScreenIndexes?.includes(previousScreen.index));
-}
-
-function buildExpiryLine(expiresAt) {
-    if (!expiresAt) return undefined;
-    return `This verification challenge expires <t:${Math.floor(expiresAt / 1000)}:R>.`;
-}
-
-function truncateEmbedText(value, fallback = 'Not set') {
-    const text = String(value ?? '').trim() || fallback;
-    return text.length > 4096 ? `${text.slice(0, 4093)}...` : text;
-}
-
-function applyQuestionFields(embed, question) {
-    if (question.text) {
-        embed.addFields({ name: question.label ?? question.id, value: truncateEmbedText(question.text), inline: false });
-    }
-}
-
-function buildScreenComponents(session) {
-    const screen = getCurrentScreen(session);
-    const row = new Discord.ActionRowBuilder();
-
-    if (canGoBack(session)) {
-        row.addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildChallengeComponentCustomId('wardenVerify-back-', session.challengeId, session.screenIndex, session.token))
-            .setLabel('Back')
-            .setStyle(Discord.ButtonStyle.Secondary));
-    }
-
-    if (screenRequiresAnswer(screen)) {
-        row.addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildChallengeComponentCustomId('wardenVerify-answer-', session.challengeId, session.screenIndex, session.token))
-            .setLabel('Give Answer')
-            .setStyle(Discord.ButtonStyle.Primary));
-    }
-    else {
-        row.addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildChallengeComponentCustomId('wardenVerify-next-', session.challengeId, session.screenIndex, session.token))
-            .setLabel(hasNextScreen(session) ? 'Next' : 'Complete')
-            .setStyle(Discord.ButtonStyle.Primary));
-    }
-
-    return row.components.length > 0 ? [row] : [];
-}
-
-function buildCompletedQuestionOptions(message = 'Verification step completed.') {
-    return {
-        embeds: [new Discord.EmbedBuilder().setTitle('Verification').setDescription(message)],
-        components: [],
-        files: [],
-        flags: Discord.MessageFlags.Ephemeral,
-    };
-}
-
-function buildQuestionMessageOptions(challenge, session, { includeIntro = false, completed = false } = {}) {
-    const screen = getCurrentScreen(session);
-    const screenAssets = session.screenAssets ?? {};
-    const files = Object.values(screenAssets).flatMap(getQuestionAssetFiles);
-    const displayItems = Object.values(screenAssets).flatMap(getQuestionDisplayItems);
-    const embeds = [];
-
-    const introLines = includeIntro
-        ? [challenge.description, buildExpiryLine(session.expiresAt)].filter(Boolean)
-        : [buildExpiryLine(session.expiresAt)].filter(Boolean);
-    const introEmbed = new Discord.EmbedBuilder()
-        .setTitle(challenge.title ?? 'Verification Challenge')
-        .setDescription(truncateEmbedText(introLines.join('\n\n'), `Screen ${screen.index + 1} of ${session.screens.length}`));
-
-    for (const field of challenge.fields ?? []) {
-        const value = field.content ?? field.value ?? field.description;
-        if (value) introEmbed.addFields({ name: field.title ?? field.name ?? 'Information', value: truncateEmbedText(value, 'Information'), inline: field.inline === true });
-    }
-
-    embeds.push(introEmbed);
-
-    const screenEmbed = new Discord.EmbedBuilder()
-        .setTitle(screen.questions.length > 1 ? `Questions ${screen.index + 1}` : (screen.questions[0]?.label ?? `Question ${screen.index + 1}`));
-
-    for (const question of screen.questions) {
-        applyQuestionFields(screenEmbed, question);
-    }
-
-    if (screenRequiresAnswer(screen)) {
-        screenEmbed.setFooter({ text: 'Use the Give Answer button to submit your response.' });
-    }
-    else {
-        screenEmbed.setFooter({ text: hasNextScreen(session) ? 'Use Next to continue.' : 'Use Complete to finish verification.' });
-    }
-
-    embeds.push(screenEmbed);
-
-    const imageDisplayItems = displayItems.filter((item) => item.type === 'image' && item.displayUrl);
-    const remainingEmbedSlots = Math.max(0, 10 - embeds.length);
-    const visibleImageItems = imageDisplayItems.slice(0, remainingEmbedSlots);
-    const omittedImageCount = imageDisplayItems.length - visibleImageItems.length;
-
-    if (omittedImageCount > 0) {
-        screenEmbed.addFields({
-            name: 'Additional images',
-            value: `${omittedImageCount} more verification image${omittedImageCount === 1 ? '' : 's'} attached below.`,
-            inline: false,
-        });
-    }
-
-    for (const item of visibleImageItems) {
-        embeds.push(new Discord.EmbedBuilder()
-            .setTitle(item.description ?? 'Verification image')
-            .setImage(item.displayUrl));
-    }
-
-    return {
-        embeds,
-        components: completed ? [] : buildScreenComponents(session),
-        files,
-        flags: Discord.MessageFlags.Ephemeral,
-    };
-}
-
-function buildIntroOptions(challenge, session) {
-    return {
-        embeds: [new Discord.EmbedBuilder()
-            .setTitle(challenge.title ?? 'Verification Challenge')
-            .setDescription([challenge.description, buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n') || 'Complete the verification questions to continue.')],
-        components: [],
-        flags: Discord.MessageFlags.Ephemeral,
-    };
-}
-
-function buildAnswerModal(session) {
-    const screen = getCurrentScreen(session);
-    const modal = new Discord.ModalBuilder()
-        .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', session.challengeId, session.screenIndex, session.token))
-        .setTitle('Verify');
-
-    for (const question of screen.questions) {
-        const answer = question.answer ?? {};
-        if (answer.required !== true || answer.type === 'none') continue;
-
-        const input = new Discord.TextInputBuilder()
-            .setCustomId(`q:${question.id}:${answer.type === 'positions' ? 'positions' : 'answer'}`)
-            .setLabel(answer.inputLabel ?? (answer.type === 'positions' ? 'Image position(s)' : 'Verification answer'))
-            .setPlaceholder(answer.inputPlaceholder ?? (answer.type === 'positions' ? 'If multiple, separate position numbers by commas or spaces' : 'Enter your answer here'))
-            .setStyle(Discord.TextInputStyle.Short)
-            .setRequired(true);
-
-        modal.addComponents(new Discord.ActionRowBuilder().addComponents(input));
-    }
-
-    return modal;
 }
 
 function buildSubmittedScreenValues(screen, interaction) {
@@ -349,7 +167,7 @@ async function prepareSessionScreenAssets(session, verificationSettings) {
 }
 
 async function replaceQuestionMessage(interaction, session, options) {
-    const editOptions = { ...options, flags: Discord.MessageFlags.Ephemeral };
+    const editOptions = { ...options, flags: options.flags ?? Discord.MessageFlags.Ephemeral };
 
     try {
         if (interaction.isButton?.() && !interaction.deferred && !interaction.replied) {
@@ -472,7 +290,7 @@ async function handleVerifyStart(interaction) {
         screenAssets: {},
         completedScreens: [],
         answeredScreenIndexes: [],
-        renderer: 'embed',
+        renderer: COMPONENTS_V2_RENDERER,
         token,
         introMessageId: undefined,
         questionMessageId: undefined,
@@ -497,13 +315,13 @@ async function handleVerifyStart(interaction) {
     setChallenge(interaction.user.id, session, challengeExpiryMs);
 
     if (splitMessages) {
-        const introMessage = await interaction.editReply(buildIntroOptions(challenge, session));
+        const introMessage = await interaction.editReply(buildChallengeIntroOptions(challenge, session, { renderer: session.renderer }));
         session.introMessageId = introMessage?.id;
-        const questionMessage = await interaction.followUp(buildQuestionMessageOptions(challenge, session));
+        const questionMessage = await interaction.followUp(buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
         session.questionMessageId = questionMessage?.id;
     }
     else {
-        const questionMessage = await interaction.editReply(buildQuestionMessageOptions(challenge, session, { includeIntro: true }));
+        const questionMessage = await interaction.editReply(buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: true, renderer: session.renderer }));
         session.questionMessageId = questionMessage?.id;
     }
 
@@ -596,7 +414,7 @@ async function handleVerifyOldVersion(interaction) {
 
     const challenge = getEnabledVerificationChallenges({ verification: verificationSettings }).find((candidate) => candidate.id === session.challengeId)
         ?? getActiveVerificationChallenge({ verification: verificationSettings });
-    await interaction.reply(buildQuestionMessageOptions(challenge, session, { includeIntro: true }));
+    await interaction.reply(buildOldVersionFallbackOptions(challenge, { ...session, renderer: LEGACY_RENDERER }));
 }
 
 async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex) {
@@ -606,7 +424,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
     session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
     session.token = createSessionToken();
 
-    const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionMessageOptions(challenge, session));
+    const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
     session.questionMessageId = questionMessageId;
     setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
 }

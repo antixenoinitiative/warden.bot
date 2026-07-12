@@ -1,11 +1,18 @@
 const Discord = require('discord.js');
 const { botIdent } = require('../../../functions');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
+const { screenRequiresAnswer } = require('./verificationChallenges');
+const {
+    getQuestionAssetFiles,
+    getQuestionDisplayItems,
+} = require('./verificationImages');
 
 const DESCRIPTION_LIMIT = 4096;
 const FIELD_NAME_LIMIT = 256;
 const FIELD_VALUE_LIMIT = 1024;
 const MAX_FIELDS = 25;
+const COMPONENTS_V2_RENDERER = 'components-v2';
+const LEGACY_RENDERER = 'legacy';
 
 function resolveColorAlias(color) {
     if (typeof color !== 'string') {
@@ -309,6 +316,301 @@ function buildVerificationAutoKickEmbed(member, options = {}) {
 // Challenge response builders
 // -----------------------------------------------------------------------------
 
+function isComponentsV2Available() {
+    return Boolean(
+        Discord.ContainerBuilder
+        && Discord.TextDisplayBuilder
+        && Discord.MediaGalleryBuilder
+        && Discord.MediaGalleryItemBuilder
+        && Discord.MessageFlags?.IsComponentsV2,
+    );
+}
+
+function assertComponentsV2Support() {
+    if (!isComponentsV2Available()) {
+        throw new Error('Discord Components V2 builders are not available in this discord.js version.');
+    }
+}
+
+function buildChallengeComponentCustomId(prefix, challengeId, screenIndex = 0, token) {
+    return `${prefix}${challengeId}-${screenIndex}${token ? `-${token}` : ''}`;
+}
+
+function parseChallengeComponentCustomId(customId, prefix) {
+    if (!customId.startsWith(prefix)) return undefined;
+
+    const payload = customId.slice(prefix.length);
+    const tokenSeparatorIndex = payload.lastIndexOf('-');
+    if (tokenSeparatorIndex < 1) return undefined;
+
+    const token = payload.slice(tokenSeparatorIndex + 1);
+    const challengeAndScreen = payload.slice(0, tokenSeparatorIndex);
+    const screenSeparatorIndex = challengeAndScreen.lastIndexOf('-');
+    if (screenSeparatorIndex < 1) return undefined;
+
+    const challengeId = challengeAndScreen.slice(0, screenSeparatorIndex);
+    const screenIndex = Number(challengeAndScreen.slice(screenSeparatorIndex + 1));
+    if (!challengeId || !Number.isInteger(screenIndex) || screenIndex < 0 || !token) return undefined;
+
+    return { challengeId, screenIndex, token };
+}
+
+function parseAnswerCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-answer-');
+}
+
+function parseNextCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-next-');
+}
+
+function parseBackCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-back-');
+}
+
+function parseOldVersionCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-oldVersion-');
+}
+
+function parseSubmitCustomId(customId) {
+    return parseChallengeComponentCustomId(customId, 'wardenVerify-submit-');
+}
+
+function getCurrentScreen(session) {
+    return session.screens[session.screenIndex];
+}
+
+function hasNextScreen(session) {
+    return session.screenIndex + 1 < session.screens.length;
+}
+
+function canGoBack(session) {
+    const previousScreen = session.screens[session.screenIndex - 1];
+    return Boolean(previousScreen && !screenRequiresAnswer(previousScreen) && !session.answeredScreenIndexes?.includes(previousScreen.index));
+}
+
+function buildExpiryLine(expiresAt) {
+    if (!expiresAt) return undefined;
+    return `This verification challenge expires <t:${Math.floor(expiresAt / 1000)}:R>.`;
+}
+
+function truncateEmbedText(value, fallback = 'Not set') {
+    const text = String(value ?? '').trim() || fallback;
+    return text.length > DESCRIPTION_LIMIT ? `${text.slice(0, DESCRIPTION_LIMIT - 3)}...` : text;
+}
+
+function applyQuestionFields(embed, question) {
+    if (question.text) {
+        embed.addFields({ name: question.label ?? question.id, value: truncateEmbedText(question.text), inline: false });
+    }
+}
+
+function buildScreenActionRows(session) {
+    const screen = getCurrentScreen(session);
+    const row = new Discord.ActionRowBuilder();
+
+    if (canGoBack(session)) {
+        row.addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildChallengeComponentCustomId('wardenVerify-back-', session.challengeId, session.screenIndex, session.token))
+            .setLabel('Back')
+            .setStyle(Discord.ButtonStyle.Secondary));
+    }
+
+    if (screenRequiresAnswer(screen)) {
+        row.addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildChallengeComponentCustomId('wardenVerify-answer-', session.challengeId, session.screenIndex, session.token))
+            .setLabel('Give Answer')
+            .setStyle(Discord.ButtonStyle.Primary));
+    }
+    else {
+        row.addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildChallengeComponentCustomId('wardenVerify-next-', session.challengeId, session.screenIndex, session.token))
+            .setLabel(hasNextScreen(session) ? 'Next' : 'Complete')
+            .setStyle(Discord.ButtonStyle.Primary));
+    }
+
+    row.addComponents(new Discord.ButtonBuilder()
+        .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
+        .setLabel('Old Version')
+        .setStyle(Discord.ButtonStyle.Secondary));
+
+    return row.components.length > 0 ? [row] : [];
+}
+
+function getScreenFiles(screenAssets = {}) {
+    return Object.values(screenAssets).flatMap(getQuestionAssetFiles);
+}
+
+function getAssetDisplayItems(asset) {
+    return getQuestionDisplayItems(asset).filter((item) => item.type === 'image' && item.displayUrl);
+}
+
+function addTextDisplay(container, content) {
+    const text = String(content ?? '').trim();
+    if (!text) return;
+    container.addTextDisplayComponents(new Discord.TextDisplayBuilder().setContent(text.slice(0, 4000)));
+}
+
+function addAssetMediaGallery(container, asset) {
+    const displayItems = getAssetDisplayItems(asset);
+    if (displayItems.length < 1) return;
+
+    const gallery = new Discord.MediaGalleryBuilder();
+    for (const item of displayItems.slice(0, 10)) {
+        const galleryItem = new Discord.MediaGalleryItemBuilder()
+            .setURL(item.displayUrl);
+        if (item.description) galleryItem.setDescription(item.description.slice(0, 256));
+        gallery.addItems(galleryItem);
+    }
+    container.addMediaGalleryComponents(gallery);
+}
+
+function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, session, options = {}) {
+    assertComponentsV2Support();
+
+    const container = new Discord.ContainerBuilder()
+        .setAccentColor(resolveComponentAccentColor(verificationEmbedConfig.responseDefaults?.colors?.info));
+
+    if (options.includeIntro) {
+        addTextDisplay(container, `# ${challenge.title ?? 'Verification Challenge'}`);
+        addTextDisplay(container, challenge.description);
+        for (const field of challenge.fields ?? []) {
+            const value = field.content ?? field.value ?? field.description;
+            if (value) addTextDisplay(container, `**${field.title ?? field.name ?? 'Information'}**\n${value}`);
+        }
+    }
+
+    if ((session?.screens?.length ?? 0) > 1) {
+        addTextDisplay(container, `**Screen ${screen.index + 1} of ${session.screens.length}**`);
+    }
+
+    for (const question of screen.questions ?? []) {
+        addTextDisplay(container, `## ${question.label ?? question.id}`);
+        addTextDisplay(container, question.text);
+        addAssetMediaGallery(container, screenAssets[question.id]);
+
+        if (screenAssets[question.id]?.galleryState?.selectedImages?.length) {
+            addTextDisplay(container, 'Use the displayed image positions when answering gallery questions.');
+        }
+    }
+
+    addTextDisplay(container, buildExpiryLine(session?.expiresAt));
+    if (!options.completed) {
+        container.addActionRowComponents(...buildScreenActionRows(session));
+    }
+
+    return [container];
+}
+
+function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, session, options = {}) {
+    const embeds = [];
+    const introLines = options.includeIntro
+        ? [challenge.description, buildExpiryLine(session.expiresAt)].filter(Boolean)
+        : [buildExpiryLine(session.expiresAt)].filter(Boolean);
+    const introEmbed = new Discord.EmbedBuilder()
+        .setTitle(challenge.title ?? 'Verification Challenge')
+        .setDescription(truncateEmbedText(introLines.join('\n\n'), `Screen ${screen.index + 1} of ${session.screens.length}`));
+
+    for (const field of challenge.fields ?? []) {
+        const value = field.content ?? field.value ?? field.description;
+        if (value) introEmbed.addFields({ name: field.title ?? field.name ?? 'Information', value: truncateEmbedText(value, 'Information'), inline: field.inline === true });
+    }
+
+    embeds.push(introEmbed);
+
+    const screenEmbed = new Discord.EmbedBuilder()
+        .setTitle(screen.questions.length > 1 ? `Questions ${screen.index + 1}` : (screen.questions[0]?.label ?? `Question ${screen.index + 1}`));
+
+    for (const question of screen.questions) {
+        applyQuestionFields(screenEmbed, question);
+    }
+
+    screenEmbed.setFooter({ text: screenRequiresAnswer(screen) ? 'Use the Give Answer button to submit your response.' : (hasNextScreen(session) ? 'Use Next to continue.' : 'Use Complete to finish verification.') });
+    embeds.push(screenEmbed);
+
+    const imageDisplayItems = Object.values(screenAssets).flatMap(getAssetDisplayItems);
+    const visibleImageItems = imageDisplayItems.slice(0, Math.max(0, 10 - embeds.length));
+    const omittedImageCount = imageDisplayItems.length - visibleImageItems.length;
+
+    if (omittedImageCount > 0) {
+        screenEmbed.addFields({
+            name: 'Additional images',
+            value: `${omittedImageCount} more verification image${omittedImageCount === 1 ? '' : 's'} attached below.`,
+            inline: false,
+        });
+    }
+
+    for (const item of visibleImageItems) {
+        embeds.push(new Discord.EmbedBuilder()
+            .setTitle(item.description ?? 'Verification image')
+            .setImage(item.displayUrl));
+    }
+
+    return embeds;
+}
+
+function buildQuestionScreenLegacyOptions(challenge, screen, screenAssets = {}, session, options = {}) {
+    return {
+        embeds: buildQuestionScreenLegacyPages(challenge, screen, screenAssets, session, options),
+        components: options.completed ? [] : buildScreenActionRows(session),
+        files: getScreenFiles(screenAssets),
+        flags: Discord.MessageFlags.Ephemeral,
+    };
+}
+
+function buildQuestionScreenOptions(challenge, screen, screenAssets = {}, session, options = {}) {
+    const renderer = options.renderer ?? session?.renderer ?? COMPONENTS_V2_RENDERER;
+    if (renderer === LEGACY_RENDERER || !isComponentsV2Available()) {
+        return buildQuestionScreenLegacyOptions(challenge, screen, screenAssets, session, options);
+    }
+
+    return {
+        components: buildQuestionScreenComponentsV2(challenge, screen, screenAssets, session, options),
+        files: getScreenFiles(screenAssets),
+        flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
+    };
+}
+
+function buildChallengeIntroOptions(challenge, session, options = {}) {
+    const introScreen = { id: 'intro', index: 0, questions: [], answerRequired: false };
+    return buildQuestionScreenOptions(challenge, introScreen, {}, session, { ...options, includeIntro: true, completed: true });
+}
+
+function buildOldVersionFallbackOptions(challenge, session) {
+    return buildQuestionScreenLegacyOptions(challenge, getCurrentScreen(session), session.screenAssets ?? {}, session, { includeIntro: true });
+}
+
+function buildAnswerModal(session) {
+    const screen = getCurrentScreen(session);
+    const modal = new Discord.ModalBuilder()
+        .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', session.challengeId, session.screenIndex, session.token))
+        .setTitle('Verify');
+
+    for (const question of screen.questions) {
+        const answer = question.answer ?? {};
+        if (answer.required !== true || answer.type === 'none') continue;
+
+        const input = new Discord.TextInputBuilder()
+            .setCustomId(`q:${question.id}:${answer.type === 'positions' ? 'positions' : 'answer'}`)
+            .setLabel(answer.inputLabel ?? (answer.type === 'positions' ? 'Image position(s)' : 'Verification answer'))
+            .setPlaceholder(answer.inputPlaceholder ?? (answer.type === 'positions' ? 'If multiple, separate position numbers by commas or spaces' : 'Enter your answer here'))
+            .setStyle(Discord.TextInputStyle.Short)
+            .setRequired(true);
+
+        modal.addComponents(new Discord.ActionRowBuilder().addComponents(input));
+    }
+
+    return modal;
+}
+
+function buildCompletedQuestionOptions(message = 'Verification step completed.') {
+    return {
+        embeds: [new Discord.EmbedBuilder().setTitle('Verification').setDescription(message)],
+        components: [],
+        files: [],
+        flags: Discord.MessageFlags.Ephemeral,
+    };
+}
+
 
 async function sendInitialInteractionResponse(interaction, options) {
     if (interaction.deferred) {
@@ -339,6 +641,8 @@ function removeInitialOnlyResponseOptions(options) {
 }
 
 module.exports = {
+    COMPONENTS_V2_RENDERER,
+    LEGACY_RENDERER,
     resolveEmbedColor,
     resolveComponentAccentColor,
     applyTextReplacements,
@@ -361,5 +665,23 @@ module.exports = {
     buildVerificationErrorResponse,
     buildVerificationAutoKickEmbed,
     buildResultEmbed,
+    isComponentsV2Available,
+    assertComponentsV2Support,
+    buildChallengeIntroOptions,
+    buildQuestionScreenOptions,
+    buildQuestionScreenComponentsV2,
+    buildQuestionScreenLegacyOptions,
+    buildQuestionScreenLegacyPages,
+    buildOldVersionFallbackOptions,
+    buildAnswerModal,
+    buildScreenActionRows,
+    buildChallengeComponentCustomId,
+    parseChallengeComponentCustomId,
+    parseAnswerCustomId,
+    parseNextCustomId,
+    parseBackCustomId,
+    parseOldVersionCustomId,
+    parseSubmitCustomId,
+    buildCompletedQuestionOptions,
     sendInitialInteractionResponse,
 };
