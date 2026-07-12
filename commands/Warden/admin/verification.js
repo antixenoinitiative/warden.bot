@@ -24,12 +24,14 @@ const {
     setChallengeExpirySeconds,
     setCooldownSeconds,
     setAutokickSettings,
-    setChallengePromptOverride,
-    setChallengeAnswerOverrides,
-    setChallengeSolutionImageIds,
-    setChallengeControlImageIds,
-    setChallengeSolutionImageDirections,
-    clearChallengeSolutionImageDirections,
+    setQuestionTextOverride,
+    setQuestionImageTextOverride,
+    setQuestionAnswerOverrides,
+    setQuestionImageIds,
+    clearQuestionImageIds,
+    setQuestionImageDirections,
+    clearQuestionImageDirections,
+    clearQuestionOverrideField,
 } = require('../verification/verificationSettings');
 
 function userErrorEmbed(message) {
@@ -85,7 +87,7 @@ function parseDegreeList(input) {
 
 function parseAnswerOverrideList(input) {
     return String(input ?? '')
-        .split(',')
+        .split(/[\n,]+/)
         .map((answer) => answer.trim())
         .filter(Boolean);
 }
@@ -109,81 +111,16 @@ function getSingleKnownChallengeId(interaction) {
     return { challengeId };
 }
 
-function getChallengeOverrideSummary(verificationSettings, challengeId) {
-    const override = verificationSettings.challengeOverrides?.[challengeId];
-    return override?.updatedAt
-        ? `Last updated: ${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}`
-        : 'Last updated: never';
-}
 
-function getChallengeOverrideFields(verificationSettings, challengeId) {
-    const override = verificationSettings.challengeOverrides?.[challengeId];
-    const challenge = verificationChallenges[challengeId];
-    const solutionLabels = getChallengeImageRoleLabels(challenge, 'solution');
-    const controlLabels = getChallengeImageRoleLabels(challenge, 'control');
-    const prompt = override?.prompt || 'Not set';
-    const answers = override?.answers?.length
-        ? override.answers.map((answer) => `- ${answer}`).join('\n')
-        : 'Not set';
-    const solutionImageIds = override?.solutionImageIds?.length
-        ? override.solutionImageIds.map((imageId) => `- ${imageId}`).join('\n')
-        : 'Not set';
-    const controlImageIds = override?.controlImageIds?.length
-        ? override.controlImageIds.map((imageId) => `- ${imageId}`).join('\n')
-        : 'Not set';
-    const solutionImageDirections = Object.keys(override?.solutionImageDirections ?? {}).length > 0
-        ? Object.entries(override.solutionImageDirections).map(([imageId, degrees]) => `- ${imageId}: ${degrees.join(', ')}`).join('\n')
-        : 'Not set';
-
-    return [
-        {
-            name: 'Prompt',
-            value: prompt,
-            inline: false,
-        },
-        {
-            name: 'Answers',
-            value: answers,
-            inline: false,
-        },
-        {
-            name: solutionLabels.description,
-            value: solutionImageIds,
-            inline: false,
-        },
-        {
-            name: controlLabels.description,
-            value: controlImageIds,
-            inline: false,
-        },
-        {
-            name: 'Solution image directions',
-            value: solutionImageDirections,
-            inline: false,
-        },
-    ];
-}
-
-function buildChallengeOverrideSummaryResponse(title, description, verificationSettings, challengeId, status) {
-    return buildVerificationAdminSummary(
-        title,
-        description,
-        getChallengeOverrideSummary(verificationSettings, challengeId),
-        status,
-        { fields: getChallengeOverrideFields(verificationSettings, challengeId) },
-    );
-}
 
 function buildWelcomeEmbed(verificationSettings) {
     const embed = buildVerificationPublicEmbed('welcomeEmbed');
 
     if (verificationSettings?.autokickEnabled) {
         const autoKickWelcomeFieldConfig = verificationEmbedConfig.autoKickWelcomeField ?? {};
-        const replacements = {
+        applyFieldToEmbed(embed, autoKickWelcomeFieldConfig, {
             autokickTimer: formatDuration(verificationSettings.autokickSeconds),
-        };
-
-        applyFieldToEmbed(embed, autoKickWelcomeFieldConfig, replacements);
+        });
     }
 
     return embed;
@@ -204,10 +141,7 @@ function buildVerificationPostComponents() {
 }
 
 async function fetchVerificationMessageFromChannel(channel, messageId) {
-    if (!channel?.isTextBased?.()) {
-        return null;
-    }
-
+    if (!channel?.isTextBased?.()) return null;
     return channel.messages.fetch(messageId).catch(() => null);
 }
 
@@ -218,10 +152,7 @@ function addStringOption(commandBuilder, name, description, { required = true, c
             .setDescription(description)
             .setRequired(required);
 
-        if (autocomplete) {
-            configuredOption.setAutocomplete(true);
-        }
-
+        if (autocomplete) configuredOption.setAutocomplete(true);
         return choices ? configuredOption.addChoices(...choices) : configuredOption;
     });
 }
@@ -263,19 +194,13 @@ async function handleVerificationAutokickCommand(interaction, guildId) {
 
     if (action === 'set') {
         const state = interaction.options.getString('state');
+        if (!state) return interaction.editReply({ embeds: [userErrorEmbed('Please choose `state:on` or `state:off` for `action:set`.')] });
 
-        if (!state) {
-            return interaction.editReply({ embeds: [userErrorEmbed('Please choose `state:on` or `state:off` for `action:set`.')] });
-        }
         const timerInput = interaction.options.getString('timer');
         const durationSeconds = timerInput ? parseDurationSeconds(timerInput) : undefined;
-
-        if (timerInput && !durationSeconds) {
-            return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid autokick timer, such as `600s`, `10m`, or `10 minutes`.')] });
-        }
+        if (timerInput && !durationSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid autokick timer, such as `600s`, `10m`, or `10 minutes`.')] });
 
         const updatedSettings = await setAutokickSettings(guildId, state === 'on', durationSeconds, interaction.user.id);
-
         return interaction.editReply(buildVerificationAdminSettingUpdated(
             'Autokick',
             `Verification autokick is now **${updatedSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(updatedSettings.autokickSeconds)}**.`,
@@ -290,50 +215,24 @@ async function handleChallengeList(interaction, verificationSettings, enabledCha
         'Challenge',
         'Configured verification challenge settings:',
         [
-            {
-                name: 'Active IDs',
-                value: buildActiveChallengeIdsValue(verificationSettings),
-                inline: false,
-            },
-            {
-                name: 'Available IDs',
-                value: buildAvailableChallengeIdsValue(enabledChallengeIds),
-                inline: false,
-            },
-            {
-                name: 'Prompt expiry',
-                value: formatDuration(verificationSettings.challengeExpirySeconds),
-                inline: true,
-            },
-            {
-                name: 'Retry cooldown',
-                value: formatDuration(verificationSettings.cooldownSeconds),
-                inline: true,
-            },
-            {
-                name: 'Autokick',
-                value: `**${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** after **${formatDuration(verificationSettings.autokickSeconds)}**`,
-                inline: false,
-            },
+            { name: 'Active IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
+            { name: 'Available IDs', value: buildAvailableChallengeIdsValue(enabledChallengeIds), inline: false },
+            { name: 'Prompt expiry', value: formatDuration(verificationSettings.challengeExpirySeconds), inline: true },
+            { name: 'Retry cooldown', value: formatDuration(verificationSettings.cooldownSeconds), inline: true },
+            { name: 'Autokick', value: `**${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** after **${formatDuration(verificationSettings.autokickSeconds)}**`, inline: false },
         ],
     ));
 }
 
 async function handleChallengeActiveSet(interaction, guildId) {
     const idsInput = interaction.options.getString('ids');
-    if (!idsInput?.trim()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
-    }
+    if (!idsInput?.trim()) return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
 
     const challengeIds = parseIdList(idsInput);
-    if (challengeIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
-    }
+    if (challengeIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more challenge IDs in `ids`.')] });
 
     const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
-    if (unknownChallengeIds.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
-    }
+    if (unknownChallengeIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
 
     const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
     return interaction.editReply(buildVerificationAdminSettingUpdated(
@@ -344,326 +243,297 @@ async function handleChallengeActiveSet(interaction, guildId) {
 
 async function handleChallengeDurationSetting(interaction, guildId, { title, updateSettings, secondsKey, successMessage }) {
     const timeInput = interaction.options.getString('time');
-    if (!timeInput?.trim()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a time value, such as `90s`, `2m`, or `2 minutes`.')] });
-    }
+    if (!timeInput?.trim()) return interaction.editReply({ embeds: [userErrorEmbed('Please provide a time value, such as `90s`, `2m`, or `2 minutes`.')] });
 
     const durationSeconds = parseDurationSeconds(timeInput);
-    if (!durationSeconds) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid time, such as `90s`, `2m`, or `2 minutes`.')] });
-    }
+    if (!durationSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid time, such as `90s`, `2m`, or `2 minutes`.')] });
 
     const updatedSettings = await updateSettings(guildId, durationSeconds, interaction.user.id);
-    return interaction.editReply(buildVerificationAdminSettingUpdated(
-        title,
-        successMessage(formatDuration(updatedSettings[secondsKey])),
+    return interaction.editReply(buildVerificationAdminSettingUpdated(title, successMessage(formatDuration(updatedSettings[secondsKey]))));
+}
+
+async function handleChallengeView(interaction, verificationSettings, enabledChallengeIds) {
+    const challengeId = String(interaction.options.getString('id') ?? '').trim();
+    const fields = [
+        { name: 'Guild mode', value: verificationSettings.mode, inline: true },
+        { name: 'Active challenge IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
+        { name: 'Prompt expiry', value: formatDuration(verificationSettings.challengeExpirySeconds), inline: true },
+        { name: 'Retry cooldown', value: formatDuration(verificationSettings.cooldownSeconds), inline: true },
+        { name: 'Autokick', value: `**${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** after **${formatDuration(verificationSettings.autokickSeconds)}**`, inline: false },
+        { name: 'Available challenge IDs', value: buildAvailableChallengeIdsValue(enabledChallengeIds), inline: false },
+    ];
+
+    if (challengeId) {
+        const challenge = verificationChallenges[challengeId];
+        if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+        fields.push(
+            { name: 'Challenge title', value: challenge.title ?? 'Not set', inline: false },
+            { name: 'Challenge description', value: challenge.description ?? 'Not set', inline: false },
+            { name: 'Questions', value: (challenge.questions ?? []).map((question, index) => `${index + 1}. ${question.id} — ${question.label ?? 'Question'}`).join('\n') || 'None', inline: false },
+        );
+    }
+
+    return interaction.editReply(buildVerificationAdminConfiguration(
+        'Challenge View',
+        challengeId ? `Challenge settings for **${challengeId}**.` : 'Global verification challenge settings.',
+        fields,
     ));
 }
 
-async function handleChallengeOverridesView(interaction, verificationSettings) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
-    }
+const QUESTION_CLEAR_FIELD_MAP = {
+    text: 'text',
+    'image-text': 'generatedImage.text',
+    answers: 'answer.accepted',
+    'image-ids': 'generatedImage.imageIds',
+    directions: 'generatedImage.imageDirections',
+};
 
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Overrides',
-        `Overrides for **${challengeId}**:`,
-        verificationSettings,
-        challengeId,
+function getKnownChallengeId(interaction, optionName = 'challenge') {
+    const challengeId = String(interaction.options.getString(optionName) ?? '').trim();
+    if (!challengeId) return { error: userErrorEmbed(`Please provide a challenge ID in \`${optionName}\`.`) };
+    if (!verificationChallenges[challengeId]) return { error: userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`) };
+    return { challengeId };
+}
+
+function getQuestionNumber(challenge, question) {
+    return (challenge.questions ?? []).findIndex((candidate) => candidate.id === question.id) + 1;
+}
+
+function resolveQuestion(challenge, value) {
+    const questions = challenge?.questions ?? [];
+    const rawValue = String(value ?? '').trim();
+    if (!rawValue) return undefined;
+    const index = Number(rawValue);
+    if (Number.isInteger(index) && index >= 1 && index <= questions.length) return questions[index - 1];
+    return questions.find((question) => question.id === rawValue);
+}
+
+function getKnownQuestion(interaction, challenge, required = true) {
+    const questionInput = interaction.options.getString('question');
+    const question = resolveQuestion(challenge, questionInput);
+    if (!question && required) {
+        return { error: userErrorEmbed('Please provide a valid question ID or 1-based question number.') };
+    }
+    return { question };
+}
+
+function getQuestionOverride(verificationSettings, challengeId, questionId) {
+    return verificationSettings.challengeOverrides?.[challengeId]?.questions?.[questionId] ?? {};
+}
+
+function mergeQuestionConfig(question, override = {}) {
+    return {
+        ...question,
+        ...override,
+        generatedImage: {
+            ...(question.generatedImage ?? {}),
+            ...(override.generatedImage ?? {}),
+        },
+        answer: {
+            ...(question.answer ?? {}),
+            ...(override.answer ?? {}),
+        },
+    };
+}
+
+function getQuestionImagePool(question) {
+    const imagePoolId = question.generatedImage?.imagePoolId;
+    return imagePoolId ? getVerificationImagePool(imagePoolId) : undefined;
+}
+
+function getAllowedRolesForQuestion(question) {
+    if (question.generatedImage?.type === 'gallery-standard') return ['solution', 'control'];
+    if (question.generatedImage?.type === 'gallery-rotation-alignment') return ['center', 'outer'];
+    return [];
+}
+
+function formatList(values, empty = 'Not set') {
+    return values?.length ? values.map((value) => `- ${value}`).join('\n') : empty;
+}
+
+function formatJson(value) {
+    if (!value || (typeof value === 'object' && Object.keys(value).length < 1)) return 'Not set';
+    return '```json\n' + JSON.stringify(value, null, 2).slice(0, 950) + '\n```';
+}
+
+function buildQuestionListResponse(challengeId, challenge) {
+    const fields = (challenge.questions ?? []).map((question, index) => ({
+        name: `${index + 1} ${question.id}`,
+        value: [
+            question.label ? `Label: ${question.label}` : undefined,
+            question.text ? `Text: ${question.text}` : undefined,
+            `Image: ${question.generatedImage?.type ?? 'none'}`,
+            `Answer: ${question.answer?.required === true ? question.answer?.type ?? 'required' : 'none'}`,
+        ].filter(Boolean).join('\n').slice(0, 1024) || 'No details',
+        inline: false,
+    }));
+
+    return buildVerificationAdminSummary(
+        'Verification Questions',
+        `Questions for **${challengeId}**:`,
+        `${fields.length} question${fields.length === 1 ? '' : 's'} configured.`,
         'info',
-    ));
+        { fields },
+    );
 }
 
-async function handleChallengePrompt(interaction, guildId) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
-    }
+function buildQuestionViewResponse(verificationSettings, challengeId, challenge, question) {
+    const override = getQuestionOverride(verificationSettings, challengeId, question.id);
+    const effectiveQuestion = mergeQuestionConfig(question, override);
+    const imageIds = effectiveQuestion.generatedImage?.imageIds ?? {};
+    const imageDirections = effectiveQuestion.generatedImage?.imageDirections ?? {};
+    const imageTextStatus = override.generatedImage?.text
+        ? `Override: ${override.generatedImage.text}`
+        : (question.generatedImage?.text ? `Static: ${question.generatedImage.text}` : 'Not set');
+    const answers = effectiveQuestion.answer?.accepted ?? [];
 
-    const prompt = String(interaction.options.getString('prompt') ?? '').trim();
-    if (!prompt) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide non-empty prompt text in `prompt`.')] });
-    }
-
-    const updatedSettings = await setChallengePromptOverride(guildId, challengeId, prompt, interaction.user.id);
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Prompt Updated',
-        `Prompt override updated for **${challengeId}**.`,
-        updatedSettings,
-        challengeId,
-        'success',
-    ));
+    return buildVerificationAdminSummary(
+        'Verification Question',
+        `Question **${question.id}** for challenge **${challengeId}**.`,
+        'Question config and overrides.',
+        'info',
+        {
+            fields: [
+                { name: 'Challenge ID', value: challengeId, inline: true },
+                { name: 'Question ID', value: question.id, inline: true },
+                { name: 'Question number', value: String(getQuestionNumber(challenge, question)), inline: true },
+                { name: 'Label', value: effectiveQuestion.label ?? 'Not set', inline: true },
+                { name: 'Separate step', value: String(effectiveQuestion.separateStep === true), inline: true },
+                { name: 'Generated image type', value: effectiveQuestion.generatedImage?.type ?? 'none', inline: true },
+                { name: 'Text', value: effectiveQuestion.text ?? 'Not set', inline: false },
+                { name: 'Generated image text', value: imageTextStatus, inline: false },
+                { name: 'Answer required', value: String(effectiveQuestion.answer?.required === true), inline: true },
+                { name: 'Answer type', value: effectiveQuestion.answer?.type ?? 'none', inline: true },
+                { name: 'Accepted answers', value: formatList(answers), inline: false },
+                { name: 'Image pool', value: effectiveQuestion.generatedImage?.imagePoolId ?? 'Not set', inline: false },
+                { name: 'Image IDs by role', value: formatJson(imageIds), inline: false },
+                { name: 'Image directions', value: formatJson(imageDirections), inline: false },
+                { name: 'Updated', value: override.updatedAt ? `${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}` : 'Not tracked', inline: false },
+            ],
+        },
+    );
 }
 
-function isRotationAlignmentChallenge(challenge) {
-    const step = challenge?.steps?.[0];
-    return (step?.generatedGallery ?? challenge?.generatedGallery)?.type === 'rotationAlignment';
-}
-
-function getChallengeImageRoleLabels(challenge, imageRole) {
-    const rotationAlignment = isRotationAlignmentChallenge(challenge);
-
-    if (imageRole === 'solution') {
-        return rotationAlignment
-            ? { noun: 'center', title: 'Challenge Center Images Updated', description: 'Center image IDs' }
-            : { noun: 'solution', title: 'Challenge Solution Images Updated', description: 'Solution image IDs' };
+function validateQuestionImageIds(question, role, imageIds) {
+    const allowedRoles = getAllowedRolesForQuestion(question);
+    if (!allowedRoles.includes(role)) {
+        return `Role **${role}** is not valid for ${question.generatedImage?.type ?? 'this question'}. Use: ${allowedRoles.join(', ') || 'none'}.`;
     }
 
-    return rotationAlignment
-        ? { noun: 'outer', title: 'Challenge Outer Images Updated', description: 'Outer image IDs' }
-        : { noun: 'control', title: 'Challenge Control Images Updated', description: 'Control image IDs' };
-}
+    const imagePool = getQuestionImagePool(question);
+    if (!imagePool) return `Question **${question.id}** does not define an image pool.`;
 
-function getChallengeImagePool(challengeId) {
-    const challenge = verificationChallenges[challengeId];
-    const step = challenge?.steps?.[0];
-    const imagePoolId = step?.imagePoolId ?? challenge?.imagePoolId;
-
-    if (!imagePoolId) {
-        return { error: userErrorEmbed(`Challenge **${challengeId}** does not define an image pool.`) };
-    }
-
-    const imagePool = getVerificationImagePool(imagePoolId);
-
-    if (!imagePool) {
-        return { error: userErrorEmbed(`Unknown image pool **${imagePoolId}** for challenge **${challengeId}**.`) };
-    }
-
-    return { challenge, step, imagePool, imagePoolId };
-}
-
-function getImagePoolIds(imagePool) {
-    return [...new Set((imagePool.images ?? [])
-        .map((image) => String(image.id ?? '').trim())
-        .filter(Boolean))];
-}
-
-function validateImageIdsInPool(imageIds, imagePool) {
-    const validImageIds = new Set(getImagePoolIds(imagePool));
-    return imageIds.filter((imageId) => !validImageIds.has(imageId));
-}
-
-function findImageIdOverlap(leftIds, rightIds) {
-    const right = new Set(rightIds);
-    return leftIds.filter((id) => right.has(id));
-}
-
-function validateGalleryImageCapacity(challenge, step, solutionImageIds, controlImageIds) {
-    const gallerySize = Number(step?.gallerySize ?? challenge.gallerySize ?? 6);
-    const solutionRange = step?.solutionImageCount ?? challenge.solutionImageCount ?? { min: 1, max: 1 };
-    const solutionMin = Math.ceil(Number(solutionRange.min ?? 1));
-    const solutionMax = Math.floor(Number(solutionRange.max ?? 1));
-    const maxControlImageRepeats = Math.floor(Number(step?.maxControlImageRepeats ?? challenge.maxControlImageRepeats ?? 1));
-
-    if (!Number.isInteger(gallerySize) || gallerySize < 1) {
-        return `Invalid gallery size for challenge **${challenge.id}**.`;
-    }
-
-    if (solutionImageIds.length < 1) {
-        return 'Please provide at least one solution image ID.';
-    }
-
-    if (controlImageIds.length < 1) {
-        return 'Please provide at least one control image ID.';
-    }
-
-    if (!Number.isInteger(solutionMin) || !Number.isInteger(solutionMax) || solutionMin < 1 || solutionMax < solutionMin) {
-        return `Invalid solution image count range for challenge **${challenge.id}**.`;
-    }
-
-    if (!Number.isInteger(maxControlImageRepeats) || maxControlImageRepeats < 1) {
-        return `Invalid maxControlImageRepeats for challenge **${challenge.id}**.`;
-    }
-
-    const maxRequiredControlSlots = gallerySize - solutionMin;
-    const controlCapacity = controlImageIds.length * maxControlImageRepeats;
-
-    if (controlCapacity < maxRequiredControlSlots) {
-        return `Not enough control image capacity. This challenge may need up to **${maxRequiredControlSlots}** control slots, but the configured controls provide only **${controlCapacity}** slots with maxControlImageRepeats=${maxControlImageRepeats}.`;
+    const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
+    if (unknownImageIds.length > 0) {
+        return `Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for pool **${imagePool.id}**: ${unknownImageIds.join(', ')}`;
     }
 
     return undefined;
 }
 
-async function handleChallengeAnswers(interaction, guildId) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
+async function handleVerificationQuestionCommand(interaction, guildId) {
+    const action = interaction.options.getString('action', true);
+    const { challengeId, error } = getKnownChallengeId(interaction, 'challenge');
+    if (error) return interaction.editReply({ embeds: [error] });
+
+    const challenge = verificationChallenges[challengeId];
+    const verificationSettings = await getVerificationSettings(guildId);
+
+    if (action === 'list') {
+        return interaction.editReply(buildQuestionListResponse(challengeId, challenge));
     }
 
-    const answers = parseAnswerOverrideList(interaction.options.getString('answers'));
-    if (answers.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one answer. Multiple answers can be separated by commas.')] });
+    const { question, error: questionError } = getKnownQuestion(interaction, challenge);
+    if (questionError) return interaction.editReply({ embeds: [questionError] });
+
+    const override = getQuestionOverride(verificationSettings, challengeId, question.id);
+    const effectiveQuestion = mergeQuestionConfig(question, override);
+
+    if (action === 'view') {
+        return interaction.editReply(buildQuestionViewResponse(verificationSettings, challengeId, challenge, question));
     }
 
-    const updatedSettings = await setChallengeAnswerOverrides(guildId, challengeId, answers, interaction.user.id);
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Answers Updated',
-        `Answer overrides set for **${challengeId}**.`,
-        updatedSettings,
-        challengeId,
-        'success',
-    ));
-}
-
-
-async function handleChallengeImageIds(interaction, guildId, imageRole) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
+    if (action === 'set-text') {
+        const value = String(interaction.options.getString('value') ?? '').trim();
+        if (!value) return interaction.editReply({ embeds: [userErrorEmbed('Please provide question text in `value`.')] });
+        const updatedSettings = await setQuestionTextOverride(guildId, challengeId, question.id, value, interaction.user.id);
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }
 
-    const { challenge, step, imagePool, error: poolError } = getChallengeImagePool(challengeId);
-    if (poolError) {
-        return interaction.editReply({ embeds: [poolError] });
+    if (action === 'set-image-text') {
+        if (effectiveQuestion.generatedImage?.type !== 'prompt-text') return interaction.editReply({ embeds: [userErrorEmbed('set-image-text is only valid for prompt-text questions.')] });
+        const value = String(interaction.options.getString('value') ?? '').trim();
+        if (!value) return interaction.editReply({ embeds: [userErrorEmbed('Please provide generated image text in `value`.')] });
+        const updatedSettings = await setQuestionImageTextOverride(guildId, challengeId, question.id, value, interaction.user.id);
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }
 
-    const roleLabels = getChallengeImageRoleLabels(challenge, imageRole);
-    const idsInput = interaction.options.getString('ids');
-    if (!idsInput?.trim()) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${roleLabels.noun} image IDs in \`ids\`.`)] });
+    if (action === 'set-answers') {
+        if (effectiveQuestion.answer?.required !== true || effectiveQuestion.answer?.type !== 'text') return interaction.editReply({ embeds: [userErrorEmbed('set-answers is only valid for required text-answer questions.')] });
+        const answers = parseAnswerOverrideList(interaction.options.getString('answers'));
+        if (answers.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide answers separated by commas or new lines.')] });
+        const updatedSettings = await setQuestionAnswerOverrides(guildId, challengeId, question.id, answers, interaction.user.id);
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }
 
-    const imageIds = parseIdList(idsInput);
-    if (imageIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Please provide one or more ${roleLabels.noun} image IDs in \`ids\`.`)] });
+    if (action === 'set-image-ids') {
+        const role = String(interaction.options.getString('role') ?? '').trim();
+        const imageIds = parseIdList(interaction.options.getString('ids'));
+        if (!role || imageIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide `role` and one or more IDs in `ids`.')] });
+        const validationError = validateQuestionImageIds(effectiveQuestion, role, imageIds);
+        if (validationError) return interaction.editReply({ embeds: [userErrorEmbed(validationError)] });
+        const updatedSettings = await setQuestionImageIds(guildId, challengeId, question.id, role, imageIds, interaction.user.id);
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }
 
-    const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
-    if (unknownImageIds.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for this challenge image pool: ${unknownImageIds.join(', ')}`)] });
+    if (action === 'clear-image-ids') {
+        const role = String(interaction.options.getString('role') ?? '').trim();
+        if (!role) return interaction.editReply({ embeds: [userErrorEmbed('Please provide an image role to clear.')] });
+        if (!getAllowedRolesForQuestion(effectiveQuestion).includes(role)) return interaction.editReply({ embeds: [userErrorEmbed(`Role **${role}** is not valid for this question.`)] });
+        const updatedSettings = await clearQuestionImageIds(guildId, challengeId, question.id, role, interaction.user.id);
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }
 
-    const currentSettings = await getVerificationSettings(guildId);
-    const currentOverride = currentSettings.challengeOverrides?.[challengeId] ?? {};
-    const currentSolutionImageIds = currentOverride.solutionImageIds ?? [];
-    const currentControlImageIds = currentOverride.controlImageIds ?? [];
-
-    const nextSolutionImageIds = imageRole === 'solution'
-        ? imageIds
-        : currentSolutionImageIds;
-
-    const nextControlImageIds = imageRole === 'control'
-        ? imageIds
-        : currentControlImageIds;
-
-    const overlap = findImageIdOverlap(nextSolutionImageIds, nextControlImageIds);
-    if (overlap.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Image ID${overlap.length === 1 ? '' : 's'} cannot be both ${getChallengeImageRoleLabels(challenge, 'solution').noun} and ${getChallengeImageRoleLabels(challenge, 'control').noun}: ${overlap.join(', ')}`)] });
+    if (action === 'set-directions') {
+        if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('set-directions is only valid for rotation-alignment questions.')] });
+        const imageIds = parseIdList(interaction.options.getString('ids'));
+        let degrees;
+        try { degrees = parseDegreeList(interaction.options.getString('degrees')); }
+        catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
+        if (imageIds.length < 1 || degrees.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide image IDs and valid degrees.')] });
+        const imagePool = getQuestionImagePool(effectiveQuestion);
+        const unknownImageIds = imagePool ? validateImageIdsInPool(imageIds, imagePool) : imageIds;
+        if (unknownImageIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'}: ${unknownImageIds.join(', ')}`)] });
+        const updatedSettings = await setQuestionImageDirections(guildId, challengeId, question.id, imageIds, degrees, interaction.user.id);
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }
 
-    if (!isRotationAlignmentChallenge(challenge) && nextSolutionImageIds.length > 0 && nextControlImageIds.length > 0) {
-        const capacityError = validateGalleryImageCapacity(challenge, step, nextSolutionImageIds, nextControlImageIds);
-        if (capacityError) {
-            return interaction.editReply({ embeds: [userErrorEmbed(capacityError)] });
+    if (action === 'clear-directions') {
+        if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('clear-directions is only valid for rotation-alignment questions.')] });
+        const imageIds = parseIdList(interaction.options.getString('ids'));
+        if (imageIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide image IDs in `ids`.')] });
+        const updatedSettings = await clearQuestionImageDirections(guildId, challengeId, question.id, imageIds, interaction.user.id);
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
+    }
+
+    if (action === 'clear-field') {
+        const field = String(interaction.options.getString('field') ?? '').trim();
+        if (!field) return interaction.editReply({ embeds: [userErrorEmbed('Please choose a field to clear.')] });
+        let updatedSettings = verificationSettings;
+        if (field === 'all') {
+            for (const clearField of Object.values(QUESTION_CLEAR_FIELD_MAP)) {
+                updatedSettings = await clearQuestionOverrideField(guildId, challengeId, question.id, clearField, interaction.user.id);
+            }
         }
+        else {
+            const mappedField = QUESTION_CLEAR_FIELD_MAP[field];
+            if (!mappedField) return interaction.editReply({ embeds: [userErrorEmbed('Unknown clear field.')] });
+            updatedSettings = await clearQuestionOverrideField(guildId, challengeId, question.id, mappedField, interaction.user.id);
+        }
+        return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }
 
-    const updatedSettings = imageRole === 'solution'
-        ? await setChallengeSolutionImageIds(guildId, challengeId, imageIds, interaction.user.id)
-        : await setChallengeControlImageIds(guildId, challengeId, imageIds, interaction.user.id);
-
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        roleLabels.title,
-        `${roleLabels.description} updated for **${challengeId}**.`,
-        updatedSettings,
-        challengeId,
-        'success',
-    ));
-}
-
-
-async function handleChallengeSolutionDirections(interaction, guildId) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
-    }
-
-    const idsInput = interaction.options.getString('ids');
-    const degreesInput = interaction.options.getString('degrees');
-
-    if (!idsInput?.trim()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more image IDs in `ids`.')] });
-    }
-
-    if (!degreesInput?.trim()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more direction degrees in `degrees`.')] });
-    }
-
-    const imageIds = parseIdList(idsInput);
-    let degrees;
-
-    try {
-        degrees = parseDegreeList(degreesInput);
-    }
-    catch (err) {
-        return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
-    }
-
-    if (imageIds.length < 1 || degrees.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide image IDs and direction degrees.')] });
-    }
-
-    const { imagePool, error: poolError } = getChallengeImagePool(challengeId);
-    if (poolError) {
-        return interaction.editReply({ embeds: [poolError] });
-    }
-
-    const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
-    if (unknownImageIds.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for this challenge image pool: ${unknownImageIds.join(', ')}`)] });
-    }
-
-    const updatedSettings = await setChallengeSolutionImageDirections(guildId, challengeId, imageIds, degrees, interaction.user.id);
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Solution Directions Updated',
-        `Solution image directions updated for **${challengeId}**.`,
-        updatedSettings,
-        challengeId,
-        'success',
-    ));
-}
-
-async function handleChallengeSolutionDirectionsClear(interaction, guildId) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
-    }
-
-    const idsInput = interaction.options.getString('ids');
-    if (!idsInput?.trim()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more image IDs in `ids`.')] });
-    }
-
-    const imageIds = parseIdList(idsInput);
-    if (imageIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide one or more image IDs in `ids`.')] });
-    }
-
-    const updatedSettings = await clearChallengeSolutionImageDirections(guildId, challengeId, imageIds, interaction.user.id);
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Solution Directions Cleared',
-        `Solution image directions cleared for **${challengeId}**.`,
-        updatedSettings,
-        challengeId,
-        'success',
-    ));
-}
-
-async function handleChallengeSolutionDirectionsView(interaction, verificationSettings) {
-    const { challengeId, error } = getSingleKnownChallengeId(interaction);
-    if (error) {
-        return interaction.editReply({ embeds: [error] });
-    }
-
-    return interaction.editReply(buildChallengeOverrideSummaryResponse(
-        'Challenge Solution Directions',
-        `Solution image directions for **${challengeId}**:`,
-        verificationSettings,
-        challengeId,
-        'info',
-    ));
+    return interaction.editReply({ embeds: [userErrorEmbed('Unknown question action.')] });
 }
 
 const CHALLENGE_DURATION_COMMANDS = {
@@ -694,22 +564,8 @@ async function handleVerificationChallengeCommand(interaction, guildId) {
         case 'timer':
         case 'cooldown':
             return handleChallengeDurationSetting(interaction, guildId, CHALLENGE_DURATION_COMMANDS[action]);
-        case 'overrides-view':
-            return handleChallengeOverridesView(interaction, verificationSettings);
-        case 'prompt':
-            return handleChallengePrompt(interaction, guildId);
-        case 'answers':
-            return handleChallengeAnswers(interaction, guildId);
-        case 'solution-images':
-            return handleChallengeImageIds(interaction, guildId, 'solution');
-        case 'control-images':
-            return handleChallengeImageIds(interaction, guildId, 'control');
-        case 'solution-directions':
-            return handleChallengeSolutionDirections(interaction, guildId);
-        case 'solution-directions-clear':
-            return handleChallengeSolutionDirectionsClear(interaction, guildId);
-        case 'solution-directions-view':
-            return handleChallengeSolutionDirectionsView(interaction, verificationSettings);
+        case 'view':
+            return handleChallengeView(interaction, verificationSettings, enabledChallengeIds);
         default:
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge action.')] });
     }
@@ -786,44 +642,50 @@ function buildChallengeIdsAutocompleteChoices(focusedValue) {
     return buildDelimitedAutocompleteChoices(focusedValue, getChallengeIdChoices());
 }
 
-function buildContextualIdsAutocompleteChoices(interaction, focusedValue) {
+function buildQuestionAutocompleteChoices(interaction, focusedValue) {
+    const challengeId = String(interaction.options.getString('challenge') ?? '').trim();
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge) return [];
+    const search = String(focusedValue ?? '').trim().toLowerCase();
+
+    return (challenge.questions ?? [])
+        .map((question, index) => ({
+            name: `${index + 1} ${question.id}`.slice(0, 100),
+            value: question.id,
+        }))
+        .filter((choice) => !search || choice.name.toLowerCase().includes(search) || choice.value.toLowerCase().includes(search))
+        .slice(0, 25);
+}
+
+function getQuestionForAutocomplete(interaction) {
+    const challengeId = String(interaction.options.getString('challenge') ?? '').trim();
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge) return undefined;
+    return resolveQuestion(challenge, interaction.options.getString('question'));
+}
+
+async function buildQuestionIdsAutocompleteChoices(interaction, focusedValue) {
     const action = interaction.options.getString('action');
+    const challengeId = String(interaction.options.getString('challenge') ?? '').trim();
+    const question = getQuestionForAutocomplete(interaction);
+    if (!question) return [];
 
-    if (action === 'solution-directions' || action === 'solution-directions-clear') {
-        const challengeId = String(interaction.options.getString('id') ?? '').trim();
-        const challenge = verificationChallenges[challengeId];
-        if (!challenge) {
-            return [];
-        }
+    const imagePool = getQuestionImagePool(question);
+    if (!imagePool) return [];
 
-        const step = challenge.steps?.[0];
-        const generatedGallery = step?.generatedGallery ?? challenge.generatedGallery;
-        const generatedIds = generatedGallery?.type === 'rotationAlignment'
-            ? [...new Set([...(generatedGallery.centerImageIds ?? []), ...(generatedGallery.outerImageIds ?? [])])]
-            : [];
-
-        if (generatedIds.length > 0) {
-            return buildDelimitedAutocompleteChoices(focusedValue, generatedIds);
-        }
-
-        const { imagePool } = getChallengeImagePool(challengeId);
-        return imagePool ? buildDelimitedAutocompleteChoices(focusedValue, getImagePoolIds(imagePool)) : [];
+    if (action === 'set-directions' || action === 'clear-directions') {
+        const verificationSettings = await getVerificationSettings(interaction.guild?.id);
+        const overrideIds = getQuestionOverride(verificationSettings, challengeId, question.id).generatedImage?.imageIds ?? {};
+        const configuredIds = [...Object.values(overrideIds).flat(), ...Object.values(question.generatedImage?.imageIds ?? {}).flat()];
+        if (configuredIds.length > 0) return buildDelimitedAutocompleteChoices(focusedValue, [...new Set(configuredIds)]);
     }
 
-    if (action === 'solution-images' || action === 'control-images') {
-        const challengeId = String(interaction.options.getString('id') ?? '').trim();
-        if (!challengeId || !verificationChallenges[challengeId]) {
-            return [];
-        }
+    return buildDelimitedAutocompleteChoices(focusedValue, getImagePoolIds(imagePool));
+}
 
-        const { imagePool } = getChallengeImagePool(challengeId);
-        if (!imagePool) {
-            return [];
-        }
-
-        return buildDelimitedAutocompleteChoices(focusedValue, getImagePoolIds(imagePool));
-    }
-
+async function buildContextualIdsAutocompleteChoices(interaction, focusedValue) {
+    const subcommand = interaction.options.getSubcommand(false);
+    if (subcommand === 'question') return buildQuestionIdsAutocompleteChoices(interaction, focusedValue);
     return buildChallengeIdsAutocompleteChoices(focusedValue);
 }
 
@@ -858,18 +720,18 @@ function buildDelimitedAutocompleteChoices(focusedValue, candidates) {
 async function handleVerificationAutocomplete(interaction) {
     try {
         const subcommand = interaction.options.getSubcommand(false);
-        if (subcommand !== 'challenge') {
-            return interaction.respond([]);
-        }
-
         const focusedOption = interaction.options.getFocused(true);
 
-        if (focusedOption.name === 'id') {
+        if (focusedOption.name === 'challenge' || focusedOption.name === 'id') {
             return interaction.respond(buildChallengeIdAutocompleteChoices(focusedOption.value));
         }
 
+        if (subcommand === 'question' && focusedOption.name === 'question') {
+            return interaction.respond(buildQuestionAutocompleteChoices(interaction, focusedOption.value));
+        }
+
         if (focusedOption.name === 'ids') {
-            return interaction.respond(buildContextualIdsAutocompleteChoices(interaction, focusedOption.value));
+            return interaction.respond(await buildContextualIdsAutocompleteChoices(interaction, focusedOption.value));
         }
     }
     catch (err) {
@@ -965,23 +827,61 @@ module.exports = {
                     { name: 'Set active challenge list', value: 'active-set' },
                     { name: 'Set prompt expiry timer', value: 'timer' },
                     { name: 'Set retry cooldown timer', value: 'cooldown' },
-                    { name: 'View prompt and answer entries', value: 'overrides-view' },
-                    { name: 'Set prompt entry', value: 'prompt' },
-                    { name: 'Set answer entry', value: 'answers' },
-                    { name: 'Set solution/center image IDs', value: 'solution-images' },
-                    { name: 'Set control/outer image IDs', value: 'control-images' },
-                    { name: 'Set solution directions', value: 'solution-directions' },
-                    { name: 'Clear solution directions', value: 'solution-directions-clear' },
-                    { name: 'View solution directions', value: 'solution-directions-view' },
+                    { name: 'View challenge settings', value: 'view' },
                 ],
             });
             builder = addStringOption(builder, 'id', 'Challenge ID', { required: false, autocomplete: true });
-            builder = addStringOption(builder, 'ids', 'Image/challenge IDs for the selected action. Separate with commas or spaces.', { required: false, autocomplete: true });
+            builder = addStringOption(builder, 'ids', 'Challenge IDs for active-set. Separate with commas or spaces.', { required: false, autocomplete: true });
             builder = addStringOption(builder, 'time', 'Duration such as 90s, 2m, or 2 minutes', { required: false });
-            builder = addStringOption(builder, 'prompt', 'Configured prompt text', { required: false });
-            builder = addStringOption(builder, 'answers', 'One answer, or multiple answers separated by commas', { required: false });
-            builder = addStringOption(builder, 'degrees', 'Valid axes: 0,45,90,135,180,225,270,315.', { required: false });
 
+            return builder;
+        })
+
+        .addSubcommand(subcommand => {
+            let builder = subcommand
+                .setName('question')
+                .setDescription('Manage verification question config');
+
+            builder = addStringOption(builder, 'action', 'Question action to run', {
+                choices: [
+                    { name: 'List questions', value: 'list' },
+                    { name: 'View question', value: 'view' },
+                    { name: 'Set question text', value: 'set-text' },
+                    { name: 'Set prompt image text', value: 'set-image-text' },
+                    { name: 'Set accepted answers', value: 'set-answers' },
+                    { name: 'Set image IDs', value: 'set-image-ids' },
+                    { name: 'Clear image IDs', value: 'clear-image-ids' },
+                    { name: 'Set image directions', value: 'set-directions' },
+                    { name: 'Clear image directions', value: 'clear-directions' },
+                    { name: 'Clear override field', value: 'clear-field' },
+                ],
+            });
+            builder = addStringOption(builder, 'challenge', 'Challenge ID', { autocomplete: true });
+            builder = addStringOption(builder, 'question', 'Question ID or 1-based number', { required: false, autocomplete: true });
+            builder = addStringOption(builder, 'field', 'Override field to clear', {
+                required: false,
+                choices: [
+                    { name: 'Text', value: 'text' },
+                    { name: 'Image text', value: 'image-text' },
+                    { name: 'Answers', value: 'answers' },
+                    { name: 'Image IDs', value: 'image-ids' },
+                    { name: 'Directions', value: 'directions' },
+                    { name: 'All', value: 'all' },
+                ],
+            });
+            builder = addStringOption(builder, 'role', 'Image role', {
+                required: false,
+                choices: [
+                    { name: 'Solution', value: 'solution' },
+                    { name: 'Control', value: 'control' },
+                    { name: 'Center', value: 'center' },
+                    { name: 'Outer', value: 'outer' },
+                ],
+            });
+            builder = addStringOption(builder, 'ids', 'Image IDs separated by commas or spaces', { required: false, autocomplete: true });
+            builder = addStringOption(builder, 'value', 'Text value for the selected action', { required: false });
+            builder = addStringOption(builder, 'answers', 'Answers separated by commas or new lines', { required: false });
+            builder = addStringOption(builder, 'degrees', 'Degrees like 0,45,90,135,180,225,270,315', { required: false });
             return builder;
         }),
     async autocomplete(interaction) {
@@ -1008,6 +908,10 @@ module.exports = {
 
             if (subcommand === 'post') {
                 return handleVerificationPostCommand(interaction, guildId);
+            }
+
+            if (subcommand === 'question') {
+                return handleVerificationQuestionCommand(interaction, guildId);
             }
 
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown verification command.')] });

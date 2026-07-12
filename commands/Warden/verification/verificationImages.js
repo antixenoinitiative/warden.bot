@@ -3,14 +3,6 @@ const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
 const fetch = require('node-fetch');
-const {
-    getVerificationChallengeStep,
-    resolvePrompt,
-    resolveSolutionImageIds,
-    resolveControlImageIds,
-    resolveSolutionImageDirections,
-    shouldGeneratePrompt,
-} = require('./verificationChallenges');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 
 
@@ -1256,18 +1248,6 @@ async function createPromptImageAttachment(prompt) {
     };
 }
 
-async function preparePromptImageAttachment(challenge, step) {
-    if (!shouldGeneratePrompt(challenge, step)) {
-        return undefined;
-    }
-
-    if (!step?.promptImageGallery && !challenge?.promptImageGallery) {
-        return undefined;
-    }
-
-    const prompt = resolvePrompt(challenge, step);
-    return createPromptImageAttachment(prompt);
-}
 
 function createGalleryImageNonce() {
     return crypto.randomBytes(12).toString('hex');
@@ -1687,14 +1667,14 @@ function pickRandomItemsWithRepeatLimit(items, count, maxRepeats, itemRole) {
     return selectedItems;
 }
 
-function resolveGalleryImageCounts(challenge, step) {
+function resolveGalleryImageCounts(galleryConfigInput, challengeId) {
     const { gallery: galleryConfig } = getImageGenerationConfig();
-    const gallerySize = Number(step?.gallerySize ?? challenge.gallerySize ?? galleryConfig.defaultSize);
-    const solutionRange = step?.solutionImageCount ?? challenge.solutionImageCount ?? { min: 1, max: 1 };
-    const controlRange = step?.controlImageCount ?? challenge.controlImageCount;
+    const gallerySize = Number(galleryConfigInput?.gallerySize ?? galleryConfig.defaultSize);
+    const solutionRange = galleryConfigInput?.solutionImageCount ?? { min: 1, max: 1 };
+    const controlRange = galleryConfigInput?.controlImageCount;
 
     if (!Number.isInteger(gallerySize) || gallerySize < 1) {
-        throw new Error(`Invalid gallery size for challenge ${challenge.id}: ${gallerySize}`);
+        throw new Error(`Invalid gallery size for challenge ${challengeId}: ${gallerySize}`);
     }
 
     const solutionMin = Math.ceil(Number(solutionRange.min ?? 1));
@@ -1712,7 +1692,7 @@ function resolveGalleryImageCounts(challenge, step) {
     }
 
     if (validSolutionCounts.length < 1) {
-        throw new Error(`No valid solution/control image count combination exists for challenge ${challenge.id}.`);
+        throw new Error(`No valid solution/control image count combination exists for challenge ${challengeId}.`);
     }
 
     const solutionCount = validSolutionCounts[Math.floor(Math.random() * validSolutionCounts.length)];
@@ -1740,30 +1720,52 @@ function getPoolImagesByIds(imagePool, imageIds, roleName, challengeId) {
     return images;
 }
 
-function createStandardImageGalleryState(challenge, stepIndex = 0, verificationSettings) {
-    const step = getVerificationChallengeStep(challenge.id, stepIndex);
-    const imagePoolId = step?.imagePoolId ?? challenge.imagePoolId;
+function resolveQuestionOverride(challengeId, questionId, verificationSettings) {
+    return verificationSettings?.challengeOverrides?.[challengeId]?.questions?.[questionId];
+}
+
+function normalizeQuestionGeneratedImage(question, verificationSettings, challengeId) {
+    const override = resolveQuestionOverride(challengeId, question?.id, verificationSettings);
+    const generatedImage = {
+        ...(question?.generatedImage ?? {}),
+        ...(override?.generatedImage ?? {}),
+    };
+
+    if (generatedImage.config && typeof generatedImage.config === 'object') {
+        Object.assign(generatedImage, generatedImage.config);
+    }
+
+    return generatedImage;
+}
+
+function getRoleImageIds(generatedImage, role) {
+    return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
+}
+
+function createStandardImageGalleryStateFromQuestion(question, verificationSettings, challengeId) {
+    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
+    const imagePoolId = generatedImage.imagePoolId;
     const imagePool = getVerificationImagePool(imagePoolId);
 
     if (!imagePool) {
-        throw new Error(`Unknown verification image pool "${imagePoolId}" for challenge "${challenge.id}".`);
+        throw new Error(`Unknown verification image pool "${imagePoolId}" for challenge "${challengeId}" question "${question.id}".`);
     }
 
-    const { solutionCount, controlCount } = resolveGalleryImageCounts(challenge, step);
-    const solutionImageIds = resolveSolutionImageIds(challenge, step, verificationSettings);
-    const controlImageIds = resolveControlImageIds(challenge, step, verificationSettings);
+    const { solutionCount, controlCount } = resolveGalleryImageCounts(generatedImage, challengeId);
+    const solutionIds = getRoleImageIds(generatedImage, 'solution');
+    const controlIds = getRoleImageIds(generatedImage, 'control');
 
-    if (solutionImageIds.length < 1) {
-        throw new Error(`Verification challenge "${challenge.id}" has no configured solution image IDs.`);
+    if (question.answer?.type === 'positions' && solutionIds.length < 1) {
+        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" has no configured solution image IDs.`);
     }
 
-    if (controlImageIds.length < 1) {
-        throw new Error(`Verification challenge "${challenge.id}" has no configured control image IDs.`);
+    if (controlIds.length < 1) {
+        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" has no configured control image IDs.`);
     }
 
-    const solutionImages = getPoolImagesByIds(imagePool, solutionImageIds, 'solution', challenge.id);
-    const controlImages = getPoolImagesByIds(imagePool, controlImageIds, 'control', challenge.id);
-    const maxControlImageRepeats = step?.maxControlImageRepeats ?? challenge.maxControlImageRepeats ?? 1;
+    const solutionImages = getPoolImagesByIds(imagePool, solutionIds, 'solution', challengeId);
+    const controlImages = getPoolImagesByIds(imagePool, controlIds, 'control', challengeId);
+    const maxControlImageRepeats = generatedImage.maxControlImageRepeats ?? 1;
     const selectedImages = shuffleArray([
         ...pickRandomItemsWithRepeats(solutionImages, solutionCount, 'solution'),
         ...pickRandomItemsWithRepeatLimit(controlImages, controlCount, maxControlImageRepeats, 'control'),
@@ -1777,7 +1779,7 @@ function createStandardImageGalleryState(challenge, stepIndex = 0, verificationS
         token: createGalleryToken(),
         imagePoolId,
         selectedImages,
-        useCompositeImage: shouldUseCompositeGallery(challenge, step),
+        useCompositeImage: generatedImage.compositeImageGallery === true,
         solutionPositions: selectedImages
             .filter((image) => image.role === 'solution')
             .map((image) => image.position)
@@ -1785,12 +1787,11 @@ function createStandardImageGalleryState(challenge, stepIndex = 0, verificationS
     };
 }
 
-
-function getRotationAlignmentDirections(solutionImageDirections, imageId, challengeId) {
-    const directions = getDegreeList(solutionImageDirections?.[imageId], []);
+function getRotationAlignmentDirections(imageDirections, imageId, challengeId) {
+    const directions = getDegreeList(imageDirections?.[imageId], []);
 
     if (directions.length < 1) {
-        throw new Error(`Verification challenge "${challengeId}" has no configured solution image directions for "${imageId}".`);
+        throw new Error(`Verification challenge "${challengeId}" has no configured image directions for "${imageId}".`);
     }
 
     return directions;
@@ -1850,43 +1851,47 @@ function createIncorrectRotationAlignmentRotations(clockPositionDegrees, centerD
     throw new Error('Unable to generate an incorrect rotation-alignment control tile.');
 }
 
-function createRotationAlignmentGalleryState(challenge, stepIndex = 0, verificationSettings, generatedGallery) {
-    const step = getVerificationChallengeStep(challenge.id, stepIndex);
-    const imagePoolId = step?.imagePoolId ?? challenge.imagePoolId;
+function createRotationAlignmentGalleryStateFromQuestion(question, verificationSettings, challengeId) {
+    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
+    const imagePoolId = generatedImage.imagePoolId;
     const imagePool = getVerificationImagePool(imagePoolId);
 
     if (!imagePool) {
-        throw new Error(`Unknown verification image pool "${imagePoolId}" for challenge "${challenge.id}".`);
+        throw new Error(`Unknown verification image pool "${imagePoolId}" for challenge "${challengeId}" question "${question.id}".`);
     }
 
-    const { gallerySize, solutionCount } = resolveGalleryImageCounts(challenge, step);
-    const centerImageIds = Array.isArray(generatedGallery.centerImageIds) && generatedGallery.centerImageIds.length > 0
-        ? generatedGallery.centerImageIds
-        : resolveSolutionImageIds(challenge, step, verificationSettings);
-    const outerImageIds = Array.isArray(generatedGallery.outerImageIds) && generatedGallery.outerImageIds.length > 0
-        ? generatedGallery.outerImageIds
-        : resolveControlImageIds(challenge, step, verificationSettings);
-    const rotationDegrees = getDegreeList(generatedGallery.rotationDegrees);
-    const clockDegrees = getDegreeList(generatedGallery.clockPositionDegrees);
+    const { gallerySize, solutionCount } = resolveGalleryImageCounts(generatedImage, challengeId);
+    const centerImageIds = getRoleImageIds(generatedImage, 'center');
+    const outerImageIds = getRoleImageIds(generatedImage, 'outer');
+    const rotationAlignment = generatedImage.rotationAlignment ?? generatedImage;
+    const rotationDegrees = getDegreeList(rotationAlignment.rotationDegrees);
+    const clockDegrees = getDegreeList(rotationAlignment.clockPositionDegrees);
     const alignmentRule = {
-        centerTargetOffsetDegrees: normalizeDegrees(generatedGallery.alignmentRule?.centerTargetOffsetDegrees ?? 0),
-        outerTargetOffsetDegrees: normalizeDegrees(generatedGallery.alignmentRule?.outerTargetOffsetDegrees ?? 180),
+        centerTargetOffsetDegrees: normalizeDegrees(rotationAlignment.alignmentRule?.centerTargetOffsetDegrees ?? 0),
+        outerTargetOffsetDegrees: normalizeDegrees(rotationAlignment.alignmentRule?.outerTargetOffsetDegrees ?? 180),
     };
-    const solutionImageDirections = resolveSolutionImageDirections(challenge, step, verificationSettings);
+    const imageDirections = generatedImage.imageDirections ?? {};
     const token = createGalleryToken();
     const solutionIndexes = new Set(pickRandomItems([...Array(gallerySize).keys()], solutionCount, 'solution tile indexes'));
-    const clockPositions = pickClockPositionDegrees(clockDegrees, gallerySize, generatedGallery.maxImageOrientationRepeats);
+    const clockPositions = pickClockPositionDegrees(clockDegrees, gallerySize, rotationAlignment.maxImageOrientationRepeats);
     const generatedImages = [];
 
-    if (centerImageIds.length < 1 || outerImageIds.length < 1) {
-        throw new Error(`Verification challenge "${challenge.id}" requires center and outer image IDs for rotation-alignment galleries.`);
+    if (centerImageIds.length < 1) {
+        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" requires center image IDs for rotation-alignment galleries.`);
     }
+
+    if (outerImageIds.length < 1) {
+        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" requires outer image IDs for rotation-alignment galleries.`);
+    }
+
+    getPoolImagesByIds(imagePool, centerImageIds, 'center', challengeId);
+    getPoolImagesByIds(imagePool, outerImageIds, 'outer', challengeId);
 
     for (let index = 0; index < gallerySize; index += 1) {
         const centerImageId = pickRandomItem(centerImageIds);
         const outerImageId = pickRandomItem(outerImageIds);
-        const centerDirections = getRotationAlignmentDirections(solutionImageDirections, centerImageId, challenge.id);
-        const outerDirections = getRotationAlignmentDirections(solutionImageDirections, outerImageId, challenge.id);
+        const centerDirections = getRotationAlignmentDirections(imageDirections, centerImageId, challengeId);
+        const outerDirections = getRotationAlignmentDirections(imageDirections, outerImageId, challengeId);
         const clockPositionDegrees = clockPositions[index];
         const isSolution = solutionIndexes.has(index);
         const rotations = isSolution
@@ -1904,7 +1909,7 @@ function createRotationAlignmentGalleryState(challenge, stepIndex = 0, verificat
                 clockPositionDegrees,
                 centerRotationDegrees: rotations.centerRotationDegrees,
                 outerRotationDegrees: rotations.outerRotationDegrees,
-                tileCanvas: generatedGallery.tileCanvas,
+                tileCanvas: rotationAlignment.tileCanvas,
             },
         });
     }
@@ -1918,7 +1923,7 @@ function createRotationAlignmentGalleryState(challenge, stepIndex = 0, verificat
         token,
         imagePoolId,
         selectedImages,
-        useCompositeImage: shouldUseCompositeGallery(challenge, step),
+        useCompositeImage: generatedImage.compositeImageGallery === true,
         solutionPositions: selectedImages
             .filter((image) => image.role === 'solution')
             .map((image) => image.position)
@@ -1926,15 +1931,117 @@ function createRotationAlignmentGalleryState(challenge, stepIndex = 0, verificat
     };
 }
 
-function createGalleryState(challenge, stepIndex = 0, verificationSettings) {
-    const step = getVerificationChallengeStep(challenge.id, stepIndex);
-    const generatedGallery = step?.generatedGallery ?? challenge.generatedGallery;
+function createGalleryStateFromQuestion(question, verificationSettings, challengeId) {
+    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
 
-    if (generatedGallery?.type === 'rotationAlignment') {
-        return createRotationAlignmentGalleryState(challenge, stepIndex, verificationSettings, generatedGallery);
+    if (generatedImage.type === 'gallery-rotation-alignment') {
+        return createRotationAlignmentGalleryStateFromQuestion(question, verificationSettings, challengeId);
     }
 
-    return createStandardImageGalleryState(challenge, stepIndex, verificationSettings);
+    if (generatedImage.type === 'gallery-standard') {
+        return createStandardImageGalleryStateFromQuestion(question, verificationSettings, challengeId);
+    }
+
+    throw new Error(`Question "${question?.id}" does not define a generated gallery image.`);
+}
+
+function getGalleryDisplayImages(galleryState) {
+    if (galleryState?.compositeImage?.displayUrl) {
+        return [{
+            type: 'image',
+            displayUrl: galleryState.compositeImage.displayUrl,
+            description: `Positions 1-${galleryState.selectedImages?.length ?? 9} in a labeled grid`,
+        }];
+    }
+
+    return (galleryState?.selectedImages ?? []).map((image) => ({
+        type: 'image',
+        displayUrl: image.displayUrl ?? image.url,
+        description: image.description ?? `Position ${image.position}`,
+    }));
+}
+
+function getQuestionAssetFiles(questionAsset) {
+    if (!questionAsset) return [];
+    if (Array.isArray(questionAsset.files)) return questionAsset.files.filter(Boolean);
+    if (questionAsset.promptImage?.attachment) return [questionAsset.promptImage.attachment];
+    if (questionAsset.galleryState) {
+        if (questionAsset.galleryState.compositeImage?.attachment) return [questionAsset.galleryState.compositeImage.attachment];
+        return (questionAsset.galleryState.selectedImages ?? []).map((image) => image.attachment).filter(Boolean);
+    }
+    return [];
+}
+
+function getQuestionDisplayItems(questionAsset) {
+    return questionAsset?.displayItems ?? [];
+}
+
+async function prepareQuestionImageAsset(question, verificationSettings, challengeId) {
+    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
+    const label = question.label ?? question.id;
+
+    if (generatedImage.enabled !== true || generatedImage.type === 'none') {
+        return undefined;
+    }
+
+    if (generatedImage.type === 'prompt-text') {
+        const promptText = generatedImage.text;
+        if (!promptText && generatedImage.requiresConfiguredText === true) {
+            throw new Error(`Verification challenge "${challengeId}" question "${question.id}" requires configured generated image text.`);
+        }
+        if (!promptText) return undefined;
+
+        const promptImage = await createPromptImageAttachment(promptText);
+        return {
+            type: 'prompt-text',
+            promptImage,
+            files: [promptImage.attachment],
+            displayItems: [{
+                type: 'image',
+                displayUrl: promptImage.displayUrl,
+                description: `${label} prompt`,
+            }],
+        };
+    }
+
+    if (generatedImage.type === 'static-image') {
+        if (!generatedImage.url) return undefined;
+        return {
+            type: 'static-image',
+            displayItems: [{
+                type: 'image',
+                displayUrl: generatedImage.url,
+                description: label,
+            }],
+            files: [],
+        };
+    }
+
+    if (generatedImage.type === 'gallery-standard' || generatedImage.type === 'gallery-rotation-alignment') {
+        const galleryState = await prepareGalleryImageAttachments(createGalleryStateFromQuestion(question, verificationSettings, challengeId));
+        const type = generatedImage.type;
+        const asset = {
+            type,
+            galleryState,
+            files: [],
+            displayItems: getGalleryDisplayImages(galleryState),
+        };
+        asset.files = getQuestionAssetFiles(asset);
+        return asset;
+    }
+
+    throw new Error(`Unsupported generated image type "${generatedImage.type}" for challenge "${challengeId}" question "${question.id}".`);
+}
+
+async function prepareQuestionAssets(screen, verificationSettings, challengeId) {
+    const questionAssets = {};
+
+    for (const question of screen?.questions ?? []) {
+        const asset = await prepareQuestionImageAsset(question, verificationSettings, challengeId);
+        if (asset) questionAssets[question.id] = asset;
+    }
+
+    return questionAssets;
 }
 
 function getVerificationImagePool(poolId) {
@@ -1978,8 +2085,11 @@ module.exports = {
     ['verification' + 'ImagePools']: verificationImagesRegistry,
     getVerificationImagePool,
     getLocalVerificationImagePoolIssues,
-    createGalleryState,
+    createGalleryStateFromQuestion,
     prepareGalleryImageAttachments,
     createPromptImageAttachment,
-    preparePromptImageAttachment,
+    prepareQuestionImageAsset,
+    prepareQuestionAssets,
+    getQuestionAssetFiles,
+    getQuestionDisplayItems,
 };
