@@ -14,6 +14,7 @@ const {
 
 const DEFAULT_GENERATED_IMAGE = Object.freeze({ enabled: false, type: 'none' });
 const DEFAULT_ANSWER = Object.freeze({ required: false, type: 'none' });
+const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
 
 function normalizeAnswer(answer) {
     return String(answer ?? '')
@@ -143,9 +144,32 @@ function screenRequiresAnswer(screen) {
     return screen?.answerRequired === true || getScreenAnswerSpec(screen).length > 0;
 }
 
+function getScreenRequiredAnswerQuestions(screen) {
+    return (screen?.questions ?? []).filter((question) => question.answer?.required === true && question.answer?.type !== 'none');
+}
+
+function validateQuestionScreens(screens) {
+    const issues = [];
+
+    for (const screen of screens ?? []) {
+        const requiredAnswers = getScreenRequiredAnswerQuestions(screen);
+        if (requiredAnswers.length > 5) {
+            issues.push({
+                screenIndex: screen.index,
+                code: 'too_many_modal_inputs',
+                message: `Screen ${screen.index + 1} has ${requiredAnswers.length} required answer inputs. Discord modals support at most 5. Mark some questions separateStep:true.`,
+            });
+        }
+    }
+
+    return issues;
+}
+
 function screenAllowsBack(session, targetScreenIndex) {
     const currentScreenIndex = Number(session?.screenIndex ?? 0);
-    return Number.isInteger(targetScreenIndex) && targetScreenIndex >= 0 && targetScreenIndex < currentScreenIndex;
+    if (!Number.isInteger(targetScreenIndex) || targetScreenIndex !== currentScreenIndex - 1) return false;
+    const targetScreen = session?.screens?.[targetScreenIndex];
+    return Boolean(targetScreen && !screenRequiresAnswer(targetScreen) && !session?.answeredScreenIndexes?.includes(targetScreen.index));
 }
 
 function parsePositionAnswer(positionAnswer) {
@@ -209,28 +233,20 @@ function getVerificationChallenge(challengeId) {
     return verificationChallenges[challengeId];
 }
 
-function isGalleryQuestion(question) {
-    return question?.generatedImage?.type === 'gallery-standard'
-        || question?.generatedImage?.type === 'gallery-rotation-alignment';
-}
-
-function isGalleryImageChallenge(challenge) {
-    return normalizeVerificationChallenge(challenge).questions.some(isGalleryQuestion);
-}
-
-function isRotationAlignmentGeneratedGalleryChallenge(challenge) {
-    return normalizeVerificationChallenge(challenge).questions.some((question) => question.generatedImage?.type === 'gallery-rotation-alignment');
-}
-
 function getRoleIds(generatedImage, role) {
     return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
+}
+
+function getInvalidDirectionValues(directions) {
+    return (Array.isArray(directions) ? directions : [])
+        .filter((degrees) => !Number.isInteger(Number(degrees)) || !ALLOWED_IMAGE_DIRECTION_DEGREES.has(Number(degrees)));
 }
 
 function getMissingChallengeOverrideRequirements(verificationSettings) {
     const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
 
     return enabledChallenges.flatMap((challenge) => {
-        const missing = [];
+        const missing = validateQuestionScreens(buildQuestionScreens(challenge)).map((issue) => issue.message);
 
         for (const question of challenge.questions ?? []) {
             const generatedImage = question.generatedImage ?? {};
@@ -264,6 +280,11 @@ function getMissingChallengeOverrideRequirements(verificationSettings) {
 
                 if (missingDirectionIds.length > 0) {
                     missing.push(`${prefix}: image directions (${missingDirectionIds.join(', ')})`);
+                }
+
+                const invalidDirectionIds = imageIds.filter((imageId) => getInvalidDirectionValues(directions[imageId]).length > 0);
+                if (invalidDirectionIds.length > 0) {
+                    missing.push(`${prefix}: invalid image directions (${invalidDirectionIds.join(', ')})`);
                 }
             }
         }
@@ -317,6 +338,8 @@ module.exports = {
     buildQuestionScreens,
     getScreenAnswerSpec,
     screenRequiresAnswer,
+    getScreenRequiredAnswerQuestions,
+    validateQuestionScreens,
     screenAllowsBack,
 
     normalizeAnswer,

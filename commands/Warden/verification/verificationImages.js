@@ -1340,10 +1340,6 @@ function buildGalleryCompositeAttachmentName() {
     return `${GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX}-${createGalleryImageNonce()}.png`;
 }
 
-function shouldUseCompositeGallery(challenge, step) {
-    return step?.compositeImageGallery === true || challenge?.compositeImageGallery === true;
-}
-
 async function fetchRemoteGalleryImageAttachment(image) {
     const { gallery: galleryConfig } = getImageGenerationConfig();
     const abortController = new AbortController();
@@ -1720,15 +1716,9 @@ function getPoolImagesByIds(imagePool, imageIds, roleName, challengeId) {
     return images;
 }
 
-function resolveQuestionOverride(challengeId, questionId, verificationSettings) {
-    return verificationSettings?.challengeOverrides?.[challengeId]?.questions?.[questionId];
-}
-
-function normalizeQuestionGeneratedImage(question, verificationSettings, challengeId) {
-    const override = resolveQuestionOverride(challengeId, question?.id, verificationSettings);
+function getQuestionGeneratedImage(question) {
     const generatedImage = {
         ...(question?.generatedImage ?? {}),
-        ...(override?.generatedImage ?? {}),
     };
 
     if (generatedImage.config && typeof generatedImage.config === 'object') {
@@ -1742,8 +1732,8 @@ function getRoleImageIds(generatedImage, role) {
     return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
 }
 
-function createStandardImageGalleryStateFromQuestion(question, verificationSettings, challengeId) {
-    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
+function createStandardImageGalleryStateFromQuestion(question, challengeId) {
+    const generatedImage = getQuestionGeneratedImage(question);
     const imagePoolId = generatedImage.imagePoolId;
     const imagePool = getVerificationImagePool(imagePoolId);
 
@@ -1851,8 +1841,8 @@ function createIncorrectRotationAlignmentRotations(clockPositionDegrees, centerD
     throw new Error('Unable to generate an incorrect rotation-alignment control tile.');
 }
 
-function createRotationAlignmentGalleryStateFromQuestion(question, verificationSettings, challengeId) {
-    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
+function createRotationAlignmentGalleryStateFromQuestion(question, challengeId) {
+    const generatedImage = getQuestionGeneratedImage(question);
     const imagePoolId = generatedImage.imagePoolId;
     const imagePool = getVerificationImagePool(imagePoolId);
 
@@ -1931,15 +1921,15 @@ function createRotationAlignmentGalleryStateFromQuestion(question, verificationS
     };
 }
 
-function createGalleryStateFromQuestion(question, verificationSettings, challengeId) {
-    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
+function createGalleryStateFromQuestion(question, challengeId) {
+    const generatedImage = getQuestionGeneratedImage(question);
 
     if (generatedImage.type === 'gallery-rotation-alignment') {
-        return createRotationAlignmentGalleryStateFromQuestion(question, verificationSettings, challengeId);
+        return createRotationAlignmentGalleryStateFromQuestion(question, challengeId);
     }
 
     if (generatedImage.type === 'gallery-standard') {
-        return createStandardImageGalleryStateFromQuestion(question, verificationSettings, challengeId);
+        return createStandardImageGalleryStateFromQuestion(question, challengeId);
     }
 
     throw new Error(`Question "${question?.id}" does not define a generated gallery image.`);
@@ -1976,8 +1966,8 @@ function getQuestionDisplayItems(questionAsset) {
     return questionAsset?.displayItems ?? [];
 }
 
-async function prepareQuestionImageAsset(question, verificationSettings, challengeId) {
-    const generatedImage = normalizeQuestionGeneratedImage(question, verificationSettings, challengeId);
+async function prepareQuestionImageAsset(question, challengeId) {
+    const generatedImage = getQuestionGeneratedImage(question);
     const label = question.label ?? question.id;
 
     if (generatedImage.enabled !== true || generatedImage.type === 'none') {
@@ -2018,7 +2008,7 @@ async function prepareQuestionImageAsset(question, verificationSettings, challen
     }
 
     if (generatedImage.type === 'gallery-standard' || generatedImage.type === 'gallery-rotation-alignment') {
-        const galleryState = await prepareGalleryImageAttachments(createGalleryStateFromQuestion(question, verificationSettings, challengeId));
+        const galleryState = await prepareGalleryImageAttachments(createGalleryStateFromQuestion(question, challengeId));
         const type = generatedImage.type;
         const asset = {
             type,
@@ -2032,11 +2022,11 @@ async function prepareQuestionImageAsset(question, verificationSettings, challen
     throw new Error(`Unsupported generated image type "${generatedImage.type}" for challenge "${challengeId}" question "${question.id}".`);
 }
 
-async function prepareQuestionAssets(screen, verificationSettings, challengeId) {
+async function prepareQuestionAssets(screen, challengeId) {
     const questionAssets = {};
 
     for (const question of screen?.questions ?? []) {
-        const asset = await prepareQuestionImageAsset(question, verificationSettings, challengeId);
+        const asset = await prepareQuestionImageAsset(question, challengeId);
         if (asset) questionAssets[question.id] = asset;
     }
 

@@ -201,11 +201,19 @@ function normalizeQuestionOverride(questionOverride = {}) {
     if (accepted.length > 0) answer.accepted = accepted;
     if (Object.keys(answer).length > 0) normalizedQuestion.answer = answer;
 
+    const updatedBy = normalizeString(questionOverride.updatedBy);
+    const updatedAt = normalizeString(questionOverride.updatedAt);
+    if (updatedBy) normalizedQuestion.updatedBy = updatedBy;
+    if (updatedAt) normalizedQuestion.updatedAt = updatedAt;
+
     return normalizedQuestion;
 }
 
 function questionOverrideIsEmpty(questionOverride) {
-    return Object.keys(normalizeQuestionOverride(questionOverride)).length < 1;
+    const normalizedQuestion = normalizeQuestionOverride(questionOverride);
+    delete normalizedQuestion.updatedBy;
+    delete normalizedQuestion.updatedAt;
+    return Object.keys(normalizedQuestion).length < 1;
 }
 
 function normalizeChallengeOverrides(challengeOverrides) {
@@ -428,7 +436,13 @@ function normalizeQuestionOverrideRow(row) {
     if (Object.keys(generatedImage).length > 0) question.generatedImage = generatedImage;
     if (Object.keys(answer).length > 0) question.answer = answer;
 
-    return { questionId, question: normalizeQuestionOverride(question) };
+    const normalizedQuestion = normalizeQuestionOverride(question);
+    const updatedBy = normalizeString(row.updated_by);
+    const updatedAt = normalizeString(row.updated_at);
+    if (updatedBy) normalizedQuestion.updatedBy = updatedBy;
+    if (updatedAt) normalizedQuestion.updatedAt = updatedAt;
+
+    return { questionId, question: normalizedQuestion };
 }
 
 function normalizeChallengeConfigRows(rows) {
@@ -687,6 +701,48 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
         }
     });
 
+    if (updatedBy) {
+        const updatedAt = new Date().toISOString();
+        for (const challengeOverride of Object.values(normalizedSettings.challengeOverrides)) {
+            for (const questionOverride of Object.values(challengeOverride.questions ?? {})) {
+                questionOverride.updatedBy = String(updatedBy);
+                questionOverride.updatedAt = updatedAt;
+            }
+        }
+    }
+
+    settingsCache.set(normalizedGuildId, normalizedSettings);
+    return normalizedSettings;
+}
+
+async function saveVerificationGuildSettingsOnly(guildId, settings, updatedBy) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedSettings = normalizeSettings(settings);
+
+    await ensureVerificationSettingsTables();
+    await getDatabase().query(
+        `INSERT INTO verification_guild_settings (guild_id, mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+            mode = VALUES(mode),
+            active_challenge_ids_json = VALUES(active_challenge_ids_json),
+            challenge_expiry_seconds = VALUES(challenge_expiry_seconds),
+            cooldown_seconds = VALUES(cooldown_seconds),
+            autokick_enabled = VALUES(autokick_enabled),
+            autokick_seconds = VALUES(autokick_seconds),
+            updated_by = VALUES(updated_by)`,
+        [
+            normalizedGuildId,
+            normalizedSettings.mode,
+            stringifyJsonOrNull(normalizedSettings.activeChallengeIds),
+            normalizedSettings.challengeExpirySeconds,
+            normalizedSettings.cooldownSeconds,
+            normalizedSettings.autokickEnabled ? 1 : 0,
+            normalizedSettings.autokickSeconds,
+            updatedBy ? String(updatedBy) : null,
+        ],
+    );
+
     settingsCache.set(normalizedGuildId, normalizedSettings);
     return normalizedSettings;
 }
@@ -728,27 +784,27 @@ async function getVerificationSettings(guildId) {
 
 async function setVerificationMode(guildId, mode, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationSettings(guildId, { ...currentSettings, mode }, updatedBy);
+    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, mode }, updatedBy);
 }
 
 async function setActiveChallengeIds(guildId, challengeIds, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationSettings(guildId, { ...currentSettings, activeChallengeIds: challengeIds }, updatedBy);
+    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, activeChallengeIds: challengeIds }, updatedBy);
 }
 
 async function setChallengeExpirySeconds(guildId, challengeExpirySeconds, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeExpirySeconds }, updatedBy);
+    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, challengeExpirySeconds }, updatedBy);
 }
 
 async function setCooldownSeconds(guildId, cooldownSeconds, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationSettings(guildId, { ...currentSettings, cooldownSeconds }, updatedBy);
+    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, cooldownSeconds }, updatedBy);
 }
 
 async function setAutokickSettings(guildId, autokickEnabled, autokickSeconds, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationSettings(guildId, {
+    return saveVerificationGuildSettingsOnly(guildId, {
         ...currentSettings,
         autokickEnabled,
         autokickSeconds: autokickSeconds ?? currentSettings.autokickSeconds,
@@ -1001,6 +1057,7 @@ module.exports = {
     normalizeChallengeConfigRows,
     getVerificationSettings,
     saveVerificationSettings,
+    saveVerificationGuildSettingsOnly,
     setVerificationMode,
     setActiveChallengeIds,
     setChallengeExpirySeconds,

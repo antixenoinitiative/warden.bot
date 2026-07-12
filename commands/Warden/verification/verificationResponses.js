@@ -1,7 +1,11 @@
 const Discord = require('discord.js');
 const { botIdent } = require('../../../functions');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
-const { screenRequiresAnswer } = require('./verificationChallenges');
+const {
+    screenRequiresAnswer,
+    getScreenRequiredAnswerQuestions,
+    screenAllowsBack,
+} = require('./verificationChallenges');
 const {
     getQuestionAssetFiles,
     getQuestionDisplayItems,
@@ -384,8 +388,7 @@ function hasNextScreen(session) {
 }
 
 function canGoBack(session) {
-    const previousScreen = session.screens[session.screenIndex - 1];
-    return Boolean(previousScreen && !screenRequiresAnswer(previousScreen) && !session.answeredScreenIndexes?.includes(previousScreen.index));
+    return screenAllowsBack(session, session.screenIndex - 1);
 }
 
 function buildExpiryLine(expiresAt) {
@@ -635,13 +638,17 @@ function buildOldVersionFallbackOptions(challenge, session) {
 
 function buildAnswerModal(session) {
     const screen = getCurrentScreen(session);
+    const requiredAnswerQuestions = getScreenRequiredAnswerQuestions(screen);
+    if (requiredAnswerQuestions.length > 5) {
+        throw new Error('This verification screen has too many answer inputs. Mark some questions separateStep:true.');
+    }
+
     const modal = new Discord.ModalBuilder()
         .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', session.challengeId, session.screenIndex, session.token))
         .setTitle('Verify');
 
-    for (const question of screen.questions) {
+    for (const question of requiredAnswerQuestions) {
         const answer = question.answer ?? {};
-        if (answer.required !== true || answer.type === 'none') continue;
 
         const input = new Discord.TextInputBuilder()
             .setCustomId(`q:${question.id}:${answer.type === 'positions' ? 'positions' : 'answer'}`)

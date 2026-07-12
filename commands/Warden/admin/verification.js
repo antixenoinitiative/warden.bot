@@ -97,22 +97,6 @@ function formatDuration(seconds) {
     return `${seconds} second${seconds === 1 ? '' : 's'}`;
 }
 
-function getSingleKnownChallengeId(interaction) {
-    const challengeId = String(interaction.options.getString('id') ?? '').trim();
-
-    if (!challengeId) {
-        return { error: userErrorEmbed('Please provide a challenge ID in `id`.') };
-    }
-
-    if (!verificationChallenges[challengeId]) {
-        return { error: userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`) };
-    }
-
-    return { challengeId };
-}
-
-
-
 function buildWelcomeEmbed(verificationSettings) {
     const embed = buildVerificationPublicEmbed('welcomeEmbed');
 
@@ -582,6 +566,14 @@ async function handleVerificationQuestionCommand(interaction, guildId) {
         const imagePool = getQuestionImagePool(effectiveQuestion);
         const unknownImageIds = imagePool ? validateImageIdsInPool(imageIds, imagePool) : imageIds;
         if (unknownImageIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'}: ${unknownImageIds.join(', ')}`)] });
+        const configuredRotationIds = new Set([
+            ...(effectiveQuestion.generatedImage?.imageIds?.center ?? []),
+            ...(effectiveQuestion.generatedImage?.imageIds?.outer ?? []),
+        ]);
+        const unconfiguredIds = imageIds.filter((imageId) => !configuredRotationIds.has(imageId));
+        if (unconfiguredIds.length > 0) {
+            return interaction.editReply({ embeds: [userErrorEmbed(`Configure image IDs as center or outer before setting directions: ${unconfiguredIds.join(', ')}`)] });
+        }
         const updatedSettings = await setQuestionImageDirections(guildId, challengeId, question.id, imageIds, degrees, interaction.user.id);
         return interaction.editReply(buildQuestionViewResponse(updatedSettings, challengeId, challenge, question));
     }

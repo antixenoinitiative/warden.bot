@@ -10,7 +10,9 @@ const {
     getActiveVerificationChallenge,
     getEnabledVerificationChallenges,
     buildQuestionScreens,
+    validateQuestionScreens,
     screenRequiresAnswer,
+    screenAllowsBack,
     validateScreenAnswers,
 } = require('./verificationChallenges');
 const {
@@ -142,11 +144,6 @@ function hasNextScreen(session) {
     return session.screenIndex + 1 < session.screens.length;
 }
 
-function canGoBack(session) {
-    const previousScreen = session.screens[session.screenIndex - 1];
-    return Boolean(previousScreen && !screenRequiresAnswer(previousScreen) && !session.answeredScreenIndexes?.includes(previousScreen.index));
-}
-
 function shouldSendOldVersionPrompt(session) {
     return session.renderer === COMPONENTS_V2_RENDERER && isComponentsV2Available();
 }
@@ -168,8 +165,8 @@ function buildScreenValidationAssets(screenAssets = {}) {
     }, {});
 }
 
-async function prepareSessionScreenAssets(session, verificationSettings) {
-    return prepareQuestionAssets(getCurrentScreen(session), verificationSettings, session.challengeId);
+async function prepareSessionScreenAssets(session) {
+    return prepareQuestionAssets(getCurrentScreen(session), session.challengeId);
 }
 
 async function replaceQuestionMessage(interaction, session, options, { forceStoredMessage = false } = {}) {
@@ -326,6 +323,19 @@ async function handleVerifyStart(interaction) {
 
     const challenge = selectVerificationChallenge(verificationSettings);
     const screens = buildQuestionScreens(challenge);
+    const screenIssues = validateQuestionScreens(screens);
+    if (screenIssues.length > 0) {
+        const description = screenIssues.map((issue) => issue.message).join('\n');
+        await botLog(interaction.guild, new Discord.EmbedBuilder()
+            .setTitle('⛔ Verification challenge configuration invalid')
+            .setDescription([`Challenge: **${challenge.id}**`, description].join('\n\n')),
+            2,
+            'error').catch((logErr) => console.error('Failed to log verification screen validation error:', logErr));
+        return sendInitialInteractionResponse(interaction, {
+            content: 'Verification is currently misconfigured. Please contact staff.',
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
     const screenIndex = 0;
     const token = createSessionToken();
     const splitMessages = screens.length > 1 || screens.some((screen) => screen.separate === true);
@@ -447,7 +457,7 @@ async function handleVerifyBack(interaction) {
         return interaction.reply(buildVerificationExpiredResponse('This navigation button is no longer current. Please use the latest verification challenge message.'));
     }
 
-    if (!canGoBack(session)) {
+    if (!screenAllowsBack(session, session.screenIndex - 1)) {
         return interaction.reply(buildVerificationExpiredResponse('You cannot go back to that verification screen.'));
     }
 
