@@ -341,6 +341,17 @@ function getQuestionImagePool(question) {
     return imagePoolId ? getVerificationImagePool(imagePoolId) : undefined;
 }
 
+function getImagePoolIds(imagePool) {
+    return [...new Set((imagePool?.images ?? [])
+        .map((image) => String(image.id ?? '').trim())
+        .filter(Boolean))];
+}
+
+function validateImageIdsInPool(imageIds, imagePool) {
+    const availableImageIds = new Set(getImagePoolIds(imagePool));
+    return imageIds.filter((imageId) => !availableImageIds.has(imageId));
+}
+
 function getAllowedRolesForQuestion(question) {
     if (question.generatedImage?.type === 'gallery-standard') return ['solution', 'control'];
     if (question.generatedImage?.type === 'gallery-rotation-alignment') return ['center', 'outer'];

@@ -1,4 +1,5 @@
 const config = require('../../../config.json');
+const { verificationChallenges } = require('./verificationChallengesConfig');
 let database;
 
 function getDatabase() {
@@ -265,6 +266,123 @@ function parseGuildSettingsRow(row) {
         autokickSeconds: row.autokick_seconds,
         challengeOverrides: {},
     });
+}
+
+function getFirstPromptQuestion(challenge) {
+    return (challenge?.questions ?? []).find((question) => question.generatedImage?.type === 'prompt-text')
+        ?? (challenge?.questions ?? []).find((question) => question.answer?.type === 'text');
+}
+
+function getFirstGalleryQuestion(challenge) {
+    return (challenge?.questions ?? []).find((question) => ['gallery-standard', 'gallery-rotation-alignment'].includes(question.generatedImage?.type));
+}
+
+function mapLegacyChallengeOverride(challengeId, legacyOverride) {
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge || !legacyOverride || typeof legacyOverride !== 'object' || Array.isArray(legacyOverride)) return undefined;
+
+    const challengeOverride = { questions: {} };
+    if (normalizeString(legacyOverride.title)) challengeOverride.title = normalizeString(legacyOverride.title);
+    if (normalizeString(legacyOverride.description)) challengeOverride.description = normalizeString(legacyOverride.description);
+
+    const promptQuestion = getFirstPromptQuestion(challenge);
+    const prompt = normalizeString(legacyOverride.prompt);
+    const answers = normalizeStringArray(legacyOverride.answers);
+    if (promptQuestion && (prompt || answers.length > 0)) {
+        const questionOverride = challengeOverride.questions[promptQuestion.id] ?? {};
+        if (prompt) {
+            if (promptQuestion.generatedImage?.type === 'prompt-text') {
+                questionOverride.generatedImage = {
+                    ...(questionOverride.generatedImage ?? {}),
+                    text: prompt,
+                };
+            }
+            else {
+                questionOverride.text = prompt;
+            }
+        }
+        if (answers.length > 0) {
+            questionOverride.answer = {
+                ...(questionOverride.answer ?? {}),
+                accepted: answers,
+            };
+        }
+        challengeOverride.questions[promptQuestion.id] = questionOverride;
+    }
+
+    const galleryQuestion = getFirstGalleryQuestion(challenge);
+    if (galleryQuestion) {
+        const primaryImageIds = normalizeStringArray(legacyOverride[`solution${'ImageIds'}`]);
+        const decoyImageIds = normalizeStringArray(legacyOverride[`control${'ImageIds'}`]);
+        const legacyImageDirections = normalizeImageDirections(legacyOverride[`solution${'ImageDirections'}`]);
+        const imageIds = {};
+
+        if (galleryQuestion.generatedImage?.type === 'gallery-rotation-alignment') {
+            if (primaryImageIds.length > 0) imageIds.center = primaryImageIds;
+            if (decoyImageIds.length > 0) imageIds.outer = decoyImageIds;
+        }
+        else {
+            if (primaryImageIds.length > 0) imageIds.solution = primaryImageIds;
+            if (decoyImageIds.length > 0) imageIds.control = decoyImageIds;
+        }
+
+        if (Object.keys(imageIds).length > 0 || Object.keys(legacyImageDirections).length > 0) {
+            const questionOverride = challengeOverride.questions[galleryQuestion.id] ?? {};
+            questionOverride.generatedImage = {
+                ...(questionOverride.generatedImage ?? {}),
+            };
+            if (Object.keys(imageIds).length > 0) questionOverride.generatedImage.imageIds = imageIds;
+            if (Object.keys(legacyImageDirections).length > 0) questionOverride.generatedImage.imageDirections = legacyImageDirections;
+            challengeOverride.questions[galleryQuestion.id] = questionOverride;
+        }
+    }
+
+    const normalized = normalizeChallengeOverrides({ [challengeId]: challengeOverride });
+    return normalized[challengeId];
+}
+
+function normalizeLegacyChallengeOverrides(value) {
+    const legacyOverrides = typeof value === 'string' ? safeParseJson(value, {}) : normalizeObject(value);
+    if (!legacyOverrides || typeof legacyOverrides !== 'object' || Array.isArray(legacyOverrides)) return {};
+
+    return Object.entries(legacyOverrides).reduce((challengeOverrides, [challengeId, legacyOverride]) => {
+        const normalizedChallengeId = normalizeString(challengeId);
+        const mappedOverride = mapLegacyChallengeOverride(normalizedChallengeId, legacyOverride);
+        if (normalizedChallengeId && mappedOverride) {
+            challengeOverrides[normalizedChallengeId] = mappedOverride;
+        }
+        return challengeOverrides;
+    }, {});
+}
+
+function parseLegacySettingsRow(row) {
+    return normalizeSettings({
+        mode: row.mode,
+        activeChallengeIds: normalizeActiveChallengeIds(row.active_challenge_ids_json ?? row.active_challenge_ids),
+        challengeExpirySeconds: row.challenge_expiry_seconds ?? row.expiry_seconds,
+        cooldownSeconds: row.cooldown_seconds,
+        autokickEnabled: row.autokick_enabled,
+        autokickSeconds: row.autokick_seconds ?? row.autokick_timer_seconds,
+        challengeOverrides: normalizeLegacyChallengeOverrides(row[`challenge_${'overrides'}_json`]),
+    });
+}
+
+async function legacyVerificationSettingsTableExists() {
+    const rows = await getDatabase().query('SHOW TABLES LIKE ?', ['verification_settings']);
+    return rows.length > 0;
+}
+
+async function getLegacyVerificationSettings(guildId) {
+    const legacyTableExists = await legacyVerificationSettingsTableExists();
+    if (!legacyTableExists) return undefined;
+
+    const rows = await getDatabase().query(
+        'SELECT * FROM verification_settings WHERE guild_id = ? LIMIT 1',
+        [guildId],
+    );
+
+    if (rows.length < 1) return undefined;
+    return parseLegacySettingsRow(rows[0]);
 }
 
 function normalizeQuestionOverrideRow(row) {
@@ -536,6 +654,11 @@ async function getVerificationSettings(guildId) {
     );
 
     if (guildRows.length < 1) {
+        const legacySettings = await getLegacyVerificationSettings(normalizedGuildId);
+        if (legacySettings) {
+            return saveVerificationSettings(normalizedGuildId, legacySettings, null);
+        }
+
         return saveVerificationSettings(normalizedGuildId, defaultVerificationSettings(), null);
     }
 
