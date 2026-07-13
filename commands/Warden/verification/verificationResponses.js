@@ -436,6 +436,17 @@ function applyQuestionFields(embed, question) {
     }
 }
 
+function buildOldVersionActionRows(session) {
+    return [
+        new Discord.ActionRowBuilder().addComponents(
+            new Discord.ButtonBuilder()
+                .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
+                .setLabel(verificationEmbedConfig.oldVersionFallbackEmbed?.buttonLabel ?? 'Old Version')
+                .setStyle(Discord.ButtonStyle.Secondary),
+        ),
+    ];
+}
+
 function buildScreenActionRows(session) {
     const screen = getCurrentScreen(session);
     const row = new Discord.ActionRowBuilder();
@@ -548,6 +559,28 @@ function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, s
     return [container];
 }
 
+function getOldVersionFallbackEmbedConfig(challenge) {
+    const fallbackConfig = verificationEmbedConfig.oldVersionFallbackEmbed ?? {};
+    return {
+        title: applyTextReplacements(fallbackConfig.title ?? 'Not working?', buildChallengeEmbedReplacements(challenge)),
+        description: applyTextReplacements(
+            fallbackConfig.description ?? 'If you cannot see the Verification Challenge, please update your client or click the Old Version button below.',
+            buildChallengeEmbedReplacements(challenge),
+        ),
+        color: fallbackConfig.color ?? verificationEmbedConfig.challengeEmbed?.color,
+    };
+}
+
+function addOldVersionFallbackField(embed, challenge, session) {
+    const fallbackConfig = getOldVersionFallbackEmbedConfig(challenge);
+    const value = [fallbackConfig.description, buildExpiryLine(session?.expiresAt)].filter(Boolean).join('\n\n');
+    embed.addFields({
+        name: truncateText(fallbackConfig.title, FIELD_NAME_LIMIT) || 'Not working?',
+        value: truncateText(value, FIELD_VALUE_LIMIT) || 'Use the Old Version button below.',
+        inline: false,
+    });
+}
+
 function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, session, options = {}) {
     const allFiles = getScreenFiles(screenAssets);
     const allEmbeds = [];
@@ -561,6 +594,10 @@ function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, se
         for (const field of challenge.fields ?? []) {
             const value = field.content ?? field.value ?? field.description;
             if (value) introEmbed.addFields({ name: field.title ?? field.name ?? 'Information', value: truncateEmbedText(value, 'Information'), inline: field.inline === true });
+        }
+
+        if (options.includeOldVersionFallbackField) {
+            addOldVersionFallbackField(introEmbed, challenge, session);
         }
 
         allEmbeds.push(introEmbed);
@@ -635,34 +672,35 @@ function buildQuestionScreenOptions(challenge, screen, screenAssets = {}, sessio
 
 function buildChallengeIntroOptions(challenge, session, options = {}) {
     const introScreen = { id: 'intro', index: 0, questions: [], answerRequired: false };
-    return buildQuestionScreenOptions(challenge, introScreen, {}, session, {
+    const renderer = options.renderer ?? COMPONENTS_V2_RENDERER;
+    const introOptions = buildQuestionScreenOptions(challenge, introScreen, {}, session, {
         ...options,
-        renderer: COMPONENTS_V2_RENDERER,
+        renderer,
         includeIntro: true,
         completed: true,
         showScreenProgress: false,
     });
+
+    if (options.includeOldVersionButton) {
+        introOptions.components = buildOldVersionActionRows(session);
+    }
+
+    return introOptions;
 }
 
 function buildOldVersionFallbackOptions(challenge, session) {
+    const fallbackConfig = getOldVersionFallbackEmbedConfig(challenge);
     return {
         embeds: [
             new Discord.EmbedBuilder()
-                .setColor(resolveEmbedColor(verificationEmbedConfig.challengeEmbed?.color))
-                .setTitle('Not working?')
+                .setColor(resolveEmbedColor(fallbackConfig.color))
+                .setTitle(fallbackConfig.title)
                 .setDescription([
-                    'If you cannot see the Verification Challenge, please update your client or click the Old Version button below.',
+                    fallbackConfig.description,
                     buildExpiryLine(session.expiresAt),
                 ].filter(Boolean).join('\n\n')),
         ],
-        components: [
-            new Discord.ActionRowBuilder().addComponents(
-                new Discord.ButtonBuilder()
-                    .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
-                    .setLabel('Old Version')
-                    .setStyle(Discord.ButtonStyle.Secondary),
-            ),
-        ],
+        components: buildOldVersionActionRows(session),
         flags: Discord.MessageFlags.Ephemeral,
     };
 }

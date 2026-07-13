@@ -427,7 +427,11 @@ async function handleVerifyStart(interaction) {
     setChallenge(interaction.user.id, session, challengeExpiryMs);
 
     if (splitMessages) {
-        const introMessage = await interaction.editReply(buildChallengeIntroOptions(challenge, session, { renderer: session.renderer }));
+        const introMessage = await interaction.editReply(buildChallengeIntroOptions(challenge, session, {
+            renderer: LEGACY_RENDERER,
+            includeOldVersionFallbackField: true,
+            includeOldVersionButton: true,
+        }));
         session.introMessageId = introMessage?.id;
         const questionMessage = await interaction.followUp(buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
         session.questionMessageId = questionMessage?.id;
@@ -443,7 +447,9 @@ async function handleVerifyStart(interaction) {
             : undefined;
     }
 
-    session.oldVersionPromptMessageId = await sendOldVersionPromptIfNeeded(interaction, challenge, session);
+    session.oldVersionPromptMessageId = session.splitMessages
+        ? session.introMessageId
+        : await sendOldVersionPromptIfNeeded(interaction, challenge, session);
 
     setChallenge(interaction.user.id, session, challengeExpiryMs);
 }
@@ -548,9 +554,11 @@ async function handleVerifyOldVersion(interaction) {
         await interaction.deferUpdate();
     }
 
-    await deactivateOldVersionPrompt(interaction, legacySession).catch((err) => {
-        console.error('Failed to deactivate verification old-version prompt:', err);
-    });
+    if (!session.splitMessages) {
+        await deactivateOldVersionPrompt(interaction, legacySession).catch((err) => {
+            console.error('Failed to deactivate verification old-version prompt:', err);
+        });
+    }
 
     const firstLegacyMessage = await interaction.followUp(pages[0]);
 
@@ -589,7 +597,9 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
     const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
     session.questionMessageId = questionMessageId;
     await resolveModalSubmitAfterScreenReplace(interaction);
-    session.oldVersionPromptMessageId = await sendOldVersionPromptIfNeeded(interaction, challenge, session);
+    session.oldVersionPromptMessageId = session.splitMessages
+        ? session.introMessageId
+        : await sendOldVersionPromptIfNeeded(interaction, challenge, session);
     setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
 }
 
