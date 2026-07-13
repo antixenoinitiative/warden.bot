@@ -391,6 +391,35 @@ function canGoBack(session) {
     return screenAllowsBack(session, session.screenIndex - 1);
 }
 
+
+function buildChallengeEmbedReplacements(challenge) {
+    return {
+        challenge: challenge?.description ?? challenge?.title ?? challenge?.id ?? '',
+        challengeId: challenge?.id ?? '',
+        challengeTitle: challenge?.title ?? '',
+        challengeDescription: challenge?.description ?? '',
+    };
+}
+
+function resolveChallengeEmbedTitle(challenge) {
+    const configuredTitle = verificationEmbedConfig.challengeEmbed?.title ?? 'Verification Challenge';
+    const challengeTitle = String(challenge?.title ?? '').trim();
+    return challengeTitle && challengeTitle !== 'Verification Challenge' ? challengeTitle : configuredTitle;
+}
+
+function resolveChallengeEmbedDescription(challenge) {
+    const configuredDescription = verificationEmbedConfig.challengeEmbed?.description;
+    if (configuredDescription) {
+        return applyTextReplacements(configuredDescription, buildChallengeEmbedReplacements(challenge));
+    }
+
+    return challenge?.description ?? 'Complete the verification questions to continue.';
+}
+
+function resolveChallengeEmbedColor(challenge) {
+    return challenge?.color ?? verificationEmbedConfig.challengeEmbed?.color ?? verificationEmbedConfig.responseDefaults?.colors?.info;
+}
+
 function buildExpiryLine(expiresAt) {
     if (!expiresAt) return undefined;
     return `This verification challenge expires <t:${Math.floor(expiresAt / 1000)}:R>.`;
@@ -486,11 +515,11 @@ function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, s
     assertComponentsV2Support();
 
     const container = new Discord.ContainerBuilder()
-        .setAccentColor(resolveComponentAccentColor(verificationEmbedConfig.responseDefaults?.colors?.info));
+        .setAccentColor(resolveComponentAccentColor(resolveChallengeEmbedColor(challenge)));
 
     if (options.includeIntro) {
-        addTextDisplay(container, `# ${challenge.title ?? 'Verification Challenge'}`);
-        addTextDisplay(container, challenge.description);
+        addTextDisplay(container, `# ${resolveChallengeEmbedTitle(challenge)}`);
+        addTextDisplay(container, resolveChallengeEmbedDescription(challenge));
         for (const field of challenge.fields ?? []) {
             const value = field.content ?? field.value ?? field.description;
             if (value) addTextDisplay(container, `**${field.title ?? field.name ?? 'Information'}**\n${value}`);
@@ -525,8 +554,9 @@ function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, se
 
     if (options.includeIntro) {
         const introEmbed = new Discord.EmbedBuilder()
-            .setTitle(challenge.title ?? 'Verification Challenge')
-            .setDescription(truncateEmbedText([challenge.description, buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n'), 'Complete the verification questions to continue.'));
+            .setColor(resolveEmbedColor(resolveChallengeEmbedColor(challenge)))
+            .setTitle(resolveChallengeEmbedTitle(challenge))
+            .setDescription(truncateEmbedText([resolveChallengeEmbedDescription(challenge), buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n'), 'Complete the verification questions to continue.'));
 
         for (const field of challenge.fields ?? []) {
             const value = field.content ?? field.value ?? field.description;
@@ -577,7 +607,7 @@ function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, se
     }
 
     return pages.length > 0 ? pages : [{
-        embeds: [new Discord.EmbedBuilder().setTitle(challenge.title ?? 'Verification Challenge').setDescription(buildExpiryLine(session.expiresAt) ?? 'Complete the verification questions to continue.')],
+        embeds: [new Discord.EmbedBuilder().setColor(resolveEmbedColor(resolveChallengeEmbedColor(challenge))).setTitle(resolveChallengeEmbedTitle(challenge)).setDescription([resolveChallengeEmbedDescription(challenge), buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n') || 'Complete the verification questions to continue.')],
         files: [],
         components: !options.completed ? buildScreenActionRows({ ...session, renderer: LEGACY_RENDERER }) : [],
         flags: Discord.MessageFlags.Ephemeral,
