@@ -226,6 +226,23 @@ async function sendOldVersionPromptIfNeeded(interaction, challenge, session) {
     return message?.id ?? session.oldVersionPromptMessageId;
 }
 
+async function deactivateOldVersionPrompt(interaction, session) {
+    if (!session.oldVersionPromptMessageId) return;
+
+    await interaction.webhook.editMessage(
+        session.oldVersionPromptMessageId,
+        sanitizeMessageEditOptions({
+            embeds: [
+                new Discord.EmbedBuilder()
+                    .setTitle('Old Version sent')
+                    .setDescription('A legacy embed version of this verification challenge was sent below.'),
+            ],
+            components: [],
+            flags: Discord.MessageFlags.Ephemeral,
+        }),
+    );
+}
+
 async function sendLegacyFollowUpPages(interaction, pages) {
     const messageIds = [];
 
@@ -238,6 +255,25 @@ async function sendLegacyFollowUpPages(interaction, pages) {
     }
 
     return messageIds;
+}
+
+async function deactivateLegacyFollowUpPages(interaction, session, message = 'This legacy verification page is no longer active. Please use the latest verification message.') {
+    const messageIds = [...new Set(session?.legacyPageMessageIds ?? [])].filter(Boolean);
+    if (messageIds.length < 1) return;
+
+    await Promise.all(messageIds.map((messageId) => interaction.webhook.editMessage(
+        messageId,
+        sanitizeMessageEditOptions({
+            content: message,
+            embeds: [],
+            components: [],
+            files: [],
+            attachments: [],
+            flags: Discord.MessageFlags.Ephemeral,
+        }),
+    ).catch((err) => {
+        console.error('Failed to deactivate stale verification legacy follow-up page:', err);
+    })));
 }
 
 async function resolveModalSubmitAfterScreenReplace(interaction, content = 'Answer accepted. Continuing verification...') {
@@ -269,6 +305,7 @@ async function completeVerification(interaction, session) {
     const verificationConfig = config.Warden?.verification;
     if (session) {
         await deactivateQuestionMessage(interaction, session, 'Verification completed.');
+        await deactivateLegacyFollowUpPages(interaction, session, 'Verification completed. This legacy page is no longer active.');
     }
 
     clearChallenge(interaction.user.id);
@@ -366,6 +403,7 @@ async function handleVerifyStart(interaction) {
         token,
         introMessageId: undefined,
         questionMessageId: undefined,
+        v2QuestionMessageId: undefined,
         oldVersionPromptMessageId: undefined,
         legacyPageMessageIds: [],
         splitMessages,
@@ -393,10 +431,16 @@ async function handleVerifyStart(interaction) {
         session.introMessageId = introMessage?.id;
         const questionMessage = await interaction.followUp(buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
         session.questionMessageId = questionMessage?.id;
+        session.v2QuestionMessageId = session.renderer === COMPONENTS_V2_RENDERER
+            ? questionMessage?.id
+            : undefined;
     }
     else {
         const questionMessage = await interaction.editReply(buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: true, renderer: session.renderer }));
         session.questionMessageId = questionMessage?.id;
+        session.v2QuestionMessageId = session.renderer === COMPONENTS_V2_RENDERER
+            ? questionMessage?.id
+            : undefined;
     }
 
     session.oldVersionPromptMessageId = await sendOldVersionPromptIfNeeded(interaction, challenge, session);
@@ -489,30 +533,59 @@ async function handleVerifyOldVersion(interaction) {
     }
 
     const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
-    session.renderer = LEGACY_RENDERER;
-    if (session.oldVersionPromptMessageId) {
-        await interaction.webhook.editMessage(session.oldVersionPromptMessageId, sanitizeMessageEditOptions({
-            embeds: [new Discord.EmbedBuilder()
-                .setTitle('Old Version enabled')
-                .setDescription('This verification challenge is now shown in the old embed format.')],
-            components: [],
-            flags: Discord.MessageFlags.Ephemeral,
-        })).catch((err) => console.error('Failed to deactivate verification old-version prompt:', err));
+    const legacySession = {
+        ...session,
+        challenge,
+        renderer: LEGACY_RENDERER,
+        token: createSessionToken(),
+        v2QuestionMessageId: session.v2QuestionMessageId ?? session.questionMessageId,
+        legacyPageMessageIds: [],
+    };
+
+    const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(legacySession), legacySession.screenAssets, legacySession, { includeIntro: true });
+
+    if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferUpdate();
     }
-    const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: true });
-    const questionMessageId = await replaceQuestionMessage(interaction, session, pages[0], { forceStoredMessage: true });
-    session.questionMessageId = questionMessageId;
-    session.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
-    setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
+
+    await deactivateOldVersionPrompt(interaction, legacySession).catch((err) => {
+        console.error('Failed to deactivate verification old-version prompt:', err);
+    });
+
+    const firstLegacyMessage = await interaction.followUp(pages[0]);
+
+    if (!firstLegacyMessage?.id) {
+        throw new Error('Failed to send or store the legacy verification message.');
+    }
+
+    legacySession.questionMessageId = firstLegacyMessage.id;
+    legacySession.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
+    setChallenge(interaction.user.id, legacySession, resolveChallengeExpiryMs(verificationSettings));
 }
 
 async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex) {
     const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
+
+    if (session.renderer === LEGACY_RENDERER) {
+        await deactivateLegacyFollowUpPages(interaction, session);
+    }
+
     session.screenIndex = targetScreenIndex;
     session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
     session.token = createSessionToken();
-    session.legacyPageMessageIds = [];
 
+    if (session.renderer === LEGACY_RENDERER) {
+        session.legacyPageMessageIds = [];
+        const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: false });
+        const questionMessageId = await replaceQuestionMessage(interaction, session, pages[0]);
+        session.questionMessageId = questionMessageId;
+        session.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
+        await resolveModalSubmitAfterScreenReplace(interaction);
+        setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
+        return;
+    }
+
+    session.legacyPageMessageIds = [];
     const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
     session.questionMessageId = questionMessageId;
     await resolveModalSubmitAfterScreenReplace(interaction);
@@ -557,6 +630,7 @@ async function handleVerifySubmit(interaction) {
         clearChallenge(interaction.user.id);
         setCooldown(interaction.user.id, retryAt);
         await deactivateQuestionMessage(interaction, session, 'Verification answer submitted. This screen is no longer active.');
+        await deactivateLegacyFollowUpPages(interaction, session, 'Verification answer submitted. This legacy page is no longer active.');
         return sendInitialInteractionResponse(interaction, buildVerificationFailureResponse(cooldownSeconds, retryAt));
     }
 
