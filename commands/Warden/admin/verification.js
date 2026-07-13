@@ -18,15 +18,39 @@ const {
     validateQuestionScreens,
 } = require('../verification/verificationChallenges');
 const { getVerificationImagePool } = require('../verification/verificationImages');
-const ADMIN_CUSTOM_ID_PREFIX = 'wardenVerificationAdmin';
+const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
+const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
+const CHALLENGE_TITLE_MAX_LENGTH = 256;
+const CHALLENGE_DESCRIPTION_MAX_LENGTH = 1024;
+const adminCustomIdSessions = new Map();
+let adminCustomIdSequence = 0;
+
+function buildAdminSessionKey(action, parts) {
+    adminCustomIdSequence = (adminCustomIdSequence + 1) % Number.MAX_SAFE_INTEGER;
+    while (adminCustomIdSessions.size > 1000) {
+        adminCustomIdSessions.delete(adminCustomIdSessions.keys().next().value);
+    }
+    const key = `${Date.now().toString(36)}${adminCustomIdSequence.toString(36)}`;
+    adminCustomIdSessions.set(key, { action: String(action), parts: parts.map(String), createdAt: Date.now() });
+    return key;
+}
 
 function buildAdminCustomId(action, ...parts) {
-    return [ADMIN_CUSTOM_ID_PREFIX, action, ...parts].map(String).join(':');
+    const key = buildAdminSessionKey(action, parts);
+    const customId = [ADMIN_CUSTOM_ID_PREFIX, action, key].map(String).join(':');
+    if (customId.length > ADMIN_CUSTOM_ID_MAX_LENGTH) {
+        throw new Error(`Verification admin custom ID exceeded Discord's ${ADMIN_CUSTOM_ID_MAX_LENGTH}-character limit.`);
+    }
+    return customId;
 }
 
 function parseAdminCustomId(customId) {
     const parts = String(customId ?? '').split(':');
     if (parts[0] !== ADMIN_CUSTOM_ID_PREFIX) return null;
+
+    const session = adminCustomIdSessions.get(parts[2]);
+    if (session) return { action: session.action, parts: session.parts };
+
     return {
         action: parts[1],
         parts: parts.slice(2),
@@ -261,8 +285,8 @@ function buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, 
     const challenge = verificationChallenges[challengeId];
     const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
     const fields = [
-        { name: 'Challenge Title', value: effectiveChallenge.title ?? 'Not set', inline: false },
-        { name: 'Challenge Description', value: effectiveChallenge.description ?? 'Not set', inline: false },
+        { name: 'Challenge Title', value: truncateEmbedFieldValue(effectiveChallenge.title ?? 'Not set'), inline: false },
+        { name: 'Challenge Description', value: truncateEmbedFieldValue(effectiveChallenge.description ?? 'Not set'), inline: false },
         { name: 'Questions', value: (effectiveChallenge.questions ?? []).map((question, index) => `${index + 1}. ${question.id} — ${question.label ?? 'Question'}`).join('\n') || 'None', inline: false },
         ...buildChallengeAuditFields(challenge, verificationSettings, enabledChallengeIds),
     ];
@@ -458,6 +482,12 @@ function formatList(values, empty = 'Not set') {
 function formatJson(value) {
     if (!value || (typeof value === 'object' && Object.keys(value).length < 1)) return 'Not set';
     return '```json\n' + JSON.stringify(value, null, 2).slice(0, 950) + '\n```';
+}
+
+function truncateEmbedFieldValue(value, maxLength = 1024) {
+    const text = String(value ?? 'Not set');
+    if (text.length <= maxLength) return text;
+    return `${text.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
 function buildQuestionListResponse(challengeId, challenge) {
@@ -790,13 +820,14 @@ async function handleChallengeDetailsButton(interaction, parts) {
     }
 }
 
-function buildChallengeTextInput(customId, label, currentValue, style) {
+function buildChallengeTextInput(customId, label, currentValue, style, maxLength) {
     const input = setModalInputDescription(
         new Discord.TextInputBuilder()
             .setCustomId(customId)
             .setLabel(label)
             .setStyle(style)
             .setRequired(false)
+            .setMaxLength(maxLength)
             .setPlaceholder('Leave empty for no change'),
         currentValue ? `Current: ${String(currentValue).slice(0, 90)}` : 'Leave empty for no change.',
     );
@@ -818,8 +849,8 @@ async function showChallengeEditModalFromButton(interaction, parts) {
         .setCustomId(buildAdminCustomId('challengeEditModal', guildId, ownerUserId, challengeId))
         .setTitle('Edit Challenge')
         .addComponents(
-            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_title', 'Challenge Title', override.title ?? challenge.title, Discord.TextInputStyle.Short)),
-            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_description', 'Challenge Description', override.description ?? challenge.description, Discord.TextInputStyle.Paragraph)),
+            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_title', 'Challenge Title', override.title ?? challenge.title, Discord.TextInputStyle.Short, CHALLENGE_TITLE_MAX_LENGTH)),
+            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_description', 'Challenge Description', override.description ?? challenge.description, Discord.TextInputStyle.Paragraph, CHALLENGE_DESCRIPTION_MAX_LENGTH)),
         );
 
     return interaction.showModal(modal);
