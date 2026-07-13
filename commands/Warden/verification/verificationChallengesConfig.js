@@ -171,7 +171,7 @@ const verificationChallenges = {
                 id: 'configured-object-gallery',
                 label: 'Question 2',
                 text: 'Find all images depicting the object we are looking for. It may be multiple. Remember their tag number.',
-                separateStep: false,
+                separateStep: true,
                 generatedImage: {
                     enabled: true,
                     type: 'gallery-standard',
