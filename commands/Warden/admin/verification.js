@@ -212,12 +212,11 @@ async function handleConfigStatus(interaction, verificationSettings) {
     ));
 }
 
-async function handleChallengeActiveSet(interaction, guildId) {
-    const idsInput = interaction.options.getString('challenges');
-    if (!idsInput?.trim()) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID in `challenges`.')] });
+async function handleChallengeActiveSet(interaction, guildId, idsInput = interaction.options.getString('ids')) {
+    if (!idsInput?.trim()) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID in `ids`.')] });
 
     const challengeIds = parseIdList(idsInput);
-    if (challengeIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID in `challenges`.')] });
+    if (challengeIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID in `ids`.')] });
 
     const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
     if (unknownChallengeIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
@@ -229,19 +228,14 @@ async function handleChallengeActiveSet(interaction, guildId) {
     ));
 }
 
-async function handleChallengeDurationSetting(interaction, guildId, { title, updateSettings, secondsKey, successMessage }) {
-    const timeInput = interaction.options.getString('time');
-    if (!timeInput?.trim()) return interaction.editReply({ embeds: [userErrorEmbed('Please provide a time value, such as `90s`, `2m`, or `2 minutes`.')] });
+async function handleChallengeView(interaction, verificationSettings, enabledChallengeIds, idsInput = interaction.options.getString('ids')) {
+    const challengeIds = parseIdList(idsInput);
 
-    const durationSeconds = parseDurationSeconds(timeInput);
-    if (!durationSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid time, such as `90s`, `2m`, or `2 minutes`.')] });
+    if (challengeIds.length > 1) {
+        return interaction.editReply({ embeds: [userErrorEmbed('The `view` action accepts only one challenge ID. Use `active-set` for multiple IDs.')] });
+    }
 
-    const updatedSettings = await updateSettings(guildId, durationSeconds, interaction.user.id);
-    return interaction.editReply(buildVerificationAdminSettingUpdated(title, successMessage(formatDuration(updatedSettings[secondsKey]))));
-}
-
-async function handleChallengeView(interaction, verificationSettings, enabledChallengeIds) {
-    const challengeId = String(interaction.options.getString('challenge') ?? '').trim();
+    const challengeId = challengeIds[0] ?? '';
 
     if (!challengeId) {
         return interaction.editReply(buildVerificationAdminConfiguration(
@@ -693,36 +687,109 @@ function buildChallengeAuditFields(challenge, verificationSettings, enabledChall
     ];
 }
 
-const CHALLENGE_DURATION_COMMANDS = {
-    'timer-set': {
-        title: 'Challenge Timer',
-        updateSettings: setChallengeExpirySeconds,
-        secondsKey: 'challengeExpirySeconds',
-        successMessage: (duration) => `Updated challenge expiry timer to **${duration}**.`,
-    },
-    'cooldown-set': {
-        title: 'Retry Cooldown',
-        updateSettings: setCooldownSeconds,
-        secondsKey: 'cooldownSeconds',
-        successMessage: (duration) => `Updated verification retry cooldown to **${duration}**.`,
-    },
-};
+function setModalInputDescription(input, description) {
+    if (typeof input.setDescription === 'function') return input.setDescription(description);
+    return input;
+}
 
-async function handleVerificationChallengeCommand(interaction, guildId, subcommand) {
+function buildTimerInput(customId, label, currentSeconds) {
+    const description = `Currently set to: ${formatDuration(currentSeconds)}. Leave empty if no change is required.`;
+    const placeholder = description.length <= 100 ? description : '90s, 2m, or 2 minutes';
+
+    return setModalInputDescription(
+        new Discord.TextInputBuilder()
+            .setCustomId(customId)
+            .setLabel(label)
+            .setStyle(Discord.TextInputStyle.Short)
+            .setRequired(false)
+            .setPlaceholder(placeholder),
+        description,
+    );
+}
+
+async function showChallengeTimersModal(interaction, guildId) {
+    const verificationSettings = await getVerificationSettings(guildId);
+    const modal = new Discord.ModalBuilder()
+        .setCustomId(`wardenVerificationAdmin:challengeTimers:${interaction.guild?.id ?? guildId}:${interaction.user.id}`)
+        .setTitle('Verification Timers')
+        .addComponents(
+            new Discord.ActionRowBuilder().addComponents(buildTimerInput('expiry_timer', 'Expiry Timer', verificationSettings.challengeExpirySeconds)),
+            new Discord.ActionRowBuilder().addComponents(buildTimerInput('retry_cooldown', 'Retry Cooldown', verificationSettings.cooldownSeconds)),
+        );
+
+    return interaction.showModal(modal);
+}
+
+function getModalTextInput(interaction, customId) {
+    return String(interaction.fields.getTextInputValue(customId) ?? '').trim();
+}
+
+async function handleChallengeTimersModalSubmit(interaction) {
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+
+    const expiryInput = getModalTextInput(interaction, 'expiry_timer');
+    const cooldownInput = getModalTextInput(interaction, 'retry_cooldown');
+
+    if (!expiryInput && !cooldownInput) {
+        return interaction.editReply({ embeds: [userErrorEmbed('No timer changes were submitted.')] });
+    }
+
+    const expirySeconds = expiryInput ? parseDurationSeconds(expiryInput) : undefined;
+    if (expiryInput && !expirySeconds) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Invalid Expiry Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+    }
+
+    const cooldownSeconds = cooldownInput ? parseDurationSeconds(cooldownInput) : undefined;
+    if (cooldownInput && !cooldownSeconds) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Invalid Retry Cooldown. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+    }
+
+    const guildId = interaction.guild?.id;
+    if (expirySeconds) await setChallengeExpirySeconds(guildId, expirySeconds, interaction.user.id);
+    if (cooldownSeconds) await setCooldownSeconds(guildId, cooldownSeconds, interaction.user.id);
+
+    const updatedSettings = await getVerificationSettings(guildId);
+    return interaction.editReply(buildVerificationAdminSummary(
+        'Challenge Timers Updated',
+        'Updated verification challenge timers.',
+        'Current challenge timer settings.',
+        'success',
+        {
+            fields: [
+                { name: 'Expiry Timer', value: formatDuration(updatedSettings.challengeExpirySeconds), inline: true },
+                { name: 'Retry Cooldown', value: formatDuration(updatedSettings.cooldownSeconds), inline: true },
+            ],
+        },
+    ));
+}
+
+async function handleVerificationAdminModalSubmit(interaction) {
+    if (!String(interaction.customId ?? '').startsWith('wardenVerificationAdmin:challengeTimers')) return false;
+    await handleChallengeTimersModalSubmit(interaction);
+    return true;
+}
+
+async function handleVerificationChallengeCommand(interaction, guildId) {
+    const action = interaction.options.getString('action', true);
+    const idsInput = interaction.options.getString('ids');
+
+    if (action === 'timers') {
+        if (idsInput?.trim()) {
+            const response = { embeds: [userErrorEmbed('The `timers` action does not use challenge IDs. Leave `ids` empty.')] };
+            if (interaction.deferred) return interaction.editReply(response);
+            return interaction.reply({ ...response, flags: Discord.MessageFlags.Ephemeral });
+        }
+
+        return showChallengeTimersModal(interaction, guildId);
+    }
+
     const verificationSettings = await getVerificationSettings(guildId);
     const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
 
-    switch (subcommand) {
-        case 'active-set':
-            return handleChallengeActiveSet(interaction, guildId);
-        case 'timer-set':
-        case 'cooldown-set':
-            return handleChallengeDurationSetting(interaction, guildId, CHALLENGE_DURATION_COMMANDS[subcommand]);
-        case 'view':
-            return handleChallengeView(interaction, verificationSettings, enabledChallengeIds);
-        default:
-            return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge command.')] });
-    }
+    if (action === 'active-set') return handleChallengeActiveSet(interaction, guildId, idsInput);
+    if (action === 'view') return handleChallengeView(interaction, verificationSettings, enabledChallengeIds, idsInput);
+
+    return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge action.')] });
 }
 
 async function handleVerificationPostCommand(interaction, guildId, subcommand) {
@@ -873,7 +940,15 @@ function buildDelimitedAutocompleteChoices(focusedValue, candidates) {
 async function handleVerificationAutocomplete(interaction) {
     try {
         const group = interaction.options.getSubcommandGroup(false);
+        const subcommand = interaction.options.getSubcommand(false);
         const focusedOption = interaction.options.getFocused(true);
+
+        if (!group && subcommand === 'challenge' && focusedOption.name === 'ids') {
+            const action = interaction.options.getString('action');
+            if (action === 'view') return interaction.respond(buildChallengeIdAutocompleteChoices(focusedOption.value));
+            if (action === 'active-set') return interaction.respond(buildChallengeIdsAutocompleteChoices(focusedOption.value));
+            return interaction.respond([]);
+        }
 
         if (focusedOption.name === 'challenge') {
             return interaction.respond(buildChallengeIdAutocompleteChoices(focusedOption.value));
@@ -995,14 +1070,25 @@ module.exports = {
                 ),
             ),
         )
-        .addSubcommandGroup(group => group
-            .setName('challenge')
-            .setDescription('Manage verification challenges')
-            .addSubcommand(subcommand => addStringOption(subcommand.setName('view').setDescription('View challenge settings'), 'challenge', 'Challenge ID', { required: false, autocomplete: true }))
-            .addSubcommand(subcommand => addStringOption(subcommand.setName('active-set').setDescription('Set active challenge IDs'), 'challenges', 'Challenge IDs separated by commas or spaces', { autocomplete: true }))
-            .addSubcommand(subcommand => addStringOption(subcommand.setName('timer-set').setDescription('Set challenge expiry timer'), 'time', 'Duration such as 90s, 2m, or 2 minutes'))
-            .addSubcommand(subcommand => addStringOption(subcommand.setName('cooldown-set').setDescription('Set retry cooldown'), 'time', 'Duration such as 90s, 2m, or 2 minutes')),
-        )
+        .addSubcommand(subcommand => addStringOption(
+            addStringOption(
+                subcommand
+                    .setName('challenge')
+                    .setDescription('Manage verification challenges'),
+                'action',
+                'Challenge action to run',
+                {
+                    choices: [
+                        { name: 'View challenges', value: 'view' },
+                        { name: 'Set active challenges', value: 'active-set' },
+                        { name: 'Set challenge timers', value: 'timers' },
+                    ],
+                },
+            ),
+            'ids',
+            'Challenge ID for view, or IDs for active-set',
+            { required: false, autocomplete: true },
+        ))
         .addSubcommandGroup(group => group
             .setName('question')
             .setDescription('Edit questions inside a challenge')
@@ -1019,16 +1105,21 @@ module.exports = {
         return handleVerificationAutocomplete(interaction);
     },
     async execute(interaction) {
-        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-
         try {
             const group = interaction.options.getSubcommandGroup(false);
             const subcommand = interaction.options.getSubcommand();
             const guildId = interaction.guild?.id;
 
+            if (!group && subcommand === 'challenge') {
+                const action = interaction.options.getString('action', true);
+                if (action === 'timers') return handleVerificationChallengeCommand(interaction, guildId);
+            }
+
+            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+
             if (group === 'config') return handleVerificationConfigCommand(interaction, guildId, subcommand);
             if (group === 'post') return handleVerificationPostCommand(interaction, guildId, subcommand);
-            if (group === 'challenge') return handleVerificationChallengeCommand(interaction, guildId, subcommand);
+            if (!group && subcommand === 'challenge') return handleVerificationChallengeCommand(interaction, guildId);
             if (group === 'question') return handleVerificationQuestionCommand(interaction, guildId, subcommand);
 
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown verification command.')] });
@@ -1042,7 +1133,13 @@ module.exports = {
                 , 2, 'error'
             ).catch((logErr) => console.error('Failed to log verification command error:', logErr));
 
-            return interaction.editReply({ embeds: [userErrorEmbed('Failed to run the verification command. Please try again later.')] });
+            const errorResponse = { embeds: [userErrorEmbed('Failed to run the verification command. Please try again later.')] };
+            if (interaction.deferred) return interaction.editReply(errorResponse);
+            if (interaction.replied) return interaction.followUp({ ...errorResponse, flags: Discord.MessageFlags.Ephemeral });
+            return interaction.reply({ ...errorResponse, flags: Discord.MessageFlags.Ephemeral });
         }
+    },
+    async handleModalSubmit(interaction) {
+        return handleVerificationAdminModalSubmit(interaction);
     },
 };

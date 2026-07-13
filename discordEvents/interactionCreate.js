@@ -124,6 +124,11 @@ const exp = {
         if (interaction.isModalSubmit()) {
             if (botIdent().activeBot.botName == 'Warden') {
                 if (await handleVerificationInteraction(interaction)) return
+
+                const command = interaction.client.commands?.get('verification')
+                    ?? bot.commands?.get('verification')
+
+                if (command?.handleModalSubmit && await command.handleModalSubmit(interaction)) return
             }
             if (botIdent().activeBot.botName == 'GuardianAI') {
                 if (interaction.customId.startsWith("interestedOpord")) {
