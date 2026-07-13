@@ -292,7 +292,7 @@ async function resolveModalSubmitAfterScreenReplace(interaction, content = 'Answ
 async function deactivateQuestionMessage(interaction, session, message = 'Verification step completed.') {
     if (!session?.questionMessageId) return;
 
-    await interaction.webhook.editMessage(session.questionMessageId, sanitizeMessageEditOptions(buildCompletedQuestionOptions(message))).catch((err) => {
+    await interaction.webhook.editMessage(session.questionMessageId, sanitizeMessageEditOptions(buildCompletedQuestionOptions(message, { renderer: session.renderer }))).catch((err) => {
         console.error('Failed to deactivate verification question message:', err);
     });
 }
@@ -390,7 +390,7 @@ async function handleVerifyStart(interaction) {
     const splitMessages = screens.length > 1 || screens.some((screen) => screen.separate === true);
     const createdTimestamp = Date.now();
     const expiresAt = createdTimestamp + challengeExpiryMs;
-    const renderer = isComponentsV2Available() ? COMPONENTS_V2_RENDERER : LEGACY_RENDERER;
+    const renderer = COMPONENTS_V2_RENDERER;
     const session = {
         challengeId: challenge.id,
         challenge,
