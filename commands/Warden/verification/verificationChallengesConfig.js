@@ -110,7 +110,7 @@ const verificationChallenges = {
                 id: 'starter-ship-name',
                 label: 'Question 1',
                 text: 'What is the name of the starter ship in Elite Dangerous?',
-                separateStep: false,
+                separateStep: true,
                 generatedImage: { enabled: false, type: 'none' },
                 answer: {
                     required: true,
