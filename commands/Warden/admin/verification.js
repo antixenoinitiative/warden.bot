@@ -692,9 +692,8 @@ function setModalInputDescription(input, description) {
     return input;
 }
 
-function buildTimerInput(customId, label, currentSeconds) {
-    const description = `Currently set to: ${formatDuration(currentSeconds)}. Leave empty if no change is required.`;
-    const placeholder = description.length <= 100 ? description : '90s, 2m, or 2 minutes';
+function buildTimerInput(customId, label) {
+    const description = 'Leave empty if no change is required.';
 
     return setModalInputDescription(
         new Discord.TextInputBuilder()
@@ -702,19 +701,18 @@ function buildTimerInput(customId, label, currentSeconds) {
             .setLabel(label)
             .setStyle(Discord.TextInputStyle.Short)
             .setRequired(false)
-            .setPlaceholder(placeholder),
+            .setPlaceholder('90s, 2m, or 2 minutes'),
         description,
     );
 }
 
 async function showChallengeTimersModal(interaction, guildId) {
-    const verificationSettings = await getVerificationSettings(guildId);
     const modal = new Discord.ModalBuilder()
         .setCustomId(`wardenVerificationAdmin:challengeTimers:${interaction.guild?.id ?? guildId}:${interaction.user.id}`)
         .setTitle('Verification Timers')
         .addComponents(
-            new Discord.ActionRowBuilder().addComponents(buildTimerInput('expiry_timer', 'Expiry Timer', verificationSettings.challengeExpirySeconds)),
-            new Discord.ActionRowBuilder().addComponents(buildTimerInput('retry_cooldown', 'Retry Cooldown', verificationSettings.cooldownSeconds)),
+            new Discord.ActionRowBuilder().addComponents(buildTimerInput('expiry_timer', 'Expiry Timer')),
+            new Discord.ActionRowBuilder().addComponents(buildTimerInput('retry_cooldown', 'Retry Cooldown')),
         );
 
     return interaction.showModal(modal);
@@ -763,9 +761,27 @@ async function handleChallengeTimersModalSubmit(interaction) {
     ));
 }
 
+async function sendVerificationAdminModalError(interaction) {
+    const response = { embeds: [userErrorEmbed('Failed to update verification timers. Please try again later.')] };
+
+    if (interaction.deferred) return interaction.editReply(response);
+    if (interaction.replied) return interaction.followUp({ ...response, flags: Discord.MessageFlags.Ephemeral });
+    return interaction.reply({ ...response, flags: Discord.MessageFlags.Ephemeral });
+}
+
 async function handleVerificationAdminModalSubmit(interaction) {
     if (!String(interaction.customId ?? '').startsWith('wardenVerificationAdmin:challengeTimers')) return false;
-    await handleChallengeTimersModalSubmit(interaction);
+
+    try {
+        await handleChallengeTimersModalSubmit(interaction);
+    }
+    catch (err) {
+        console.error('Failed to handle verification admin modal submit:', err);
+        await sendVerificationAdminModalError(interaction).catch((responseError) => {
+            console.error('Failed to send verification admin modal error response:', responseError);
+        });
+    }
+
     return true;
 }
 
