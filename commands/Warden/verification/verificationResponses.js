@@ -425,6 +425,64 @@ function buildExpiryLine(expiresAt) {
     return `This verification challenge expires <t:${Math.floor(expiresAt / 1000)}:R>.`;
 }
 
+const EXPIRY_LINE_PATTERN = /^This verification challenge expires <t:\d+:R>\.$/;
+
+function removeExpiryLines(value) {
+    const text = String(value ?? '');
+    return text
+        .split('\n')
+        .filter((line) => !EXPIRY_LINE_PATTERN.test(line.trim()))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function appendWithSpacing(text, line, limit = DESCRIPTION_LIMIT) {
+    const cleanText = removeExpiryLines(text);
+    if (!line) return truncateText(cleanText, limit);
+
+    const separator = cleanText ? '\n\n' : '';
+    const availableTextLength = Math.max(0, limit - separator.length - line.length);
+    const boundedText = cleanText.length > availableTextLength
+        ? truncateText(cleanText, availableTextLength)
+        : cleanText;
+
+    return [boundedText, line].filter(Boolean).join(separator);
+}
+
+function placeEmbedExpiryLineAtBottom(embed, expiresAt) {
+    const expiryLine = buildExpiryLine(expiresAt);
+    if (!expiryLine) return embed;
+
+    const description = removeExpiryLines(embed.data?.description);
+    if (description) {
+        embed.setDescription(truncateEmbedText(description));
+    }
+    else if (embed.data?.description) {
+        if (typeof embed.clearDescription === 'function') {
+            embed.clearDescription();
+        }
+        else {
+            delete embed.data.description;
+        }
+    }
+
+    const fields = (embed.data?.fields ?? []).map((field) => ({
+        ...field,
+        value: truncateText(removeExpiryLines(field.value), FIELD_VALUE_LIMIT) || 'Not set',
+    }));
+
+    if (fields.length > 0) {
+        const lastField = fields[fields.length - 1];
+        lastField.value = appendWithSpacing(lastField.value, expiryLine, FIELD_VALUE_LIMIT);
+        embed.setFields(fields);
+        return embed;
+    }
+
+    embed.setDescription(appendWithSpacing(description, expiryLine, DESCRIPTION_LIMIT));
+    return embed;
+}
+
 function truncateEmbedText(value, fallback = 'Not set') {
     const text = String(value ?? '').trim() || fallback;
     return text.length > DESCRIPTION_LIMIT ? `${text.slice(0, DESCRIPTION_LIMIT - 3)}...` : text;
@@ -573,7 +631,7 @@ function getOldVersionFallbackEmbedConfig(challenge) {
 
 function addOldVersionFallbackField(embed, challenge, session) {
     const fallbackConfig = getOldVersionFallbackEmbedConfig(challenge);
-    const value = [fallbackConfig.description, buildExpiryLine(session?.expiresAt)].filter(Boolean).join('\n\n');
+    const value = fallbackConfig.description;
     embed.addFields({
         name: truncateText(fallbackConfig.title, FIELD_NAME_LIMIT) || 'Not working?',
         value: truncateText(value, FIELD_VALUE_LIMIT) || 'Use the Old Version button below.',
@@ -589,7 +647,7 @@ function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, se
         const introEmbed = new Discord.EmbedBuilder()
             .setColor(resolveEmbedColor(resolveChallengeEmbedColor(challenge)))
             .setTitle(resolveChallengeEmbedTitle(challenge))
-            .setDescription(truncateEmbedText([resolveChallengeEmbedDescription(challenge), buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n'), 'Complete the verification questions to continue.'));
+            .setDescription(truncateEmbedText(resolveChallengeEmbedDescription(challenge), 'Complete the verification questions to continue.'));
 
         for (const field of challenge.fields ?? []) {
             const value = field.content ?? field.value ?? field.description;
@@ -600,6 +658,7 @@ function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, se
             addOldVersionFallbackField(introEmbed, challenge, session);
         }
 
+        placeEmbedExpiryLineAtBottom(introEmbed, session.expiresAt);
         allEmbeds.push(introEmbed);
     }
 
@@ -611,11 +670,11 @@ function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, se
             question.text,
             isGallery ? 'Use the displayed image positions when answering gallery questions.' : undefined,
             (session?.screens?.length ?? 0) > 1 ? `Screen ${screen.index + 1} of ${session.screens.length}` : undefined,
-            buildExpiryLine(session.expiresAt),
         ].filter(Boolean).join('\n\n');
         const questionEmbed = new Discord.EmbedBuilder()
             .setTitle(question.label ?? question.id)
             .setDescription(truncateEmbedText(description, 'Review this question.'));
+        placeEmbedExpiryLineAtBottom(questionEmbed, session.expiresAt);
 
         if (displayItems.length > 0 && (!isGallery || asset.galleryState?.compositeImage)) {
             questionEmbed.setImage(displayItems[0].displayUrl);
@@ -644,7 +703,7 @@ function buildQuestionScreenLegacyPages(challenge, screen, screenAssets = {}, se
     }
 
     return pages.length > 0 ? pages : [{
-        embeds: [new Discord.EmbedBuilder().setColor(resolveEmbedColor(resolveChallengeEmbedColor(challenge))).setTitle(resolveChallengeEmbedTitle(challenge)).setDescription([resolveChallengeEmbedDescription(challenge), buildExpiryLine(session.expiresAt)].filter(Boolean).join('\n\n') || 'Complete the verification questions to continue.')],
+        embeds: [placeEmbedExpiryLineAtBottom(new Discord.EmbedBuilder().setColor(resolveEmbedColor(resolveChallengeEmbedColor(challenge))).setTitle(resolveChallengeEmbedTitle(challenge)).setDescription(resolveChallengeEmbedDescription(challenge) || 'Complete the verification questions to continue.'), session.expiresAt)],
         files: [],
         components: !options.completed ? buildScreenActionRows({ ...session, renderer: LEGACY_RENDERER }) : [],
         flags: Discord.MessageFlags.Ephemeral,
@@ -692,13 +751,10 @@ function buildOldVersionFallbackOptions(challenge, session) {
     const fallbackConfig = getOldVersionFallbackEmbedConfig(challenge);
     return {
         embeds: [
-            new Discord.EmbedBuilder()
+            placeEmbedExpiryLineAtBottom(new Discord.EmbedBuilder()
                 .setColor(resolveEmbedColor(fallbackConfig.color))
                 .setTitle(fallbackConfig.title)
-                .setDescription([
-                    fallbackConfig.description,
-                    buildExpiryLine(session.expiresAt),
-                ].filter(Boolean).join('\n\n')),
+                .setDescription(fallbackConfig.description), session.expiresAt),
         ],
         components: buildOldVersionActionRows(session),
         flags: Discord.MessageFlags.Ephemeral,
