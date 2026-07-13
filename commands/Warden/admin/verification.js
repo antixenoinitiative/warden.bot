@@ -69,12 +69,12 @@ const {
     setChallengeExpirySeconds,
     setCooldownSeconds,
     setAutokickSettings,
-    setChallengeMetaOverride,
+    updateChallengeMetaOverrides,
     setQuestionCommonOverrides,
     setQuestionImageTextOverride,
     setQuestionAnswerOverrides,
-    setQuestionImageIds,
-    setQuestionImageDirections,
+    setQuestionImageIdOverrides,
+    setQuestionImageDirectionOverrides,
     clearQuestionOverrideField,
 } = require('../verification/verificationSettings');
 
@@ -340,11 +340,12 @@ async function sendChallengeOverview(interaction, {
 
     const challenge = verificationChallenges[challengeId];
     if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], components: [] });
+    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
 
     return interaction.editReply({
         embeds: [
             buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId),
-            buildQuestionListEmbed(challengeId, challenge),
+            buildQuestionListEmbed(challengeId, effectiveChallenge),
         ],
         components: buildChallengeViewComponents(mode, guildId, interaction.user.id, challengeId),
     });
@@ -708,27 +709,36 @@ function setModalInputDescription(input, description) {
     return input;
 }
 
-function buildTimerInput(customId, label) {
-    const description = 'Leave empty if no change is required.';
+function buildModalInputComponent(input, description) {
+    if (Discord.LabelBuilder && typeof Discord.LabelBuilder === 'function') {
+        const label = new Discord.LabelBuilder().setLabel(input.data?.label ?? 'Field');
+        if (description && typeof label.setDescription === 'function') label.setDescription(description);
+        if (typeof label.setTextInputComponent === 'function') return label.setTextInputComponent(input);
+        if (typeof label.addComponents === 'function') return label.addComponents(input);
+    }
 
-    return setModalInputDescription(
-        new Discord.TextInputBuilder()
-            .setCustomId(customId)
-            .setLabel(label)
-            .setStyle(Discord.TextInputStyle.Short)
-            .setRequired(false)
-            .setPlaceholder('90s, 2m, or 2 minutes'),
-        description,
-    );
+    return new Discord.ActionRowBuilder().addComponents(setModalInputDescription(input, description));
+}
+
+function buildTimerInput(customId, label, currentValue) {
+    return new Discord.TextInputBuilder()
+        .setCustomId(customId)
+        .setLabel(label)
+        .setStyle(Discord.TextInputStyle.Short)
+        .setRequired(false)
+        .setPlaceholder(`Current: ${currentValue}`.slice(0, 100));
 }
 
 async function showChallengeTimersModal(interaction, guildId) {
+    const verificationSettings = await getVerificationSettings(guildId);
+    const expiryValue = formatDuration(verificationSettings.challengeExpirySeconds);
+    const cooldownValue = formatDuration(verificationSettings.cooldownSeconds);
     const modal = new Discord.ModalBuilder()
-        .setCustomId(`wardenVerificationAdmin:challengeTimers:${interaction.guild?.id ?? guildId}:${interaction.user.id}`)
+        .setCustomId(buildAdminCustomId('challengeTimers', interaction.guild?.id ?? guildId, interaction.user.id))
         .setTitle('Verification Timers')
         .addComponents(
-            new Discord.ActionRowBuilder().addComponents(buildTimerInput('expiry_timer', 'Expiry Timer')),
-            new Discord.ActionRowBuilder().addComponents(buildTimerInput('retry_cooldown', 'Retry Cooldown')),
+            buildModalInputComponent(buildTimerInput('expiry_timer', 'Expiry Timer', expiryValue), `Current Expiry Timer: ${expiryValue}. Leave empty for no change.`),
+            buildModalInputComponent(buildTimerInput('retry_cooldown', 'Retry Cooldown', cooldownValue), `Current Retry Cooldown: ${cooldownValue}. Leave empty for no change.`),
         );
 
     return interaction.showModal(modal);
@@ -738,8 +748,11 @@ function getModalTextInput(interaction, customId) {
     return String(interaction.fields.getTextInputValue(customId) ?? '').trim();
 }
 
-async function handleChallengeTimersModalSubmit(interaction) {
+async function handleChallengeTimersModalSubmit(interaction, parts = []) {
+    const [guildId, ownerUserId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
 
     const expiryInput = getModalTextInput(interaction, 'expiry_timer');
     const cooldownInput = getModalTextInput(interaction, 'retry_cooldown');
@@ -758,7 +771,6 @@ async function handleChallengeTimersModalSubmit(interaction) {
         return interaction.editReply({ embeds: [userErrorEmbed('Invalid Retry Cooldown. Use a value like `90s`, `2m`, or `2 minutes`.')] });
     }
 
-    const guildId = interaction.guild?.id;
     if (expirySeconds) await setChallengeExpirySeconds(guildId, expirySeconds, interaction.user.id);
     if (cooldownSeconds) await setCooldownSeconds(guildId, cooldownSeconds, interaction.user.id);
 
@@ -1165,7 +1177,11 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
     const updates = {};
     for (const role of roles) {
         const raw = getModalTextInput(interaction, `${role}_ids`);
-        if (raw) updates[role] = parseIdList(raw);
+        if (raw) {
+            const imageIds = parseIdList(raw);
+            if (imageIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed(`Please provide at least one ${role} image ID, or leave that field empty for no change.`)] });
+            updates[role] = imageIds;
+        }
     }
     if (Object.keys(updates).length < 1) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
 
@@ -1175,9 +1191,7 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
         if (validationError) return interaction.editReply({ embeds: [userErrorEmbed(validationError)] });
     }
 
-    for (const [role, imageIds] of Object.entries(updates)) {
-        await setQuestionImageIds(context.guildId, context.challengeId, context.question.id, role, imageIds, interaction.user.id);
-    }
+    await setQuestionImageIdOverrides(context.guildId, context.challengeId, context.question.id, updates, interaction.user.id);
     return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
 }
 
@@ -1194,7 +1208,9 @@ function parseDirectionLines(input) {
             if (!spaceMatch) throw new Error(`Invalid direction line: ${line}`);
             [, imageId, degreesInput] = spaceMatch;
         }
-        return { imageId, degrees: parseDegreeList(degreesInput) };
+        const degrees = parseDegreeList(degreesInput);
+        if (degrees.length < 1) throw new Error(`Please provide at least one direction degree for ${imageId}.`);
+        return { imageId, degrees };
     });
 }
 
@@ -1228,9 +1244,13 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const unconfiguredIds = directionUpdates.map(({ imageId }) => imageId).filter((imageId) => !configuredRotationIds.has(imageId));
     if (unconfiguredIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Configure image IDs as center or outer before setting directions: ${[...new Set(unconfiguredIds)].join(', ')}`)] });
 
-    for (const { imageId, degrees } of directionUpdates) {
-        await setQuestionImageDirections(context.guildId, context.challengeId, context.question.id, [imageId], degrees, interaction.user.id);
-    }
+    await setQuestionImageDirectionOverrides(
+        context.guildId,
+        context.challengeId,
+        context.question.id,
+        Object.fromEntries(directionUpdates.map(({ imageId, degrees }) => [imageId, degrees])),
+        interaction.user.id,
+    );
     return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
 }
 
@@ -1263,14 +1283,10 @@ async function handleQuestionClearButton(interaction, parts) {
 
 
 async function updateChallengeMetaFromModal(guildId, challengeId, submittedTitle, submittedDescription, userId) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challenge = verificationChallenges[challengeId];
-    const currentOverride = currentSettings.challengeOverrides?.[challengeId] ?? {};
-    return setChallengeMetaOverride(guildId, challengeId, {
-        title: submittedTitle || currentOverride.title || challenge.title,
-        description: submittedDescription || currentOverride.description || challenge.description,
-        color: currentOverride.color || challenge.color,
-    }, userId);
+    const patch = {};
+    if (submittedTitle) patch.title = submittedTitle;
+    if (submittedDescription) patch.description = submittedDescription;
+    return updateChallengeMetaOverrides(guildId, challengeId, patch, userId);
 }
 
 async function handleChallengeEditModalSubmit(interaction, parts) {
