@@ -877,6 +877,38 @@ async function setQuestionTextOverride(guildId, challengeId, questionId, text, u
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+async function setQuestionLabelOverride(guildId, challengeId, questionId, label, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        label,
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function setQuestionSeparateStepOverride(guildId, challengeId, questionId, separateStep, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        separateStep: separateStep === true || separateStep === 'true' || separateStep === 1 || separateStep === '1',
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function setQuestionCommonOverrides(guildId, challengeId, questionId, data, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'label') ? { label: data.label } : {}),
+        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'text') ? { text: data.text } : {}),
+        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'separateStep') ? { separateStep: data.separateStep === true || data.separateStep === 'true' || data.separateStep === 1 || data.separateStep === '1' } : {}),
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 async function setQuestionImageTextOverride(guildId, challengeId, questionId, text, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
     const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
@@ -1068,6 +1100,9 @@ module.exports = {
     setAutokickSettings,
     setChallengeMetaOverride,
     setQuestionTextOverride,
+    setQuestionLabelOverride,
+    setQuestionSeparateStepOverride,
+    setQuestionCommonOverrides,
     setQuestionImageTextOverride,
     setQuestionAnswerOverrides,
     setQuestionImageIds,
