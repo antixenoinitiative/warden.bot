@@ -526,7 +526,7 @@ function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, s
         }
     }
 
-    if ((session?.screens?.length ?? 0) > 1) {
+    if ((session?.screens?.length ?? 0) > 1 && options.showScreenProgress !== false) {
         addTextDisplay(container, `**Screen ${screen.index + 1} of ${session.screens.length}**`);
     }
 
@@ -620,9 +620,11 @@ function buildQuestionScreenLegacyOptions(challenge, screen, screenAssets = {}, 
 
 function buildQuestionScreenOptions(challenge, screen, screenAssets = {}, session, options = {}) {
     const renderer = options.renderer ?? session?.renderer ?? COMPONENTS_V2_RENDERER;
-    if (renderer === LEGACY_RENDERER || !isComponentsV2Available()) {
+    if (renderer === LEGACY_RENDERER) {
         return buildQuestionScreenLegacyOptions(challenge, screen, screenAssets, session, options);
     }
+
+    assertComponentsV2Support();
 
     return {
         components: buildQuestionScreenComponentsV2(challenge, screen, screenAssets, session, options),
@@ -633,7 +635,13 @@ function buildQuestionScreenOptions(challenge, screen, screenAssets = {}, sessio
 
 function buildChallengeIntroOptions(challenge, session, options = {}) {
     const introScreen = { id: 'intro', index: 0, questions: [], answerRequired: false };
-    return buildQuestionScreenOptions(challenge, introScreen, {}, session, { ...options, includeIntro: true, completed: true });
+    return buildQuestionScreenOptions(challenge, introScreen, {}, session, {
+        ...options,
+        renderer: COMPONENTS_V2_RENDERER,
+        includeIntro: true,
+        completed: true,
+        showScreenProgress: false,
+    });
 }
 
 function buildOldVersionFallbackOptions(challenge, session) {
@@ -686,11 +694,28 @@ function buildAnswerModal(session) {
     return modal;
 }
 
-function buildCompletedQuestionOptions(message = 'Verification step completed.') {
+function buildCompletedQuestionOptions(message = 'Verification step completed.', options = {}) {
+    const renderer = options.renderer ?? COMPONENTS_V2_RENDERER;
+
+    if (renderer === COMPONENTS_V2_RENDERER && isComponentsV2Available()) {
+        const container = new Discord.ContainerBuilder()
+            .setAccentColor(resolveComponentAccentColor(verificationEmbedConfig.challengeEmbed?.color));
+
+        addTextDisplay(container, `# Verification\n${message}`);
+
+        return {
+            components: [container],
+            files: [],
+            attachments: [],
+            flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
+        };
+    }
+
     return {
         embeds: [new Discord.EmbedBuilder().setTitle('Verification').setDescription(message)],
         components: [],
         files: [],
+        attachments: [],
         flags: Discord.MessageFlags.Ephemeral,
     };
 }
