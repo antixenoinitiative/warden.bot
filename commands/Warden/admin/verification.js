@@ -14,9 +14,9 @@ const {
 const {
     verificationChallenges,
     getEnabledVerificationChallenges,
+    normalizeVerificationChallenge,
     buildQuestionScreens,
     validateQuestionScreens,
-    getMissingChallengeOverrideRequirements,
 } = require('../verification/verificationChallenges');
 const { getVerificationImagePool } = require('../verification/verificationImages');
 const {
@@ -665,12 +665,69 @@ async function handleVerificationQuestionCommand(interaction, guildId, subcomman
     return interaction.editReply({ embeds: [userErrorEmbed('Unknown question command.')] });
 }
 
+const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
+
+function getConfiguredRoleIds(generatedImage, role) {
+    return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
+}
+
+function getInvalidConfiguredDirections(directions) {
+    return (Array.isArray(directions) ? directions : [])
+        .filter((degrees) => !Number.isInteger(Number(degrees)) || !ALLOWED_IMAGE_DIRECTION_DEGREES.has(Number(degrees)));
+}
+
+function getChallengeAuditIssues(challenge) {
+    const issues = validateQuestionScreens(buildQuestionScreens(challenge)).map((issue) => issue.message);
+
+    for (const question of challenge.questions ?? []) {
+        const generatedImage = question.generatedImage ?? {};
+        const answer = question.answer ?? {};
+        const prefix = `${challenge.id}/${question.id}`;
+
+        if (generatedImage.requiresConfiguredText && !generatedImage.text) {
+            issues.push(`${prefix}: generated image text`);
+        }
+
+        if (answer.requiresConfiguredAnswers && answer.required === true && !answer.accepted?.length) {
+            issues.push(`${prefix}: accepted answers`);
+        }
+
+        if (generatedImage.type === 'gallery-standard'
+            && (generatedImage.requiresConfiguredImageIds || getConfiguredRoleIds(generatedImage, 'solution').length < 1 || getConfiguredRoleIds(generatedImage, 'control').length < 1)) {
+            if (getConfiguredRoleIds(generatedImage, 'solution').length < 1) issues.push(`${prefix}: solution image IDs`);
+            if (getConfiguredRoleIds(generatedImage, 'control').length < 1) issues.push(`${prefix}: control image IDs`);
+        }
+
+        if (generatedImage.type === 'gallery-rotation-alignment'
+            && (generatedImage.requiresConfiguredImageIds || getConfiguredRoleIds(generatedImage, 'center').length < 1 || getConfiguredRoleIds(generatedImage, 'outer').length < 1)) {
+            if (getConfiguredRoleIds(generatedImage, 'center').length < 1) issues.push(`${prefix}: center image IDs`);
+            if (getConfiguredRoleIds(generatedImage, 'outer').length < 1) issues.push(`${prefix}: outer image IDs`);
+        }
+
+        if (generatedImage.type === 'gallery-rotation-alignment'
+            && (generatedImage.requiresConfiguredImageDirections || getConfiguredRoleIds(generatedImage, 'center').length > 0 || getConfiguredRoleIds(generatedImage, 'outer').length > 0)) {
+            const directions = generatedImage.imageDirections ?? {};
+            const imageIds = [...new Set([...getConfiguredRoleIds(generatedImage, 'center'), ...getConfiguredRoleIds(generatedImage, 'outer')])];
+            const missingDirectionIds = imageIds.filter((imageId) => !Array.isArray(directions[imageId]) || directions[imageId].length < 1);
+
+            if (missingDirectionIds.length > 0) {
+                issues.push(`${prefix}: image directions (${missingDirectionIds.join(', ')})`);
+            }
+
+            const invalidDirectionIds = imageIds.filter((imageId) => getInvalidConfiguredDirections(directions[imageId]).length > 0);
+            if (invalidDirectionIds.length > 0) {
+                issues.push(`${prefix}: invalid image directions (${invalidDirectionIds.join(', ')})`);
+            }
+        }
+    }
+
+    return [...new Set(issues)];
+}
+
 function buildChallengeAuditFields(challenge, verificationSettings, enabledChallengeIds) {
-    const screens = buildQuestionScreens(challenge);
-    const screenIssues = validateQuestionScreens(screens).map((issue) => issue.message);
-    const allMissing = getMissingChallengeOverrideRequirements(verificationSettings);
-    const missingForChallenge = allMissing.filter((missing) => missing.startsWith(`${challenge.id}/`) || missing.startsWith(`Screen `));
-    const issues = [...new Set([...screenIssues, ...missingForChallenge])];
+    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    const screens = buildQuestionScreens(effectiveChallenge);
+    const issues = getChallengeAuditIssues(effectiveChallenge);
 
     return [
         { name: `${challenge.id} status`, value: enabledChallengeIds.includes(challenge.id) ? 'Active/enabled' : 'Not active', inline: true },
