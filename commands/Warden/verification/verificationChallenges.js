@@ -83,6 +83,7 @@ function normalizeVerificationChallenge(challenge, verificationSettings) {
         enabled: challenge.enabled === true,
         title: challengeOverride?.title ?? challenge.title,
         description: challengeOverride?.description ?? challenge.description,
+        color: challengeOverride?.color ?? challenge.color,
         fields: Array.isArray(challenge.fields) ? challenge.fields : [],
         questions: getChallengeQuestions(challenge).map((question, index) => applyConfiguredQuestionValues({
             ...question,

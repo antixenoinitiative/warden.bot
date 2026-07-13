@@ -226,8 +226,10 @@ function normalizeChallengeOverrides(challengeOverrides) {
         const normalizedChallenge = {};
         const title = normalizeString(challengeOverride.title);
         const description = normalizeString(challengeOverride.description);
+        const color = normalizeString(challengeOverride.color);
         if (title) normalizedChallenge.title = title;
         if (description) normalizedChallenge.description = description;
+        if (color) normalizedChallenge.color = color;
 
         const questions = normalizeObject(challengeOverride.questions);
         const normalizedQuestions = Object.entries(questions).reduce((questionOverrides, [questionId, questionOverride]) => {
@@ -241,7 +243,7 @@ function normalizeChallengeOverrides(challengeOverrides) {
         }, {});
 
         if (Object.keys(normalizedQuestions).length > 0) normalizedChallenge.questions = normalizedQuestions;
-        if (normalizedChallenge.title || normalizedChallenge.description || Object.keys(normalizedQuestions).length > 0) {
+        if (normalizedChallenge.title || normalizedChallenge.description || normalizedChallenge.color || Object.keys(normalizedQuestions).length > 0) {
             normalizedOverrides[normalizedChallengeId] = normalizedChallenge;
         }
 
@@ -859,6 +861,7 @@ async function setChallengeMetaOverride(guildId, challengeId, data, updatedBy) {
         ...currentChallenge,
         title: data?.title,
         description: data?.description,
+        color: data?.color,
     }));
 
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
