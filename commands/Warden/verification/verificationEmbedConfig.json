@@ -255,6 +255,12 @@
         "description": "Complete the task to verify. {challenge}",
         "color": "neutral"
     },
+    "oldVersionFallbackEmbed": {
+        "title": "Not working?",
+        "description": "If you cannot see the Verification Challenge, please update your client or click the Old Version button below.",
+        "buttonLabel": "Old Version",
+        "color": "neutral"
+    },
     "successEmbed": {
         "title": "Verification Complete",
         "description": "You have been verified successfully.",
