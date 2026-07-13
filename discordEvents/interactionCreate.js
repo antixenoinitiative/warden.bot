@@ -124,6 +124,20 @@ const exp = {
         if (interaction.isModalSubmit()) {
             if (botIdent().activeBot.botName == 'Warden') {
                 if (await handleVerificationInteraction(interaction)) return
+
+                const command = interaction.client.commands?.get('verification')
+                    ?? bot.commands?.get('verification')
+
+                if (command?.handleModalSubmit) {
+                    try {
+                        if (await command.handleModalSubmit(interaction)) return
+                    }
+                    catch (error) {
+                        console.error('Verification admin modal submit failed:', error)
+                        await sendCommandErrorResponse(interaction, 'There was an error while handling this verification modal.')
+                        return
+                    }
+                }
             }
             if (botIdent().activeBot.botName == 'GuardianAI') {
                 if (interaction.customId.startsWith("interestedOpord")) {
