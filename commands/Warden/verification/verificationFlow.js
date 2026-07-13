@@ -257,6 +257,25 @@ async function sendLegacyFollowUpPages(interaction, pages) {
     return messageIds;
 }
 
+async function deactivateLegacyFollowUpPages(interaction, session, message = 'This legacy verification page is no longer active. Please use the latest verification message.') {
+    const messageIds = [...new Set(session?.legacyPageMessageIds ?? [])].filter(Boolean);
+    if (messageIds.length < 1) return;
+
+    await Promise.all(messageIds.map((messageId) => interaction.webhook.editMessage(
+        messageId,
+        sanitizeMessageEditOptions({
+            content: message,
+            embeds: [],
+            components: [],
+            files: [],
+            attachments: [],
+            flags: Discord.MessageFlags.Ephemeral,
+        }),
+    ).catch((err) => {
+        console.error('Failed to deactivate stale verification legacy follow-up page:', err);
+    })));
+}
+
 async function resolveModalSubmitAfterScreenReplace(interaction, content = 'Answer accepted. Continuing verification...') {
     if (!interaction.isModalSubmit?.()) return;
 
@@ -286,6 +305,7 @@ async function completeVerification(interaction, session) {
     const verificationConfig = config.Warden?.verification;
     if (session) {
         await deactivateQuestionMessage(interaction, session, 'Verification completed.');
+        await deactivateLegacyFollowUpPages(interaction, session, 'Verification completed. This legacy page is no longer active.');
     }
 
     clearChallenge(interaction.user.id);
@@ -545,12 +565,17 @@ async function handleVerifyOldVersion(interaction) {
 
 async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex) {
     const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
+
+    if (session.renderer === LEGACY_RENDERER) {
+        await deactivateLegacyFollowUpPages(interaction, session);
+    }
+
     session.screenIndex = targetScreenIndex;
     session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
     session.token = createSessionToken();
-    session.legacyPageMessageIds = [];
 
     if (session.renderer === LEGACY_RENDERER) {
+        session.legacyPageMessageIds = [];
         const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: false });
         const questionMessageId = await replaceQuestionMessage(interaction, session, pages[0]);
         session.questionMessageId = questionMessageId;
@@ -560,6 +585,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
         return;
     }
 
+    session.legacyPageMessageIds = [];
     const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
     session.questionMessageId = questionMessageId;
     await resolveModalSubmitAfterScreenReplace(interaction);
@@ -604,6 +630,7 @@ async function handleVerifySubmit(interaction) {
         clearChallenge(interaction.user.id);
         setCooldown(interaction.user.id, retryAt);
         await deactivateQuestionMessage(interaction, session, 'Verification answer submitted. This screen is no longer active.');
+        await deactivateLegacyFollowUpPages(interaction, session, 'Verification answer submitted. This legacy page is no longer active.');
         return sendInitialInteractionResponse(interaction, buildVerificationFailureResponse(cooldownSeconds, retryAt));
     }
 
