@@ -4,7 +4,6 @@ const verificationEmbedConfig = require('../verification/verificationEmbedConfig
 const {
     applyFieldToEmbed,
     buildVerificationAdminSettingUpdated,
-    buildVerificationAdminStatus,
     buildVerificationAdminConfiguration,
     buildVerificationAdminActionCompleted,
     buildVerificationAdminSummary,
@@ -172,20 +171,13 @@ async function handleVerificationConfigCommand(interaction, guildId, subcommand)
     const verificationSettings = await getVerificationSettings(guildId);
 
     if (subcommand === 'status') {
-        const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
-        return handleChallengeList(interaction, verificationSettings, enabledChallengeIds);
+        return handleConfigStatus(interaction, verificationSettings);
     }
 
     if (subcommand === 'mode-set') {
         return handleVerificationModeCommand(interaction, guildId);
     }
 
-    if (subcommand === 'autokick-status') {
-        return interaction.editReply(buildVerificationAdminStatus(
-            'Autokick',
-            `Verification autokick is currently **${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(verificationSettings.autokickSeconds)}**.`,
-        ));
-    }
 
     if (subcommand === 'autokick-set') {
         const state = interaction.options.getString('state');
@@ -205,17 +197,18 @@ async function handleVerificationConfigCommand(interaction, guildId, subcommand)
     return interaction.editReply({ embeds: [userErrorEmbed('Unknown config command.')] });
 }
 
-async function handleChallengeList(interaction, verificationSettings, enabledChallengeIds) {
+async function handleConfigStatus(interaction, verificationSettings) {
     return interaction.editReply(buildVerificationAdminConfiguration(
-        'Challenge',
-        'Configured verification challenge settings:',
+        'Configuration',
+        'Current verification configuration.',
         [
-            { name: 'Active IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
-            { name: 'Available IDs', value: buildAvailableChallengeIdsValue(enabledChallengeIds), inline: false },
-            { name: 'Prompt expiry', value: formatDuration(verificationSettings.challengeExpirySeconds), inline: true },
-            { name: 'Retry cooldown', value: formatDuration(verificationSettings.cooldownSeconds), inline: true },
+            { name: 'Verification Mode', value: verificationSettings.mode, inline: true },
+            { name: 'Active Challenge IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
+            { name: 'Expiry Timer', value: formatDuration(verificationSettings.challengeExpirySeconds), inline: true },
+            { name: 'Retry Cooldown', value: formatDuration(verificationSettings.cooldownSeconds), inline: true },
             { name: 'Autokick', value: `**${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** after **${formatDuration(verificationSettings.autokickSeconds)}**`, inline: false },
         ],
+        { templateOverrides: { title: 'Verification Configuration' } },
     ));
 }
 
@@ -249,29 +242,31 @@ async function handleChallengeDurationSetting(interaction, guildId, { title, upd
 
 async function handleChallengeView(interaction, verificationSettings, enabledChallengeIds) {
     const challengeId = String(interaction.options.getString('challenge') ?? '').trim();
-    const fields = [
-        { name: 'Guild mode', value: verificationSettings.mode, inline: true },
-        { name: 'Active challenge IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
-        { name: 'Prompt expiry', value: formatDuration(verificationSettings.challengeExpirySeconds), inline: true },
-        { name: 'Retry cooldown', value: formatDuration(verificationSettings.cooldownSeconds), inline: true },
-        { name: 'Autokick', value: `**${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** after **${formatDuration(verificationSettings.autokickSeconds)}**`, inline: false },
-        { name: 'Available challenge IDs', value: buildAvailableChallengeIdsValue(enabledChallengeIds), inline: false },
-    ];
 
-    if (challengeId) {
-        const challenge = verificationChallenges[challengeId];
-        if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
-        fields.push(
-            { name: 'Challenge title', value: challenge.title ?? 'Not set', inline: false },
-            { name: 'Challenge description', value: challenge.description ?? 'Not set', inline: false },
-            { name: 'Questions', value: (challenge.questions ?? []).map((question, index) => `${index + 1}. ${question.id} — ${question.label ?? 'Question'}`).join('\n') || 'None', inline: false },
-            { name: 'Next commands', value: [`/verification question list challenge:${challengeId}`, `/verification challenge audit challenge:${challengeId}`].join('\n'), inline: false },
-        );
+    if (!challengeId) {
+        return interaction.editReply(buildVerificationAdminConfiguration(
+            'Challenges',
+            'Configured verification challenges.',
+            [
+                { name: 'Active Challenge IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
+                { name: 'Available Challenge IDs', value: buildAvailableChallengeIdsValue(enabledChallengeIds), inline: false },
+            ],
+        ));
     }
+
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+
+    const fields = [
+        { name: 'Challenge Title', value: challenge.title ?? 'Not set', inline: false },
+        { name: 'Challenge Description', value: challenge.description ?? 'Not set', inline: false },
+        { name: 'Questions', value: (challenge.questions ?? []).map((question, index) => `${index + 1}. ${question.id} — ${question.label ?? 'Question'}`).join('\n') || 'None', inline: false },
+        ...buildChallengeAuditFields(challenge, verificationSettings, enabledChallengeIds),
+    ];
 
     return interaction.editReply(buildVerificationAdminConfiguration(
         'Challenge View',
-        challengeId ? `Challenge settings for **${challengeId}**.` : 'Global verification challenge settings.',
+        `Challenge settings for **${challengeId}**.`,
         fields,
     ));
 }
@@ -414,50 +409,13 @@ function buildQuestionListResponse(challengeId, challenge) {
         ].filter(Boolean).join('\n').slice(0, 1024) || 'No details',
         inline: false,
     }));
-    const exampleQuestionId = questions[0]?.id ?? '<question-id>';
-
-    fields.push({
-        name: 'Next commands',
-        value: [
-            `/verification question view challenge:${challengeId} question:${exampleQuestionId}`,
-            `/verification question text-set challenge:${challengeId} question:${exampleQuestionId} value:<text>`,
-            `/verification question image-ids-set challenge:${challengeId} question:${exampleQuestionId} role:<role> ids:<ids>`,
-        ].join('\n'),
-        inline: false,
-    });
-
     return buildVerificationAdminSummary(
         'Verification Questions',
         `Questions for **${challengeId}**:`,
-        `${fields.length - 1} question${fields.length === 2 ? '' : 's'} configured.`,
+        `${fields.length} question${fields.length === 1 ? '' : 's'} configured.`,
         'info',
         { fields },
     );
-}
-
-function buildQuestionNextCommandHints(challengeId, question) {
-    const commands = [`/verification question text-set challenge:${challengeId} question:${question.id} value:<text>`];
-
-    if (question.generatedImage?.type === 'prompt-text') {
-        commands.push(`/verification question image-text-set challenge:${challengeId} question:${question.id} value:<text>`);
-    }
-
-    if (question.answer?.required === true && question.answer?.type === 'text') {
-        commands.push(`/verification question answers-set challenge:${challengeId} question:${question.id} answers:<a,b,c>`);
-    }
-
-    if (question.generatedImage?.type === 'gallery-standard') {
-        commands.push(`/verification question image-ids-set challenge:${challengeId} question:${question.id} role:solution ids:<ids>`);
-        commands.push(`/verification question image-ids-set challenge:${challengeId} question:${question.id} role:control ids:<ids>`);
-    }
-
-    if (question.generatedImage?.type === 'gallery-rotation-alignment') {
-        commands.push(`/verification question image-ids-set challenge:${challengeId} question:${question.id} role:center ids:<ids>`);
-        commands.push(`/verification question image-ids-set challenge:${challengeId} question:${question.id} role:outer ids:<ids>`);
-        commands.push(`/verification question directions-set challenge:${challengeId} question:${question.id} ids:<ids> degrees:0,90`);
-    }
-
-    return commands.slice(0, 6).join('\n');
 }
 
 function buildQuestionViewResponse(verificationSettings, challengeId, challenge, question) {
@@ -492,7 +450,6 @@ function buildQuestionViewResponse(verificationSettings, challengeId, challenge,
                 { name: 'Image IDs by role', value: formatJson(imageIds), inline: false },
                 { name: 'Image directions', value: formatJson(imageDirections), inline: false },
                 { name: 'Updated', value: override.updatedAt ? `${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}` : 'Not tracked', inline: false },
-                { name: 'Next commands', value: buildQuestionNextCommandHints(challengeId, effectiveQuestion), inline: false },
             ],
         },
     );
@@ -736,30 +693,6 @@ function buildChallengeAuditFields(challenge, verificationSettings, enabledChall
     ];
 }
 
-async function handleChallengeAudit(interaction, verificationSettings, enabledChallengeIds) {
-    const challengeId = String(interaction.options.getString('challenge') ?? '').trim();
-    const challengeIds = challengeId ? [challengeId] : enabledChallengeIds;
-
-    if (challengeIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('No active verification challenges are configured.')] });
-    }
-
-    const unknownChallengeIds = challengeIds.filter((id) => !verificationChallenges[id]);
-    if (unknownChallengeIds.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${unknownChallengeIds.join(', ')}`)] });
-    }
-
-    const fields = challengeIds.flatMap((id) => buildChallengeAuditFields(verificationChallenges[id], verificationSettings, enabledChallengeIds));
-
-    return interaction.editReply(buildVerificationAdminSummary(
-        'Verification Challenge Audit',
-        challengeId ? `Audit for **${challengeId}**.` : 'Audit for active verification challenges.',
-        'Review issues before enabling challenge verification.',
-        'info',
-        { fields },
-    ));
-}
-
 const CHALLENGE_DURATION_COMMANDS = {
     'timer-set': {
         title: 'Challenge Timer',
@@ -780,15 +713,11 @@ async function handleVerificationChallengeCommand(interaction, guildId, subcomma
     const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
 
     switch (subcommand) {
-        case 'list':
-            return handleChallengeList(interaction, verificationSettings, enabledChallengeIds);
         case 'active-set':
             return handleChallengeActiveSet(interaction, guildId);
         case 'timer-set':
         case 'cooldown-set':
             return handleChallengeDurationSetting(interaction, guildId, CHALLENGE_DURATION_COMMANDS[subcommand]);
-        case 'audit':
-            return handleChallengeAudit(interaction, verificationSettings, enabledChallengeIds);
         case 'view':
             return handleChallengeView(interaction, verificationSettings, enabledChallengeIds);
         default:
@@ -1018,10 +947,6 @@ module.exports = {
                     ],
                 },
             ))
-            .addSubcommand(subcommand => subcommand
-                .setName('autokick-status')
-                .setDescription('Show autokick settings'),
-            )
             .addSubcommand(subcommand => addStringOption(
                 addStringOption(
                     subcommand
@@ -1073,12 +998,10 @@ module.exports = {
         .addSubcommandGroup(group => group
             .setName('challenge')
             .setDescription('Manage verification challenges')
-            .addSubcommand(subcommand => subcommand.setName('list').setDescription('List configured challenges'))
             .addSubcommand(subcommand => addStringOption(subcommand.setName('view').setDescription('View challenge settings'), 'challenge', 'Challenge ID', { required: false, autocomplete: true }))
             .addSubcommand(subcommand => addStringOption(subcommand.setName('active-set').setDescription('Set active challenge IDs'), 'challenges', 'Challenge IDs separated by commas or spaces', { autocomplete: true }))
             .addSubcommand(subcommand => addStringOption(subcommand.setName('timer-set').setDescription('Set challenge expiry timer'), 'time', 'Duration such as 90s, 2m, or 2 minutes'))
-            .addSubcommand(subcommand => addStringOption(subcommand.setName('cooldown-set').setDescription('Set retry cooldown'), 'time', 'Duration such as 90s, 2m, or 2 minutes'))
-            .addSubcommand(subcommand => addStringOption(subcommand.setName('audit').setDescription('Check challenge setup'), 'challenge', 'Challenge ID', { required: false, autocomplete: true })),
+            .addSubcommand(subcommand => addStringOption(subcommand.setName('cooldown-set').setDescription('Set retry cooldown'), 'time', 'Duration such as 90s, 2m, or 2 minutes')),
         )
         .addSubcommandGroup(group => group
             .setName('question')
