@@ -1441,19 +1441,19 @@ async function handleQuestionDetailBackButton(interaction, parts) {
 }
 
 function buildQuestionEditPanelComponents(guildId, userId, challengeId, questionId, effectiveQuestion) {
-    const button = (action, label, style = Discord.ButtonStyle.Primary, ...extraParts) => new Discord.ButtonBuilder()
+    const button = (action, label, style = Discord.ButtonStyle.Secondary, ...extraParts) => new Discord.ButtonBuilder()
         .setCustomId(buildAdminCustomId(action, guildId, userId, challengeId, questionId, ...extraParts))
         .setLabel(label)
         .setStyle(style);
 
-    const buttons = [button('questionEditText', 'Edit Text')];
+    const buttons = [button('questionEditText', 'Text')];
     const generatedImageType = effectiveQuestion.generatedImage?.type;
     const answerType = effectiveQuestion.answer?.type;
     const directionImageIds = generatedImageType === 'gallery-rotation-alignment' ? getConfiguredDirectionImageIds(effectiveQuestion) : [];
-    if (generatedImageType === 'prompt-text') buttons.push(button('questionEditImageText', 'Edit Image Text', Discord.ButtonStyle.Primary, generatedImageType));
-    if (effectiveQuestion.answer?.required === true && answerType === 'text') buttons.push(button('questionEditAnswers', 'Edit Answers', Discord.ButtonStyle.Primary, answerType));
-    if (['gallery-standard', 'gallery-rotation-alignment'].includes(generatedImageType)) buttons.push(button('questionEditImageIds', 'Edit Image IDs', Discord.ButtonStyle.Primary, generatedImageType));
-    if (generatedImageType === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Edit Directions', Discord.ButtonStyle.Primary, generatedImageType, ...directionImageIds));
+    if (generatedImageType === 'prompt-text') buttons.push(button('questionEditImageText', 'Image Text', Discord.ButtonStyle.Secondary, generatedImageType));
+    if (effectiveQuestion.answer?.required === true && answerType === 'text') buttons.push(button('questionEditAnswers', 'Answers', Discord.ButtonStyle.Secondary, answerType));
+    if (['gallery-standard', 'gallery-rotation-alignment'].includes(generatedImageType)) buttons.push(button('questionEditImageIds', 'Image IDs', Discord.ButtonStyle.Secondary, generatedImageType));
+    if (generatedImageType === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Directions', Discord.ButtonStyle.Secondary, generatedImageType, ...directionImageIds));
     buttons.push(button('questionClearPanel', 'Clear Overrides', Discord.ButtonStyle.Danger));
 
     return buildActionRows(buttons);
