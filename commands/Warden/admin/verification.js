@@ -51,10 +51,7 @@ function parseAdminCustomId(customId) {
     const session = adminCustomIdSessions.get(parts[2]);
     if (session) return { action: session.action, parts: session.parts };
 
-    return {
-        action: parts[1],
-        parts: parts.slice(2),
-    };
+    return { expired: true };
 }
 
 function isAdminSessionOwner(interaction, sessionUserId) {
@@ -506,7 +503,7 @@ function buildQuestionListResponse(challengeId, challenge) {
     return buildVerificationAdminSummary(
         'Verification Questions',
         `Questions for **${challengeId}**:`,
-        `${fields.length} question${fields.length === 1 ? '' : 's'} configured. Use /verification challenge action:edit ids:${challengeId} for guided editing.`,
+        `${fields.length} question${fields.length === 1 ? '' : 's'} configured.`,
         'info',
         { fields },
     );
@@ -529,7 +526,7 @@ function buildQuestionViewResponse(verificationSettings, challengeId, challenge,
     return buildVerificationAdminSummary(
         'Verification Question',
         `Question **${question.id}** for challenge **${challengeId}**.`,
-        `Question config and overrides. Use /verification challenge action:edit ids:${challengeId} for guided editing.`,
+        'Question config and overrides.',
         'info',
         {
             fields: [
@@ -620,7 +617,8 @@ async function handleVerificationQuestionCommand(interaction, guildId, subcomman
     const verificationSettings = await getVerificationSettings(guildId);
 
     if (subcommand === 'list') {
-        return interaction.editReply(buildQuestionListResponse(challengeId, challenge));
+        const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+        return interaction.editReply(buildQuestionListResponse(challengeId, effectiveChallenge));
     }
 
     if (subcommand === 'view') {
@@ -1309,6 +1307,10 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
 async function handleVerificationAdminButtonInteraction(interaction) {
     const parsed = parseAdminCustomId(interaction.customId);
     if (!parsed) return false;
+    if (parsed.expired) {
+        await interaction.reply({ content: 'This admin panel has expired. Please run the command again.', flags: Discord.MessageFlags.Ephemeral });
+        return true;
+    }
 
     try {
         switch (parsed.action) {
@@ -1366,6 +1368,10 @@ async function sendVerificationAdminModalError(interaction) {
 async function handleVerificationAdminModalSubmit(interaction) {
     const parsed = parseAdminCustomId(interaction.customId);
     if (!parsed) return false;
+    if (parsed.expired) {
+        await interaction.reply({ content: 'This admin panel has expired. Please run the command again.', flags: Discord.MessageFlags.Ephemeral });
+        return true;
+    }
 
     try {
         switch (parsed.action) {
