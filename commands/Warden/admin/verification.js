@@ -319,7 +319,7 @@ function buildChallengeViewComponents(mode, guildId, userId, challengeId) {
 
     buttons.push(new Discord.ButtonBuilder()
         .setCustomId(buildAdminCustomId('challengeDetails', mode, guildId, userId, challengeId))
-        .setLabel('Details')
+        .setLabel('Question Details')
         .setStyle(Discord.ButtonStyle.Primary));
 
     return [new Discord.ActionRowBuilder().addComponents(...buttons)];
@@ -512,7 +512,7 @@ function buildQuestionListResponse(challengeId, challenge) {
         inline: false,
     }));
     return buildVerificationAdminSummary(
-        'Verification Questions',
+        'Questions',
         `Questions for **${challengeId}**:`,
         `${fields.length} question${fields.length === 1 ? '' : 's'} configured.`,
         'info',
@@ -535,7 +535,7 @@ function buildQuestionViewResponse(verificationSettings, challengeId, challenge,
     const answers = effectiveQuestion.answer?.accepted ?? [];
 
     return buildVerificationAdminSummary(
-        'Verification Question',
+        'Question',
         `Question **${question.id}** for challenge **${challengeId}**.`,
         'Question config and overrides.',
         'info',
@@ -619,28 +619,6 @@ function validatePendingQuestionImageIds(question, role, imageIds) {
 
     return undefined;
 }
-
-async function handleVerificationQuestionCommand(interaction, guildId, subcommand) {
-    const { challengeId, error } = getKnownChallengeId(interaction, 'challenge');
-    if (error) return interaction.editReply({ embeds: [error] });
-
-    const challenge = verificationChallenges[challengeId];
-    const verificationSettings = await getVerificationSettings(guildId);
-
-    if (subcommand === 'list') {
-        const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
-        return interaction.editReply(buildQuestionListResponse(challengeId, effectiveChallenge));
-    }
-
-    if (subcommand === 'view') {
-        const { question, error: questionError } = getKnownQuestion(interaction, challenge);
-        if (questionError) return interaction.editReply({ embeds: [questionError] });
-        return interaction.editReply(buildQuestionViewResponse(verificationSettings, challengeId, challenge, question));
-    }
-
-    return interaction.editReply({ embeds: [userErrorEmbed('Unknown question command. Use `/verification challenge action:edit` for guided question editing.')] });
-}
-
 
 const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
 
@@ -1002,6 +980,30 @@ function buildOptionalTextInput(customId, label, {
     return setModalInputDescription(input, description ?? 'Leave empty for no change.');
 }
 
+function truncateModalLabel(label) {
+    const text = String(label ?? 'Image ID');
+    return text.length <= 45 ? text : `${text.slice(0, 44)}…`;
+}
+
+function getConfiguredDirectionImageIds(question) {
+    return [...new Set([
+        ...(question.generatedImage?.imageIds?.center ?? []),
+        ...(question.generatedImage?.imageIds?.outer ?? []),
+    ].map((imageId) => String(imageId ?? '').trim()).filter(Boolean))];
+}
+
+function buildQuestionDirectionsPageComponents(guildId, userId, challengeId, questionId, directionImageIds) {
+    const buttons = [];
+    for (let index = 0; index < directionImageIds.length; index += 5) {
+        const pageImageIds = directionImageIds.slice(index, index + 5);
+        buttons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionDirectionsPage', guildId, userId, challengeId, questionId, ...pageImageIds))
+            .setLabel(`Directions ${index + 1}-${index + pageImageIds.length}`)
+            .setStyle(Discord.ButtonStyle.Secondary));
+    }
+    return buildActionRows(buttons);
+}
+
 function buildModalRow(input) {
     return new Discord.ActionRowBuilder().addComponents(input);
 }
@@ -1011,7 +1013,8 @@ async function showQuestionModal(interaction, parts, buildModal) {
     if (context.error) return;
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
-    const modal = buildModal(context, effectiveQuestion);
+    const modal = await buildModal(context, effectiveQuestion);
+    if (!modal) return;
     return interaction.showModal(modal);
 }
 
@@ -1071,16 +1074,39 @@ function showQuestionImageIdsModal(interaction, parts) {
 }
 
 function showQuestionDirectionsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, effectiveQuestion) => {
+    return showQuestionModal(interaction, parts, async (context, effectiveQuestion) => {
         if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
+        const pageImageIds = parts.slice(4).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+        const configuredDirectionImageIds = getConfiguredDirectionImageIds(effectiveQuestion);
+        const directionImageIds = pageImageIds.length > 0 ? pageImageIds : configuredDirectionImageIds;
+        if (directionImageIds.length < 1) {
+            await interaction.reply({
+                embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')],
+                flags: Discord.MessageFlags.Ephemeral,
+            });
+            return undefined;
+        }
+        if (directionImageIds.length > 5) {
+            await interaction.reply({
+                content: `This question has ${directionImageIds.length} configured images with directions. Discord modals can only show 5 fields at once. Choose a page to edit.`,
+                components: buildQuestionDirectionsPageComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, directionImageIds),
+                flags: Discord.MessageFlags.Ephemeral,
+            });
+            return undefined;
+        }
+
+        const imageDirections = effectiveQuestion.generatedImage?.imageDirections ?? {};
         return new Discord.ModalBuilder()
-            .setCustomId(buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id))
+            .setCustomId(buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, ...directionImageIds))
             .setTitle('Edit Image Directions')
-            .addComponents(buildModalRow(buildOptionalTextInput('directions', 'Image Directions', {
-                style: Discord.TextInputStyle.Paragraph,
-                placeholder: 'image-a = 0,90\nimage-b = 180,270'.slice(0, 100),
-                description: 'One line per image: imageId = 0,90,180',
-            })));
+            .addComponents(...directionImageIds.map((imageId, index) => {
+                const currentDirections = Array.isArray(imageDirections[imageId]) ? imageDirections[imageId].join(',') : '';
+                return buildModalRow(buildOptionalTextInput(`dir_${index}`, truncateModalLabel(imageId), {
+                    style: Discord.TextInputStyle.Short,
+                    placeholder: currentDirections || '0,90,180',
+                    description: currentDirections ? `Current: ${currentDirections}. Leave empty for no change.` : 'Leave empty for no change.',
+                }));
+            }));
     });
 }
 
@@ -1204,25 +1230,6 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
     return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
 }
 
-function parseDirectionLines(input) {
-    return String(input ?? '').split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-        let imageId;
-        let degreesInput;
-        const separatorMatch = line.match(/^([^:=\s]+)\s*[:=]\s*(.+)$/);
-        if (separatorMatch) {
-            [, imageId, degreesInput] = separatorMatch;
-        }
-        else {
-            const spaceMatch = line.match(/^(\S+)\s+(.+)$/);
-            if (!spaceMatch) throw new Error(`Invalid direction line: ${line}`);
-            [, imageId, degreesInput] = spaceMatch;
-        }
-        const degrees = parseDegreeList(degreesInput);
-        if (degrees.length < 1) throw new Error(`Please provide at least one direction degree for ${imageId}.`);
-        return { imageId, degrees };
-    });
-}
-
 async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const context = getQuestionAdminContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
@@ -1234,22 +1241,24 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
     if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
 
-    const directionsInput = getModalTextInput(interaction, 'directions');
-    if (!directionsInput) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
-
-    let directionUpdates;
-    try { directionUpdates = parseDirectionLines(directionsInput); }
-    catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
-    if (directionUpdates.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one image direction line.')] });
+    const submittedImageIds = parts.slice(4).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+    const directionUpdates = [];
+    for (const [index, imageId] of submittedImageIds.entries()) {
+        const directionsInput = getModalTextInput(interaction, `dir_${index}`);
+        if (!directionsInput) continue;
+        let degrees;
+        try { degrees = parseDegreeList(directionsInput); }
+        catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
+        if (degrees.length < 1) return interaction.editReply({ embeds: [userErrorEmbed(`Please provide at least one direction degree for ${imageId}.`)] });
+        directionUpdates.push({ imageId, degrees });
+    }
+    if (directionUpdates.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
 
     const imagePool = getQuestionImagePool(effectiveQuestion);
     const unknownImageIds = imagePool ? validateImageIdsInPool(directionUpdates.map(({ imageId }) => imageId), imagePool) : directionUpdates.map(({ imageId }) => imageId);
     if (unknownImageIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'}: ${unknownImageIds.join(', ')}`)] });
 
-    const configuredRotationIds = new Set([
-        ...(effectiveQuestion.generatedImage?.imageIds?.center ?? []),
-        ...(effectiveQuestion.generatedImage?.imageIds?.outer ?? []),
-    ]);
+    const configuredRotationIds = new Set(getConfiguredDirectionImageIds(effectiveQuestion));
     const unconfiguredIds = directionUpdates.map(({ imageId }) => imageId).filter((imageId) => !configuredRotationIds.has(imageId));
     if (unconfiguredIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Configure image IDs as center or outer before setting directions: ${[...new Set(unconfiguredIds)].join(', ')}`)] });
 
@@ -1351,6 +1360,9 @@ async function handleVerificationAdminButtonInteraction(interaction) {
                 await showQuestionImageIdsModal(interaction, parsed.parts);
                 return true;
             case 'questionEditDirections':
+                await showQuestionDirectionsModal(interaction, parsed.parts);
+                return true;
+            case 'questionDirectionsPage':
                 await showQuestionDirectionsModal(interaction, parsed.parts);
                 return true;
             case 'questionClearPanel':
@@ -1537,22 +1549,6 @@ function buildChallengeIdsAutocompleteChoices(focusedValue) {
     return buildDelimitedAutocompleteChoices(focusedValue, getChallengeIdChoices());
 }
 
-function buildQuestionAutocompleteChoices(interaction, focusedValue) {
-    const challengeId = String(interaction.options.getString('challenge') ?? '').trim();
-    const challenge = verificationChallenges[challengeId];
-    if (!challenge) return [];
-    const search = String(focusedValue ?? '').trim().toLowerCase();
-
-    return (challenge.questions ?? [])
-        .map((question, index) => ({
-            name: `${index + 1} ${question.id}`.slice(0, 100),
-            value: question.id,
-        }))
-        .filter((choice) => !search || choice.name.toLowerCase().includes(search) || choice.value.toLowerCase().includes(search))
-        .slice(0, 25);
-}
-
-
 function buildDelimitedAutocompleteChoices(focusedValue, candidates) {
     const rawValue = String(focusedValue ?? '');
     const match = rawValue.match(/^(.*?)([^,\s]*)$/);
@@ -1598,9 +1594,6 @@ async function handleVerificationAutocomplete(interaction) {
             return interaction.respond(buildChallengeIdAutocompleteChoices(focusedOption.value));
         }
 
-        if (group === 'question' && focusedOption.name === 'question') {
-            return interaction.respond(buildQuestionAutocompleteChoices(interaction, focusedOption.value));
-        }
 
         if (focusedOption.name === 'challenges') {
             return interaction.respond(buildChallengeIdsAutocompleteChoices(focusedOption.value));
@@ -1616,12 +1609,6 @@ async function handleVerificationAutocomplete(interaction) {
 
 
 
-
-function addQuestionOptions(commandBuilder, { question = true } = {}) {
-    let builder = addStringOption(commandBuilder, 'challenge', 'Challenge ID', { autocomplete: true });
-    if (question) builder = addStringOption(builder, 'question', 'Question ID or 1-based number', { autocomplete: true });
-    return builder;
-}
 
 module.exports = {
     data: new Discord.SlashCommandBuilder()
@@ -1716,13 +1703,7 @@ module.exports = {
             'ids',
             'Challenge ID for view/edit, or IDs for active-set',
             { required: false, autocomplete: true },
-        ))
-        .addSubcommandGroup(group => group
-            .setName('question')
-            .setDescription('View questions inside a challenge')
-            .addSubcommand(subcommand => addQuestionOptions(subcommand.setName('list').setDescription('List configured questions'), { question: false }))
-            .addSubcommand(subcommand => addQuestionOptions(subcommand.setName('view').setDescription('View question settings'))),
-        ),
+        )),
     async autocomplete(interaction) {
         return handleVerificationAutocomplete(interaction);
     },
@@ -1742,7 +1723,6 @@ module.exports = {
             if (group === 'config') return handleVerificationConfigCommand(interaction, guildId, subcommand);
             if (group === 'post') return handleVerificationPostCommand(interaction, guildId, subcommand);
             if (!group && subcommand === 'challenge') return handleVerificationChallengeCommand(interaction, guildId);
-            if (group === 'question') return handleVerificationQuestionCommand(interaction, guildId, subcommand);
 
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown verification command.')] });
         }
