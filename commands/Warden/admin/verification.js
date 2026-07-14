@@ -992,6 +992,18 @@ function getConfiguredDirectionImageIds(question) {
     ].map((imageId) => String(imageId ?? '').trim()).filter(Boolean))];
 }
 
+function buildQuestionDirectionsPageComponents(guildId, userId, challengeId, questionId, directionImageIds) {
+    const buttons = [];
+    for (let index = 0; index < directionImageIds.length; index += 5) {
+        const pageImageIds = directionImageIds.slice(index, index + 5);
+        buttons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionDirectionsPage', guildId, userId, challengeId, questionId, ...pageImageIds))
+            .setLabel(`Directions ${index + 1}-${index + pageImageIds.length}`)
+            .setStyle(Discord.ButtonStyle.Secondary));
+    }
+    return buildActionRows(buttons);
+}
+
 function buildModalRow(input) {
     return new Discord.ActionRowBuilder().addComponents(input);
 }
@@ -1064,7 +1076,9 @@ function showQuestionImageIdsModal(interaction, parts) {
 function showQuestionDirectionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, async (context, effectiveQuestion) => {
         if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
-        const directionImageIds = getConfiguredDirectionImageIds(effectiveQuestion);
+        const pageImageIds = parts.slice(4).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+        const configuredDirectionImageIds = getConfiguredDirectionImageIds(effectiveQuestion);
+        const directionImageIds = pageImageIds.length > 0 ? pageImageIds : configuredDirectionImageIds;
         if (directionImageIds.length < 1) {
             await interaction.reply({
                 embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')],
@@ -1074,7 +1088,8 @@ function showQuestionDirectionsModal(interaction, parts) {
         }
         if (directionImageIds.length > 5) {
             await interaction.reply({
-                embeds: [userErrorEmbed(`This question has ${directionImageIds.length} configured images with directions. Discord modals can only show 5 fields at once.`)],
+                content: `This question has ${directionImageIds.length} configured images with directions. Discord modals can only show 5 fields at once. Choose a page to edit.`,
+                components: buildQuestionDirectionsPageComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, directionImageIds),
                 flags: Discord.MessageFlags.Ephemeral,
             });
             return undefined;
@@ -1345,6 +1360,9 @@ async function handleVerificationAdminButtonInteraction(interaction) {
                 await showQuestionImageIdsModal(interaction, parsed.parts);
                 return true;
             case 'questionEditDirections':
+                await showQuestionDirectionsModal(interaction, parsed.parts);
+                return true;
+            case 'questionDirectionsPage':
                 await showQuestionDirectionsModal(interaction, parsed.parts);
                 return true;
             case 'questionClearPanel':
