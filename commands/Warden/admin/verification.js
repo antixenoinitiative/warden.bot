@@ -83,6 +83,13 @@ async function sendAdminPermissionError(interaction) {
     return interaction.reply(response);
 }
 
+async function respondAdminError(interaction, payload) {
+    const response = { flags: Discord.MessageFlags.Ephemeral, ...payload };
+    if (interaction.deferred) return interaction.editReply(response);
+    if (interaction.replied) return interaction.followUp(response);
+    return interaction.reply(response);
+}
+
 const {
     VERIFICATION_MODES,
     getVerificationSettings,
@@ -340,14 +347,24 @@ function buildChallengeViewComponents(mode, guildId, userId, challengeId) {
     return [new Discord.ActionRowBuilder().addComponents(...buttons)];
 }
 
-function buildQuestionDetailComponents(mode, guildId, userId, challengeId, questionId) {
-    if (mode !== 'edit') return [];
-    return [new Discord.ActionRowBuilder().addComponents(
-        new Discord.ButtonBuilder()
+function buildQuestionDetailComponents(mode, guildId, userId, challengeId, questionId, options = {}) {
+    const { pageIndex = 0, includeBack = false } = options;
+    const buttons = [];
+    if (mode === 'edit') {
+        buttons.push(new Discord.ButtonBuilder()
             .setCustomId(buildAdminCustomId('questionEditPanel', guildId, userId, challengeId, questionId))
             .setLabel('Edit Question')
-            .setStyle(Discord.ButtonStyle.Primary),
-    )];
+            .setStyle(Discord.ButtonStyle.Primary));
+    }
+
+    if (includeBack) {
+        buttons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionDetailBack', mode, guildId, userId, challengeId, String(pageIndex)))
+            .setLabel('Back to Questions')
+            .setStyle(Discord.ButtonStyle.Secondary));
+    }
+
+    return buildActionRows(buttons);
 }
 
 async function sendChallengeOverview(interaction, {
@@ -874,10 +891,16 @@ async function validateQuestionAdminInteraction(interaction, parts) {
     return context;
 }
 
-function buildActionRows(buttons) {
+function buildActionRows(buttons, options = {}) {
+    const { maxRows = 5, maxButtonsPerRow = 5 } = options;
+    const maxButtons = maxRows * maxButtonsPerRow;
+    if (buttons.length > maxButtons) {
+        throw new Error(`Too many buttons for one Discord message: ${buttons.length}/${maxButtons}.`);
+    }
+
     const rows = [];
-    for (let index = 0; index < buttons.length; index += 5) {
-        rows.push(new Discord.ActionRowBuilder().addComponents(...buttons.slice(index, index + 5)));
+    for (let index = 0; index < buttons.length; index += maxButtonsPerRow) {
+        rows.push(new Discord.ActionRowBuilder().addComponents(...buttons.slice(index, index + maxButtonsPerRow)));
     }
     return rows;
 }
@@ -892,7 +915,7 @@ function buildQuestionDetailSelectorComponents(mode, guildId, ownerUserId, chall
     const safePageIndex = Math.min(Math.max(Number(pageIndex) || 0, 0), totalPages - 1);
     const start = safePageIndex * QUESTION_DETAIL_SELECTOR_PAGE_SIZE;
     const questionButtons = questions.slice(start, start + QUESTION_DETAIL_SELECTOR_PAGE_SIZE).map((question, index) => new Discord.ButtonBuilder()
-        .setCustomId(buildAdminCustomId('questionDetailView', mode, guildId, ownerUserId, challengeId, question.id))
+        .setCustomId(buildAdminCustomId('questionDetailView', mode, guildId, ownerUserId, challengeId, question.id, String(safePageIndex)))
         .setLabel(truncateButtonLabel(`${start + index + 1} ${question.id}`))
         .setStyle(Discord.ButtonStyle.Secondary));
 
@@ -935,20 +958,30 @@ async function handleQuestionDetailPageButton(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, guildId)) return interaction.reply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')], flags: Discord.MessageFlags.Ephemeral });
     const challenge = verificationChallenges[challengeId];
     if (!challenge) return interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    await interaction.deferUpdate();
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, challenge, challenge.questions ?? [], Number(pageIndex) || 0);
 }
 
 async function handleQuestionDetailViewButton(interaction, parts) {
-    const [mode, guildId, ownerUserId, challengeId, questionId] = parts;
+    const [mode, guildId, ownerUserId, challengeId, questionId, pageIndex = '0'] = parts;
     const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
     if (context.error) return;
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
     return interaction.editReply({
         embeds: [buildQuestionDetailEmbed(verificationSettings, context.challengeId, context.challenge, context.question)],
-        components: buildQuestionDetailComponents(mode, context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+        components: buildQuestionDetailComponents(mode, context.guildId, context.ownerUserId, context.challengeId, context.question.id, { pageIndex: Number(pageIndex) || 0, includeBack: true }),
     });
+}
+
+async function handleQuestionDetailBackButton(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId, pageIndex = '0'] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+    await interaction.deferUpdate();
+    return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, challenge, challenge.questions ?? [], Number(pageIndex) || 0);
 }
 
 function buildQuestionEditPanelComponents(guildId, userId, challengeId, questionId, effectiveQuestion) {
@@ -960,10 +993,11 @@ function buildQuestionEditPanelComponents(guildId, userId, challengeId, question
     const buttons = [button('questionEditText', 'Edit Text')];
     const generatedImageType = effectiveQuestion.generatedImage?.type;
     const answerType = effectiveQuestion.answer?.type;
+    const directionImageIds = generatedImageType === 'gallery-rotation-alignment' ? getConfiguredDirectionImageIds(effectiveQuestion) : [];
     if (generatedImageType === 'prompt-text') buttons.push(button('questionEditImageText', 'Edit Image Text', Discord.ButtonStyle.Primary, generatedImageType));
     if (effectiveQuestion.answer?.required === true && answerType === 'text') buttons.push(button('questionEditAnswers', 'Edit Answers', Discord.ButtonStyle.Primary, answerType));
     if (['gallery-standard', 'gallery-rotation-alignment'].includes(generatedImageType)) buttons.push(button('questionEditImageIds', 'Edit Image IDs', Discord.ButtonStyle.Primary, generatedImageType));
-    if (generatedImageType === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Edit Directions', Discord.ButtonStyle.Primary, generatedImageType));
+    if (generatedImageType === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Edit Directions', Discord.ButtonStyle.Primary, generatedImageType, ...directionImageIds));
     buttons.push(button('questionClearPanel', 'Clear Overrides', Discord.ButtonStyle.Danger));
 
     return buildActionRows(buttons);
@@ -1066,9 +1100,20 @@ function buildQuestionDirectionsPageComponents(guildId, userId, challengeId, que
     return buildActionRows(buttons);
 }
 
-function getDirectionImageIdsFromModalParts(parts) {
-    const offset = parts[4] === 'gallery-rotation-alignment' ? 5 : 4;
-    return parts.slice(offset).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+function sanitizeDirectionImageIds(imageIds) {
+    return imageIds.map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+}
+
+function parseQuestionDirectionsParts(parts) {
+    const [guildId, ownerUserId, challengeId, questionId, generatedImageType, ...imageIds] = parts;
+    return {
+        guildId,
+        ownerUserId,
+        challengeId,
+        questionId,
+        generatedImageType,
+        imageIds: sanitizeDirectionImageIds(imageIds),
+    };
 }
 
 function buildModalRow(input) {
@@ -1095,8 +1140,8 @@ function showQuestionTextModal(interaction, parts) {
 }
 
 function showQuestionImageTextModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, effectiveQuestion) => {
-        const generatedImageType = parts[4] ?? effectiveQuestion.generatedImage?.type;
+    return showQuestionModal(interaction, parts, (context, question) => {
+        const generatedImageType = parts[4] ?? question.generatedImage?.type;
         if (generatedImageType !== 'prompt-text') throw new Error('This question does not use generated prompt image text.');
         return new Discord.ModalBuilder()
             .setCustomId(buildAdminCustomId('questionImageTextModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id))
@@ -1110,8 +1155,8 @@ function showQuestionImageTextModal(interaction, parts) {
 }
 
 function showQuestionAnswersModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, effectiveQuestion) => {
-        const answerType = parts[4] ?? effectiveQuestion.answer?.type;
+    return showQuestionModal(interaction, parts, (context, question) => {
+        const answerType = parts[4] ?? question.answer?.type;
         if (answerType !== 'text') throw new Error('This question does not use editable text answers.');
         return new Discord.ModalBuilder()
             .setCustomId(buildAdminCustomId('questionAnswersModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id))
@@ -1125,8 +1170,8 @@ function showQuestionAnswersModal(interaction, parts) {
 }
 
 function showQuestionImageIdsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, effectiveQuestion) => {
-        const type = parts[4] ?? effectiveQuestion.generatedImage?.type;
+    return showQuestionModal(interaction, parts, (context, question) => {
+        const type = parts[4] ?? question.generatedImage?.type;
         if (!['gallery-standard', 'gallery-rotation-alignment'].includes(type)) throw new Error('This question does not use editable image IDs.');
         const roles = type === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
         return new Discord.ModalBuilder()
@@ -1140,38 +1185,45 @@ function showQuestionImageIdsModal(interaction, parts) {
     });
 }
 
-async function sendQuestionDirectionsPageLauncher(interaction, parts) {
-    const context = await validateQuestionAdminInteraction(interaction, parts);
+async function sendQuestionDirectionsPageLauncher(interaction, parsedDirections) {
+    const { guildId, ownerUserId, challengeId, questionId, generatedImageType, imageIds } = parsedDirections;
+    return interaction.editReply({
+        content: `Choose a direction page to edit for **${challengeId}/${questionId}**.`,
+        components: buildQuestionDirectionsPageComponents(guildId, ownerUserId, challengeId, questionId, imageIds, generatedImageType),
+    });
+}
+
+async function handleQuestionEditDirectionsButton(interaction, parts) {
+    const parsedDirections = parseQuestionDirectionsParts(parts);
+    const { guildId, ownerUserId, challengeId, questionId, generatedImageType, imageIds } = parsedDirections;
+    const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
     if (context.error) return;
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
-    if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') {
-        return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
+    if (generatedImageType !== 'gallery-rotation-alignment') {
+        return respondAdminError(interaction, { embeds: [userErrorEmbed('This question does not use image directions.')] });
     }
-    const directionImageIds = getConfiguredDirectionImageIds(effectiveQuestion);
-    if (directionImageIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')] });
+    if (imageIds.length < 1) {
+        return respondAdminError(interaction, { embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')] });
+    }
+    if (imageIds.length <= 5) {
+        return showQuestionDirectionsModal(interaction, parts);
     }
 
-    return interaction.editReply({
-        content: `Choose a direction page to edit for **${context.challengeId}/${context.question.id}**.`,
-        components: buildQuestionDirectionsPageComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, directionImageIds, effectiveQuestion.generatedImage?.type),
-    });
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    return sendQuestionDirectionsPageLauncher(interaction, parsedDirections);
 }
 
 function showQuestionDirectionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, (context, question) => {
-        const generatedImageType = parts[4] ?? question.generatedImage?.type;
+        const parsedDirections = parseQuestionDirectionsParts(parts);
+        const generatedImageType = parsedDirections.generatedImageType ?? question.generatedImage?.type;
         if (generatedImageType !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
-        const pageImageIds = getDirectionImageIdsFromModalParts(parts);
-        const directionImageIds = pageImageIds;
+        const directionImageIds = parsedDirections.imageIds;
         if (directionImageIds.length < 1) {
             throw new Error('This direction page has expired. Please open the directions launcher again.');
         }
 
         return new Discord.ModalBuilder()
-            .setCustomId(buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, ...directionImageIds))
+            .setCustomId(buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, generatedImageType, ...directionImageIds))
             .setTitle('Edit Image Directions')
             .addComponents(...directionImageIds.map((imageId, index) => {
                 return buildModalRow(buildOptionalTextInput(`dir_${index}`, truncateModalLabel(imageId), {
@@ -1314,7 +1366,7 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
     if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
 
-    const submittedImageIds = getDirectionImageIdsFromModalParts(parts);
+    const submittedImageIds = parseQuestionDirectionsParts(parts).imageIds;
     const directionUpdates = [];
     for (const [index, imageId] of submittedImageIds.entries()) {
         const directionsInput = getModalTextInput(interaction, `dir_${index}`);
@@ -1431,7 +1483,7 @@ async function handleVerificationAdminButtonInteraction(interaction) {
                 await showQuestionImageIdsModal(interaction, parsed.parts);
                 return true;
             case 'questionEditDirections':
-                await sendQuestionDirectionsPageLauncher(interaction, parsed.parts);
+                await handleQuestionEditDirectionsButton(interaction, parsed.parts);
                 return true;
             case 'questionDirectionsPage':
                 await showQuestionDirectionsModal(interaction, parsed.parts);
@@ -1441,6 +1493,9 @@ async function handleVerificationAdminButtonInteraction(interaction) {
                 return true;
             case 'questionDetailView':
                 await handleQuestionDetailViewButton(interaction, parsed.parts);
+                return true;
+            case 'questionDetailBack':
+                await handleQuestionDetailBackButton(interaction, parsed.parts);
                 return true;
             case 'questionClearPanel':
                 await sendQuestionClearPanel(interaction, parsed.parts);
@@ -1453,10 +1508,7 @@ async function handleVerificationAdminButtonInteraction(interaction) {
         }
     }
     catch (err) {
-        const response = { embeds: [userErrorEmbed(err.message || 'Failed to handle verification admin button.')], flags: Discord.MessageFlags.Ephemeral };
-        if (interaction.deferred) await interaction.editReply(response);
-        else if (interaction.replied) await interaction.followUp(response);
-        else await interaction.reply(response);
+        await respondAdminError(interaction, { embeds: [userErrorEmbed(err.message || 'Failed to handle verification admin button.')] });
         return true;
     }
 }
