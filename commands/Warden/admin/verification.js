@@ -2094,7 +2094,7 @@ async function handleVerificationPostCommand(interaction, guildId) {
     const targetChannel = interaction.options.getChannel('channel', true);
 
     if (!targetChannel?.isTextBased?.()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid text channel.')] });
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid text channel or thread.')] });
     }
 
     const welcomeEmbed = buildWelcomeEmbed(verificationSettings);
@@ -2215,8 +2215,14 @@ module.exports = {
                 ))
             .addChannelOption(option => option
                 .setName('channel')
-                .setDescription('Text channel for the verification post')
-                .addChannelTypes(Discord.ChannelType.GuildText, Discord.ChannelType.GuildAnnouncement)
+                .setDescription('Text channel or thread for the verification post')
+                .addChannelTypes(
+                    Discord.ChannelType.GuildText,
+                    Discord.ChannelType.GuildAnnouncement,
+                    Discord.ChannelType.PublicThread,
+                    Discord.ChannelType.PrivateThread,
+                    Discord.ChannelType.AnnouncementThread,
+                )
                 .setRequired(true))
             .addStringOption(option => option
                 .setName('message_id')
