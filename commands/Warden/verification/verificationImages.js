@@ -4,9 +4,9 @@ const fs = require('fs/promises');
 const path = require('path');
 const fetch = require('node-fetch');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
-const { requireQuestionTaskModule } = require('./questionTasks/taskRegistry');
-const { normalizeDegrees } = require('./questionTasks/shared/degrees');
-const { shuffleArray } = require('./questionTasks/shared/random');
+const { requireQuestionTaskModule } = require('./verificationChallenges/questionTasks/taskRegistry');
+const { normalizeDegrees } = require('./verificationChallenges/questionTasks/shared/degrees');
+const { shuffleArray } = require('./verificationChallenges/questionTasks/shared/random');
 
 
 /**

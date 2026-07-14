@@ -16,7 +16,7 @@ const {
     normalizeVerificationChallenge,
     buildQuestionScreens,
     validateQuestionScreens,
-} = require('../verification/verificationChallenges');
+} = require('../verification/verificationChallenges/verificationChallenges');
 const { getVerificationImagePool } = require('../verification/verificationImages');
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;

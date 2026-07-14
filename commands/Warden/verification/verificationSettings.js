@@ -1,5 +1,5 @@
 const config = require('../../../config.json');
-const { verificationChallenges } = require('./verificationChallengesConfig');
+const { verificationChallenges } = require('./verificationChallenges/verificationChallengesConfig');
 let database;
 
 function getDatabase() {
