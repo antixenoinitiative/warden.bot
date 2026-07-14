@@ -696,17 +696,6 @@ function setModalInputDescription(input, description) {
     return input;
 }
 
-function buildModalInputComponent(input, description) {
-    if (Discord.LabelBuilder && typeof Discord.LabelBuilder === 'function') {
-        const label = new Discord.LabelBuilder().setLabel(input.data?.label ?? 'Field');
-        if (description && typeof label.setDescription === 'function') label.setDescription(description);
-        if (typeof label.setTextInputComponent === 'function') return label.setTextInputComponent(input);
-        if (typeof label.addComponents === 'function') return label.addComponents(input);
-    }
-
-    return new Discord.ActionRowBuilder().addComponents(setModalInputDescription(input, description));
-}
-
 function buildTimerInput(customId, label, currentValue) {
     return new Discord.TextInputBuilder()
         .setCustomId(customId)
@@ -724,8 +713,12 @@ async function showChallengeTimersModal(interaction, guildId) {
         .setCustomId(buildAdminCustomId('challengeTimers', interaction.guild?.id ?? guildId, interaction.user.id))
         .setTitle('Verification Timers')
         .addComponents(
-            buildModalInputComponent(buildTimerInput('expiry_timer', 'Expiry Timer', expiryValue), `Current Expiry Timer: ${expiryValue}. Leave empty for no change.`),
-            buildModalInputComponent(buildTimerInput('retry_cooldown', 'Retry Cooldown', cooldownValue), `Current Retry Cooldown: ${cooldownValue}. Leave empty for no change.`),
+            new Discord.ActionRowBuilder().addComponents(
+                buildTimerInput('expiry_timer', 'Expiry Timer', expiryValue),
+            ),
+            new Discord.ActionRowBuilder().addComponents(
+                buildTimerInput('retry_cooldown', 'Retry Cooldown', cooldownValue),
+            ),
         );
 
     return interaction.showModal(modal);
