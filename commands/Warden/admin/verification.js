@@ -21,7 +21,11 @@ const { getVerificationImagePool } = require('../verification/verificationImages
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
 const ADMIN_CUSTOM_ID_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+// Keep this <= 23 so Previous/Next still fit within Discord's 25-button classic component limit.
 const QUESTION_DETAIL_SELECTOR_PAGE_SIZE = 20;
+const DIRECTION_PAGE_SIZE = 5;
+const MAX_DIRECTION_PAGE_BUTTONS = 25;
+const MAX_DIRECTION_IMAGE_IDS_PER_LAUNCHER = DIRECTION_PAGE_SIZE * MAX_DIRECTION_PAGE_BUTTONS;
 const CHALLENGE_TITLE_MAX_LENGTH = 256;
 const CHALLENGE_DESCRIPTION_MAX_LENGTH = 1024;
 const adminCustomIdSessions = new Map();
@@ -76,18 +80,31 @@ function hasVerificationAdminPermission(interaction) {
     return interaction.memberPermissions?.has?.(Discord.PermissionFlagsBits.Administrator) === true;
 }
 
-async function sendAdminPermissionError(interaction) {
-    const response = { content: 'You need Administrator permission to use this verification admin panel.', flags: Discord.MessageFlags.Ephemeral };
-    if (interaction.deferred) return interaction.editReply(response);
-    if (interaction.replied) return interaction.followUp(response);
-    return interaction.reply(response);
+function withoutEphemeralFlags(payload = {}) {
+    const response = { ...payload };
+
+    if (response.flags === Discord.MessageFlags.Ephemeral) {
+        delete response.flags;
+    }
+
+    return response;
 }
 
 async function respondAdminError(interaction, payload) {
     const response = { flags: Discord.MessageFlags.Ephemeral, ...payload };
-    if (interaction.deferred) return interaction.editReply(response);
+
+    if (interaction.deferred) {
+        return interaction.editReply(withoutEphemeralFlags(response));
+    }
+
     if (interaction.replied) return interaction.followUp(response);
     return interaction.reply(response);
+}
+
+async function sendAdminPermissionError(interaction) {
+    return respondAdminError(interaction, {
+        content: 'You need Administrator permission to use this verification admin panel.',
+    });
 }
 
 const {
@@ -799,7 +816,9 @@ async function handleChallengeTimersModalSubmit(interaction, parts = []) {
 }
 
 async function sendAdminPanelOwnerError(interaction) {
-    return interaction.reply({ content: 'This admin panel belongs to another user.', flags: Discord.MessageFlags.Ephemeral });
+    return respondAdminError(interaction, {
+        content: 'This admin panel belongs to another user.',
+    });
 }
 
 function isMatchingAdminGuild(interaction, guildId) {
@@ -809,10 +828,10 @@ function isMatchingAdminGuild(interaction, guildId) {
 async function handleChallengeDetailsButton(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.reply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')], flags: Discord.MessageFlags.Ephemeral });
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
 
     const challenge = verificationChallenges[challengeId];
-    if (!challenge) return interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
+    if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const questions = challenge.questions ?? [];
@@ -847,10 +866,10 @@ function buildChallengeTextInput(customId, label, currentValue, style, maxLength
 async function showChallengeEditModalFromButton(interaction, parts) {
     const [guildId, ownerUserId, challengeId] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.reply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')], flags: Discord.MessageFlags.Ephemeral });
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
 
     const challenge = verificationChallenges[challengeId];
-    if (!challenge) return interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
+    if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     const modal = new Discord.ModalBuilder()
         .setCustomId(buildAdminCustomId('challengeEditModal', guildId, ownerUserId, challengeId))
@@ -877,15 +896,21 @@ async function validateQuestionAdminInteraction(interaction, parts) {
         return { error: true };
     }
     if (!isMatchingAdminGuild(interaction, context.guildId)) {
-        await interaction.reply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')], flags: Discord.MessageFlags.Ephemeral });
+        await respondAdminError(interaction, {
+            embeds: [userErrorEmbed('This admin panel belongs to another server.')],
+        });
         return { error: true };
     }
     if (!context.challenge) {
-        await interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${context.challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
+        await respondAdminError(interaction, {
+            embeds: [userErrorEmbed(`Unknown verification challenge ID: ${context.challengeId}`)],
+        });
         return { error: true };
     }
     if (!context.question) {
-        await interaction.reply({ embeds: [userErrorEmbed(`Unknown question ID for **${context.challengeId}**: ${context.questionId}`)], flags: Discord.MessageFlags.Ephemeral });
+        await respondAdminError(interaction, {
+            embeds: [userErrorEmbed(`Unknown question ID for **${context.challengeId}**: ${context.questionId}`)],
+        });
         return { error: true };
     }
     return context;
@@ -895,7 +920,7 @@ function buildActionRows(buttons, options = {}) {
     const { maxRows = 5, maxButtonsPerRow = 5 } = options;
     const maxButtons = maxRows * maxButtonsPerRow;
     if (buttons.length > maxButtons) {
-        throw new Error(`Too many buttons for one Discord message: ${buttons.length}/${maxButtons}.`);
+        throw new Error(`Too many buttons for one Discord message: ${buttons.length}/${maxButtons}. Use pagination or reduce the configured items.`);
     }
 
     const rows = [];
@@ -955,9 +980,9 @@ async function sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerU
 async function handleQuestionDetailPageButton(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId, pageIndex = '0'] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.reply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')], flags: Discord.MessageFlags.Ephemeral });
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     const challenge = verificationChallenges[challengeId];
-    if (!challenge) return interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
+    if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferUpdate();
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, challenge, challenge.questions ?? [], Number(pageIndex) || 0);
 }
@@ -1090,8 +1115,8 @@ function getConfiguredDirectionImageIds(question) {
 
 function buildQuestionDirectionsPageComponents(guildId, userId, challengeId, questionId, directionImageIds, generatedImageType = 'gallery-rotation-alignment') {
     const buttons = [];
-    for (let index = 0; index < directionImageIds.length; index += 5) {
-        const pageImageIds = directionImageIds.slice(index, index + 5);
+    for (let index = 0; index < directionImageIds.length; index += DIRECTION_PAGE_SIZE) {
+        const pageImageIds = directionImageIds.slice(index, index + DIRECTION_PAGE_SIZE);
         buttons.push(new Discord.ButtonBuilder()
             .setCustomId(buildAdminCustomId('questionDirectionsPage', guildId, userId, challengeId, questionId, generatedImageType, ...pageImageIds))
             .setLabel(`Directions ${index + 1}-${index + pageImageIds.length}`)
@@ -1187,6 +1212,15 @@ function showQuestionImageIdsModal(interaction, parts) {
 
 async function sendQuestionDirectionsPageLauncher(interaction, parsedDirections) {
     const { guildId, ownerUserId, challengeId, questionId, generatedImageType, imageIds } = parsedDirections;
+    if (imageIds.length > MAX_DIRECTION_IMAGE_IDS_PER_LAUNCHER) {
+        return interaction.editReply({
+            embeds: [userErrorEmbed(
+                `This question has ${imageIds.length} direction image IDs, but the editor can show up to ${MAX_DIRECTION_IMAGE_IDS_PER_LAUNCHER} at once. Reduce the configured center/outer image IDs or split this question.`,
+            )],
+            components: [],
+        });
+    }
+
     return interaction.editReply({
         content: `Choose a direction page to edit for **${challengeId}/${questionId}**.`,
         components: buildQuestionDirectionsPageComponents(guildId, ownerUserId, challengeId, questionId, imageIds, generatedImageType),
@@ -1204,7 +1238,7 @@ async function handleQuestionEditDirectionsButton(interaction, parts) {
     if (imageIds.length < 1) {
         return respondAdminError(interaction, { embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')] });
     }
-    if (imageIds.length <= 5) {
+    if (imageIds.length <= DIRECTION_PAGE_SIZE) {
         return showQuestionDirectionsModal(interaction, parts);
     }
 
@@ -1455,7 +1489,9 @@ async function handleVerificationAdminButtonInteraction(interaction) {
         return true;
     }
     if (parsed.expired) {
-        await interaction.reply({ content: 'This admin panel has expired. Please run the command again.', flags: Discord.MessageFlags.Ephemeral });
+        await respondAdminError(interaction, {
+            content: 'This verification admin panel has expired. Please run `/verification challenge action:view` or `/verification challenge action:edit` again.',
+        });
         return true;
     }
 
@@ -1514,11 +1550,9 @@ async function handleVerificationAdminButtonInteraction(interaction) {
 }
 
 async function sendVerificationAdminModalError(interaction) {
-    const response = { embeds: [userErrorEmbed('Failed to update verification admin settings. Please try again later.')] };
-
-    if (interaction.deferred) return interaction.editReply(response);
-    if (interaction.replied) return interaction.followUp({ ...response, flags: Discord.MessageFlags.Ephemeral });
-    return interaction.reply({ ...response, flags: Discord.MessageFlags.Ephemeral });
+    return respondAdminError(interaction, {
+        embeds: [userErrorEmbed('Failed to update verification admin settings. Please try again later.')],
+    });
 }
 
 async function handleVerificationAdminModalSubmit(interaction) {
@@ -1529,7 +1563,9 @@ async function handleVerificationAdminModalSubmit(interaction) {
         return true;
     }
     if (parsed.expired) {
-        await interaction.reply({ content: 'This admin panel has expired. Please run the command again.', flags: Discord.MessageFlags.Ephemeral });
+        await respondAdminError(interaction, {
+            content: 'This verification admin panel has expired. Please run `/verification challenge action:view` or `/verification challenge action:edit` again.',
+        });
         return true;
     }
 
