@@ -4,6 +4,9 @@ const fs = require('fs/promises');
 const path = require('path');
 const fetch = require('node-fetch');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
+const { requireQuestionTaskModule } = require('./questionTasks/taskRegistry');
+const { normalizeDegrees } = require('./questionTasks/shared/degrees');
+const { shuffleArray } = require('./questionTasks/shared/random');
 
 
 /**
@@ -284,39 +287,6 @@ const GALLERY_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-gallery';
 const GALLERY_IMAGE_FETCH_TIMEOUT_CODE = 'VERIFICATION_GALLERY_IMAGE_FETCH_TIMEOUT';
 const GALLERY_COMPOSITE_ATTACHMENT_NAME_PREFIX = 'warden-gallery-grid';
 const PROMPT_IMAGE_ATTACHMENT_NAME_PREFIX = 'warden-prompt';
-const FULL_TURN_DEGREES = 360;
-const DEFAULT_ROTATION_ALIGNMENT_DEGREES = [0, 45, 90, 135, 180, 225, 270, 315];
-
-
-function normalizeDegrees(degrees) {
-    const normalized = Number(degrees) % FULL_TURN_DEGREES;
-    return normalized < 0 ? normalized + FULL_TURN_DEGREES : normalized;
-}
-
-function isAllowedRotationDegree(degrees) {
-    return Number.isInteger(Number(degrees))
-        && Number(degrees) >= 0
-        && Number(degrees) < FULL_TURN_DEGREES
-        && Number(degrees) % 45 === 0;
-}
-
-function getDegreeList(value, fallback = DEFAULT_ROTATION_ALIGNMENT_DEGREES) {
-    if (!Array.isArray(value)) return fallback;
-
-    const degrees = [...new Set(value
-        .map((entry) => Number(entry))
-        .filter(isAllowedRotationDegree)
-        .map(normalizeDegrees))]
-        .sort((left, right) => left - right);
-
-    return degrees.length > 0 ? degrees : fallback;
-}
-
-function hasDirection(directionList, targetDegrees) {
-    const normalizedTarget = normalizeDegrees(targetDegrees);
-    return directionList.some((degrees) => normalizeDegrees(degrees) === normalizedTarget);
-}
-
 function getClockPositionPoint(centerX, centerY, radius, degrees) {
     const radians = normalizeDegrees(degrees) * Math.PI / 180;
 
@@ -324,25 +294,6 @@ function getClockPositionPoint(centerX, centerY, radius, degrees) {
         x: centerX + (Math.sin(radians) * radius),
         y: centerY - (Math.cos(radians) * radius),
     };
-}
-
-function getWorldDirections(localDirections, rotationDegrees) {
-    return localDirections.map((degrees) => normalizeDegrees(degrees + rotationDegrees));
-}
-
-function isRotationAlignmentCorrect({
-    clockPositionDegrees,
-    centerRotationDegrees,
-    outerRotationDegrees,
-    centerDirections,
-    outerDirections,
-    alignmentRule,
-}) {
-    const requiredCenterWorldDirection = normalizeDegrees(clockPositionDegrees + alignmentRule.centerTargetOffsetDegrees);
-    const requiredOuterWorldDirection = normalizeDegrees(clockPositionDegrees + alignmentRule.outerTargetOffsetDegrees);
-
-    return hasDirection(getWorldDirections(centerDirections, centerRotationDegrees), requiredCenterWorldDirection)
-        && hasDirection(getWorldDirections(outerDirections, outerRotationDegrees), requiredOuterWorldDirection);
 }
 
 function getPositiveInteger(value, fallback) {
@@ -1594,355 +1545,17 @@ async function prepareGalleryImageAttachments(galleryState) {
     };
 }
 
-function createGalleryToken() {
-    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function shuffleArray(items) {
-    const shuffled = [...items];
-
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-    }
-
-    return shuffled;
-}
-
-function pickRandomItems(items, count, itemRole) {
-    if (items.length < count) {
-        throw new Error(`Verification image pool does not contain enough ${itemRole} images. Required ${count}, found ${items.length}.`);
-    }
-
-    return shuffleArray(items).slice(0, count);
-}
-
-function pickRandomItemsWithRepeats(items, count, itemRole) {
-    if (count <= 0) {
-        return [];
-    }
-
-    if (items.length < 1) {
-        throw new Error(`Verification image pool does not contain any ${itemRole} images. Required ${count}.`);
-    }
-
-    if (items.length >= count) {
-        return pickRandomItems(items, count, itemRole);
-    }
-
-    const selectedItems = [];
-
-    while (selectedItems.length < count) {
-        selectedItems.push(items[Math.floor(Math.random() * items.length)]);
-    }
-
-    return selectedItems;
-}
-
-function pickRandomItemsWithRepeatLimit(items, count, maxRepeats, itemRole) {
-    const normalizedMaxRepeats = Math.floor(Number(maxRepeats ?? 1));
-
-    if (!Number.isInteger(normalizedMaxRepeats) || normalizedMaxRepeats < 1) {
-        throw new Error(`Invalid ${itemRole} image repeat limit: ${maxRepeats}`);
-    }
-
-    if (items.length * normalizedMaxRepeats < count) {
-        throw new Error(`Verification image pool does not contain enough ${itemRole} image capacity. Required ${count}, capacity ${items.length * normalizedMaxRepeats}.`);
-    }
-
-    const selectedItems = [];
-    const selectedCounts = new Map();
-
-    while (selectedItems.length < count) {
-        const availableItems = items.filter((item) => (selectedCounts.get(item.id) ?? 0) < normalizedMaxRepeats);
-        const selectedItem = availableItems[Math.floor(Math.random() * availableItems.length)];
-        selectedCounts.set(selectedItem.id, (selectedCounts.get(selectedItem.id) ?? 0) + 1);
-        selectedItems.push(selectedItem);
-    }
-
-    return selectedItems;
-}
-
-function resolveGalleryImageCounts(galleryConfigInput, challengeId) {
-    const { gallery: galleryConfig } = getImageGenerationConfig();
-    const gallerySize = Number(galleryConfigInput?.gallerySize ?? galleryConfig.defaultSize);
-    const solutionRange = galleryConfigInput?.solutionImageCount ?? { min: 1, max: 1 };
-    const controlRange = galleryConfigInput?.controlImageCount;
-
-    if (!Number.isInteger(gallerySize) || gallerySize < 1) {
-        throw new Error(`Invalid gallery size for challenge ${challengeId}: ${gallerySize}`);
-    }
-
-    const solutionMin = Math.ceil(Number(solutionRange.min ?? 1));
-    const solutionMax = Math.floor(Number(solutionRange.max ?? 1));
-    const controlMin = controlRange ? Math.ceil(Number(controlRange.min ?? 0)) : 0;
-    const controlMax = controlRange ? Math.floor(Number(controlRange.max ?? gallerySize)) : gallerySize;
-    const validSolutionCounts = [];
-
-    for (let solutionCount = solutionMin; solutionCount <= solutionMax; solutionCount += 1) {
-        const controlCount = gallerySize - solutionCount;
-
-        if (solutionCount >= 1 && controlCount >= 0 && controlCount >= controlMin && controlCount <= controlMax) {
-            validSolutionCounts.push(solutionCount);
-        }
-    }
-
-    if (validSolutionCounts.length < 1) {
-        throw new Error(`No valid solution/control image count combination exists for challenge ${challengeId}.`);
-    }
-
-    const solutionCount = validSolutionCounts[Math.floor(Math.random() * validSolutionCounts.length)];
-    const controlCount = gallerySize - solutionCount;
-
-    return { gallerySize, solutionCount, controlCount };
-}
-
-function getPoolImagesByIds(imagePool, imageIds, roleName, challengeId) {
-    const imageMap = new Map((imagePool.images ?? []).map((image) => [image.id, image]));
-    const images = [];
-
-    for (const imageId of imageIds) {
-        const image = imageMap.get(imageId);
-        if (!image) {
-            throw new Error(`Verification challenge "${challengeId}" references unknown ${roleName} image ID "${imageId}" in pool "${imagePool.id}".`);
-        }
-
-        images.push({
-            ...image,
-            role: roleName,
-        });
-    }
-
-    return images;
-}
-
-function getQuestionGeneratedImage(question) {
-    const generatedImage = {
-        ...(question?.generatedImage ?? {}),
-    };
-
-    if (generatedImage.config && typeof generatedImage.config === 'object') {
-        Object.assign(generatedImage, generatedImage.config);
-    }
-
-    return generatedImage;
-}
-
-function getRoleImageIds(generatedImage, role) {
-    return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
-}
-
-function createStandardImageGalleryStateFromQuestion(question, challengeId) {
-    const generatedImage = getQuestionGeneratedImage(question);
-    const imagePoolId = generatedImage.imagePoolId;
-    const imagePool = getVerificationImagePool(imagePoolId);
-
-    if (!imagePool) {
-        throw new Error(`Unknown verification image pool "${imagePoolId}" for challenge "${challengeId}" question "${question.id}".`);
-    }
-
-    const { solutionCount, controlCount } = resolveGalleryImageCounts(generatedImage, challengeId);
-    const solutionIds = getRoleImageIds(generatedImage, 'solution');
-    const controlIds = getRoleImageIds(generatedImage, 'control');
-
-    if (question.answer?.type === 'positions' && solutionIds.length < 1) {
-        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" has no configured solution image IDs.`);
-    }
-
-    if (controlIds.length < 1) {
-        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" has no configured control image IDs.`);
-    }
-
-    const solutionImages = getPoolImagesByIds(imagePool, solutionIds, 'solution', challengeId);
-    const controlImages = getPoolImagesByIds(imagePool, controlIds, 'control', challengeId);
-    const maxControlImageRepeats = generatedImage.maxControlImageRepeats ?? 1;
-    const selectedImages = shuffleArray([
-        ...pickRandomItemsWithRepeats(solutionImages, solutionCount, 'solution'),
-        ...pickRandomItemsWithRepeatLimit(controlImages, controlCount, maxControlImageRepeats, 'control'),
-    ]).map((image, index) => ({
-        ...image,
-        directory: imagePool.directory,
-        position: index + 1,
-    }));
-
-    return {
-        token: createGalleryToken(),
-        imagePoolId,
-        selectedImages,
-        useCompositeImage: generatedImage.compositeImageGallery === true,
-        solutionPositions: selectedImages
-            .filter((image) => image.role === 'solution')
-            .map((image) => image.position)
-            .sort((left, right) => left - right),
-    };
-}
-
-function getRotationAlignmentDirections(imageDirections, imageId, challengeId) {
-    const directions = getDegreeList(imageDirections?.[imageId], []);
-
-    if (directions.length < 1) {
-        throw new Error(`Verification challenge "${challengeId}" has no configured image directions for "${imageId}".`);
-    }
-
-    return directions;
-}
-
-function pickClockPositionDegrees(clockDegrees, gallerySize, maxRepeats) {
-    const normalizedClockDegrees = [...new Set(clockDegrees ?? [])];
-    const limit = Math.max(1, Math.floor(Number(maxRepeats ?? gallerySize)));
-
-    if (normalizedClockDegrees.length < 1) {
-        throw new Error('Rotation-alignment gallery requires at least one clock position degree.');
-    }
-
-    const capacity = normalizedClockDegrees.length * limit;
-    if (capacity < gallerySize) {
-        throw new Error(`Rotation-alignment gallery does not have enough clock-position capacity. Required ${gallerySize}, capacity ${capacity}. Increase maxImageOrientationRepeats or add clock positions.`);
-    }
-
-    const counts = new Map();
-    const selected = [];
-
-    for (let index = 0; index < gallerySize; index += 1) {
-        const available = normalizedClockDegrees.filter((degrees) => (counts.get(degrees) ?? 0) < limit);
-        const degrees = pickRandomItem(available);
-        counts.set(degrees, (counts.get(degrees) ?? 0) + 1);
-        selected.push(degrees);
-    }
-
-    return selected;
-}
-
-function createCorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule) {
-    const centerDirection = pickRandomItem(centerDirections);
-    const outerDirection = pickRandomItem(outerDirections);
-
-    return {
-        centerRotationDegrees: normalizeDegrees(clockPositionDegrees + alignmentRule.centerTargetOffsetDegrees - centerDirection),
-        outerRotationDegrees: normalizeDegrees(clockPositionDegrees + alignmentRule.outerTargetOffsetDegrees - outerDirection),
-    };
-}
-
-function createIncorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule, rotationDegrees) {
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-        const rotations = {
-            centerRotationDegrees: pickRandomItem(rotationDegrees),
-            outerRotationDegrees: pickRandomItem(rotationDegrees),
-        };
-
-        if (!isRotationAlignmentCorrect({ clockPositionDegrees, ...rotations, centerDirections, outerDirections, alignmentRule })) {
-            return rotations;
-        }
-    }
-
-    const correct = createCorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule);
-
-    for (const offset of DEFAULT_ROTATION_ALIGNMENT_DEGREES.slice(1)) {
-        const rotations = {
-            ...correct,
-            outerRotationDegrees: normalizeDegrees(correct.outerRotationDegrees + offset),
-        };
-
-        if (!isRotationAlignmentCorrect({ clockPositionDegrees, ...rotations, centerDirections, outerDirections, alignmentRule })) {
-            return rotations;
-        }
-    }
-
-    throw new Error('Unable to generate an incorrect rotation-alignment control tile.');
-}
-
-function createRotationAlignmentGalleryStateFromQuestion(question, challengeId) {
-    const generatedImage = getQuestionGeneratedImage(question);
-    const imagePoolId = generatedImage.imagePoolId;
-    const imagePool = getVerificationImagePool(imagePoolId);
-
-    if (!imagePool) {
-        throw new Error(`Unknown verification image pool "${imagePoolId}" for challenge "${challengeId}" question "${question.id}".`);
-    }
-
-    const { gallerySize, solutionCount } = resolveGalleryImageCounts(generatedImage, challengeId);
-    const centerImageIds = getRoleImageIds(generatedImage, 'center');
-    const outerImageIds = getRoleImageIds(generatedImage, 'outer');
-    const rotationAlignment = generatedImage.rotationAlignment ?? generatedImage;
-    const rotationDegrees = getDegreeList(rotationAlignment.rotationDegrees);
-    const clockDegrees = getDegreeList(rotationAlignment.clockPositionDegrees);
-    const alignmentRule = {
-        centerTargetOffsetDegrees: normalizeDegrees(rotationAlignment.alignmentRule?.centerTargetOffsetDegrees ?? 0),
-        outerTargetOffsetDegrees: normalizeDegrees(rotationAlignment.alignmentRule?.outerTargetOffsetDegrees ?? 180),
-    };
-    const imageDirections = generatedImage.imageDirections ?? {};
-    const token = createGalleryToken();
-    const solutionIndexes = new Set(pickRandomItems([...Array(gallerySize).keys()], solutionCount, 'solution tile indexes'));
-    const clockPositions = pickClockPositionDegrees(clockDegrees, gallerySize, rotationAlignment.maxImageOrientationRepeats);
-    const generatedImages = [];
-
-    if (centerImageIds.length < 1) {
-        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" requires center image IDs for rotation-alignment galleries.`);
-    }
-
-    if (outerImageIds.length < 1) {
-        throw new Error(`Verification challenge "${challengeId}" question "${question.id}" requires outer image IDs for rotation-alignment galleries.`);
-    }
-
-    getPoolImagesByIds(imagePool, centerImageIds, 'center', challengeId);
-    getPoolImagesByIds(imagePool, outerImageIds, 'outer', challengeId);
-
-    for (let index = 0; index < gallerySize; index += 1) {
-        const centerImageId = pickRandomItem(centerImageIds);
-        const outerImageId = pickRandomItem(outerImageIds);
-        const centerDirections = getRotationAlignmentDirections(imageDirections, centerImageId, challengeId);
-        const outerDirections = getRotationAlignmentDirections(imageDirections, outerImageId, challengeId);
-        const clockPositionDegrees = clockPositions[index];
-        const isSolution = solutionIndexes.has(index);
-        const rotations = isSolution
-            ? createCorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule)
-            : createIncorrectRotationAlignmentRotations(clockPositionDegrees, centerDirections, outerDirections, alignmentRule, rotationDegrees);
-
-        generatedImages.push({
-            id: `rotation-alignment-${token}-${index}`,
-            role: isSolution ? 'solution' : 'control',
-            generatedTile: {
-                type: 'rotationAlignment',
-                imagePoolId,
-                centerImageId,
-                outerImageId,
-                clockPositionDegrees,
-                centerRotationDegrees: rotations.centerRotationDegrees,
-                outerRotationDegrees: rotations.outerRotationDegrees,
-                tileCanvas: rotationAlignment.tileCanvas,
-            },
-        });
-    }
-
-    const selectedImages = shuffleArray(generatedImages).map((image, index) => ({
-        ...image,
-        position: index + 1,
-    }));
-
-    return {
-        token,
-        imagePoolId,
-        selectedImages,
-        useCompositeImage: generatedImage.compositeImageGallery === true,
-        solutionPositions: selectedImages
-            .filter((image) => image.role === 'solution')
-            .map((image) => image.position)
-            .sort((left, right) => left - right),
-    };
-}
-
 function createGalleryStateFromQuestion(question, challengeId) {
-    const generatedImage = getQuestionGeneratedImage(question);
+    const taskModule = requireQuestionTaskModule(question, challengeId);
 
-    if (generatedImage.type === 'gallery-rotation-alignment') {
-        return createRotationAlignmentGalleryStateFromQuestion(question, challengeId);
+    if (typeof taskModule.createGalleryState !== 'function') {
+        throw new Error(`Question "${question?.id}" does not define a generated gallery image.`);
     }
 
-    if (generatedImage.type === 'gallery-standard') {
-        return createStandardImageGalleryStateFromQuestion(question, challengeId);
-    }
-
-    throw new Error(`Question "${question?.id}" does not define a generated gallery image.`);
+    return taskModule.createGalleryState(question, {
+        challengeId,
+        getVerificationImagePool,
+    });
 }
 
 function getGalleryDisplayImages(galleryState) {
@@ -1977,59 +1590,20 @@ function getQuestionDisplayItems(questionAsset) {
 }
 
 async function prepareQuestionImageAsset(question, challengeId) {
-    const generatedImage = getQuestionGeneratedImage(question);
     const label = question.label ?? question.id;
+    const taskModule = requireQuestionTaskModule(question, challengeId);
 
-    if (generatedImage.enabled !== true || generatedImage.type === 'none') {
-        return undefined;
-    }
-
-    if (generatedImage.type === 'prompt-text') {
-        const promptText = generatedImage.text;
-        if (!promptText && generatedImage.requiresConfiguredText === true) {
-            throw new Error(`Verification challenge "${challengeId}" question "${question.id}" requires configured generated image text.`);
-        }
-        if (!promptText) return undefined;
-
-        const promptImage = await createPromptImageAttachment(promptText);
-        return {
-            type: 'prompt-text',
-            promptImage,
-            files: [promptImage.attachment],
-            displayItems: [{
-                type: 'image',
-                displayUrl: promptImage.displayUrl,
-                description: `${label} prompt`,
-            }],
-        };
-    }
-
-    if (generatedImage.type === 'static-image') {
-        if (!generatedImage.url) return undefined;
-        return {
-            type: 'static-image',
-            displayItems: [{
-                type: 'image',
-                displayUrl: generatedImage.url,
-                description: label,
-            }],
-            files: [],
-        };
-    }
-
-    if (generatedImage.type === 'gallery-standard' || generatedImage.type === 'gallery-rotation-alignment') {
-        const galleryState = await prepareGalleryImageAttachments(createGalleryStateFromQuestion(question, challengeId));
-        const type = generatedImage.type;
-        const asset = {
-            type,
-            galleryState,
-            displayItems: getGalleryDisplayImages(galleryState),
-        };
-        asset.files = getQuestionAssetFiles(asset);
-        return asset;
-    }
-
-    throw new Error(`Unsupported generated image type "${generatedImage.type}" for challenge "${challengeId}" question "${question.id}".`);
+    return taskModule.prepareAsset(question, {
+        challengeId,
+        label,
+        getVerificationImagePool,
+        helpers: {
+            createPromptImageAttachment,
+            prepareGalleryImageAttachments,
+            getGalleryDisplayImages,
+            getQuestionAssetFiles,
+        },
+    });
 }
 
 async function prepareQuestionAssets(screen, challengeId) {
