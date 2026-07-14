@@ -58,6 +58,17 @@ function isAdminSessionOwner(interaction, sessionUserId) {
     return String(interaction.user?.id) === String(sessionUserId);
 }
 
+function hasVerificationAdminPermission(interaction) {
+    return interaction.memberPermissions?.has?.(Discord.PermissionFlagsBits.Administrator) === true;
+}
+
+async function sendAdminPermissionError(interaction) {
+    const response = { content: 'You need Administrator permission to use this verification admin panel.', flags: Discord.MessageFlags.Ephemeral };
+    if (interaction.deferred) return interaction.editReply(response);
+    if (interaction.replied) return interaction.followUp(response);
+    return interaction.reply(response);
+}
+
 const {
     VERIFICATION_MODES,
     getVerificationSettings,
@@ -1307,6 +1318,10 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
 async function handleVerificationAdminButtonInteraction(interaction) {
     const parsed = parseAdminCustomId(interaction.customId);
     if (!parsed) return false;
+    if (!hasVerificationAdminPermission(interaction)) {
+        await sendAdminPermissionError(interaction);
+        return true;
+    }
     if (parsed.expired) {
         await interaction.reply({ content: 'This admin panel has expired. Please run the command again.', flags: Discord.MessageFlags.Ephemeral });
         return true;
@@ -1368,6 +1383,10 @@ async function sendVerificationAdminModalError(interaction) {
 async function handleVerificationAdminModalSubmit(interaction) {
     const parsed = parseAdminCustomId(interaction.customId);
     if (!parsed) return false;
+    if (!hasVerificationAdminPermission(interaction)) {
+        await sendAdminPermissionError(interaction);
+        return true;
+    }
     if (parsed.expired) {
         await interaction.reply({ content: 'This admin panel has expired. Please run the command again.', flags: Discord.MessageFlags.Ephemeral });
         return true;
