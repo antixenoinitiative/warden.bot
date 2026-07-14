@@ -12,8 +12,20 @@ const questionTaskModules = new Map([
     [rotationAlignment.type, rotationAlignment],
 ]);
 
+function getQuestionGeneratedImageForTaskType(question) {
+    const generatedImage = {
+        ...(question?.generatedImage ?? {}),
+    };
+
+    if (generatedImage.config && typeof generatedImage.config === 'object') {
+        Object.assign(generatedImage, generatedImage.config);
+    }
+
+    return generatedImage;
+}
+
 function getQuestionTaskType(question) {
-    const generatedImage = question?.generatedImage ?? {};
+    const generatedImage = getQuestionGeneratedImageForTaskType(question);
 
     if (generatedImage.enabled !== true || generatedImage.type === 'none') {
         return 'none';
@@ -40,6 +52,7 @@ function requireQuestionTaskModule(question, challengeId) {
 
 module.exports = {
     questionTaskModules,
+    getQuestionGeneratedImageForTaskType,
     getQuestionTaskType,
     getQuestionTaskModule,
     requireQuestionTaskModule,
