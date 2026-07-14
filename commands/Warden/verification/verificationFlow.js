@@ -44,6 +44,8 @@ const {
 } = require('./verificationResponses');
 
 const DEFAULT_CHALLENGE_EXPIRY_MS = 10 * 60 * 1000;
+const VERIFICATION_SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const VERIFICATION_SESSION_CLEANUP_GRACE_MS = 60 * 1000;
 const activeChallenges = new Map();
 const cooldowns = new Map();
 
@@ -93,6 +95,26 @@ function getCooldownRemaining(userId) {
 function clearCooldown(userId) {
     cooldowns.delete(userId);
 }
+
+function cleanupExpiredVerificationState() {
+    const now = Date.now();
+
+    for (const [userId, session] of activeChallenges.entries()) {
+        const expiresAt = Number(session?.expiresAt ?? 0);
+        if (expiresAt > 0 && now > expiresAt + VERIFICATION_SESSION_CLEANUP_GRACE_MS) {
+            activeChallenges.delete(userId);
+        }
+    }
+
+    for (const [userId, retryAt] of cooldowns.entries()) {
+        if (Number(retryAt) <= now) {
+            cooldowns.delete(userId);
+        }
+    }
+}
+
+const cleanupInterval = setInterval(cleanupExpiredVerificationState, VERIFICATION_SESSION_CLEANUP_INTERVAL_MS);
+cleanupInterval.unref?.();
 
 function getModalTextInputValue(interaction, customId) {
     try {
@@ -181,6 +203,7 @@ async function replaceQuestionMessage(interaction, session, options, { forceStor
 
         if (forceStoredMessage && interaction.isButton?.() && !interaction.deferred && !interaction.replied) {
             await interaction.deferUpdate();
+            interaction.wardenVerificationDeferredUpdate = true;
         }
 
         if (interaction.isModalSubmit?.() || forceStoredMessage) {
@@ -301,7 +324,8 @@ async function handleVerifyHelp(interaction) {
     return interaction.reply(buildVerificationPublicResponse('verificationHelpEmbed'));
 }
 
-async function completeVerification(interaction, session) {
+async function completeVerification(interaction, session, options = {}) {
+    const { successAsFollowUp = false } = options;
     const verificationConfig = config.Warden?.verification;
     if (session) {
         await deactivateQuestionMessage(interaction, session, 'Verification completed.');
@@ -316,7 +340,13 @@ async function completeVerification(interaction, session) {
         await interaction.member.roles.remove(unverifiedRoleId);
     }
 
-    return sendInitialInteractionResponse(interaction, buildVerificationPublicResponse('successEmbed'));
+    const successResponse = buildVerificationPublicResponse('successEmbed');
+
+    if (successAsFollowUp) {
+        return interaction.followUp(successResponse);
+    }
+
+    return sendInitialInteractionResponse(interaction, successResponse);
 }
 
 async function logImageGenerationError(interaction, title, challengeId, err, screenIndex) {
@@ -469,9 +499,37 @@ async function getActiveSessionOrReply(interaction, verificationSettings) {
     return session;
 }
 
+function getActiveSession(userId) {
+    const session = activeChallenges.get(userId);
+    if (!session) return undefined;
+
+    const expiresAt = Number(session.expiresAt ?? 0);
+    if (expiresAt > 0 && Date.now() > expiresAt) {
+        clearChallenge(userId);
+        return undefined;
+    }
+
+    return session;
+}
+
+async function getActiveSessionOrReplyFast(interaction) {
+    const session = getActiveSession(interaction.user.id);
+
+    if (!session) {
+        await sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse());
+        return undefined;
+    }
+
+    if (session.pending) {
+        await sendInitialInteractionResponse(interaction, buildVerificationInProgressResponse(session.expiresAt));
+        return undefined;
+    }
+
+    return session;
+}
+
 async function handleVerifyAnswer(interaction) {
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const session = await getActiveSessionOrReply(interaction, verificationSettings);
+    const session = await getActiveSessionOrReplyFast(interaction);
     if (!session) return;
 
     const clicked = parseAnswerCustomId(interaction.customId);
@@ -488,8 +546,7 @@ async function handleVerifyAnswer(interaction) {
 }
 
 async function handleVerifyNext(interaction) {
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const session = await getActiveSessionOrReply(interaction, verificationSettings);
+    const session = await getActiveSessionOrReplyFast(interaction);
     if (!session) return;
 
     const clicked = parseNextCustomId(interaction.customId);
@@ -505,15 +562,19 @@ async function handleVerifyNext(interaction) {
     session.completedScreens = [...new Set([...(session.completedScreens ?? []), screen.index])];
 
     if (!hasNextScreen(session)) {
-        return completeVerification(interaction, session);
+        await interaction.deferUpdate();
+        interaction.wardenVerificationDeferredUpdate = true;
+        return completeVerification(interaction, session, { successAsFollowUp: true });
     }
 
-    await advanceToScreen(interaction, session, verificationSettings, session.screenIndex + 1);
+    await interaction.deferUpdate();
+    interaction.wardenVerificationDeferredUpdate = true;
+    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
+    await advanceToScreen(interaction, session, verificationSettings, session.screenIndex + 1, { forceStoredMessage: true });
 }
 
 async function handleVerifyBack(interaction) {
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const session = await getActiveSessionOrReply(interaction, verificationSettings);
+    const session = await getActiveSessionOrReplyFast(interaction);
     if (!session) return;
 
     const clicked = parseBackCustomId(interaction.customId);
@@ -525,12 +586,14 @@ async function handleVerifyBack(interaction) {
         return interaction.reply(buildVerificationExpiredResponse('You cannot go back to that verification screen.'));
     }
 
-    await advanceToScreen(interaction, session, verificationSettings, session.screenIndex - 1);
+    await interaction.deferUpdate();
+    interaction.wardenVerificationDeferredUpdate = true;
+    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
+    await advanceToScreen(interaction, session, verificationSettings, session.screenIndex - 1, { forceStoredMessage: true });
 }
 
 async function handleVerifyOldVersion(interaction) {
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const session = await getActiveSessionOrReply(interaction, verificationSettings);
+    const session = await getActiveSessionOrReplyFast(interaction);
     if (!session) return;
 
     const clicked = parseOldVersionCustomId(interaction.customId);
@@ -538,6 +601,9 @@ async function handleVerifyOldVersion(interaction) {
         return interaction.reply(buildVerificationExpiredResponse('This old version button is no longer current. Please use the latest verification challenge message.'));
     }
 
+    await interaction.deferUpdate();
+    interaction.wardenVerificationDeferredUpdate = true;
+    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
     const legacySession = {
         ...session,
@@ -549,10 +615,6 @@ async function handleVerifyOldVersion(interaction) {
     };
 
     const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(legacySession), legacySession.screenAssets, legacySession, { includeIntro: true });
-
-    if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferUpdate();
-    }
 
     if (!session.splitMessages) {
         await deactivateOldVersionPrompt(interaction, legacySession).catch((err) => {
@@ -571,7 +633,8 @@ async function handleVerifyOldVersion(interaction) {
     setChallenge(interaction.user.id, legacySession, resolveChallengeExpiryMs(verificationSettings));
 }
 
-async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex) {
+async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex, options = {}) {
+    const { forceStoredMessage = false } = options;
     const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
 
     if (session.renderer === LEGACY_RENDERER) {
@@ -585,7 +648,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
     if (session.renderer === LEGACY_RENDERER) {
         session.legacyPageMessageIds = [];
         const pages = buildQuestionScreenLegacyPages(challenge, getCurrentScreen(session), session.screenAssets, session, { includeIntro: false });
-        const questionMessageId = await replaceQuestionMessage(interaction, session, pages[0]);
+        const questionMessageId = await replaceQuestionMessage(interaction, session, pages[0], { forceStoredMessage });
         session.questionMessageId = questionMessageId;
         session.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
         await resolveModalSubmitAfterScreenReplace(interaction);
@@ -594,7 +657,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
     }
 
     session.legacyPageMessageIds = [];
-    const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }));
+    const questionMessageId = await replaceQuestionMessage(interaction, session, buildQuestionScreenOptions(challenge, getCurrentScreen(session), session.screenAssets, session, { renderer: session.renderer }), { forceStoredMessage });
     session.questionMessageId = questionMessageId;
     await resolveModalSubmitAfterScreenReplace(interaction);
     session.oldVersionPromptMessageId = session.splitMessages
@@ -669,6 +732,11 @@ function getVerificationRoute(interaction) {
 }
 
 async function sendVerificationErrorResponse(interaction, content) {
+    if (interaction.deferred && interaction.wardenVerificationDeferredUpdate === true) {
+        await interaction.followUp({ content, flags: Discord.MessageFlags.Ephemeral });
+        return;
+    }
+
     if (interaction.deferred && !interaction.replied) {
         await interaction.editReply({ content });
         return;
