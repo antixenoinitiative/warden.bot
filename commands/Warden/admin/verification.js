@@ -21,7 +21,7 @@ const { getVerificationImagePool } = require('../verification/verificationImages
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
 const ADMIN_CUSTOM_ID_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
-// Keep this <= 23 so Previous/Next still fit within Discord's 25-button classic component limit.
+const QUESTION_SELECT_MENU_MAX_OPTIONS = 25;
 const QUESTION_DETAIL_SELECTOR_PAGE_SIZE = 20;
 const DIRECTION_PAGE_SIZE = 5;
 const MAX_DIRECTION_PAGE_BUTTONS = 25;
@@ -345,7 +345,7 @@ function buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, 
     ).embeds[0];
 }
 
-function buildChallengeViewComponents(mode, guildId, userId, challengeId) {
+function buildChallengeOverviewComponents(mode, guildId, userId, challengeId) {
     if (!challengeId) return [];
 
     const buttons = [];
@@ -353,15 +353,44 @@ function buildChallengeViewComponents(mode, guildId, userId, challengeId) {
         buttons.push(new Discord.ButtonBuilder()
             .setCustomId(buildAdminCustomId('challengeEdit', guildId, userId, challengeId))
             .setLabel('Edit Challenge')
-            .setStyle(Discord.ButtonStyle.Secondary));
+            .setStyle(Discord.ButtonStyle.Primary));
     }
 
     buttons.push(new Discord.ButtonBuilder()
-        .setCustomId(buildAdminCustomId('challengeDetails', mode, guildId, userId, challengeId))
-        .setLabel('Question Details')
-        .setStyle(Discord.ButtonStyle.Primary));
+        .setCustomId(buildAdminCustomId('challengeQuestions', mode, guildId, userId, challengeId))
+        .setLabel('Questions')
+        .setStyle(Discord.ButtonStyle.Secondary));
 
     return [new Discord.ActionRowBuilder().addComponents(...buttons)];
+}
+
+function buildChallengeQuestionsComponents(mode, guildId, userId, challengeId) {
+    if (!challengeId) return [];
+
+    return [new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionSelectOpen', mode, guildId, userId, challengeId))
+            .setLabel('Select Question')
+            .setStyle(Discord.ButtonStyle.Primary),
+        new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('challengeOverview', mode, guildId, userId, challengeId))
+            .setLabel('Challenge')
+            .setStyle(Discord.ButtonStyle.Secondary),
+    )];
+}
+
+function buildChallengeOverviewPanelPayload({ verificationSettings, enabledChallengeIds, mode, guildId, userId, challengeId }) {
+    return {
+        embeds: [buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId)],
+        components: buildChallengeOverviewComponents(mode, guildId, userId, challengeId),
+    };
+}
+
+function buildChallengeQuestionsPanelPayload({ challengeId, challenge, mode, guildId, userId }) {
+    return {
+        embeds: [buildQuestionListEmbed(challengeId, challenge)],
+        components: buildChallengeQuestionsComponents(mode, guildId, userId, challengeId),
+    };
 }
 
 function buildQuestionDetailComponents(mode, guildId, userId, challengeId, questionId, options = {}) {
@@ -369,8 +398,8 @@ function buildQuestionDetailComponents(mode, guildId, userId, challengeId, quest
     const buttons = [];
     if (mode === 'edit') {
         buttons.push(new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('questionEditPanel', guildId, userId, challengeId, questionId))
-            .setLabel('Edit Question')
+            .setCustomId(buildAdminCustomId('questionEditTools', mode, guildId, userId, challengeId, questionId))
+            .setLabel('Edit')
             .setStyle(Discord.ButtonStyle.Primary));
     }
 
@@ -397,15 +426,14 @@ async function sendChallengeOverview(interaction, {
 
     const challenge = verificationChallenges[challengeId];
     if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], components: [] });
-    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
-
-    return interaction.editReply({
-        embeds: [
-            buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId),
-            buildQuestionListEmbed(challengeId, effectiveChallenge),
-        ],
-        components: buildChallengeViewComponents(mode, guildId, interaction.user.id, challengeId),
-    });
+    return interaction.editReply(buildChallengeOverviewPanelPayload({
+        verificationSettings,
+        enabledChallengeIds,
+        mode,
+        guildId,
+        userId: interaction.user.id,
+        challengeId,
+    }));
 }
 
 async function handleChallengeView(interaction, verificationSettings, enabledChallengeIds, idsInput = interaction.options.getString('ids')) {
@@ -825,6 +853,130 @@ function isMatchingAdminGuild(interaction, guildId) {
     return !interaction.guild?.id || String(interaction.guild.id) === String(guildId);
 }
 
+async function validateChallengeAdminInteraction(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) {
+        await sendAdminPanelOwnerError(interaction);
+        return { error: true };
+    }
+    if (!isMatchingAdminGuild(interaction, guildId)) {
+        await respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+        return { error: true };
+    }
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge) {
+        await respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+        return { error: true };
+    }
+    return { mode, guildId, ownerUserId, challengeId, challenge };
+}
+
+async function handleChallengeQuestionsButton(interaction, parts) {
+    const context = await validateChallengeAdminInteraction(interaction, parts);
+    if (context.error) return;
+    await interaction.deferUpdate();
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    return interaction.editReply(buildChallengeQuestionsPanelPayload({
+        challengeId: context.challengeId,
+        challenge: effectiveChallenge,
+        mode: context.mode,
+        guildId: context.guildId,
+        userId: context.ownerUserId,
+    }));
+}
+
+async function handleChallengeOverviewButton(interaction, parts) {
+    const context = await validateChallengeAdminInteraction(interaction, parts);
+    if (context.error) return;
+    await interaction.deferUpdate();
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
+    return interaction.editReply(buildChallengeOverviewPanelPayload({
+        verificationSettings,
+        enabledChallengeIds,
+        mode: context.mode,
+        guildId: context.guildId,
+        userId: context.ownerUserId,
+        challengeId: context.challengeId,
+    }));
+}
+
+async function handleQuestionSelectOpenButton(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+
+    try {
+        assertQuestionSelectMenuLimit(challenge);
+    }
+    catch (err) {
+        return respondAdminError(interaction, { embeds: [userErrorEmbed(err.message)] });
+    }
+    if (getChallengeQuestions(challenge).length < 1) return respondAdminError(interaction, { content: `No questions are configured for **${challengeId}**.` });
+
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    const verificationSettings = await getVerificationSettings(guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    return interaction.editReply(buildQuestionWorkspacePayload({
+        verificationSettings,
+        mode,
+        guildId,
+        ownerUserId,
+        challengeId,
+        challenge: effectiveChallenge,
+        question: null,
+        expanded: false,
+    }));
+}
+
+async function handleQuestionSelectMenu(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId] = parts;
+    const selectedQuestionId = interaction.values?.[0];
+    if (!selectedQuestionId) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select a question.')] });
+    const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, selectedQuestionId]);
+    if (context.error) return;
+    await interaction.deferUpdate();
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, selectedQuestionId) ?? context.question;
+    return interaction.editReply(buildQuestionWorkspacePayload({
+        verificationSettings,
+        mode,
+        guildId: context.guildId,
+        ownerUserId: context.ownerUserId,
+        challengeId: context.challengeId,
+        challenge: effectiveChallenge,
+        question: effectiveQuestion,
+        expanded: false,
+    }));
+}
+
+async function handleQuestionEditToolsButton(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId, questionId] = parts;
+    const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
+    if (context.error) return;
+    if (mode !== 'edit') {
+        return respondAdminError(interaction, { embeds: [userErrorEmbed('This question workspace is read-only. Run `/verification challenge action:edit` to edit questions.')] });
+    }
+    await interaction.deferUpdate();
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
+    return interaction.editReply(buildQuestionWorkspacePayload({
+        verificationSettings,
+        mode,
+        guildId: context.guildId,
+        ownerUserId: context.ownerUserId,
+        challengeId: context.challengeId,
+        challenge: effectiveChallenge,
+        question: effectiveQuestion,
+        expanded: true,
+    }));
+}
+
 async function handleChallengeDetailsButton(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
@@ -933,6 +1085,92 @@ function buildActionRows(buttons, options = {}) {
 function truncateButtonLabel(label, maxLength = 80) {
     const text = String(label ?? '');
     return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}…`;
+}
+
+function truncateSelectText(text, maxLength = 100) {
+    const value = String(text ?? '').trim() || 'Question';
+    return value.length <= maxLength ? value : `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+function getChallengeQuestions(challenge) {
+    return Array.isArray(challenge?.questions) ? challenge.questions : [];
+}
+
+function buildQuestionSelectorEmbed(challengeId, challenge, selectedQuestion) {
+    const questions = getChallengeQuestions(challenge);
+    const fields = [
+        { name: 'Challenge', value: String(challengeId), inline: true },
+        { name: 'Questions', value: String(questions.length), inline: true },
+    ];
+
+    if (selectedQuestion?.id) fields.push({ name: 'Selected', value: selectedQuestion.id, inline: true });
+
+    return buildVerificationAdminSummary(
+        'Choose a Question',
+        selectedQuestion?.id
+            ? `Selected: **${selectedQuestion.id}**. Select a question below to view its current configuration and edit actions.`
+            : 'Select a question below to view its current configuration and edit actions.',
+        'Question selector/editor workspace.',
+        'info',
+        { fields },
+    ).embeds[0];
+}
+
+function assertQuestionSelectMenuLimit(challenge) {
+    const questions = getChallengeQuestions(challenge);
+    if (questions.length > QUESTION_SELECT_MENU_MAX_OPTIONS) {
+        throw new Error(`This challenge has ${questions.length} questions. The select-menu editor currently supports up to ${QUESTION_SELECT_MENU_MAX_OPTIONS} questions. Split the challenge or add selector paging before editing through this panel.`);
+    }
+}
+
+function buildQuestionSelectRow(mode, guildId, ownerUserId, challengeId, challenge, selectedQuestionId) {
+    const questions = getChallengeQuestions(challenge);
+    assertQuestionSelectMenuLimit(challenge);
+
+    const selectMenu = new Discord.StringSelectMenuBuilder()
+        .setCustomId(buildAdminCustomId('questionSelect', mode, guildId, ownerUserId, challengeId))
+        .setPlaceholder('Choose a question...')
+        .addOptions(questions.map((question, index) => {
+            if (String(question.id ?? '').length > 100) {
+                throw new Error(`Question ID is too long for a select-menu value: ${question.id}`);
+            }
+            const labelBase = `${index + 1}. ${question.label || question.id}`;
+            const option = new Discord.StringSelectMenuOptionBuilder()
+                .setLabel(truncateSelectText(labelBase))
+                .setValue(String(question.id))
+                .setDescription(truncateSelectText(question.id || question.generatedImage?.type || 'Question'));
+            if (selectedQuestionId && String(question.id) === String(selectedQuestionId)) option.setDefault(true);
+            return option;
+        }));
+
+    return new Discord.ActionRowBuilder().addComponents(selectMenu);
+}
+
+function buildQuestionCollapsedEditComponents(mode, guildId, ownerUserId, challengeId, questionId) {
+    return [new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionEditTools', mode, guildId, ownerUserId, challengeId, questionId))
+            .setLabel('Edit')
+            .setStyle(Discord.ButtonStyle.Primary),
+    )];
+}
+
+function buildQuestionWorkspacePayload({ verificationSettings, mode, guildId, ownerUserId, challengeId, challenge, question, expanded = false }) {
+    const components = [buildQuestionSelectRow(mode, guildId, ownerUserId, challengeId, challenge, question?.id)];
+    const embeds = [buildQuestionSelectorEmbed(challengeId, challenge, question)];
+
+    if (question) {
+        embeds.push(buildQuestionDetailEmbed(verificationSettings, challengeId, challenge, question));
+
+        if (mode === 'edit') {
+            const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, challengeId, question.id));
+            components.push(...(expanded
+                ? buildQuestionEditPanelComponents(guildId, ownerUserId, challengeId, question.id, effectiveQuestion)
+                : buildQuestionCollapsedEditComponents(mode, guildId, ownerUserId, challengeId, question.id)));
+        }
+    }
+
+    return { embeds, components };
 }
 
 function buildQuestionDetailSelectorComponents(mode, guildId, ownerUserId, challengeId, questions, pageIndex) {
@@ -1481,7 +1719,7 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
     return interaction.editReply({ embeds: [buildChallengeOverviewEmbed(updatedSettings, enabledChallengeIds, challengeId)] });
 }
 
-async function handleVerificationAdminButtonInteraction(interaction) {
+async function handleVerificationAdminComponentInteraction(interaction) {
     const parsed = parseAdminCustomId(interaction.customId);
     if (!parsed) return false;
     if (!hasVerificationAdminPermission(interaction)) {
@@ -1497,6 +1735,21 @@ async function handleVerificationAdminButtonInteraction(interaction) {
 
     try {
         switch (parsed.action) {
+            case 'challengeQuestions':
+                await handleChallengeQuestionsButton(interaction, parsed.parts);
+                return true;
+            case 'challengeOverview':
+                await handleChallengeOverviewButton(interaction, parsed.parts);
+                return true;
+            case 'questionSelectOpen':
+                await handleQuestionSelectOpenButton(interaction, parsed.parts);
+                return true;
+            case 'questionSelect':
+                await handleQuestionSelectMenu(interaction, parsed.parts);
+                return true;
+            case 'questionEditTools':
+                await handleQuestionEditToolsButton(interaction, parsed.parts);
+                return true;
             case 'challengeDetails':
                 await handleChallengeDetailsButton(interaction, parsed.parts);
                 return true;
@@ -1909,7 +2162,10 @@ module.exports = {
     async handleModalSubmit(interaction) {
         return handleVerificationAdminModalSubmit(interaction);
     },
+    async handleComponentInteraction(interaction) {
+        return handleVerificationAdminComponentInteraction(interaction);
+    },
     async handleButtonInteraction(interaction) {
-        return handleVerificationAdminButtonInteraction(interaction);
+        return handleVerificationAdminComponentInteraction(interaction);
     },
 };
