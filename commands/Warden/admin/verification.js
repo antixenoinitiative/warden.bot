@@ -21,6 +21,8 @@ const { getVerificationImagePool } = require('../verification/verificationImages
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
 const ADMIN_CUSTOM_ID_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const CONFIG_SELECT_MENU_MAX_OPTIONS = 25;
+const CHALLENGE_SELECT_MENU_MAX_OPTIONS = 25;
 const QUESTION_SELECT_MENU_MAX_OPTIONS = 25;
 const QUESTION_DETAIL_SELECTOR_PAGE_SIZE = 20;
 const DIRECTION_PAGE_SIZE = 5;
@@ -246,75 +248,111 @@ function buildAvailableChallengeIdsValue(enabledChallengeIds) {
     return challengeList || 'None';
 }
 
-async function handleVerificationModeCommand(interaction, guildId) {
-    const mode = interaction.options.getString('mode', true);
-    await setVerificationMode(guildId, mode, interaction.user.id);
-
-    return interaction.editReply(buildVerificationAdminSettingUpdated(
-        'Mode',
-        `Verification mode set to **${mode}**.`,
-    ));
-}
-
-async function handleVerificationConfigCommand(interaction, guildId, subcommand) {
-    const verificationSettings = await getVerificationSettings(guildId);
-
-    if (subcommand === 'status') {
-        return handleConfigStatus(interaction, verificationSettings);
-    }
-
-    if (subcommand === 'mode-set') {
-        return handleVerificationModeCommand(interaction, guildId);
-    }
-
-
-    if (subcommand === 'autokick-set') {
-        const state = interaction.options.getString('state');
-        if (!state) return interaction.editReply({ embeds: [userErrorEmbed('Please choose `state:on` or `state:off`.')] });
-
-        const timerInput = interaction.options.getString('timer');
-        const durationSeconds = timerInput ? parseDurationSeconds(timerInput) : undefined;
-        if (timerInput && !durationSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid autokick timer, such as `600s`, `10m`, or `10 minutes`.')] });
-
-        const updatedSettings = await setAutokickSettings(guildId, state === 'on', durationSeconds, interaction.user.id);
-        return interaction.editReply(buildVerificationAdminSettingUpdated(
-            'Autokick',
-            `Verification autokick is now **${updatedSettings.autokickEnabled ? 'ON' : 'OFF'}** with a timer of **${formatDuration(updatedSettings.autokickSeconds)}**.`,
-        ));
-    }
-
-    return interaction.editReply({ embeds: [userErrorEmbed('Unknown config command.')] });
-}
-
-async function handleConfigStatus(interaction, verificationSettings) {
-    return interaction.editReply(buildVerificationAdminConfiguration(
+function buildConfigStatusEmbed(verificationSettings) {
+    return buildVerificationAdminConfiguration(
         'Configuration',
         'Current verification configuration.',
         [
             { name: 'Verification Mode', value: verificationSettings.mode, inline: true },
             { name: 'Active Challenge IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
-            { name: 'Expiry Timer', value: formatDuration(verificationSettings.challengeExpirySeconds), inline: true },
-            { name: 'Retry Cooldown', value: formatDuration(verificationSettings.cooldownSeconds), inline: true },
+            { name: 'Challenge Expiry Timer', value: formatDuration(verificationSettings.challengeExpirySeconds), inline: true },
+            { name: 'Challenge Retry Cooldown', value: formatDuration(verificationSettings.cooldownSeconds), inline: true },
             { name: 'Autokick', value: `**${verificationSettings.autokickEnabled ? 'ON' : 'OFF'}** after **${formatDuration(verificationSettings.autokickSeconds)}**`, inline: false },
         ],
         { templateOverrides: { title: 'Verification Configuration' } },
-    ));
+    ).embeds[0];
 }
 
-async function handleChallengeActiveSet(interaction, guildId, idsInput = interaction.options.getString('ids')) {
-    if (!idsInput?.trim()) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID in `ids`.')] });
+function buildChallengeSelectOption(challenge, enabledChallengeIds = []) {
+    const title = challenge.title || challenge.id;
+    const option = new Discord.StringSelectMenuOptionBuilder()
+        .setLabel(truncateSelectText(challenge.id || title))
+        .setValue(String(challenge.id))
+        .setDescription(truncateSelectText(title));
+    if (enabledChallengeIds.includes(challenge.id)) option.setDefault(true);
+    return option;
+}
 
-    const challengeIds = parseIdList(idsInput);
-    if (challengeIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one challenge ID in `ids`.')] });
+function buildConfigModeSelectRow(guildId, ownerUserId, verificationSettings) {
+    const options = [
+        ['Challenge', VERIFICATION_MODES.challenge],
+        ['Halt', VERIFICATION_MODES.halt],
+        ['One-Click', VERIFICATION_MODES.oneClick],
+    ].map(([name, value]) => {
+        const option = new Discord.StringSelectMenuOptionBuilder().setLabel(name).setValue(value);
+        if (verificationSettings.mode === value) option.setDefault(true);
+        return option;
+    });
+    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
+        .setCustomId(buildAdminCustomId('configModeSelect', guildId, ownerUserId))
+        .setPlaceholder('Choose verification mode...')
+        .addOptions(options));
+}
 
-    const unknownChallengeIds = challengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
-    if (unknownChallengeIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
+function assertConfigChallengeSelectMenuLimit() {
+    const count = Object.values(verificationChallenges).length;
+    if (count > CONFIG_SELECT_MENU_MAX_OPTIONS) {
+        throw new Error(`There are ${count} configured challenges, but this select-menu editor supports up to ${CONFIG_SELECT_MENU_MAX_OPTIONS}. Add paging before editing active challenges through this panel.`);
+    }
+}
 
-    const updatedSettings = await setActiveChallengeIds(guildId, challengeIds, interaction.user.id);
-    return interaction.editReply(buildVerificationAdminSettingUpdated(
-        'Active Challenges',
-        `Active verification challenges set to: ${updatedSettings.activeChallengeIds.join(', ')}`,
-    ));
+function buildConfigActiveChallengesSelectRow(guildId, ownerUserId, verificationSettings) {
+    assertConfigChallengeSelectMenuLimit();
+    const challenges = Object.values(verificationChallenges);
+    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
+        .setCustomId(buildAdminCustomId('configActiveChallengesSelect', guildId, ownerUserId))
+        .setPlaceholder('Choose active challenges...')
+        .setMinValues(1)
+        .setMaxValues(Math.max(1, challenges.length))
+        .addOptions(challenges.map((challenge) => buildChallengeSelectOption(challenge, verificationSettings.activeChallengeIds ?? []))));
+}
+
+function buildConfigAutokickSelectRow(guildId, ownerUserId, verificationSettings) {
+    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
+        .setCustomId(buildAdminCustomId('configAutokickSelect', guildId, ownerUserId))
+        .setPlaceholder('Choose autokick state...')
+        .addOptions([
+            new Discord.StringSelectMenuOptionBuilder().setLabel('ON').setValue('on').setDefault(verificationSettings.autokickEnabled === true),
+            new Discord.StringSelectMenuOptionBuilder().setLabel('OFF').setValue('off').setDefault(verificationSettings.autokickEnabled !== true),
+        ]));
+}
+
+function buildConfigActionRows(guildId, ownerUserId, { editMode, activeEditor, verificationSettings }) {
+    if (!editMode) {
+        return [new Discord.ActionRowBuilder().addComponents(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('configEdit', guildId, ownerUserId))
+            .setLabel('Edit')
+            .setStyle(Discord.ButtonStyle.Primary))];
+    }
+
+    const rows = [new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configModeEditor', guildId, ownerUserId)).setLabel('Mode').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configActiveChallengesEditor', guildId, ownerUserId)).setLabel('Active Challenges').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configTimersEditor', guildId, ownerUserId)).setLabel('Timers').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configAutokickEditor', guildId, ownerUserId)).setLabel('Autokick').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configDone', guildId, ownerUserId)).setLabel('Done').setStyle(Discord.ButtonStyle.Success),
+    )];
+
+    if (activeEditor === 'mode') rows.push(buildConfigModeSelectRow(guildId, ownerUserId, verificationSettings));
+    if (activeEditor === 'activeChallenges') rows.push(buildConfigActiveChallengesSelectRow(guildId, ownerUserId, verificationSettings));
+    if (activeEditor === 'autokick') rows.push(buildConfigAutokickSelectRow(guildId, ownerUserId, verificationSettings));
+    return rows;
+}
+
+function buildConfigPanelPayload({ verificationSettings, guildId, ownerUserId, editMode = false, activeEditor = null }) {
+    return {
+        embeds: [buildConfigStatusEmbed(verificationSettings)],
+        components: buildConfigActionRows(guildId, ownerUserId, { editMode, activeEditor, verificationSettings }),
+    };
+}
+
+async function handleVerificationConfigCommand(interaction, guildId) {
+    const verificationSettings = await getVerificationSettings(guildId);
+    return interaction.editReply(buildConfigPanelPayload({
+        verificationSettings,
+        guildId,
+        ownerUserId: interaction.user.id,
+    }));
 }
 
 function buildChallengeListOverviewEmbed(verificationSettings, enabledChallengeIds) {
@@ -326,6 +364,60 @@ function buildChallengeListOverviewEmbed(verificationSettings, enabledChallengeI
             { name: 'Available Challenge IDs', value: buildAvailableChallengeIdsValue(enabledChallengeIds), inline: false },
         ],
     ).embeds[0];
+}
+
+function buildChallengePickerEmbed(verificationSettings, enabledChallengeIds) {
+    const embed = buildChallengeListOverviewEmbed(verificationSettings, enabledChallengeIds);
+    embed.addFields({ name: 'Details', value: 'Select a challenge below to open its interactive challenge editor.', inline: false });
+    return embed;
+}
+
+function assertChallengeSelectMenuLimit() {
+    const count = Object.values(verificationChallenges).length;
+    if (count > CHALLENGE_SELECT_MENU_MAX_OPTIONS) {
+        throw new Error(`There are ${count} configured challenges, but this select-menu editor supports up to ${CHALLENGE_SELECT_MENU_MAX_OPTIONS}. Add paging before editing challenges through this panel.`);
+    }
+}
+
+function buildChallengeSelectRow(guildId, ownerUserId) {
+    assertChallengeSelectMenuLimit();
+    const challenges = Object.values(verificationChallenges);
+    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
+        .setCustomId(buildAdminCustomId('challengeSelect', guildId, ownerUserId))
+        .setPlaceholder('Choose a challenge...')
+        .addOptions(challenges.map((challenge) => buildChallengeSelectOption(challenge))));
+}
+
+function buildChallengesPanelPayload({ verificationSettings, enabledChallengeIds, guildId, ownerUserId }) {
+    return {
+        embeds: [buildChallengePickerEmbed(verificationSettings, enabledChallengeIds)],
+        components: [buildChallengeSelectRow(guildId, ownerUserId)],
+    };
+}
+
+async function handleVerificationChallengesCommand(interaction, guildId) {
+    try { assertChallengeSelectMenuLimit(); }
+    catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
+    const verificationSettings = await getVerificationSettings(guildId);
+    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
+    return interaction.editReply(buildChallengesPanelPayload({
+        verificationSettings,
+        enabledChallengeIds,
+        guildId,
+        ownerUserId: interaction.user.id,
+    }));
+}
+
+async function handleChallengeSelectMenu(interaction, parts) {
+    const [guildId, ownerUserId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    const challengeId = interaction.values?.[0];
+    if (!verificationChallenges[challengeId]) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    const verificationSettings = await getVerificationSettings(guildId);
+    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
+    return sendChallengeOverview(interaction, { guildId, verificationSettings, enabledChallengeIds, challengeId, mode: 'edit' });
 }
 
 function buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId) {
@@ -434,22 +526,6 @@ async function sendChallengeOverview(interaction, {
         userId: interaction.user.id,
         challengeId,
     }));
-}
-
-async function handleChallengeView(interaction, verificationSettings, enabledChallengeIds, idsInput = interaction.options.getString('ids')) {
-    const challengeIds = parseIdList(idsInput);
-
-    if (challengeIds.length > 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('The `view` action accepts only one challenge ID. Use `active-set` for multiple IDs.')] });
-    }
-
-    return sendChallengeOverview(interaction, {
-        guildId: interaction.guild?.id,
-        verificationSettings,
-        enabledChallengeIds,
-        challengeId: challengeIds[0] ?? '',
-        mode: 'view',
-    });
 }
 
 const QUESTION_CLEAR_FIELD_MAP = {
@@ -853,6 +929,123 @@ function isMatchingAdminGuild(interaction, guildId) {
     return !interaction.guild?.id || String(interaction.guild.id) === String(guildId);
 }
 
+async function validateConfigAdminInteraction(interaction, parts) {
+    const [guildId, ownerUserId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) {
+        await sendAdminPanelOwnerError(interaction);
+        return { error: true };
+    }
+    if (!isMatchingAdminGuild(interaction, guildId)) {
+        await respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+        return { error: true };
+    }
+    return { guildId, ownerUserId };
+}
+
+async function handleConfigPanelButton(interaction, parts, editMode, activeEditor) {
+    const context = await validateConfigAdminInteraction(interaction, parts);
+    if (context.error) return;
+    if (activeEditor === 'activeChallenges') {
+        try { assertConfigChallengeSelectMenuLimit(); }
+        catch (err) { return respondAdminError(interaction, { embeds: [userErrorEmbed(err.message)] }); }
+    }
+    await interaction.deferUpdate();
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    return interaction.editReply(buildConfigPanelPayload({
+        verificationSettings,
+        guildId: context.guildId,
+        ownerUserId: context.ownerUserId,
+        editMode,
+        activeEditor,
+    }));
+}
+
+function showConfigTimersModal(interaction, parts) {
+    const [guildId, ownerUserId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+
+    const modal = new Discord.ModalBuilder()
+        .setCustomId(buildAdminCustomId('configTimersModal', guildId, ownerUserId, interaction.message?.id ?? ''))
+        .setTitle('Verification Timers')
+        .addComponents(
+            new Discord.ActionRowBuilder().addComponents(buildTimerInput('challenge_expiry_timer', 'Challenge Expiry Timer', '10m, 600s, or leave empty')),
+            new Discord.ActionRowBuilder().addComponents(buildTimerInput('challenge_retry_cooldown', 'Challenge Retry Cooldown', '60s, 1m, or leave empty')),
+            new Discord.ActionRowBuilder().addComponents(buildTimerInput('autokick_timer', 'Autokick Timer', '10m, 600s, or leave empty')),
+        );
+
+    const showPromise = interaction.showModal(modal);
+    showPromise.then(() => {
+        interaction.message?.edit({ components: buildConfigActionRows(guildId, ownerUserId, { editMode: true, activeEditor: null, verificationSettings: {} }) }).catch(() => {});
+    }).catch(() => {});
+    return showPromise;
+}
+
+async function handleConfigModeSelect(interaction, parts) {
+    const context = await validateConfigAdminInteraction(interaction, parts);
+    if (context.error) return;
+    const selectedMode = interaction.values?.[0];
+    if (!Object.values(VERIFICATION_MODES).includes(selectedMode)) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select a valid verification mode.')] });
+    await interaction.deferUpdate();
+    const verificationSettings = await setVerificationMode(context.guildId, selectedMode, interaction.user.id);
+    return interaction.editReply(buildConfigPanelPayload({ verificationSettings, guildId: context.guildId, ownerUserId: context.ownerUserId, editMode: true }));
+}
+
+async function handleConfigActiveChallengesSelect(interaction, parts) {
+    const context = await validateConfigAdminInteraction(interaction, parts);
+    if (context.error) return;
+    const selectedChallengeIds = interaction.values ?? [];
+    if (selectedChallengeIds.length < 1) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select at least one active challenge.')] });
+    const unknownChallengeIds = selectedChallengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
+    if (unknownChallengeIds.length > 0) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
+    await interaction.deferUpdate();
+    const verificationSettings = await setActiveChallengeIds(context.guildId, selectedChallengeIds, interaction.user.id);
+    return interaction.editReply(buildConfigPanelPayload({ verificationSettings, guildId: context.guildId, ownerUserId: context.ownerUserId, editMode: true }));
+}
+
+async function handleConfigAutokickSelect(interaction, parts) {
+    const context = await validateConfigAdminInteraction(interaction, parts);
+    if (context.error) return;
+    const selected = interaction.values?.[0];
+    if (!['on', 'off'].includes(selected)) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select a valid autokick state.')] });
+    await interaction.deferUpdate();
+    const currentSettings = await getVerificationSettings(context.guildId);
+    const verificationSettings = await setAutokickSettings(context.guildId, selected === 'on', currentSettings.autokickSeconds, interaction.user.id);
+    return interaction.editReply(buildConfigPanelPayload({ verificationSettings, guildId: context.guildId, ownerUserId: context.ownerUserId, editMode: true }));
+}
+
+async function handleConfigTimersModalSubmit(interaction, parts = []) {
+    const [guildId, ownerUserId, sourceMessageId = ''] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+
+    const expiryInput = getModalTextInput(interaction, 'challenge_expiry_timer');
+    const cooldownInput = getModalTextInput(interaction, 'challenge_retry_cooldown');
+    const autokickInput = getModalTextInput(interaction, 'autokick_timer');
+    if (!expiryInput && !cooldownInput && !autokickInput) return interaction.editReply({ embeds: [userErrorEmbed('No timer changes were submitted.')] });
+
+    const expirySeconds = expiryInput ? parseDurationSeconds(expiryInput) : undefined;
+    if (expiryInput && !expirySeconds) return interaction.editReply({ embeds: [userErrorEmbed('Invalid Challenge Expiry Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+    const cooldownSeconds = cooldownInput ? parseDurationSeconds(cooldownInput) : undefined;
+    if (cooldownInput && !cooldownSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Invalid Challenge Retry Cooldown. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+    const autokickSeconds = autokickInput ? parseDurationSeconds(autokickInput) : undefined;
+    if (autokickInput && !autokickSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Invalid Autokick Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+
+    if (expirySeconds) await setChallengeExpirySeconds(guildId, expirySeconds, interaction.user.id);
+    if (cooldownSeconds) await setCooldownSeconds(guildId, cooldownSeconds, interaction.user.id);
+    if (autokickSeconds) {
+        const currentSettings = await getVerificationSettings(guildId);
+        await setAutokickSettings(guildId, currentSettings.autokickEnabled, autokickSeconds, interaction.user.id);
+    }
+
+    const updatedSettings = await getVerificationSettings(guildId);
+    const payload = buildConfigPanelPayload({ verificationSettings: updatedSettings, guildId, ownerUserId, editMode: true });
+    if (interaction.message) interaction.message.edit(payload).catch((err) => console.error('Failed to update config panel after timer modal:', err));
+    else if (sourceMessageId && typeof interaction.webhook?.editMessage === 'function') interaction.webhook.editMessage(sourceMessageId, payload).catch((err) => console.error('Failed to update config panel message after timer modal:', err));
+    return interaction.editReply(payload);
+}
+
 async function validateChallengeAdminInteraction(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) {
@@ -959,7 +1152,7 @@ async function handleQuestionEditToolsButton(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
     if (context.error) return;
     if (mode !== 'edit') {
-        return respondAdminError(interaction, { embeds: [userErrorEmbed('This question workspace is read-only. Run `/verification challenge action:edit` to edit questions.')] });
+        return respondAdminError(interaction, { embeds: [userErrorEmbed('This question workspace is read-only. Run `/verification challenges` to edit questions.')] });
     }
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
@@ -1248,19 +1441,19 @@ async function handleQuestionDetailBackButton(interaction, parts) {
 }
 
 function buildQuestionEditPanelComponents(guildId, userId, challengeId, questionId, effectiveQuestion) {
-    const button = (action, label, style = Discord.ButtonStyle.Primary, ...extraParts) => new Discord.ButtonBuilder()
+    const button = (action, label, style = Discord.ButtonStyle.Secondary, ...extraParts) => new Discord.ButtonBuilder()
         .setCustomId(buildAdminCustomId(action, guildId, userId, challengeId, questionId, ...extraParts))
         .setLabel(label)
         .setStyle(style);
 
-    const buttons = [button('questionEditText', 'Edit Text')];
+    const buttons = [button('questionEditText', 'Text')];
     const generatedImageType = effectiveQuestion.generatedImage?.type;
     const answerType = effectiveQuestion.answer?.type;
     const directionImageIds = generatedImageType === 'gallery-rotation-alignment' ? getConfiguredDirectionImageIds(effectiveQuestion) : [];
-    if (generatedImageType === 'prompt-text') buttons.push(button('questionEditImageText', 'Edit Image Text', Discord.ButtonStyle.Primary, generatedImageType));
-    if (effectiveQuestion.answer?.required === true && answerType === 'text') buttons.push(button('questionEditAnswers', 'Edit Answers', Discord.ButtonStyle.Primary, answerType));
-    if (['gallery-standard', 'gallery-rotation-alignment'].includes(generatedImageType)) buttons.push(button('questionEditImageIds', 'Edit Image IDs', Discord.ButtonStyle.Primary, generatedImageType));
-    if (generatedImageType === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Edit Directions', Discord.ButtonStyle.Primary, generatedImageType, ...directionImageIds));
+    if (generatedImageType === 'prompt-text') buttons.push(button('questionEditImageText', 'Image Text', Discord.ButtonStyle.Secondary, generatedImageType));
+    if (effectiveQuestion.answer?.required === true && answerType === 'text') buttons.push(button('questionEditAnswers', 'Answers', Discord.ButtonStyle.Secondary, answerType));
+    if (['gallery-standard', 'gallery-rotation-alignment'].includes(generatedImageType)) buttons.push(button('questionEditImageIds', 'Image IDs', Discord.ButtonStyle.Secondary, generatedImageType));
+    if (generatedImageType === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Directions', Discord.ButtonStyle.Secondary, generatedImageType, ...directionImageIds));
     buttons.push(button('questionClearPanel', 'Clear Overrides', Discord.ButtonStyle.Danger));
 
     return buildActionRows(buttons);
@@ -1728,13 +1921,43 @@ async function handleVerificationAdminComponentInteraction(interaction) {
     }
     if (parsed.expired) {
         await respondAdminError(interaction, {
-            content: 'This verification admin panel has expired. Please run `/verification challenge action:view` or `/verification challenge action:edit` again.',
+            content: 'This verification admin panel has expired. Please run `/verification config` or `/verification challenges` again.',
         });
         return true;
     }
 
     try {
         switch (parsed.action) {
+            case 'configEdit':
+                await handleConfigPanelButton(interaction, parsed.parts, true, null);
+                return true;
+            case 'configDone':
+                await handleConfigPanelButton(interaction, parsed.parts, false, null);
+                return true;
+            case 'configModeEditor':
+                await handleConfigPanelButton(interaction, parsed.parts, true, 'mode');
+                return true;
+            case 'configActiveChallengesEditor':
+                await handleConfigPanelButton(interaction, parsed.parts, true, 'activeChallenges');
+                return true;
+            case 'configTimersEditor':
+                await showConfigTimersModal(interaction, parsed.parts);
+                return true;
+            case 'configAutokickEditor':
+                await handleConfigPanelButton(interaction, parsed.parts, true, 'autokick');
+                return true;
+            case 'configModeSelect':
+                await handleConfigModeSelect(interaction, parsed.parts);
+                return true;
+            case 'configActiveChallengesSelect':
+                await handleConfigActiveChallengesSelect(interaction, parsed.parts);
+                return true;
+            case 'configAutokickSelect':
+                await handleConfigAutokickSelect(interaction, parsed.parts);
+                return true;
+            case 'challengeSelect':
+                await handleChallengeSelectMenu(interaction, parsed.parts);
+                return true;
             case 'challengeQuestions':
                 await handleChallengeQuestionsButton(interaction, parsed.parts);
                 return true;
@@ -1817,13 +2040,16 @@ async function handleVerificationAdminModalSubmit(interaction) {
     }
     if (parsed.expired) {
         await respondAdminError(interaction, {
-            content: 'This verification admin panel has expired. Please run `/verification challenge action:view` or `/verification challenge action:edit` again.',
+            content: 'This verification admin panel has expired. Please run `/verification config` or `/verification challenges` again.',
         });
         return true;
     }
 
     try {
         switch (parsed.action) {
+            case 'configTimersModal':
+                await handleConfigTimersModalSubmit(interaction, parsed.parts);
+                return true;
             case 'challengeTimers':
                 await handleChallengeTimersModalSubmit(interaction, parsed.parts);
                 return true;
@@ -1859,45 +2085,7 @@ async function handleVerificationAdminModalSubmit(interaction) {
 }
 
 
-async function handleVerificationChallengeCommand(interaction, guildId) {
-    const action = interaction.options.getString('action', true);
-    const idsInput = interaction.options.getString('ids');
-
-    if (action === 'timers') {
-        if (idsInput?.trim()) {
-            const response = { embeds: [userErrorEmbed('The `timers` action does not use challenge IDs. Leave `ids` empty.')] };
-            if (interaction.deferred) return interaction.editReply(response);
-            return interaction.reply({ ...response, flags: Discord.MessageFlags.Ephemeral });
-        }
-
-        return showChallengeTimersModal(interaction, guildId);
-    }
-
-    const verificationSettings = await getVerificationSettings(guildId);
-    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
-
-    if (action === 'active-set') return handleChallengeActiveSet(interaction, guildId, idsInput);
-
-    if (action === 'view') return handleChallengeView(interaction, verificationSettings, enabledChallengeIds, idsInput);
-
-    if (action === 'edit') {
-        const challengeIds = parseIdList(idsInput);
-        if (challengeIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide one challenge ID in `ids` for the `edit` action.')] });
-        if (challengeIds.length > 1) return interaction.editReply({ embeds: [userErrorEmbed('The `edit` action accepts only one challenge ID.')] });
-        return sendChallengeOverview(interaction, {
-            guildId,
-            verificationSettings,
-            enabledChallengeIds,
-            challengeId: challengeIds[0],
-            mode: 'edit',
-        });
-    }
-
-    return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge action.')] });
-}
-
-
-async function handleVerificationPostCommand(interaction, guildId, subcommand) {
+async function handleVerificationPostCommand(interaction, guildId) {
     const verificationSettings = await getVerificationSettings(guildId);
     if (verificationSettings.mode === VERIFICATION_MODES.halt) {
         return interaction.editReply({ embeds: [userErrorEmbed('Verification is halted in the Warden settings.')] });
@@ -1906,13 +2094,15 @@ async function handleVerificationPostCommand(interaction, guildId, subcommand) {
     const targetChannel = interaction.options.getChannel('channel', true);
 
     if (!targetChannel?.isTextBased?.()) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid text channel.')] });
+        return interaction.editReply({ embeds: [userErrorEmbed('Please provide a valid text channel or thread.')] });
     }
 
     const welcomeEmbed = buildWelcomeEmbed(verificationSettings);
     const components = buildVerificationPostComponents();
 
-    if (subcommand === 'send') {
+    const action = interaction.options.getString('action', true);
+
+    if (action === 'send') {
         const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
 
         return interaction.editReply(buildVerificationAdminActionCompleted(
@@ -1921,11 +2111,11 @@ async function handleVerificationPostCommand(interaction, guildId, subcommand) {
         ));
     }
 
-    if (subcommand === 'refresh') {
+    if (action === 'refresh') {
         const messageId = interaction.options.getString('message_id');
 
         if (!messageId?.trim()) {
-            return interaction.editReply({ embeds: [userErrorEmbed('Please provide `message_id` for `/verification post refresh`.')] });
+            return interaction.editReply({ embeds: [userErrorEmbed('Please provide `message_id` when using `/verification post action:refresh`.')] });
         }
 
         const message = await fetchVerificationMessageFromChannel(targetChannel, messageId);
@@ -1942,7 +2132,7 @@ async function handleVerificationPostCommand(interaction, guildId, subcommand) {
         ));
     }
 
-    return interaction.editReply({ embeds: [userErrorEmbed('Unknown post command.')] });
+    return interaction.editReply({ embeds: [userErrorEmbed('Unknown verification post action.')] });
 }
 
 function getChallengeIdChoices() {
@@ -1996,35 +2186,8 @@ function buildDelimitedAutocompleteChoices(focusedValue, candidates) {
 }
 
 async function handleVerificationAutocomplete(interaction) {
-    try {
-        const group = interaction.options.getSubcommandGroup(false);
-        const subcommand = interaction.options.getSubcommand(false);
-        const focusedOption = interaction.options.getFocused(true);
-
-        if (!group && subcommand === 'challenge' && focusedOption.name === 'ids') {
-            const action = interaction.options.getString('action');
-            if (action === 'view' || action === 'edit') return interaction.respond(buildChallengeIdAutocompleteChoices(focusedOption.value));
-            if (action === 'active-set') return interaction.respond(buildChallengeIdsAutocompleteChoices(focusedOption.value));
-            return interaction.respond([]);
-        }
-
-        if (focusedOption.name === 'challenge') {
-            return interaction.respond(buildChallengeIdAutocompleteChoices(focusedOption.value));
-        }
-
-
-        if (focusedOption.name === 'challenges') {
-            return interaction.respond(buildChallengeIdsAutocompleteChoices(focusedOption.value));
-        }
-
-    }
-    catch (err) {
-        console.error('Failed to build verification autocomplete choices:', err);
-    }
-
     return interaction.respond([]);
 }
-
 
 
 
@@ -2033,95 +2196,38 @@ module.exports = {
         .setName('verification')
         .setDescription('Manage Warden verification')
         .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
-        .addSubcommandGroup(group => group
+        .addSubcommand(subcommand => subcommand
             .setName('config')
-            .setDescription('Manage global verification settings')
-            .addSubcommand(subcommand => subcommand
-                .setName('status')
-                .setDescription('Show current verification settings'),
-            )
-            .addSubcommand(subcommand => addStringOption(
-                subcommand
-                    .setName('mode-set')
-                    .setDescription('Set the verification mode'),
-                'mode',
-                'Verification mode to use',
-                {
-                    choices: [
-                        { name: 'Challenge', value: VERIFICATION_MODES.challenge },
-                        { name: 'Halt', value: VERIFICATION_MODES.halt },
-                        { name: 'One-Click', value: VERIFICATION_MODES.oneClick },
-                    ],
-                },
-            ))
-            .addSubcommand(subcommand => addStringOption(
-                addStringOption(
-                    subcommand
-                        .setName('autokick-set')
-                        .setDescription('Enable, disable, or update autokick'),
-                    'state',
-                    'Whether verification autokick is enabled',
-                    {
-                        choices: [
-                            { name: 'On', value: 'on' },
-                            { name: 'Off', value: 'off' },
-                        ],
-                    },
-                ),
-                'timer',
-                'Autokick delay, such as 10m, 600s, or 10 minutes',
-                { required: false },
-            )),
-        )
-        .addSubcommandGroup(group => group
+            .setDescription('Show and edit verification configuration'))
+        .addSubcommand(subcommand => subcommand
+            .setName('challenges')
+            .setDescription('Browse and edit verification challenges'))
+        .addSubcommand(subcommand => subcommand
             .setName('post')
-            .setDescription('Manage the public verification post')
-            .addSubcommand(subcommand => subcommand
-                .setName('send')
-                .setDescription('Send a new verification post')
-                .addChannelOption(option => option
-                    .setName('channel')
-                    .setDescription('Verification channel')
-                    .addChannelTypes(Discord.ChannelType.GuildText, Discord.ChannelType.GuildAnnouncement)
-                    .setRequired(true),
-                ),
-            )
-            .addSubcommand(subcommand => subcommand
-                .setName('refresh')
-                .setDescription('Refresh an existing verification post')
-                .addChannelOption(option => option
-                    .setName('channel')
-                    .setDescription('Verification channel')
-                    .addChannelTypes(Discord.ChannelType.GuildText, Discord.ChannelType.GuildAnnouncement)
-                    .setRequired(true),
+            .setDescription('Send or refresh the public verification post')
+            .addStringOption(option => option
+                .setName('action')
+                .setDescription('Choose whether to send a new post or refresh an existing post')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Send', value: 'send' },
+                    { name: 'Refresh', value: 'refresh' },
+                ))
+            .addChannelOption(option => option
+                .setName('channel')
+                .setDescription('Text channel or thread for the verification post')
+                .addChannelTypes(
+                    Discord.ChannelType.GuildText,
+                    Discord.ChannelType.GuildAnnouncement,
+                    Discord.ChannelType.PublicThread,
+                    Discord.ChannelType.PrivateThread,
+                    Discord.ChannelType.AnnouncementThread,
                 )
-                .addStringOption(option => option
-                    .setName('message_id')
-                    .setDescription('Existing verification post message ID')
-                    .setRequired(true),
-                ),
-            ),
-        )
-        .addSubcommand(subcommand => addStringOption(
-            addStringOption(
-                subcommand
-                    .setName('challenge')
-                    .setDescription('Manage verification challenges'),
-                'action',
-                'Challenge action to run',
-                {
-                    choices: [
-                        { name: 'View challenges', value: 'view' },
-                        { name: 'Edit challenge', value: 'edit' },
-                        { name: 'Set active challenges', value: 'active-set' },
-                        { name: 'Set challenge timers', value: 'timers' },
-                    ],
-                },
-            ),
-            'ids',
-            'Challenge ID for view/edit, or IDs for active-set',
-            { required: false, autocomplete: true },
-        )),
+                .setRequired(true))
+            .addStringOption(option => option
+                .setName('message_id')
+                .setDescription('Existing verification post message ID; required only for action:refresh')
+                .setRequired(false))),
     async autocomplete(interaction) {
         return handleVerificationAutocomplete(interaction);
     },
@@ -2131,16 +2237,11 @@ module.exports = {
             const subcommand = interaction.options.getSubcommand();
             const guildId = interaction.guild?.id;
 
-            if (!group && subcommand === 'challenge') {
-                const action = interaction.options.getString('action', true);
-                if (action === 'timers') return handleVerificationChallengeCommand(interaction, guildId);
-            }
-
             await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
-            if (group === 'config') return handleVerificationConfigCommand(interaction, guildId, subcommand);
-            if (group === 'post') return handleVerificationPostCommand(interaction, guildId, subcommand);
-            if (!group && subcommand === 'challenge') return handleVerificationChallengeCommand(interaction, guildId);
+            if (!group && subcommand === 'post') return handleVerificationPostCommand(interaction, guildId);
+            if (!group && subcommand === 'config') return handleVerificationConfigCommand(interaction, guildId);
+            if (!group && subcommand === 'challenges') return handleVerificationChallengesCommand(interaction, guildId);
 
             return interaction.editReply({ embeds: [userErrorEmbed('Unknown verification command.')] });
         }
