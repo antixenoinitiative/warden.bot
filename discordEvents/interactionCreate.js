@@ -265,6 +265,13 @@ const exp = {
                 );
             }
         }
+        if (interaction.isStringSelectMenu?.() && botIdent().activeBot.botName == 'Warden') {
+            const command = interaction.client.commands?.get('verification')
+                ?? bot.commands?.get('verification')
+
+            if (command?.handleComponentInteraction && await command.handleComponentInteraction(interaction)) return
+            if (command?.handleButtonInteraction && await command.handleButtonInteraction(interaction)) return
+        }
         if (interaction.isButton()) {
             //! Placing function callers here allows you to not have to deal with message collectors.
             //! Message collectors have a timeout. This does not force you to use a collection timeframe.

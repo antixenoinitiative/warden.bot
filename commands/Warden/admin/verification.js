@@ -369,7 +369,7 @@ function buildChallengeQuestionsComponents(mode, guildId, userId, challengeId) {
 
     return [new Discord.ActionRowBuilder().addComponents(
         new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('questionSelectOpen', guildId, userId, challengeId))
+            .setCustomId(buildAdminCustomId('questionSelectOpen', mode, guildId, userId, challengeId))
             .setLabel('Select Question')
             .setStyle(Discord.ButtonStyle.Primary),
         new Discord.ButtonBuilder()
@@ -398,7 +398,7 @@ function buildQuestionDetailComponents(mode, guildId, userId, challengeId, quest
     const buttons = [];
     if (mode === 'edit') {
         buttons.push(new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('questionEditTools', guildId, userId, challengeId, questionId))
+            .setCustomId(buildAdminCustomId('questionEditTools', mode, guildId, userId, challengeId, questionId))
             .setLabel('Edit')
             .setStyle(Discord.ButtonStyle.Primary));
     }
@@ -903,7 +903,7 @@ async function handleChallengeOverviewButton(interaction, parts) {
 }
 
 async function handleQuestionSelectOpenButton(interaction, parts) {
-    const [guildId, ownerUserId, challengeId] = parts;
+    const [mode, guildId, ownerUserId, challengeId] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     const challenge = verificationChallenges[challengeId];
@@ -922,6 +922,7 @@ async function handleQuestionSelectOpenButton(interaction, parts) {
     const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
+        mode,
         guildId,
         ownerUserId,
         challengeId,
@@ -932,7 +933,7 @@ async function handleQuestionSelectOpenButton(interaction, parts) {
 }
 
 async function handleQuestionSelectMenu(interaction, parts) {
-    const [guildId, ownerUserId, challengeId] = parts;
+    const [mode, guildId, ownerUserId, challengeId] = parts;
     const selectedQuestionId = interaction.values?.[0];
     if (!selectedQuestionId) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select a question.')] });
     const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, selectedQuestionId]);
@@ -943,6 +944,7 @@ async function handleQuestionSelectMenu(interaction, parts) {
     const effectiveQuestion = resolveQuestion(effectiveChallenge, selectedQuestionId) ?? context.question;
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
+        mode,
         guildId: context.guildId,
         ownerUserId: context.ownerUserId,
         challengeId: context.challengeId,
@@ -953,14 +955,19 @@ async function handleQuestionSelectMenu(interaction, parts) {
 }
 
 async function handleQuestionEditToolsButton(interaction, parts) {
-    const context = await validateQuestionAdminInteraction(interaction, parts);
+    const [mode, guildId, ownerUserId, challengeId, questionId] = parts;
+    const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
     if (context.error) return;
+    if (mode !== 'edit') {
+        return respondAdminError(interaction, { embeds: [userErrorEmbed('This question workspace is read-only. Run `/verification challenge action:edit` to edit questions.')] });
+    }
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
+        mode,
         guildId: context.guildId,
         ownerUserId: context.ownerUserId,
         challengeId: context.challengeId,
@@ -1116,12 +1123,12 @@ function assertQuestionSelectMenuLimit(challenge) {
     }
 }
 
-function buildQuestionSelectRow(guildId, ownerUserId, challengeId, challenge, selectedQuestionId) {
+function buildQuestionSelectRow(mode, guildId, ownerUserId, challengeId, challenge, selectedQuestionId) {
     const questions = getChallengeQuestions(challenge);
     assertQuestionSelectMenuLimit(challenge);
 
     const selectMenu = new Discord.StringSelectMenuBuilder()
-        .setCustomId(buildAdminCustomId('questionSelect', guildId, ownerUserId, challengeId))
+        .setCustomId(buildAdminCustomId('questionSelect', mode, guildId, ownerUserId, challengeId))
         .setPlaceholder('Choose a question...')
         .addOptions(questions.map((question, index) => {
             if (String(question.id ?? '').length > 100) {
@@ -1139,25 +1146,28 @@ function buildQuestionSelectRow(guildId, ownerUserId, challengeId, challenge, se
     return new Discord.ActionRowBuilder().addComponents(selectMenu);
 }
 
-function buildQuestionCollapsedEditComponents(guildId, ownerUserId, challengeId, questionId) {
+function buildQuestionCollapsedEditComponents(mode, guildId, ownerUserId, challengeId, questionId) {
     return [new Discord.ActionRowBuilder().addComponents(
         new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('questionEditTools', guildId, ownerUserId, challengeId, questionId))
+            .setCustomId(buildAdminCustomId('questionEditTools', mode, guildId, ownerUserId, challengeId, questionId))
             .setLabel('Edit')
             .setStyle(Discord.ButtonStyle.Primary),
     )];
 }
 
-function buildQuestionWorkspacePayload({ verificationSettings, guildId, ownerUserId, challengeId, challenge, question, expanded = false }) {
-    const components = [buildQuestionSelectRow(guildId, ownerUserId, challengeId, challenge, question?.id)];
+function buildQuestionWorkspacePayload({ verificationSettings, mode, guildId, ownerUserId, challengeId, challenge, question, expanded = false }) {
+    const components = [buildQuestionSelectRow(mode, guildId, ownerUserId, challengeId, challenge, question?.id)];
     const embeds = [buildQuestionSelectorEmbed(challengeId, challenge, question)];
 
     if (question) {
-        const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, challengeId, question.id));
         embeds.push(buildQuestionDetailEmbed(verificationSettings, challengeId, challenge, question));
-        components.push(...(expanded
-            ? buildQuestionEditPanelComponents(guildId, ownerUserId, challengeId, question.id, effectiveQuestion)
-            : buildQuestionCollapsedEditComponents(guildId, ownerUserId, challengeId, question.id)));
+
+        if (mode === 'edit') {
+            const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, challengeId, question.id));
+            components.push(...(expanded
+                ? buildQuestionEditPanelComponents(guildId, ownerUserId, challengeId, question.id, effectiveQuestion)
+                : buildQuestionCollapsedEditComponents(mode, guildId, ownerUserId, challengeId, question.id)));
+        }
     }
 
     return { embeds, components };
@@ -1709,7 +1719,7 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
     return interaction.editReply({ embeds: [buildChallengeOverviewEmbed(updatedSettings, enabledChallengeIds, challengeId)] });
 }
 
-async function handleVerificationAdminButtonInteraction(interaction) {
+async function handleVerificationAdminComponentInteraction(interaction) {
     const parsed = parseAdminCustomId(interaction.customId);
     if (!parsed) return false;
     if (!hasVerificationAdminPermission(interaction)) {
@@ -2152,7 +2162,10 @@ module.exports = {
     async handleModalSubmit(interaction) {
         return handleVerificationAdminModalSubmit(interaction);
     },
+    async handleComponentInteraction(interaction) {
+        return handleVerificationAdminComponentInteraction(interaction);
+    },
     async handleButtonInteraction(interaction) {
-        return handleVerificationAdminButtonInteraction(interaction);
+        return handleVerificationAdminComponentInteraction(interaction);
     },
 };
