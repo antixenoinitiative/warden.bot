@@ -203,6 +203,7 @@ async function replaceQuestionMessage(interaction, session, options, { forceStor
 
         if (forceStoredMessage && interaction.isButton?.() && !interaction.deferred && !interaction.replied) {
             await interaction.deferUpdate();
+            interaction.wardenVerificationDeferredUpdate = true;
         }
 
         if (interaction.isModalSubmit?.() || forceStoredMessage) {
@@ -562,10 +563,12 @@ async function handleVerifyNext(interaction) {
 
     if (!hasNextScreen(session)) {
         await interaction.deferUpdate();
+        interaction.wardenVerificationDeferredUpdate = true;
         return completeVerification(interaction, session, { successAsFollowUp: true });
     }
 
     await interaction.deferUpdate();
+    interaction.wardenVerificationDeferredUpdate = true;
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     await advanceToScreen(interaction, session, verificationSettings, session.screenIndex + 1, { forceStoredMessage: true });
 }
@@ -584,6 +587,7 @@ async function handleVerifyBack(interaction) {
     }
 
     await interaction.deferUpdate();
+    interaction.wardenVerificationDeferredUpdate = true;
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     await advanceToScreen(interaction, session, verificationSettings, session.screenIndex - 1, { forceStoredMessage: true });
 }
@@ -598,6 +602,7 @@ async function handleVerifyOldVersion(interaction) {
     }
 
     await interaction.deferUpdate();
+    interaction.wardenVerificationDeferredUpdate = true;
     const verificationSettings = await getVerificationSettings(interaction.guild?.id);
     const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
     const legacySession = {
@@ -727,7 +732,7 @@ function getVerificationRoute(interaction) {
 }
 
 async function sendVerificationErrorResponse(interaction, content) {
-    if (interaction.deferred && interaction.isButton?.()) {
+    if (interaction.deferred && interaction.wardenVerificationDeferredUpdate === true) {
         await interaction.followUp({ content, flags: Discord.MessageFlags.Ephemeral });
         return;
     }

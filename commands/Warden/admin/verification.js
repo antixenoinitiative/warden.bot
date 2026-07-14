@@ -952,16 +952,18 @@ async function handleQuestionDetailViewButton(interaction, parts) {
 }
 
 function buildQuestionEditPanelComponents(guildId, userId, challengeId, questionId, effectiveQuestion) {
-    const button = (action, label, style = Discord.ButtonStyle.Primary) => new Discord.ButtonBuilder()
-        .setCustomId(buildAdminCustomId(action, guildId, userId, challengeId, questionId))
+    const button = (action, label, style = Discord.ButtonStyle.Primary, ...extraParts) => new Discord.ButtonBuilder()
+        .setCustomId(buildAdminCustomId(action, guildId, userId, challengeId, questionId, ...extraParts))
         .setLabel(label)
         .setStyle(style);
 
     const buttons = [button('questionEditText', 'Edit Text')];
-    if (effectiveQuestion.generatedImage?.type === 'prompt-text') buttons.push(button('questionEditImageText', 'Edit Image Text'));
-    if (effectiveQuestion.answer?.required === true && effectiveQuestion.answer?.type === 'text') buttons.push(button('questionEditAnswers', 'Edit Answers'));
-    if (['gallery-standard', 'gallery-rotation-alignment'].includes(effectiveQuestion.generatedImage?.type)) buttons.push(button('questionEditImageIds', 'Edit Image IDs'));
-    if (effectiveQuestion.generatedImage?.type === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Edit Directions'));
+    const generatedImageType = effectiveQuestion.generatedImage?.type;
+    const answerType = effectiveQuestion.answer?.type;
+    if (generatedImageType === 'prompt-text') buttons.push(button('questionEditImageText', 'Edit Image Text', Discord.ButtonStyle.Primary, generatedImageType));
+    if (effectiveQuestion.answer?.required === true && answerType === 'text') buttons.push(button('questionEditAnswers', 'Edit Answers', Discord.ButtonStyle.Primary, answerType));
+    if (['gallery-standard', 'gallery-rotation-alignment'].includes(generatedImageType)) buttons.push(button('questionEditImageIds', 'Edit Image IDs', Discord.ButtonStyle.Primary, generatedImageType));
+    if (generatedImageType === 'gallery-rotation-alignment') buttons.push(button('questionEditDirections', 'Edit Directions', Discord.ButtonStyle.Primary, generatedImageType));
     buttons.push(button('questionClearPanel', 'Clear Overrides', Discord.ButtonStyle.Danger));
 
     return buildActionRows(buttons);
@@ -1052,16 +1054,21 @@ function getConfiguredDirectionImageIds(question) {
     ].map((imageId) => String(imageId ?? '').trim()).filter(Boolean))];
 }
 
-function buildQuestionDirectionsPageComponents(guildId, userId, challengeId, questionId, directionImageIds) {
+function buildQuestionDirectionsPageComponents(guildId, userId, challengeId, questionId, directionImageIds, generatedImageType = 'gallery-rotation-alignment') {
     const buttons = [];
     for (let index = 0; index < directionImageIds.length; index += 5) {
         const pageImageIds = directionImageIds.slice(index, index + 5);
         buttons.push(new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('questionDirectionsPage', guildId, userId, challengeId, questionId, ...pageImageIds))
+            .setCustomId(buildAdminCustomId('questionDirectionsPage', guildId, userId, challengeId, questionId, generatedImageType, ...pageImageIds))
             .setLabel(`Directions ${index + 1}-${index + pageImageIds.length}`)
             .setStyle(Discord.ButtonStyle.Secondary));
     }
     return buildActionRows(buttons);
+}
+
+function getDirectionImageIdsFromModalParts(parts) {
+    const offset = parts[4] === 'gallery-rotation-alignment' ? 5 : 4;
+    return parts.slice(offset).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
 }
 
 function buildModalRow(input) {
@@ -1089,7 +1096,8 @@ function showQuestionTextModal(interaction, parts) {
 
 function showQuestionImageTextModal(interaction, parts) {
     return showQuestionModal(interaction, parts, (context, effectiveQuestion) => {
-        if (effectiveQuestion.generatedImage?.type !== 'prompt-text') throw new Error('This question does not use generated prompt image text.');
+        const generatedImageType = parts[4] ?? effectiveQuestion.generatedImage?.type;
+        if (generatedImageType !== 'prompt-text') throw new Error('This question does not use generated prompt image text.');
         return new Discord.ModalBuilder()
             .setCustomId(buildAdminCustomId('questionImageTextModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id))
             .setTitle('Edit Prompt Image Text')
@@ -1103,7 +1111,8 @@ function showQuestionImageTextModal(interaction, parts) {
 
 function showQuestionAnswersModal(interaction, parts) {
     return showQuestionModal(interaction, parts, (context, effectiveQuestion) => {
-        if (effectiveQuestion.answer?.required !== true || effectiveQuestion.answer?.type !== 'text') throw new Error('This question does not use editable text answers.');
+        const answerType = parts[4] ?? effectiveQuestion.answer?.type;
+        if (answerType !== 'text') throw new Error('This question does not use editable text answers.');
         return new Discord.ModalBuilder()
             .setCustomId(buildAdminCustomId('questionAnswersModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id))
             .setTitle('Edit Accepted Answers')
@@ -1117,7 +1126,7 @@ function showQuestionAnswersModal(interaction, parts) {
 
 function showQuestionImageIdsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, (context, effectiveQuestion) => {
-        const type = effectiveQuestion.generatedImage?.type;
+        const type = parts[4] ?? effectiveQuestion.generatedImage?.type;
         if (!['gallery-standard', 'gallery-rotation-alignment'].includes(type)) throw new Error('This question does not use editable image IDs.');
         const roles = type === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
         return new Discord.ModalBuilder()
@@ -1147,14 +1156,15 @@ async function sendQuestionDirectionsPageLauncher(interaction, parts) {
 
     return interaction.editReply({
         content: `Choose a direction page to edit for **${context.challengeId}/${context.question.id}**.`,
-        components: buildQuestionDirectionsPageComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, directionImageIds),
+        components: buildQuestionDirectionsPageComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, directionImageIds, effectiveQuestion.generatedImage?.type),
     });
 }
 
 function showQuestionDirectionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, (context, question) => {
-        if (question.generatedImage?.type !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
-        const pageImageIds = parts.slice(4).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+        const generatedImageType = parts[4] ?? question.generatedImage?.type;
+        if (generatedImageType !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
+        const pageImageIds = getDirectionImageIdsFromModalParts(parts);
         const directionImageIds = pageImageIds;
         if (directionImageIds.length < 1) {
             throw new Error('This direction page has expired. Please open the directions launcher again.');
@@ -1304,7 +1314,7 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
     if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
 
-    const submittedImageIds = parts.slice(4).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+    const submittedImageIds = getDirectionImageIdsFromModalParts(parts);
     const directionUpdates = [];
     for (const [index, imageId] of submittedImageIds.entries()) {
         const directionsInput = getModalTextInput(interaction, `dir_${index}`);
