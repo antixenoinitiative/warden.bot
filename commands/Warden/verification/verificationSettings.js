@@ -1129,6 +1129,52 @@ async function clearQuestionOverrideField(guildId, challengeId, questionId, fiel
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+async function clearQuestionOverrideFields(guildId, challengeId, questionId, fields, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
+        const updatedQuestion = {
+            ...question,
+            generatedImage: { ...(question.generatedImage ?? {}) },
+            answer: { ...(question.answer ?? {}) },
+        };
+
+        for (const field of fields) {
+            switch (field) {
+                case 'label':
+                    delete updatedQuestion.label;
+                    break;
+                case 'text':
+                    delete updatedQuestion.text;
+                    break;
+                case 'separateStep':
+                    delete updatedQuestion.separateStep;
+                    break;
+                case 'generatedImage.text':
+                    delete updatedQuestion.generatedImage.text;
+                    break;
+                case 'generatedImage.imageIds':
+                    delete updatedQuestion.generatedImage.imageIds;
+                    break;
+                case 'generatedImage.imageDirections':
+                    delete updatedQuestion.generatedImage.imageDirections;
+                    break;
+                case 'answer.accepted':
+                    delete updatedQuestion.answer.accepted;
+                    break;
+                default:
+                    throw new Error(`Unsupported verification question override field: ${field}`);
+            }
+        }
+
+        if (Object.keys(updatedQuestion.generatedImage).length < 1) delete updatedQuestion.generatedImage;
+        if (Object.keys(updatedQuestion.answer).length < 1) delete updatedQuestion.answer;
+
+        return updatedQuestion;
+    });
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 module.exports = {
     VERIFICATION_MODES,
     VALID_VERIFICATION_MODES,
@@ -1170,4 +1216,5 @@ module.exports = {
     setQuestionImageDirectionOverrides,
     clearQuestionImageDirections,
     clearQuestionOverrideField,
+    clearQuestionOverrideFields,
 };

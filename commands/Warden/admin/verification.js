@@ -20,16 +20,29 @@ const {
 const { getVerificationImagePool } = require('../verification/verificationImages');
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
+const ADMIN_CUSTOM_ID_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const QUESTION_DETAIL_SELECTOR_PAGE_SIZE = 20;
 const CHALLENGE_TITLE_MAX_LENGTH = 256;
 const CHALLENGE_DESCRIPTION_MAX_LENGTH = 1024;
 const adminCustomIdSessions = new Map();
 let adminCustomIdSequence = 0;
 
-function buildAdminSessionKey(action, parts) {
-    adminCustomIdSequence = (adminCustomIdSequence + 1) % Number.MAX_SAFE_INTEGER;
+function pruneAdminCustomIdSessions() {
+    const now = Date.now();
+    for (const [key, session] of adminCustomIdSessions.entries()) {
+        if (now - Number(session.createdAt ?? 0) > ADMIN_CUSTOM_ID_SESSION_TTL_MS) {
+            adminCustomIdSessions.delete(key);
+        }
+    }
+
     while (adminCustomIdSessions.size > 1000) {
         adminCustomIdSessions.delete(adminCustomIdSessions.keys().next().value);
     }
+}
+
+function buildAdminSessionKey(action, parts) {
+    pruneAdminCustomIdSessions();
+    adminCustomIdSequence = (adminCustomIdSequence + 1) % Number.MAX_SAFE_INTEGER;
     const key = `${Date.now().toString(36)}${adminCustomIdSequence.toString(36)}`;
     adminCustomIdSessions.set(key, { action: String(action), parts: parts.map(String), createdAt: Date.now() });
     return key;
@@ -48,6 +61,7 @@ function parseAdminCustomId(customId) {
     const parts = String(customId ?? '').split(':');
     if (parts[0] !== ADMIN_CUSTOM_ID_PREFIX) return null;
 
+    pruneAdminCustomIdSessions();
     const session = adminCustomIdSessions.get(parts[2]);
     if (session) return { action: session.action, parts: session.parts };
 
@@ -84,6 +98,7 @@ const {
     setQuestionImageIdOverrides,
     setQuestionImageDirectionOverrides,
     clearQuestionOverrideField,
+    clearQuestionOverrideFields,
 } = require('../verification/verificationSettings');
 
 function userErrorEmbed(message) {
@@ -696,28 +711,25 @@ function setModalInputDescription(input, description) {
     return input;
 }
 
-function buildTimerInput(customId, label, currentValue) {
+function buildTimerInput(customId, label, placeholder) {
     return new Discord.TextInputBuilder()
         .setCustomId(customId)
         .setLabel(label)
         .setStyle(Discord.TextInputStyle.Short)
         .setRequired(false)
-        .setPlaceholder(`Current: ${currentValue}`.slice(0, 100));
+        .setPlaceholder(placeholder);
 }
 
 async function showChallengeTimersModal(interaction, guildId) {
-    const verificationSettings = await getVerificationSettings(guildId);
-    const expiryValue = formatDuration(verificationSettings.challengeExpirySeconds);
-    const cooldownValue = formatDuration(verificationSettings.cooldownSeconds);
     const modal = new Discord.ModalBuilder()
         .setCustomId(buildAdminCustomId('challengeTimers', interaction.guild?.id ?? guildId, interaction.user.id))
         .setTitle('Verification Timers')
         .addComponents(
             new Discord.ActionRowBuilder().addComponents(
-                buildTimerInput('expiry_timer', 'Expiry Timer', expiryValue),
+                buildTimerInput('expiry_timer', 'Expiry Timer', '10m, 600s, or leave empty'),
             ),
             new Discord.ActionRowBuilder().addComponents(
-                buildTimerInput('retry_cooldown', 'Retry Cooldown', cooldownValue),
+                buildTimerInput('retry_cooldown', 'Retry Cooldown', '60s, 1m, or leave empty'),
             ),
         );
 
@@ -785,31 +797,19 @@ async function handleChallengeDetailsButton(interaction, parts) {
     const challenge = verificationChallenges[challengeId];
     if (!challenge) return interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
 
-    const verificationSettings = await getVerificationSettings(guildId);
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const questions = challenge.questions ?? [];
 
     if (mode === 'edit') {
-        await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-        await interaction.editReply({ content: questions.length ? `Sending editable question details for **${challengeId}**...` : `No questions are configured for **${challengeId}**.` });
-        for (const question of questions) {
-            await interaction.followUp({
-                embeds: [buildQuestionDetailEmbed(verificationSettings, challengeId, challenge, question)],
-                components: buildQuestionDetailComponents(mode, guildId, ownerUserId, challengeId, question.id),
-                flags: Discord.MessageFlags.Ephemeral,
-            });
-        }
-        return;
+        return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, challenge, questions, 0);
     }
 
+    const verificationSettings = await getVerificationSettings(guildId);
     const embeds = questions.map((question) => buildQuestionDetailEmbed(verificationSettings, challengeId, challenge, question));
-    if (embeds.length < 1) return interaction.reply({ content: `No questions are configured for **${challengeId}**.`, flags: Discord.MessageFlags.Ephemeral });
-    if (embeds.length <= 10) return interaction.reply({ embeds, flags: Discord.MessageFlags.Ephemeral });
+    if (embeds.length < 1) return interaction.editReply({ content: `No questions are configured for **${challengeId}**.` });
+    if (embeds.length <= 10) return interaction.editReply({ embeds });
 
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    await interaction.editReply({ embeds: embeds.slice(0, 10) });
-    for (let index = 10; index < embeds.length; index += 10) {
-        await interaction.followUp({ embeds: embeds.slice(index, index + 10), flags: Discord.MessageFlags.Ephemeral });
-    }
+    return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, challenge, questions, 0);
 }
 
 function buildChallengeTextInput(customId, label, currentValue, style, maxLength) {
@@ -835,14 +835,12 @@ async function showChallengeEditModalFromButton(interaction, parts) {
     const challenge = verificationChallenges[challengeId];
     if (!challenge) return interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
 
-    const verificationSettings = await getVerificationSettings(guildId);
-    const override = verificationSettings.challengeOverrides?.[challengeId] ?? {};
     const modal = new Discord.ModalBuilder()
         .setCustomId(buildAdminCustomId('challengeEditModal', guildId, ownerUserId, challengeId))
         .setTitle('Edit Challenge')
         .addComponents(
-            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_title', 'Challenge Title', override.title ?? challenge.title, Discord.TextInputStyle.Short, CHALLENGE_TITLE_MAX_LENGTH)),
-            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_description', 'Challenge Description', override.description ?? challenge.description, Discord.TextInputStyle.Paragraph, CHALLENGE_DESCRIPTION_MAX_LENGTH)),
+            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_title', 'Challenge Title', challenge.title, Discord.TextInputStyle.Short, CHALLENGE_TITLE_MAX_LENGTH)),
+            new Discord.ActionRowBuilder().addComponents(buildChallengeTextInput('challenge_description', 'Challenge Description', challenge.description, Discord.TextInputStyle.Paragraph, CHALLENGE_DESCRIPTION_MAX_LENGTH)),
         );
 
     return interaction.showModal(modal);
@@ -882,6 +880,75 @@ function buildActionRows(buttons) {
         rows.push(new Discord.ActionRowBuilder().addComponents(...buttons.slice(index, index + 5)));
     }
     return rows;
+}
+
+function truncateButtonLabel(label, maxLength = 80) {
+    const text = String(label ?? '');
+    return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}…`;
+}
+
+function buildQuestionDetailSelectorComponents(mode, guildId, ownerUserId, challengeId, questions, pageIndex) {
+    const totalPages = Math.max(1, Math.ceil(questions.length / QUESTION_DETAIL_SELECTOR_PAGE_SIZE));
+    const safePageIndex = Math.min(Math.max(Number(pageIndex) || 0, 0), totalPages - 1);
+    const start = safePageIndex * QUESTION_DETAIL_SELECTOR_PAGE_SIZE;
+    const questionButtons = questions.slice(start, start + QUESTION_DETAIL_SELECTOR_PAGE_SIZE).map((question, index) => new Discord.ButtonBuilder()
+        .setCustomId(buildAdminCustomId('questionDetailView', mode, guildId, ownerUserId, challengeId, question.id))
+        .setLabel(truncateButtonLabel(`${start + index + 1} ${question.id}`))
+        .setStyle(Discord.ButtonStyle.Secondary));
+
+    const navButtons = [];
+    if (totalPages > 1 && safePageIndex > 0) {
+        navButtons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionDetailPage', mode, guildId, ownerUserId, challengeId, String(safePageIndex - 1)))
+            .setLabel('Previous')
+            .setStyle(Discord.ButtonStyle.Primary));
+    }
+    if (totalPages > 1 && safePageIndex + 1 < totalPages) {
+        navButtons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionDetailPage', mode, guildId, ownerUserId, challengeId, String(safePageIndex + 1)))
+            .setLabel('Next')
+            .setStyle(Discord.ButtonStyle.Primary));
+    }
+
+    return buildActionRows([...questionButtons, ...navButtons]);
+}
+
+async function sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, challenge, questions, pageIndex) {
+    if (questions.length < 1) {
+        return interaction.editReply({ content: `No questions are configured for **${challengeId}**.`, components: [] });
+    }
+
+    const totalPages = Math.max(1, Math.ceil(questions.length / QUESTION_DETAIL_SELECTOR_PAGE_SIZE));
+    const safePageIndex = Math.min(Math.max(Number(pageIndex) || 0, 0), totalPages - 1);
+    const start = safePageIndex * QUESTION_DETAIL_SELECTOR_PAGE_SIZE;
+    const end = Math.min(start + QUESTION_DETAIL_SELECTOR_PAGE_SIZE, questions.length);
+
+    return interaction.editReply({
+        content: `Choose a question to view for **${challengeId}** (${start + 1}-${end} of ${questions.length}).`,
+        components: buildQuestionDetailSelectorComponents(mode, guildId, ownerUserId, challengeId, questions, safePageIndex),
+    });
+}
+
+async function handleQuestionDetailPageButton(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId, pageIndex = '0'] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.reply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')], flags: Discord.MessageFlags.Ephemeral });
+    const challenge = verificationChallenges[challengeId];
+    if (!challenge) return interaction.reply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], flags: Discord.MessageFlags.Ephemeral });
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, challenge, challenge.questions ?? [], Number(pageIndex) || 0);
+}
+
+async function handleQuestionDetailViewButton(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId, questionId] = parts;
+    const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
+    if (context.error) return;
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    return interaction.editReply({
+        embeds: [buildQuestionDetailEmbed(verificationSettings, context.challengeId, context.challenge, context.question)],
+        components: buildQuestionDetailComponents(mode, context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+    });
 }
 
 function buildQuestionEditPanelComponents(guildId, userId, challengeId, questionId, effectiveQuestion) {
@@ -929,8 +996,9 @@ function buildQuestionEditPanelPayload(verificationSettings, guildId, userId, ch
 async function sendQuestionEditPanel(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(context.guildId);
-    return interaction.reply({
+    return interaction.editReply({
         ...buildQuestionEditPanelPayload(
             verificationSettings,
             context.guildId,
@@ -939,7 +1007,6 @@ async function sendQuestionEditPanel(interaction, parts) {
             context.challenge,
             context.question,
         ),
-        flags: Discord.MessageFlags.Ephemeral,
     });
 }
 
@@ -1004,21 +1071,19 @@ function buildModalRow(input) {
 async function showQuestionModal(interaction, parts, buildModal) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
-    const modal = await buildModal(context, effectiveQuestion);
+    const modal = await buildModal(context, context.question);
     if (!modal) return;
     return interaction.showModal(modal);
 }
 
 function showQuestionTextModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, effectiveQuestion) => new Discord.ModalBuilder()
+    return showQuestionModal(interaction, parts, (context, question) => new Discord.ModalBuilder()
         .setCustomId(buildAdminCustomId('questionTextModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id))
         .setTitle('Edit Question Text')
         .addComponents(
-            buildModalRow(buildOptionalTextInput('label', 'Label', { placeholder: effectiveQuestion.label ?? 'Leave empty for no change', description: effectiveQuestion.label ? `Current: ${effectiveQuestion.label}` : undefined, maxLength: 100 })),
-            buildModalRow(buildOptionalTextInput('text', 'Question Text', { style: Discord.TextInputStyle.Paragraph, placeholder: 'Leave empty for no change', description: effectiveQuestion.text ? `Current: ${String(effectiveQuestion.text).slice(0, 90)}` : undefined })),
-            buildModalRow(buildOptionalTextInput('separate_step', 'Separate Step', { placeholder: 'true, false, or leave empty', description: `Current: ${String(effectiveQuestion.separateStep === true)}`, maxLength: 5 })),
+            buildModalRow(buildOptionalTextInput('label', 'Label', { placeholder: question.label ?? 'Leave empty for no change', description: 'Leave empty for no change.', maxLength: 100 })),
+            buildModalRow(buildOptionalTextInput('text', 'Question Text', { style: Discord.TextInputStyle.Paragraph, placeholder: 'Leave empty for no change', description: 'Leave empty for no change.' })),
+            buildModalRow(buildOptionalTextInput('separate_step', 'Separate Step', { placeholder: 'true, false, or leave empty', description: 'Leave empty for no change.', maxLength: 5 })),
         ));
 }
 
@@ -1030,8 +1095,8 @@ function showQuestionImageTextModal(interaction, parts) {
             .setTitle('Edit Prompt Image Text')
             .addComponents(buildModalRow(buildOptionalTextInput('image_text', 'Generated Image Text', {
                 style: Discord.TextInputStyle.Paragraph,
-                placeholder: effectiveQuestion.generatedImage?.text ?? 'Leave empty for no change',
-                description: effectiveQuestion.generatedImage?.text ? `Current: ${String(effectiveQuestion.generatedImage.text).slice(0, 90)}` : undefined,
+                placeholder: 'Leave empty for no change',
+                description: 'Leave empty for no change.',
             })));
     });
 }
@@ -1066,38 +1131,43 @@ function showQuestionImageIdsModal(interaction, parts) {
     });
 }
 
+async function sendQuestionDirectionsPageLauncher(interaction, parts) {
+    const context = await validateQuestionAdminInteraction(interaction, parts);
+    if (context.error) return;
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
+    if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') {
+        return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
+    }
+    const directionImageIds = getConfiguredDirectionImageIds(effectiveQuestion);
+    if (directionImageIds.length < 1) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')] });
+    }
+
+    return interaction.editReply({
+        content: `Choose a direction page to edit for **${context.challengeId}/${context.question.id}**.`,
+        components: buildQuestionDirectionsPageComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, directionImageIds),
+    });
+}
+
 function showQuestionDirectionsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, async (context, effectiveQuestion) => {
-        if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
+    return showQuestionModal(interaction, parts, (context, question) => {
+        if (question.generatedImage?.type !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
         const pageImageIds = parts.slice(4).map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
-        const configuredDirectionImageIds = getConfiguredDirectionImageIds(effectiveQuestion);
-        const directionImageIds = pageImageIds.length > 0 ? pageImageIds : configuredDirectionImageIds;
+        const directionImageIds = pageImageIds;
         if (directionImageIds.length < 1) {
-            await interaction.reply({
-                embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')],
-                flags: Discord.MessageFlags.Ephemeral,
-            });
-            return undefined;
-        }
-        if (directionImageIds.length > 5) {
-            await interaction.reply({
-                content: `This question has ${directionImageIds.length} configured images with directions. Discord modals can only show 5 fields at once. Choose a page to edit.`,
-                components: buildQuestionDirectionsPageComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, directionImageIds),
-                flags: Discord.MessageFlags.Ephemeral,
-            });
-            return undefined;
+            throw new Error('This direction page has expired. Please open the directions launcher again.');
         }
 
-        const imageDirections = effectiveQuestion.generatedImage?.imageDirections ?? {};
         return new Discord.ModalBuilder()
             .setCustomId(buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, ...directionImageIds))
             .setTitle('Edit Image Directions')
             .addComponents(...directionImageIds.map((imageId, index) => {
-                const currentDirections = Array.isArray(imageDirections[imageId]) ? imageDirections[imageId].join(',') : '';
                 return buildModalRow(buildOptionalTextInput(`dir_${index}`, truncateModalLabel(imageId), {
                     style: Discord.TextInputStyle.Short,
-                    placeholder: currentDirections || '0,90,180',
-                    description: currentDirections ? `Current: ${currentDirections}. Leave empty for no change.` : 'Leave empty for no change.',
+                    placeholder: '0,90,180',
+                    description: 'Leave empty for no change.',
                 }));
             }));
     });
@@ -1277,11 +1347,9 @@ async function handleQuestionClearButton(interaction, parts) {
         'separate-step': 'separateStep',
     };
 
-    let updatedSettings = await getVerificationSettings(context.guildId);
+    let updatedSettings;
     if (field === 'all') {
-        for (const clearField of Object.values(clearMap)) {
-            updatedSettings = await clearQuestionOverrideField(context.guildId, context.challengeId, context.question.id, clearField, interaction.user.id);
-        }
+        updatedSettings = await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, Object.values(clearMap), interaction.user.id);
     }
     else {
         const mappedField = clearMap[field];
@@ -1353,10 +1421,16 @@ async function handleVerificationAdminButtonInteraction(interaction) {
                 await showQuestionImageIdsModal(interaction, parsed.parts);
                 return true;
             case 'questionEditDirections':
-                await showQuestionDirectionsModal(interaction, parsed.parts);
+                await sendQuestionDirectionsPageLauncher(interaction, parsed.parts);
                 return true;
             case 'questionDirectionsPage':
                 await showQuestionDirectionsModal(interaction, parsed.parts);
+                return true;
+            case 'questionDetailPage':
+                await handleQuestionDetailPageButton(interaction, parsed.parts);
+                return true;
+            case 'questionDetailView':
+                await handleQuestionDetailViewButton(interaction, parsed.parts);
                 return true;
             case 'questionClearPanel':
                 await sendQuestionClearPanel(interaction, parsed.parts);
