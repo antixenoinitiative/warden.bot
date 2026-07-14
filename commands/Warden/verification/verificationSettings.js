@@ -867,11 +867,55 @@ async function setChallengeMetaOverride(guildId, challengeId, data, updatedBy) {
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+async function updateChallengeMetaOverrides(guildId, challengeId, patch, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, (currentChallenge) => ({
+        ...currentChallenge,
+        ...(Object.prototype.hasOwnProperty.call(patch ?? {}, 'title') ? { title: patch.title } : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch ?? {}, 'description') ? { description: patch.description } : {}),
+        ...(Object.prototype.hasOwnProperty.call(patch ?? {}, 'color') ? { color: patch.color } : {}),
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 async function setQuestionTextOverride(guildId, challengeId, questionId, text, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
     const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
         ...question,
         text,
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function setQuestionLabelOverride(guildId, challengeId, questionId, label, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        label,
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function setQuestionSeparateStepOverride(guildId, challengeId, questionId, separateStep, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        separateStep: separateStep === true || separateStep === 'true' || separateStep === 1 || separateStep === '1',
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
+async function setQuestionCommonOverrides(guildId, challengeId, questionId, data, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'label') ? { label: data.label } : {}),
+        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'text') ? { text: data.text } : {}),
+        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'separateStep') ? { separateStep: data.separateStep === true || data.separateStep === 'true' || data.separateStep === 1 || data.separateStep === '1' } : {}),
     }));
 
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
@@ -921,6 +965,28 @@ async function setQuestionImageIds(guildId, challengeId, questionId, role, image
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+async function setQuestionImageIdOverrides(guildId, challengeId, questionId, roleImageIds, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const normalizedRoleImageIds = Object.entries(roleImageIds ?? {}).reduce((updates, [role, imageIds]) => {
+        if (!ALLOWED_IMAGE_ROLES.has(role)) throw new Error(`Unsupported verification image role: ${role}`);
+        updates[role] = normalizeStringArray(imageIds);
+        return updates;
+    }, {});
+
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        generatedImage: {
+            ...(question.generatedImage ?? {}),
+            imageIds: {
+                ...(question.generatedImage?.imageIds ?? {}),
+                ...normalizedRoleImageIds,
+            },
+        },
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 async function clearQuestionImageIds(guildId, challengeId, questionId, role, updatedBy) {
     if (!ALLOWED_IMAGE_ROLES.has(role)) throw new Error(`Unsupported verification image role: ${role}`);
     const currentSettings = await getVerificationSettings(guildId);
@@ -959,6 +1025,29 @@ async function setQuestionImageDirections(guildId, challengeId, questionId, imag
 
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
+
+async function setQuestionImageDirectionOverrides(guildId, challengeId, questionId, imageDirectionUpdates, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const normalizedUpdates = Object.entries(imageDirectionUpdates ?? {}).reduce((updates, [imageId, degrees]) => {
+        const normalizedImageId = normalizeString(imageId);
+        if (normalizedImageId) updates[normalizedImageId] = normalizeDirectionList(degrees);
+        return updates;
+    }, {});
+
+    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
+        ...question,
+        generatedImage: {
+            ...(question.generatedImage ?? {}),
+            imageDirections: {
+                ...(question.generatedImage?.imageDirections ?? {}),
+                ...normalizedUpdates,
+            },
+        },
+    }));
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+}
+
 
 async function clearQuestionImageDirections(guildId, challengeId, questionId, imageIds, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
@@ -1067,12 +1156,18 @@ module.exports = {
     setCooldownSeconds,
     setAutokickSettings,
     setChallengeMetaOverride,
+    updateChallengeMetaOverrides,
     setQuestionTextOverride,
+    setQuestionLabelOverride,
+    setQuestionSeparateStepOverride,
+    setQuestionCommonOverrides,
     setQuestionImageTextOverride,
     setQuestionAnswerOverrides,
     setQuestionImageIds,
+    setQuestionImageIdOverrides,
     clearQuestionImageIds,
     setQuestionImageDirections,
+    setQuestionImageDirectionOverrides,
     clearQuestionImageDirections,
     clearQuestionOverrideField,
 };

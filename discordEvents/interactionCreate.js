@@ -273,6 +273,12 @@ const exp = {
             // }
             if (botIdent().activeBot.botName == 'Warden') {
                 if (await handleVerificationInteraction(interaction)) return
+
+                const command = interaction.client.commands?.get('verification')
+                    ?? bot.commands?.get('verification')
+
+                if (command?.handleButtonInteraction && await command.handleButtonInteraction(interaction)) return
+
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)
