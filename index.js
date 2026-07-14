@@ -146,7 +146,7 @@ function mainOperation(){
 			try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
-				const { getMissingChallengeOverrideRequirements } = require('./commands/Warden/verification/verificationChallenges')
+				const { getMissingChallengeOverrideRequirements } = require('./commands/Warden/verification/verificationChallenges/verificationChallenges')
 
 				await ensureVerificationSettingsTable()
 				const verificationSettings = await getVerificationSettings(process.env.GUILDID)

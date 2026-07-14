@@ -14,7 +14,7 @@ const {
     screenRequiresAnswer,
     screenAllowsBack,
     validateScreenAnswers,
-} = require('./verificationChallenges');
+} = require('./verificationChallenges/verificationChallenges');
 const {
     GALLERY_IMAGE_FETCH_TIMEOUT_CODE,
     prepareQuestionAssets,

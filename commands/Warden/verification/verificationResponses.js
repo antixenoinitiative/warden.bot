@@ -5,7 +5,7 @@ const {
     screenRequiresAnswer,
     getScreenRequiredAnswerQuestions,
     screenAllowsBack,
-} = require('./verificationChallenges');
+} = require('./verificationChallenges/verificationChallenges');
 const {
     getQuestionAssetFiles,
     getQuestionDisplayItems,
