@@ -2085,7 +2085,7 @@ async function handleVerificationAdminModalSubmit(interaction) {
 }
 
 
-async function handleVerificationPostCommand(interaction, guildId, subcommand) {
+async function handleVerificationPostCommand(interaction, guildId) {
     const verificationSettings = await getVerificationSettings(guildId);
     if (verificationSettings.mode === VERIFICATION_MODES.halt) {
         return interaction.editReply({ embeds: [userErrorEmbed('Verification is halted in the Warden settings.')] });
@@ -2100,7 +2100,9 @@ async function handleVerificationPostCommand(interaction, guildId, subcommand) {
     const welcomeEmbed = buildWelcomeEmbed(verificationSettings);
     const components = buildVerificationPostComponents();
 
-    if (subcommand === 'send') {
+    const action = interaction.options.getString('action', true);
+
+    if (action === 'send') {
         const message = await targetChannel.send({ embeds: [welcomeEmbed], components });
 
         return interaction.editReply(buildVerificationAdminActionCompleted(
@@ -2109,11 +2111,11 @@ async function handleVerificationPostCommand(interaction, guildId, subcommand) {
         ));
     }
 
-    if (subcommand === 'refresh') {
+    if (action === 'refresh') {
         const messageId = interaction.options.getString('message_id');
 
         if (!messageId?.trim()) {
-            return interaction.editReply({ embeds: [userErrorEmbed('Please provide `message_id` for `/verification post refresh`.')] });
+            return interaction.editReply({ embeds: [userErrorEmbed('Please provide `message_id` when using `/verification post action:refresh`.')] });
         }
 
         const message = await fetchVerificationMessageFromChannel(targetChannel, messageId);
@@ -2130,7 +2132,7 @@ async function handleVerificationPostCommand(interaction, guildId, subcommand) {
         ));
     }
 
-    return interaction.editReply({ embeds: [userErrorEmbed('Unknown post command.')] });
+    return interaction.editReply({ embeds: [userErrorEmbed('Unknown verification post action.')] });
 }
 
 function getChallengeIdChoices() {
@@ -2200,35 +2202,26 @@ module.exports = {
         .addSubcommand(subcommand => subcommand
             .setName('challenges')
             .setDescription('Browse and edit verification challenges'))
-        .addSubcommandGroup(group => group
+        .addSubcommand(subcommand => subcommand
             .setName('post')
-            .setDescription('Manage the public verification post')
-            .addSubcommand(subcommand => subcommand
-                .setName('send')
-                .setDescription('Send a new verification post')
-                .addChannelOption(option => option
-                    .setName('channel')
-                    .setDescription('Verification channel')
-                    .addChannelTypes(Discord.ChannelType.GuildText, Discord.ChannelType.GuildAnnouncement)
-                    .setRequired(true),
-                ),
-            )
-            .addSubcommand(subcommand => subcommand
-                .setName('refresh')
-                .setDescription('Refresh an existing verification post')
-                .addChannelOption(option => option
-                    .setName('channel')
-                    .setDescription('Verification channel')
-                    .addChannelTypes(Discord.ChannelType.GuildText, Discord.ChannelType.GuildAnnouncement)
-                    .setRequired(true),
-                )
-                .addStringOption(option => option
-                    .setName('message_id')
-                    .setDescription('Existing verification post message ID')
-                    .setRequired(true),
-                ),
-            ),
-        ),
+            .setDescription('Send or refresh the public verification post')
+            .addStringOption(option => option
+                .setName('action')
+                .setDescription('Choose whether to send a new post or refresh an existing post')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'Send', value: 'send' },
+                    { name: 'Refresh', value: 'refresh' },
+                ))
+            .addChannelOption(option => option
+                .setName('channel')
+                .setDescription('Text channel for the verification post')
+                .addChannelTypes(Discord.ChannelType.GuildText, Discord.ChannelType.GuildAnnouncement)
+                .setRequired(true))
+            .addStringOption(option => option
+                .setName('message_id')
+                .setDescription('Existing verification post message ID; required only for action:refresh')
+                .setRequired(false))),
     async autocomplete(interaction) {
         return handleVerificationAutocomplete(interaction);
     },
@@ -2240,7 +2233,7 @@ module.exports = {
 
             await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
-            if (group === 'post') return handleVerificationPostCommand(interaction, guildId, subcommand);
+            if (!group && subcommand === 'post') return handleVerificationPostCommand(interaction, guildId);
             if (!group && subcommand === 'config') return handleVerificationConfigCommand(interaction, guildId);
             if (!group && subcommand === 'challenges') return handleVerificationChallengesCommand(interaction, guildId);
 
