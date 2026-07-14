@@ -330,7 +330,7 @@ function buildConfigActionRows(guildId, ownerUserId, { editMode, activeEditor, v
         new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configActiveChallengesEditor', guildId, ownerUserId)).setLabel('Active Challenges').setStyle(Discord.ButtonStyle.Secondary),
         new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configTimersEditor', guildId, ownerUserId)).setLabel('Timers').setStyle(Discord.ButtonStyle.Secondary),
         new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configAutokickEditor', guildId, ownerUserId)).setLabel('Autokick').setStyle(Discord.ButtonStyle.Secondary),
-        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configDone', guildId, ownerUserId)).setLabel('Done').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('configDone', guildId, ownerUserId)).setLabel('Done').setStyle(Discord.ButtonStyle.Success),
     )];
 
     if (activeEditor === 'mode') rows.push(buildConfigModeSelectRow(guildId, ownerUserId, verificationSettings));
