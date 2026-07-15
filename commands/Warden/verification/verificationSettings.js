@@ -285,123 +285,6 @@ function parseGuildSettingsRow(row) {
     });
 }
 
-function getFirstPromptQuestion(challenge) {
-    return (challenge?.questions ?? []).find((question) => question.generatedImage?.type === 'prompt-text')
-        ?? (challenge?.questions ?? []).find((question) => question.answer?.type === 'text');
-}
-
-function getFirstGalleryQuestion(challenge) {
-    return (challenge?.questions ?? []).find((question) => ['gallery-standard', 'gallery-rotation-alignment'].includes(question.generatedImage?.type));
-}
-
-function mapLegacyChallengeOverride(challengeId, legacyOverride) {
-    const challenge = verificationChallenges[challengeId];
-    if (!challenge || !legacyOverride || typeof legacyOverride !== 'object' || Array.isArray(legacyOverride)) return undefined;
-
-    const challengeOverride = { questions: {} };
-    if (normalizeString(legacyOverride.title)) challengeOverride.title = normalizeString(legacyOverride.title);
-    if (normalizeString(legacyOverride.description)) challengeOverride.description = normalizeString(legacyOverride.description);
-
-    const promptQuestion = getFirstPromptQuestion(challenge);
-    const prompt = normalizeString(legacyOverride.prompt);
-    const answers = normalizeStringArray(legacyOverride.answers);
-    if (promptQuestion && (prompt || answers.length > 0)) {
-        const questionOverride = challengeOverride.questions[promptQuestion.id] ?? {};
-        if (prompt) {
-            if (promptQuestion.generatedImage?.type === 'prompt-text') {
-                questionOverride.generatedImage = {
-                    ...(questionOverride.generatedImage ?? {}),
-                    text: prompt,
-                };
-            }
-            else {
-                questionOverride.text = prompt;
-            }
-        }
-        if (answers.length > 0) {
-            questionOverride.answer = {
-                ...(questionOverride.answer ?? {}),
-                accepted: answers,
-            };
-        }
-        challengeOverride.questions[promptQuestion.id] = questionOverride;
-    }
-
-    const galleryQuestion = getFirstGalleryQuestion(challenge);
-    if (galleryQuestion) {
-        const primaryImageIds = normalizeStringArray(legacyOverride[`solution${'ImageIds'}`]);
-        const decoyImageIds = normalizeStringArray(legacyOverride[`control${'ImageIds'}`]);
-        const legacyImageDirections = normalizeImageDirections(legacyOverride[`solution${'ImageDirections'}`]);
-        const imageIds = {};
-
-        if (galleryQuestion.generatedImage?.type === 'gallery-rotation-alignment') {
-            if (primaryImageIds.length > 0) imageIds.center = primaryImageIds;
-            if (decoyImageIds.length > 0) imageIds.outer = decoyImageIds;
-        }
-        else {
-            if (primaryImageIds.length > 0) imageIds.solution = primaryImageIds;
-            if (decoyImageIds.length > 0) imageIds.control = decoyImageIds;
-        }
-
-        if (Object.keys(imageIds).length > 0 || Object.keys(legacyImageDirections).length > 0) {
-            const questionOverride = challengeOverride.questions[galleryQuestion.id] ?? {};
-            questionOverride.generatedImage = {
-                ...(questionOverride.generatedImage ?? {}),
-            };
-            if (Object.keys(imageIds).length > 0) questionOverride.generatedImage.imageIds = imageIds;
-            if (Object.keys(legacyImageDirections).length > 0) questionOverride.generatedImage.imageDirections = legacyImageDirections;
-            challengeOverride.questions[galleryQuestion.id] = questionOverride;
-        }
-    }
-
-    const normalized = normalizeChallengeOverrides({ [challengeId]: challengeOverride });
-    return normalized[challengeId];
-}
-
-function normalizeLegacyChallengeOverrides(value) {
-    const legacyOverrides = typeof value === 'string' ? safeParseJson(value, {}) : normalizeObject(value);
-    if (!legacyOverrides || typeof legacyOverrides !== 'object' || Array.isArray(legacyOverrides)) return {};
-
-    return Object.entries(legacyOverrides).reduce((challengeOverrides, [challengeId, legacyOverride]) => {
-        const normalizedChallengeId = normalizeString(challengeId);
-        const mappedOverride = mapLegacyChallengeOverride(normalizedChallengeId, legacyOverride);
-        if (normalizedChallengeId && mappedOverride) {
-            challengeOverrides[normalizedChallengeId] = mappedOverride;
-        }
-        return challengeOverrides;
-    }, {});
-}
-
-function parseLegacySettingsRow(row) {
-    return normalizeSettings({
-        mode: row.mode,
-        activeChallengeIds: normalizeActiveChallengeIds(row.active_challenge_ids_json ?? row.active_challenge_ids),
-        challengeExpirySeconds: row.challenge_expiry_seconds ?? row.expiry_seconds,
-        cooldownSeconds: row.cooldown_seconds,
-        autokickEnabled: row.autokick_enabled,
-        autokickSeconds: row.autokick_seconds ?? row.autokick_timer_seconds,
-        challengeOverrides: normalizeLegacyChallengeOverrides(row[`challenge_${'overrides'}_json`]),
-    });
-}
-
-async function legacyVerificationSettingsTableExists() {
-    const rows = await getDatabase().query('SHOW TABLES LIKE ?', ['verification_settings']);
-    return rows.length > 0;
-}
-
-async function getLegacyVerificationSettings(guildId) {
-    const legacyTableExists = await legacyVerificationSettingsTableExists();
-    if (!legacyTableExists) return undefined;
-
-    const rows = await getDatabase().query(
-        'SELECT * FROM verification_settings WHERE guild_id = ? LIMIT 1',
-        [guildId],
-    );
-
-    if (rows.length < 1) return undefined;
-    return parseLegacySettingsRow(rows[0]);
-}
-
 function normalizeQuestionOverrideRow(row) {
     const questionId = normalizeString(row.question_id);
     if (!questionId) return undefined;
@@ -415,22 +298,21 @@ function normalizeQuestionOverrideRow(row) {
         return { questionId, meta };
     }
 
-    const rawTaskConfig = row.task_config_json ?? row.image_config_json;
-    const imageConfig = normalizeObject(safeParseJson(rawTaskConfig, {}));
+    const imageConfig = normalizeObject(safeParseJson(row.task_config_json, {}));
     const generatedImage = {
         ...imageConfig,
     };
 
-    const rawTaskEnabled = row.task_enabled ?? row.generate_image;
-    const rawTaskType = row.task_type ?? row.generated_image_type;
-    const rawTaskPromptText = row.task_prompt_text ?? row.generated_image_text;
+    const rawTaskEnabled = row.task_enabled;
+    const rawTaskType = row.task_type;
+    const rawTaskPromptText = row.task_prompt_text;
 
     if (rawTaskEnabled !== null && rawTaskEnabled !== undefined) generatedImage.enabled = normalizeBoolean(rawTaskEnabled);
     if (normalizeString(rawTaskType)) generatedImage.type = normalizeString(rawTaskType);
     if (normalizeString(rawTaskPromptText)) generatedImage.text = normalizeString(rawTaskPromptText);
 
-    const imageIds = normalizeImageIds(safeParseJson(row.task_image_ids_json ?? row.image_ids_json, {}));
-    const imageDirections = normalizeImageDirections(safeParseJson(row.task_image_directions_json ?? row.image_directions_json, {}));
+    const imageIds = normalizeImageIds(safeParseJson(row.task_image_ids_json, {}));
+    const imageDirections = normalizeImageDirections(safeParseJson(row.task_image_directions_json, {}));
     if (Object.keys(imageIds).length > 0) generatedImage.imageIds = imageIds;
     if (Object.keys(imageDirections).length > 0) generatedImage.imageDirections = imageDirections;
     if (Object.keys(imageConfig).length > 0) generatedImage.config = imageConfig;
@@ -509,6 +391,8 @@ async function ensureVerificationGuildSettingsTable() {
 
 async function ensureVerificationChallengeConfigTable() {
     if (!challengeConfigTableReady) {
+        // task_* columns are the canonical DB storage for question task overrides.
+        // The runtime object is still normalized into generatedImage for compatibility with verification task modules.
         challengeConfigTableReady = getDatabase().query(`
             CREATE TABLE IF NOT EXISTS verification_challenge_config (
                 guild_id VARCHAR(32) NOT NULL,
@@ -523,9 +407,6 @@ async function ensureVerificationChallengeConfigTable() {
                 task_enabled TINYINT(1) NULL,
                 task_type VARCHAR(64) NULL,
                 task_prompt_text TEXT NULL,
-                generate_image TINYINT(1) NULL,
-                generated_image_type VARCHAR(64) NULL,
-                generated_image_text TEXT NULL,
                 answer_required TINYINT(1) NULL,
                 answer_type VARCHAR(64) NULL,
                 answer_input_label VARCHAR(128) NULL,
@@ -534,9 +415,6 @@ async function ensureVerificationChallengeConfigTable() {
                 task_image_ids_json TEXT NULL,
                 task_image_directions_json TEXT NULL,
                 task_config_json TEXT NULL,
-                image_ids_json TEXT NULL,
-                image_directions_json TEXT NULL,
-                image_config_json TEXT NULL,
                 updated_by VARCHAR(32) NULL,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (guild_id, challenge_id, question_id),
@@ -653,17 +531,11 @@ function questionConfigToRow(guildId, challengeId, questionId, question, updated
         generatedImage.enabled === undefined ? null : (generatedImage.enabled ? 1 : 0),
         generatedImage.type ?? null,
         generatedImage.text ?? null,
-        generatedImage.enabled === undefined ? null : (generatedImage.enabled ? 1 : 0),
-        generatedImage.type ?? null,
-        generatedImage.text ?? null,
         answer.required === undefined ? null : (answer.required ? 1 : 0),
         answer.type ?? null,
         answer.inputLabel ?? null,
         answer.inputPlaceholder ?? null,
         stringifyJsonOrNull(answer.accepted),
-        stringifyJsonOrNull(generatedImage.imageIds),
-        stringifyJsonOrNull(generatedImage.imageDirections),
-        stringifyJsonOrNull(imageConfig),
         stringifyJsonOrNull(generatedImage.imageIds),
         stringifyJsonOrNull(generatedImage.imageDirections),
         stringifyJsonOrNull(imageConfig),
@@ -674,12 +546,28 @@ function questionConfigToRow(guildId, challengeId, questionId, question, updated
 async function insertChallengeConfigRow(rowValues, query = (sql, values) => getDatabase().query(sql, values)) {
     await query(
         `INSERT INTO verification_challenge_config (
-            guild_id, challenge_id, question_id, question_order, title, description, question_label, question_text, separate_step,
-            task_enabled, task_type, task_prompt_text, generate_image, generated_image_type, generated_image_text,
-            answer_required, answer_type, answer_input_label, answer_input_placeholder, answers_json,
-            task_image_ids_json, task_image_directions_json, task_config_json, image_ids_json, image_directions_json,
-            image_config_json, updated_by
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            guild_id,
+            challenge_id,
+            question_id,
+            question_order,
+            title,
+            description,
+            question_label,
+            question_text,
+            separate_step,
+            task_enabled,
+            task_type,
+            task_prompt_text,
+            answer_required,
+            answer_type,
+            answer_input_label,
+            answer_input_placeholder,
+            answers_json,
+            task_image_ids_json,
+            task_image_directions_json,
+            task_config_json,
+            updated_by
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         rowValues,
     );
 }
@@ -724,12 +612,6 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
                     null,
                     challengeOverride.title ?? null,
                     challengeOverride.description ?? null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
                     null,
                     null,
                     null,
@@ -816,11 +698,6 @@ async function getVerificationSettings(guildId) {
     );
 
     if (guildRows.length < 1) {
-        const legacySettings = await getLegacyVerificationSettings(normalizedGuildId);
-        if (legacySettings) {
-            return saveVerificationSettings(normalizedGuildId, legacySettings, null);
-        }
-
         return saveVerificationSettings(normalizedGuildId, defaultVerificationSettings(), null);
     }
 
