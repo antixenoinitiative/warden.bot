@@ -1720,18 +1720,26 @@ function parseQuestionDirectionsParts(parts) {
 }
 
 function buildQuestionTaskSelectComponent(currentTaskType) {
+    const normalizedCurrentTaskType = normalizeTaskType(currentTaskType);
     const select = new Discord.StringSelectMenuBuilder()
         .setCustomId('task_type')
-        .setPlaceholder(`Task: ${getQuestionTaskTypeLabel(currentTaskType)} — leave unselected for no change`)
-        .setMinValues(0)
+        .setPlaceholder(`Task: ${getQuestionTaskTypeLabel(normalizedCurrentTaskType)}`)
+        .setMinValues(1)
         .setMaxValues(1)
-        .addOptions(QUESTION_TASK_TYPE_OPTIONS.map((option) =>
-            new Discord.StringSelectMenuOptionBuilder()
+        .addOptions(QUESTION_TASK_TYPE_OPTIONS.map((option) => {
+            const selectOption = new Discord.StringSelectMenuOptionBuilder()
                 .setLabel(option.label)
                 .setValue(option.value)
-                .setDescription(option.description)));
+                .setDescription(option.description);
 
-    select.setRequired?.(false);
+            if (option.value === normalizedCurrentTaskType) {
+                selectOption.setDefault(true);
+            }
+
+            return selectOption;
+        }));
+
+    select.setRequired?.(true);
     return select;
 }
 
@@ -1739,7 +1747,7 @@ function buildQuestionTaskSelectModalLabel(currentTaskType) {
     return buildModalStringSelectLabel(
         'Task',
         buildQuestionTaskSelectComponent(currentTaskType),
-        { description: 'Leave unselected for no change.' },
+        { description: 'Current task is preselected. Change only if needed.' },
     );
 }
 
@@ -1983,12 +1991,14 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
     }
 
-    const selectedTaskType = getModalSingleSelectValue(interaction, 'task_type');
-    if (selectedTaskType && !QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === selectedTaskType)) {
+    const currentTaskType = getQuestionTaskType(effectiveQuestion);
+    const selectedTaskType = getModalSingleSelectValue(interaction, 'task_type') ?? currentTaskType;
+    if (!QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === selectedTaskType)) {
         return interaction.editReply({ embeds: [userErrorEmbed('Unknown task type selected.')] });
     }
+    const taskChanged = selectedTaskType !== currentTaskType;
 
-    if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !selectedTaskType) {
+    if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !taskChanged) {
         return interaction.editReply({ embeds: [userErrorEmbed('No question option changes were submitted.')] });
     }
 
@@ -1999,7 +2009,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         ...(patches[context.question.id] ?? {}),
         ...(separateStep !== undefined ? { separateStep } : {}),
     };
-    if (selectedTaskType) {
+    if (taskChanged) {
         const taskPatch = buildTaskTypePatch(selectedTaskType);
         const currentImageIds = effectiveQuestion.generatedImage?.imageIds ?? {};
         if (taskPatch.imageIdsKeepRoles) {
