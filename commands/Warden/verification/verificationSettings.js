@@ -177,7 +177,10 @@ function normalizeQuestionOverride(questionOverride = {}) {
     if (generatedImageInput.enabled !== undefined) generatedImage.enabled = normalizeBoolean(generatedImageInput.enabled);
     if (normalizeString(generatedImageInput.type)) generatedImage.type = normalizeString(generatedImageInput.type);
     if (normalizeString(generatedImageInput.text)) generatedImage.text = normalizeString(generatedImageInput.text);
-    if (normalizeString(generatedImageInput.imagePoolId)) generatedImage.imagePoolId = normalizeString(generatedImageInput.imagePoolId);
+    if (Object.prototype.hasOwnProperty.call(generatedImageInput, 'imagePoolId')) {
+        const normalizedImagePoolId = normalizeString(generatedImageInput.imagePoolId);
+        generatedImage.imagePoolId = normalizedImagePoolId ?? null;
+    }
     if (generatedImageInput.gallerySize !== undefined) {
         const gallerySize = Math.floor(Number(generatedImageInput.gallerySize));
         if (Number.isInteger(gallerySize) && gallerySize > 0) generatedImage.gallerySize = gallerySize;

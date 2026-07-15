@@ -16,7 +16,13 @@ const {
     normalizeVerificationChallenge,
     buildQuestionScreens,
 } = require('../verification/verificationChallenges/verificationChallenges');
-const { getVerificationImagePool } = require('../verification/verificationImages');
+const {
+    getVerificationImagePool,
+    verificationImagePools,
+} = require('../verification/verificationImages');
+const {
+    DEFAULT_ROTATION_ALIGNMENT_DEGREES,
+} = require('../verification/verificationChallenges/questionTasks/shared/degrees');
 const { evaluateChallengeConfigIssues } = require('../verification/verificationChallenges/verificationConfigIssues');
 const {
     applyVerificationConfigSafeguard,
@@ -29,11 +35,23 @@ const SETTINGS_SELECT_MENU_MAX_OPTIONS = 25;
 const CHALLENGE_SELECT_MENU_MAX_OPTIONS = 25;
 const QUESTION_SELECT_MENU_MAX_OPTIONS = 25;
 const QUESTION_DETAIL_SELECTOR_PAGE_SIZE = 20;
-const DIRECTION_PAGE_SIZE = 5;
-const MAX_DIRECTION_PAGE_BUTTONS = 25;
-const MAX_DIRECTION_IMAGE_IDS_PER_LAUNCHER = DIRECTION_PAGE_SIZE * MAX_DIRECTION_PAGE_BUTTONS;
 const CHALLENGE_TITLE_MAX_LENGTH = 256;
 const CHALLENGE_DESCRIPTION_MAX_LENGTH = 1024;
+const SELECT_UNCHANGED = '__unchanged__';
+const SELECT_NONE = '__none__';
+
+const UNCHANGED_OPTION = {
+    label: 'Leave unchanged',
+    value: SELECT_UNCHANGED,
+    description: 'Do not change this override entry.',
+};
+
+const NONE_OPTION = {
+    label: 'None',
+    value: SELECT_NONE,
+    description: 'Clear this override entry / assign no value.',
+};
+
 const adminCustomIdSessions = new Map();
 let adminCustomIdSequence = 0;
 
@@ -250,6 +268,37 @@ function sameStringSet(leftValues = [], rightValues = []) {
     const left = [...new Set(leftValues.map(String))].sort();
     const right = [...new Set(rightValues.map(String))].sort();
     return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function buildUnchangedFirstOptions(options = []) {
+    return [UNCHANGED_OPTION, ...options];
+}
+
+function buildNoneFirstOptions(options = []) {
+    return [NONE_OPTION, ...options];
+}
+
+function buildUnchangedAndNoneOptions(options = []) {
+    return [UNCHANGED_OPTION, NONE_OPTION, ...options];
+}
+
+function getSingleModalSelectValue(interaction, customId, options, fieldLabel) {
+    return getRequiredModalSingleSelect(interaction, customId, options, fieldLabel);
+}
+
+function isSelectUnchanged(value) {
+    return value === SELECT_UNCHANGED;
+}
+
+function isSelectNone(value) {
+    return value === SELECT_NONE;
+}
+
+function assertSelectOptionLimit(options, label) {
+    const optionCount = Array.isArray(options) ? options.length : Number(options);
+    if (optionCount > 25) {
+        throw new Error(`${label} has ${optionCount} options, but Discord select menus support up to 25. Add paging or reduce the configured entries.`);
+    }
 }
 
 function normalizeDegreeValue(value) {
@@ -596,6 +645,29 @@ const GENERATED_IMAGE_TASK_CONFIG_FIELDS = [
     'config',
     'url',
 ];
+
+const BOOLEAN_SELECT_OPTIONS = [
+    UNCHANGED_OPTION,
+    { label: 'True', value: 'true', description: 'Set to true.' },
+    { label: 'False', value: 'false', description: 'Set to false.' },
+];
+
+const QUESTION_TASK_IMAGE_ROLE_CONFIG = {
+    'gallery-standard': {
+        label: 'Image IDs',
+        roles: [
+            { key: 'solution', label: 'Solution Images', description: 'Images that count as correct answers.' },
+            { key: 'control', label: 'Control Images', description: 'Decoy/control images.' },
+        ],
+    },
+    'gallery-rotation-alignment': {
+        label: 'Rotation Image IDs',
+        roles: [
+            { key: 'center', label: 'Center Images', description: 'Center/source images for generated tiles.' },
+            { key: 'outer', label: 'Outer Images', description: 'Outer/source images for generated tiles.' },
+        ],
+    },
+};
 
 function isQuestionTaskType(value) {
     return QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === value);
@@ -1658,13 +1730,10 @@ function buildQuestionEditPanelComponents(guildId, userId, challengeId, question
         button('questionEditText', 'Text'),
     ];
 
-    if (taskType === 'prompt-text') actionButtons.push(button('questionEditImageText', 'Prompt Text', Discord.ButtonStyle.Secondary, taskType));
+    if (taskUsesPromptText(taskType)) actionButtons.push(button('questionEditImageText', 'Prompt Text', Discord.ButtonStyle.Secondary, taskType));
     if (effectiveQuestion.answer?.required === true && answerType === 'text') actionButtons.push(button('questionEditAnswers', 'Answers', Discord.ButtonStyle.Secondary, answerType));
-    if (['gallery-standard', 'gallery-rotation-alignment'].includes(taskType)) actionButtons.push(button('questionEditImageIds', 'Image IDs', Discord.ButtonStyle.Secondary, taskType));
-    if (taskType === 'gallery-rotation-alignment') {
-        const directionImageIds = getConfiguredDirectionImageIds(effectiveQuestion);
-        actionButtons.push(button('questionEditDirections', 'Directions', Discord.ButtonStyle.Secondary, taskType, ...directionImageIds));
-    }
+    if (taskUsesImageIds(taskType)) actionButtons.push(button('questionEditImageIds', 'Image IDs', Discord.ButtonStyle.Secondary, taskType));
+    if (taskUsesDirections(taskType)) actionButtons.push(button('questionEditDirections', 'Directions', Discord.ButtonStyle.Secondary, taskType));
 
     const rows = buildActionRows(actionButtons, { maxRows: 4 });
     rows.push(new Discord.ActionRowBuilder().addComponents(
@@ -1696,6 +1765,7 @@ function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
     if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'imagePoolId', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
         add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.imagePoolId', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url', 'answer.type']);
     }
+    if (hasOwnValue(generatedImageOverride, 'imagePoolId')) add('image-pool', 'Clear Image Pool', 'generatedImage.imagePoolId');
     if (taskType === 'prompt-text' && hasOwnValue(generatedImageOverride, 'text')) add('image-text', 'Clear Prompt Text', 'generatedImage.text');
     if (['gallery-standard', 'gallery-rotation-alignment'].includes(taskType) && hasOwnValue(generatedImageOverride, 'imageIds')) add('image-ids', 'Clear Image IDs', 'generatedImage.imageIds');
     if (taskType === 'gallery-rotation-alignment' && hasOwnValue(generatedImageOverride, 'imageDirections')) add('directions', 'Clear Directions', 'generatedImage.imageDirections');
@@ -1804,46 +1874,175 @@ function truncateModalLabel(label) {
     return text.length <= 45 ? text : `${text.slice(0, 44)}…`;
 }
 
-function getConfiguredDirectionImageIds(question) {
-    return [...new Set([
-        ...(question.generatedImage?.imageIds?.center ?? []),
-        ...(question.generatedImage?.imageIds?.outer ?? []),
-    ].map((imageId) => String(imageId ?? '').trim()).filter(Boolean))];
+
+function getQuestionOrderSelectOptions(effectiveChallenge, selectedQuestionId) {
+    const questions = getChallengeQuestions(effectiveChallenge);
+    return buildUnchangedFirstOptions(questions.map((question, index) => ({
+        label: String(index + 1),
+        value: String(index + 1),
+        description: question.id === selectedQuestionId
+            ? `Current position: ${question.id}`
+            : question.id,
+    })));
 }
 
-function buildQuestionDirectionsPageComponents(guildId, userId, challengeId, questionId, directionImageIds, taskType = 'gallery-rotation-alignment') {
-    const buttons = [];
-    for (let index = 0; index < directionImageIds.length; index += DIRECTION_PAGE_SIZE) {
-        const pageImageIds = directionImageIds.slice(index, index + DIRECTION_PAGE_SIZE);
-        buttons.push(new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('questionDirectionsPage', guildId, userId, challengeId, questionId, taskType, ...pageImageIds))
-            .setLabel(`Directions ${index + 1}-${index + pageImageIds.length}`)
-            .setStyle(Discord.ButtonStyle.Secondary));
-    }
-    return buildActionRows(buttons);
+function buildQuestionOrderSelectField(effectiveChallenge, selectedQuestionId) {
+    return buildModalStringSelectField({
+        label: 'Order Number',
+        description: 'Choose the question slot, or leave unchanged.',
+        customId: 'order_number',
+        placeholder: 'Choose order number...',
+        options: getQuestionOrderSelectOptions(effectiveChallenge, selectedQuestionId),
+        selectedValues: [SELECT_UNCHANGED],
+        minValues: 1,
+        maxValues: 1,
+        required: true,
+    });
 }
 
-function sanitizeDirectionImageIds(imageIds) {
-    return imageIds.map((imageId) => String(imageId ?? '').trim()).filter(Boolean);
+function getBooleanSelectOptions() {
+    return BOOLEAN_SELECT_OPTIONS;
 }
 
-function parseQuestionDirectionsParts(parts) {
-    const [guildId, ownerUserId, challengeId, questionId, fifthPart = '', ...remainingParts] = parts;
+function buildBooleanSelectField(customId, label, currentValue) {
+    return buildModalStringSelectField({
+        label,
+        description: `Current value: ${currentValue === true ? 'true' : 'false'}. Choose a value or leave unchanged.`,
+        customId,
+        placeholder: `Choose ${label.toLowerCase()}...`,
+        options: getBooleanSelectOptions(),
+        selectedValues: [SELECT_UNCHANGED],
+        minValues: 1,
+        maxValues: 1,
+        required: true,
+    });
+}
 
-    const fifthPartIsTaskType = isQuestionTaskType(fifthPart);
-    const sourceMessageId = fifthPart && !fifthPartIsTaskType ? fifthPart : '';
-    const taskType = fifthPartIsTaskType ? fifthPart : remainingParts[0];
-    const imageIds = fifthPartIsTaskType ? remainingParts : remainingParts.slice(1);
+function getImagePoolSelectOptions() {
+    return Object.values(verificationImagePools ?? {})
+        .map((pool) => ({
+            label: pool.id,
+            value: pool.id,
+            description: pool.description || `${pool.images?.length ?? 0} image(s)`,
+        }))
+        .sort((left, right) => left.label.localeCompare(right.label));
+}
 
-    return {
-        guildId,
-        ownerUserId,
-        challengeId,
-        questionId,
-        sourceMessageId,
-        taskType,
-        imageIds: sanitizeDirectionImageIds(imageIds),
-    };
+function getImagePoolModalOptions() {
+    const options = buildUnchangedAndNoneOptions(getImagePoolSelectOptions());
+    assertSelectOptionLimit(options, 'Verification image pools');
+    return options;
+}
+
+function buildQuestionImagePoolSelectField(effectiveQuestion) {
+    const taskType = getQuestionTaskType(effectiveQuestion);
+    const currentImagePoolId = effectiveQuestion.generatedImage?.imagePoolId;
+    const selectedValue = taskType === 'none' && !currentImagePoolId
+        ? SELECT_NONE
+        : (currentImagePoolId || SELECT_UNCHANGED);
+
+    return buildModalStringSelectField({
+        label: 'Assigned Image Pool',
+        description: 'Choose the image pool for image/gallery tasks.',
+        customId: 'image_pool_id',
+        placeholder: 'Choose assigned image pool...',
+        options: getImagePoolModalOptions(),
+        selectedValues: [selectedValue],
+        minValues: 1,
+        maxValues: 1,
+        required: true,
+    });
+}
+
+function getTaskImageRoleConfig(taskType) {
+    return QUESTION_TASK_IMAGE_ROLE_CONFIG[normalizeTaskType(taskType)];
+}
+
+function getQuestionAssignedImagePool(effectiveQuestion) {
+    const imagePoolId = effectiveQuestion.generatedImage?.imagePoolId;
+    return imagePoolId ? getVerificationImagePool(imagePoolId) : undefined;
+}
+
+function buildImagePoolImageOptions(imagePool) {
+    return (imagePool?.images ?? []).map((image) => ({
+        label: image.id,
+        value: image.id,
+        description: image.generatedRole || image.fileName || image.url || image.description || image.id,
+    }));
+}
+
+function buildRoleImageIdSelectField({ role, effectiveQuestion, imagePool }) {
+    const options = buildImagePoolImageOptions(imagePool);
+    assertSelectOptionLimit(options, `${imagePool.id} image IDs`);
+
+    const selectedValues = (effectiveQuestion.generatedImage?.imageIds?.[role.key] ?? [])
+        .map(String)
+        .filter((imageId) => options.some((option) => option.value === imageId));
+
+    return buildModalStringSelectField({
+        label: role.label,
+        description: role.description,
+        customId: `${role.key}_ids`,
+        placeholder: `Choose ${role.key} image IDs...`,
+        options,
+        selectedValues,
+        minValues: 1,
+        maxValues: Math.max(1, options.length),
+        required: true,
+    });
+}
+
+function buildDirectionDegreeOptions() {
+    return DEFAULT_ROTATION_ALIGNMENT_DEGREES.map((degrees) => ({
+        label: `${degrees}°`,
+        value: String(degrees),
+        description: `${degrees} degree orientation`,
+    }));
+}
+
+function buildImageDirectionImageSelectField(effectiveQuestion, imagePool) {
+    const options = buildImagePoolImageOptions(imagePool);
+    assertSelectOptionLimit(options, `${imagePool.id} image IDs`);
+
+    return buildModalStringSelectField({
+        label: 'Image IDs',
+        description: 'Choose one or multiple images.',
+        customId: 'direction_image_ids',
+        placeholder: 'Choose image IDs...',
+        options,
+        selectedValues: [],
+        minValues: 1,
+        maxValues: Math.max(1, options.length),
+        required: true,
+    });
+}
+
+function buildDirectionDegreesSelectField() {
+    const options = buildDirectionDegreeOptions();
+
+    return buildModalStringSelectField({
+        label: 'Direction / Orientation',
+        description: 'Select from degree steps on a compass.',
+        customId: 'direction_degrees',
+        placeholder: 'Choose directions...',
+        options,
+        selectedValues: [],
+        minValues: 1,
+        maxValues: options.length,
+        required: true,
+    });
+}
+
+function taskUsesPromptText(taskType) {
+    return taskType === 'prompt-text';
+}
+
+function taskUsesImageIds(taskType) {
+    return ['gallery-standard', 'gallery-rotation-alignment'].includes(taskType);
+}
+
+function taskUsesDirections(taskType) {
+    return taskType === 'gallery-rotation-alignment';
 }
 
 function buildQuestionTaskSelectComponent(currentTaskType) {
@@ -1896,26 +2095,16 @@ function showQuestionTextModal(interaction, parts) {
 function showQuestionOptionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
         const verificationSettings = await getVerificationSettings(context.guildId);
+        const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
         const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
         return buildAdminModal(
             buildAdminCustomId('questionOptionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
             'Question Options',
-            buildModalTextLabel('order_number', 'Order Number', {
-                placeholder: '1, 2, 3, or leave empty',
-                description: 'Leave empty for no change.',
-                maxLength: 4,
-            }),
-            buildModalTextLabel('separate_step', 'Separate Step', {
-                placeholder: 'true, false, or leave empty',
-                description: 'Leave empty for no change.',
-                maxLength: 5,
-            }),
-            buildModalTextLabel('answer_required', 'Answer Required', {
-                placeholder: 'true, false, or leave empty',
-                description: 'Leave empty for no change.',
-                maxLength: 5,
-            }),
+            buildQuestionOrderSelectField(effectiveChallenge, context.question.id),
+            buildBooleanSelectField('separate_step', 'Separate Step', effectiveQuestion.separateStep === true),
+            buildBooleanSelectField('answer_required', 'Answer Required', effectiveQuestion.answer?.required === true),
             buildQuestionTaskSelectModalLabel(getQuestionTaskType(effectiveQuestion)),
+            buildQuestionImagePoolSelectField(effectiveQuestion),
         );
     });
 }
@@ -1953,108 +2142,100 @@ function showQuestionAnswersModal(interaction, parts) {
 }
 
 function showQuestionImageIdsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, question, sourceInteraction) => {
-        const type = parts[4] ?? getQuestionTaskType(question);
-        if (!['gallery-standard', 'gallery-rotation-alignment'].includes(type)) throw new Error('This question does not use editable image IDs.');
-        const roles = type === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
-        const labels = roles.map((role) => buildModalTextLabel(`${role}_ids`, `${role[0].toUpperCase()}${role.slice(1)} IDs`, {
-            style: Discord.TextInputStyle.Paragraph,
-            placeholder: 'comma/space-separated image IDs',
-            description: `Leave empty to keep current ${role} IDs.`,
+    return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
+        const verificationSettings = await getVerificationSettings(context.guildId);
+        const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
+        const taskType = parts[4] ?? getQuestionTaskType(effectiveQuestion);
+        const roleConfig = getTaskImageRoleConfig(taskType);
+
+        if (!roleConfig) throw new Error('This question does not use editable image IDs.');
+
+        const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+        if (!imagePool) {
+            await respondAdminError(sourceInteraction, {
+                embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image IDs.')],
+            });
+            return undefined;
+        }
+
+        const labels = roleConfig.roles.map((role) => buildRoleImageIdSelectField({
+            role,
+            effectiveQuestion,
+            imagePool,
         }));
+
         return buildAdminModal(
             buildAdminCustomId('questionImageIdsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
-            type === 'gallery-standard' ? 'Edit Image IDs' : 'Edit Rotation Image IDs',
+            taskType === 'gallery-standard' ? 'Edit Image IDs' : 'Edit Rotation Image IDs',
             labels,
         );
-    });
-}
-
-async function sendQuestionDirectionsPageLauncher(interaction, parsedDirections) {
-    const { guildId, ownerUserId, challengeId, questionId, taskType, imageIds } = parsedDirections;
-    if (imageIds.length > MAX_DIRECTION_IMAGE_IDS_PER_LAUNCHER) {
-        return interaction.editReply({
-            embeds: [userErrorEmbed(
-                `This question has ${imageIds.length} direction image IDs, but the editor can show up to ${MAX_DIRECTION_IMAGE_IDS_PER_LAUNCHER} at once. Reduce the configured center/outer image IDs or split this question.`,
-            )],
-            components: [],
-        });
-    }
-
-    return interaction.editReply({
-        content: `Choose a direction page to edit for **${challengeId}/${questionId}**.`,
-        components: buildQuestionDirectionsPageComponents(guildId, ownerUserId, challengeId, questionId, imageIds, taskType),
     });
 }
 
 async function handleQuestionEditDirectionsButton(interaction, parts) {
-    const parsedDirections = parseQuestionDirectionsParts(parts);
-    const { guildId, ownerUserId, challengeId, questionId, taskType, imageIds } = parsedDirections;
+    const [guildId, ownerUserId, challengeId, questionId, taskType] = parts;
     const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
     if (context.error) return;
-    if (taskType !== 'gallery-rotation-alignment') {
+    if ((taskType ?? 'gallery-rotation-alignment') !== 'gallery-rotation-alignment') {
         return respondAdminError(interaction, { embeds: [userErrorEmbed('This question does not use image directions.')] });
     }
-    if (imageIds.length < 1) {
-        return respondAdminError(interaction, { embeds: [userErrorEmbed('Configure center or outer image IDs before setting directions.')] });
-    }
-    if (imageIds.length <= DIRECTION_PAGE_SIZE) {
-        return showQuestionDirectionsModal(interaction, parts);
-    }
-
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    return sendQuestionDirectionsPageLauncher(interaction, parsedDirections);
+    return showQuestionDirectionsModal(interaction, parts);
 }
 
 function showQuestionDirectionsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, question, sourceInteraction) => {
-        const parsedDirections = parseQuestionDirectionsParts(parts);
-        const taskType = parsedDirections.taskType ?? getQuestionTaskType(question);
+    return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
+        const verificationSettings = await getVerificationSettings(context.guildId);
+        const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
+        const taskType = parts[4] ?? getQuestionTaskType(effectiveQuestion);
+
         if (taskType !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
-        const directionImageIds = parsedDirections.imageIds;
-        if (directionImageIds.length < 1) {
-            throw new Error('This direction page has expired. Please open the directions launcher again.');
+
+        const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+        if (!imagePool) {
+            await respondAdminError(sourceInteraction, {
+                embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image Directions.')],
+            });
+            return undefined;
         }
 
-        const labels = directionImageIds.map((imageId, index) => buildModalTextLabel(`dir_${index}`, truncateModalLabel(imageId), {
-            style: Discord.TextInputStyle.Short,
-            placeholder: '0,90,180',
-            description: 'Leave empty for no change.',
-        }));
-
-        const sourceMessageId = sourceInteraction.message?.id;
-        const customIdParts = [
-            context.guildId,
-            context.ownerUserId,
-            context.challengeId,
-            context.question.id,
-            ...(sourceMessageId ? [sourceMessageId] : []),
-            taskType,
-            ...directionImageIds,
-        ];
-
         return buildAdminModal(
-            buildAdminCustomId('questionDirectionsModal', ...customIdParts),
+            buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
             'Edit Image Directions',
-            labels,
+            buildImageDirectionImageSelectField(effectiveQuestion, imagePool),
+            buildDirectionDegreesSelectField(),
         );
     });
 }
 
-function parseBooleanInput(input, fieldLabel = 'Value') {
-    const value = String(input ?? '').trim().toLowerCase();
-    if (!value) return undefined;
-    if (['true', 'yes', 'on', '1'].includes(value)) return true;
-    if (['false', 'no', 'off', '0'].includes(value)) return false;
-    throw new Error(`${fieldLabel} must be one of: true, false, yes, no, on, off, 1, 0.`);
+function parseUnchangedBooleanSelect(value) {
+    if (isSelectUnchanged(value)) return undefined;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    throw new Error('Boolean select must be True, False, or Leave unchanged.');
 }
 
-function parseQuestionOrderInput(input, questionCount) {
-    const value = String(input ?? '').trim();
-    if (!value) return undefined;
+function parseUnchangedOrderSelect(value) {
+    if (isSelectUnchanged(value)) return undefined;
     const order = Number(value);
-    if (!Number.isInteger(order) || order < 1 || order > questionCount) throw new Error(`Order Number must be a whole number from 1 to ${questionCount}.`);
+    if (!Number.isInteger(order) || order < 1) throw new Error('Please select a valid order number.');
     return order;
+}
+
+function parseImagePoolSelect(value) {
+    if (isSelectUnchanged(value)) return undefined;
+    if (isSelectNone(value)) return null;
+    return String(value);
+}
+
+function getEffectiveImagePoolId(question) {
+    return question.generatedImage?.imagePoolId || null;
+}
+
+function setGeneratedImagePatchValue(selectedPatch, key, value) {
+    selectedPatch.generatedImage = {
+        ...(selectedPatch.generatedImage ?? {}),
+        [key]: value,
+    };
 }
 
 function buildQuestionOrderPatchMap(effectiveChallenge, selectedQuestionId, targetOrder) {
@@ -2113,15 +2294,16 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     const currentSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = normalizeVerificationChallenge(context.challenge, currentSettings);
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id);
-    const questionCount = getChallengeQuestions(effectiveChallenge).length;
 
     let orderNumber;
     let separateStep;
     let answerRequired;
+    let selectedImagePoolId;
     try {
-        orderNumber = parseQuestionOrderInput(getModalTextInput(interaction, 'order_number'), questionCount);
-        separateStep = parseBooleanInput(getModalTextInput(interaction, 'separate_step'), 'Separate Step');
-        answerRequired = parseBooleanInput(getModalTextInput(interaction, 'answer_required'), 'Answer Required');
+        orderNumber = parseUnchangedOrderSelect(getSingleModalSelectValue(interaction, 'order_number', getQuestionOrderSelectOptions(effectiveChallenge, context.question.id), 'order number'));
+        separateStep = parseUnchangedBooleanSelect(getSingleModalSelectValue(interaction, 'separate_step', getBooleanSelectOptions(), 'Separate Step'));
+        answerRequired = parseUnchangedBooleanSelect(getSingleModalSelectValue(interaction, 'answer_required', getBooleanSelectOptions(), 'Answer Required'));
+        selectedImagePoolId = parseImagePoolSelect(getSingleModalSelectValue(interaction, 'image_pool_id', getImagePoolModalOptions(), 'Assigned Image Pool'));
     }
     catch (err) {
         return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
@@ -2133,8 +2315,18 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         return interaction.editReply({ embeds: [userErrorEmbed('Unknown task type selected.')] });
     }
     const taskChanged = selectedTaskType !== currentTaskType;
+    const currentImagePoolId = getEffectiveImagePoolId(effectiveQuestion);
+    const imagePoolChanged = selectedImagePoolId !== undefined
+        && String(selectedImagePoolId ?? '') !== String(currentImagePoolId ?? '');
 
-    if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !taskChanged) {
+    if (selectedImagePoolId && !verificationImagePools[selectedImagePoolId]) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image pool selected: ${selectedImagePoolId}`)] });
+    }
+    if (selectedImagePoolId && selectedTaskType === 'none') {
+        return interaction.editReply({ embeds: [userErrorEmbed('Choose an image Task type before assigning an Image Pool.')] });
+    }
+
+    if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !taskChanged && !imagePoolChanged) {
         return interaction.editReply({ embeds: [userErrorEmbed('No question option changes were submitted.')] });
     }
 
@@ -2162,6 +2354,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         Object.assign(selectedPatch, taskPatch);
     }
     if (answerRequired !== undefined) selectedPatch.answer = { ...(selectedPatch.answer ?? {}), required: answerRequired };
+    if (selectedImagePoolId !== undefined) setGeneratedImagePatchValue(selectedPatch, 'imagePoolId', selectedImagePoolId);
     patches[context.question.id] = selectedPatch;
 
     const updatedSettings = await updateQuestionOptionOverrides(context.guildId, context.challengeId, patches, interaction.user.id);
@@ -2245,19 +2438,26 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
     const taskType = getQuestionTaskType(effectiveQuestion);
-    if (!['gallery-standard', 'gallery-rotation-alignment'].includes(taskType)) return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
+    const roleConfig = getTaskImageRoleConfig(taskType);
+    if (!roleConfig) return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
 
-    const roles = taskType === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
+    const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+    if (!imagePool) return interaction.editReply({ embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image IDs.')] });
+
     const updates = {};
-    for (const role of roles) {
-        const raw = getModalTextInput(interaction, `${role}_ids`);
-        if (raw) {
-            const imageIds = parseIdList(raw);
-            if (imageIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed(`Please provide at least one ${role} image ID, or leave that field empty for no change.`)] });
-            updates[role] = imageIds;
+    for (const role of roleConfig.roles) {
+        const selectedIds = getModalSelectValues(interaction, `${role.key}_ids`);
+        if (selectedIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed(`Select at least one ${role.key} image ID.`)] });
+
+        const unknownImageIds = validateImageIdsInPool(selectedIds, imagePool);
+        if (unknownImageIds.length > 0) {
+            return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for pool **${imagePool.id}**: ${unknownImageIds.join(', ')}`)] });
         }
+
+        const currentIds = effectiveQuestion.generatedImage?.imageIds?.[role.key] ?? [];
+        if (!sameStringSet(currentIds, selectedIds)) updates[role.key] = selectedIds;
     }
-    if (Object.keys(updates).length < 1) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
+    if (Object.keys(updates).length < 1) return interaction.editReply({ embeds: [userErrorEmbed('No image ID changes were submitted.')] });
 
     const pendingQuestion = applyPendingImageIds(effectiveQuestion, updates);
     for (const role of Object.keys(updates)) {
@@ -2280,32 +2480,30 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
     if (getQuestionTaskType(effectiveQuestion) !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
 
-    const submittedImageIds = parseQuestionDirectionsParts(parts).imageIds;
-    const directionUpdates = [];
-    for (const [index, imageId] of submittedImageIds.entries()) {
-        const directionsInput = getModalTextInput(interaction, `dir_${index}`);
-        if (!directionsInput) continue;
-        let degrees;
-        try { degrees = parseDegreeList(directionsInput); }
-        catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
-        if (degrees.length < 1) return interaction.editReply({ embeds: [userErrorEmbed(`Please provide at least one direction degree for ${imageId}.`)] });
-        directionUpdates.push({ imageId, degrees });
+    const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+    if (!imagePool) return interaction.editReply({ embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image Directions.')] });
+
+    const imageIds = getModalSelectValues(interaction, 'direction_image_ids');
+    const degrees = getModalSelectValues(interaction, 'direction_degrees').map(Number);
+    if (imageIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Select at least one image ID.')] });
+    if (degrees.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Select at least one direction/orientation.')] });
+
+    const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
+    if (unknownImageIds.length > 0) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for pool **${imagePool.id}**: ${unknownImageIds.join(', ')}`)] });
     }
-    if (directionUpdates.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
 
-    const imagePool = getQuestionImagePool(effectiveQuestion);
-    const unknownImageIds = imagePool ? validateImageIdsInPool(directionUpdates.map(({ imageId }) => imageId), imagePool) : directionUpdates.map(({ imageId }) => imageId);
-    if (unknownImageIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'}: ${unknownImageIds.join(', ')}`)] });
-
-    const configuredRotationIds = new Set(getConfiguredDirectionImageIds(effectiveQuestion));
-    const unconfiguredIds = directionUpdates.map(({ imageId }) => imageId).filter((imageId) => !configuredRotationIds.has(imageId));
-    if (unconfiguredIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Configure image IDs as center or outer before setting directions: ${[...new Set(unconfiguredIds)].join(', ')}`)] });
+    const directionOptions = new Set(DEFAULT_ROTATION_ALIGNMENT_DEGREES.map(String));
+    const invalidDegrees = degrees.filter((degree) => !directionOptions.has(String(degree)));
+    if (invalidDegrees.length > 0) {
+        return interaction.editReply({ embeds: [userErrorEmbed(`Invalid direction degree${invalidDegrees.length === 1 ? '' : 's'}: ${invalidDegrees.join(', ')}`)] });
+    }
 
     const updatedSettings = await setQuestionImageDirectionOverrides(
         context.guildId,
         context.challengeId,
         context.question.id,
-        Object.fromEntries(directionUpdates.map(({ imageId, degrees }) => [imageId, degrees])),
+        Object.fromEntries(imageIds.map((imageId) => [imageId, degrees])),
         interaction.user.id,
     );
     return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-directions-modal', 'Question image directions updated.', { sourceMessageId: context.sourceMessageId });
@@ -2458,9 +2656,6 @@ async function handleVerificationAdminComponentInteraction(interaction) {
                 return true;
             case 'questionEditDirections':
                 await handleQuestionEditDirectionsButton(interaction, parsed.parts);
-                return true;
-            case 'questionDirectionsPage':
-                await showQuestionDirectionsModal(interaction, parsed.parts);
                 return true;
             case 'questionDetailPage':
                 await handleQuestionDetailPageButton(interaction, parsed.parts);
