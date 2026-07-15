@@ -532,13 +532,25 @@ async function sendChallengeOverview(interaction, {
 
 const QUESTION_TASK_TYPE_OPTIONS = [
     { value: 'none', label: 'None', description: 'No task / plain text question' },
-    { value: 'prompt-text', label: 'Prompt Text', description: 'Generated prompt image text' },
+    { value: 'prompt-text', label: 'Prompt Text', description: 'Prompt image text' },
     { value: 'static-image', label: 'Static Image', description: 'Static reference image' },
     { value: 'gallery-standard', label: 'Standard Gallery', description: 'Pick solution image positions' },
     { value: 'gallery-rotation-alignment', label: 'Rotation Alignment', description: 'Pick aligned generated tiles' },
 ];
 const POSITION_ANSWER_TASK_TYPES = new Set(['gallery-standard', 'gallery-rotation-alignment']);
-const TEXT_ANSWER_TASK_TYPES = new Set(['none', 'prompt-text', 'static-image']);
+const GENERATED_IMAGE_TASK_CONFIG_FIELDS = [
+    'text',
+    'imageIds',
+    'imageDirections',
+    'imagePoolId',
+    'gallerySize',
+    'compositeImageGallery',
+    'solutionImageCount',
+    'controlImageCount',
+    'maxControlImageRepeats',
+    'config',
+    'url',
+];
 
 function normalizeTaskType(taskType) {
     const value = String(taskType ?? 'none').trim() || 'none';
@@ -564,7 +576,22 @@ const QUESTION_CLEAR_FIELD_MAP = {
     label: 'label',
     'separate-step': 'separateStep',
     text: 'text',
-    task: ['generatedImage.enabled', 'generatedImage.type', 'answer.type'],
+    task: [
+        'generatedImage.enabled',
+        'generatedImage.type',
+        'generatedImage.text',
+        'generatedImage.imageIds',
+        'generatedImage.imageDirections',
+        'generatedImage.imagePoolId',
+        'generatedImage.gallerySize',
+        'generatedImage.compositeImageGallery',
+        'generatedImage.solutionImageCount',
+        'generatedImage.controlImageCount',
+        'generatedImage.maxControlImageRepeats',
+        'generatedImage.config',
+        'generatedImage.url',
+        'answer.type',
+    ],
     'answer-required': 'answer.required',
     'image-text': 'generatedImage.text',
     answers: 'answer.accepted',
@@ -666,8 +693,9 @@ function findSharedImageIds(firstIds, secondIds) {
 }
 
 function getAllowedRolesForQuestion(question) {
-    if (question.generatedImage?.type === 'gallery-standard') return ['solution', 'control'];
-    if (question.generatedImage?.type === 'gallery-rotation-alignment') return ['center', 'outer'];
+    const taskType = getQuestionTaskType(question);
+    if (taskType === 'gallery-standard') return ['solution', 'control'];
+    if (taskType === 'gallery-rotation-alignment') return ['center', 'outer'];
     return [];
 }
 
@@ -755,7 +783,7 @@ function buildQuestionDetailEmbed(verificationSettings, challengeId, challenge, 
 function validateQuestionImageIds(question, role, imageIds) {
     const allowedRoles = getAllowedRolesForQuestion(question);
     if (!allowedRoles.includes(role)) {
-        return `Role **${role}** is not valid for ${question.generatedImage?.type ?? 'this question'}. Use: ${allowedRoles.join(', ') || 'none'}.`;
+        return `Role **${role}** is not valid for ${getQuestionTaskTypeLabel(getQuestionTaskType(question))}. Use: ${allowedRoles.join(', ') || 'none'}.`;
     }
 
     const imagePool = getQuestionImagePool(question);
@@ -778,7 +806,8 @@ function validatePendingQuestionImageIds(question, role, imageIds) {
         [role]: imageIds,
     };
 
-    if (question.generatedImage?.type === 'gallery-standard') {
+    const taskType = getQuestionTaskType(question);
+    if (taskType === 'gallery-standard') {
         const solutionIds = pendingImageIds.solution ?? [];
         const controlIds = pendingImageIds.control ?? [];
         const sharedIds = findSharedImageIds(solutionIds, controlIds);
@@ -795,7 +824,7 @@ function validatePendingQuestionImageIds(question, role, imageIds) {
         }
     }
 
-    if (question.generatedImage?.type === 'gallery-rotation-alignment') {
+    if (taskType === 'gallery-rotation-alignment') {
         const centerIds = pendingImageIds.center ?? [];
         const outerIds = pendingImageIds.outer ?? [];
         const sharedIds = findSharedImageIds(centerIds, outerIds);
@@ -876,25 +905,6 @@ function buildChallengeAuditFields(challenge, verificationSettings, enabledChall
         { name: `${challenge.id} screens`, value: String(screens.length), inline: true },
         { name: `${challenge.id} issues`, value: formatList(issues, 'No issues found').slice(0, 1024), inline: false },
     ];
-}
-
-async function showChallengeTimersModal(interaction, guildId) {
-    const modal = buildAdminModal(
-        buildAdminCustomId('challengeTimers', interaction.guild?.id ?? guildId, interaction.user.id),
-        'Verification Timers',
-        buildModalTextLabel('expiry_timer', 'Expiry Timer', {
-            placeholder: '10m, 600s, or leave empty',
-            description: 'Leave empty for no change.',
-            maxLength: 32,
-        }),
-        buildModalTextLabel('retry_cooldown', 'Retry Cooldown', {
-            placeholder: '60s, 1m, or leave empty',
-            description: 'Leave empty for no change.',
-            maxLength: 32,
-        }),
-    );
-
-    return interaction.showModal(modal);
 }
 
 function getModalTextInput(interaction, customId) {
@@ -997,47 +1007,6 @@ function buildAdminModal(customId, title, ...labels) {
         .setCustomId(customId)
         .setTitle(String(title).slice(0, 45))
         .addLabelComponents(...modalLabels);
-}
-
-async function handleChallengeTimersModalSubmit(interaction, parts = []) {
-    const [guildId, ownerUserId] = parts;
-    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-
-    const expiryInput = getModalTextInput(interaction, 'expiry_timer');
-    const cooldownInput = getModalTextInput(interaction, 'retry_cooldown');
-
-    if (!expiryInput && !cooldownInput) {
-        return interaction.editReply({ embeds: [userErrorEmbed('No timer changes were submitted.')] });
-    }
-
-    const expirySeconds = expiryInput ? parseDurationSeconds(expiryInput) : undefined;
-    if (expiryInput && !expirySeconds) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Invalid Expiry Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
-    }
-
-    const cooldownSeconds = cooldownInput ? parseDurationSeconds(cooldownInput) : undefined;
-    if (cooldownInput && !cooldownSeconds) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Invalid Retry Cooldown. Use a value like `90s`, `2m`, or `2 minutes`.')] });
-    }
-
-    if (expirySeconds) await setChallengeExpirySeconds(guildId, expirySeconds, interaction.user.id);
-    if (cooldownSeconds) await setCooldownSeconds(guildId, cooldownSeconds, interaction.user.id);
-
-    const updatedSettings = await getVerificationSettings(guildId);
-    return interaction.editReply(buildVerificationAdminSummary(
-        'Challenge Timers Updated',
-        'Updated verification challenge timers.',
-        'Current challenge timer settings.',
-        'success',
-        {
-            fields: [
-                { name: 'Expiry Timer', value: formatDuration(updatedSettings.challengeExpirySeconds), inline: true },
-                { name: 'Retry Cooldown', value: formatDuration(updatedSettings.cooldownSeconds), inline: true },
-            ],
-        },
-    ));
 }
 
 async function sendAdminPanelOwnerError(interaction) {
@@ -1458,7 +1427,7 @@ function buildQuestionSelectRow(mode, guildId, ownerUserId, challengeId, challen
             const option = new Discord.StringSelectMenuOptionBuilder()
                 .setLabel(truncateSelectText(labelBase))
                 .setValue(String(question.id))
-                .setDescription(truncateSelectText(question.id || question.generatedImage?.type || 'Question'));
+                .setDescription(truncateSelectText(question.id || getQuestionTaskTypeLabel(getQuestionTaskType(question)) || 'Question'));
             if (selectedQuestionId && String(question.id) === String(selectedQuestionId)) option.setDefault(true);
             return option;
         }));
@@ -1837,7 +1806,7 @@ function showQuestionAnswersModal(interaction, parts) {
 
 function showQuestionImageIdsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, (context, question) => {
-        const type = parts[4] ?? question.generatedImage?.type;
+        const type = parts[4] ?? getQuestionTaskType(question);
         if (!['gallery-standard', 'gallery-rotation-alignment'].includes(type)) throw new Error('This question does not use editable image IDs.');
         const roles = type === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
         const labels = roles.map((role) => buildModalTextLabel(`${role}_ids`, `${role[0].toUpperCase()}${role.slice(1)} IDs`, {
@@ -1892,7 +1861,7 @@ async function handleQuestionEditDirectionsButton(interaction, parts) {
 function showQuestionDirectionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, (context, question) => {
         const parsedDirections = parseQuestionDirectionsParts(parts);
-        const taskType = parsedDirections.taskType ?? question.generatedImage?.type;
+        const taskType = parsedDirections.taskType ?? getQuestionTaskType(question);
         if (taskType !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
         const directionImageIds = parsedDirections.imageIds;
         if (directionImageIds.length < 1) {
@@ -1940,6 +1909,10 @@ function buildQuestionOrderPatchMap(effectiveChallenge, selectedQuestionId, targ
     return Object.fromEntries(reorderedIds.map((questionId, index) => [questionId, { order: index + 1 }]));
 }
 
+function clearGeneratedImageFields(generatedImage, fields) {
+    for (const field of fields) generatedImage[field] = null;
+}
+
 function buildTaskTypePatch(taskType) {
     const normalizedTaskType = normalizeTaskType(taskType);
     const imageIdsKeepRoles = normalizedTaskType === 'gallery-standard'
@@ -1951,14 +1924,23 @@ function buildTaskTypePatch(taskType) {
         enabled: normalizedTaskType !== 'none',
         type: normalizedTaskType,
     };
-    if (['none', 'static-image', 'gallery-standard', 'gallery-rotation-alignment'].includes(normalizedTaskType)) generatedImage.text = null;
-    if (['none', 'prompt-text', 'static-image'].includes(normalizedTaskType)) {
-        generatedImage.imageIds = null;
-        generatedImage.imageDirections = null;
+
+    if (normalizedTaskType === 'none') {
+        clearGeneratedImageFields(generatedImage, GENERATED_IMAGE_TASK_CONFIG_FIELDS);
+    }
+    else if (normalizedTaskType === 'prompt-text') {
+        clearGeneratedImageFields(generatedImage, GENERATED_IMAGE_TASK_CONFIG_FIELDS.filter((field) => field !== 'text'));
+    }
+    else if (normalizedTaskType === 'static-image') {
+        clearGeneratedImageFields(generatedImage, GENERATED_IMAGE_TASK_CONFIG_FIELDS.filter((field) => field !== 'url'));
     }
     else if (normalizedTaskType === 'gallery-standard') {
-        generatedImage.imageDirections = null;
+        clearGeneratedImageFields(generatedImage, ['text', 'imageDirections', 'url']);
     }
+    else if (normalizedTaskType === 'gallery-rotation-alignment') {
+        clearGeneratedImageFields(generatedImage, ['text', 'url']);
+    }
+
     return { generatedImage, answer: { type: getDefaultAnswerTypeForTask(normalizedTaskType) }, imageIdsKeepRoles };
 }
 
@@ -2014,6 +1996,13 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         const currentImageIds = effectiveQuestion.generatedImage?.imageIds ?? {};
         if (taskPatch.imageIdsKeepRoles) {
             taskPatch.generatedImage.imageIds = Object.fromEntries(Object.entries(currentImageIds).filter(([role]) => taskPatch.imageIdsKeepRoles.has(role)));
+            if (selectedTaskType === 'gallery-rotation-alignment') {
+                const retainedImageIds = new Set(Object.values(taskPatch.generatedImage.imageIds).flat().map(String));
+                const currentDirections = effectiveQuestion.generatedImage?.imageDirections ?? {};
+                taskPatch.generatedImage.imageDirections = Object.fromEntries(
+                    Object.entries(currentDirections).filter(([imageId]) => retainedImageIds.has(String(imageId))),
+                );
+            }
         }
         delete taskPatch.imageIdsKeepRoles;
         Object.assign(selectedPatch, taskPatch);
@@ -2063,7 +2052,7 @@ async function handleQuestionImageTextModalSubmit(interaction, parts) {
 
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
-    if (effectiveQuestion.generatedImage?.type !== 'prompt-text') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use generated prompt image text.')] });
+    if (getQuestionTaskType(effectiveQuestion) !== 'prompt-text') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use prompt image text.')] });
     const imageText = getModalTextInput(interaction, 'image_text');
     if (!imageText) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
 
@@ -2112,10 +2101,10 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
 
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
-    const type = effectiveQuestion.generatedImage?.type;
-    if (!['gallery-standard', 'gallery-rotation-alignment'].includes(type)) return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
+    const taskType = getQuestionTaskType(effectiveQuestion);
+    if (!['gallery-standard', 'gallery-rotation-alignment'].includes(taskType)) return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
 
-    const roles = type === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
+    const roles = taskType === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
     const updates = {};
     for (const role of roles) {
         const raw = getModalTextInput(interaction, `${role}_ids`);
@@ -2146,7 +2135,7 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
 
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
-    if (effectiveQuestion.generatedImage?.type !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
+    if (getQuestionTaskType(effectiveQuestion) !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
 
     const submittedImageIds = parseQuestionDirectionsParts(parts).imageIds;
     const directionUpdates = [];
@@ -2374,9 +2363,6 @@ async function handleVerificationAdminModalSubmit(interaction) {
         switch (parsed.action) {
             case 'settingsTimersModal':
                 await handleSettingsTimersModalSubmit(interaction, parsed.parts);
-                return true;
-            case 'challengeTimers':
-                await handleChallengeTimersModalSubmit(interaction, parsed.parts);
                 return true;
             case 'challengeEditModal':
                 await handleChallengeEditModalSubmit(interaction, parsed.parts);

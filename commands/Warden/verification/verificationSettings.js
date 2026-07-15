@@ -1160,8 +1160,29 @@ async function clearQuestionOverrideField(guildId, challengeId, questionId, fiel
             case 'generatedImage.imageDirections':
                 delete updatedQuestion.generatedImage.imageDirections;
                 break;
+            case 'generatedImage.imagePoolId':
+                delete updatedQuestion.generatedImage.imagePoolId;
+                break;
+            case 'generatedImage.gallerySize':
+                delete updatedQuestion.generatedImage.gallerySize;
+                break;
+            case 'generatedImage.compositeImageGallery':
+                delete updatedQuestion.generatedImage.compositeImageGallery;
+                break;
+            case 'generatedImage.solutionImageCount':
+                delete updatedQuestion.generatedImage.solutionImageCount;
+                break;
+            case 'generatedImage.controlImageCount':
+                delete updatedQuestion.generatedImage.controlImageCount;
+                break;
+            case 'generatedImage.maxControlImageRepeats':
+                delete updatedQuestion.generatedImage.maxControlImageRepeats;
+                break;
             case 'generatedImage.config':
                 delete updatedQuestion.generatedImage.config;
+                break;
+            case 'generatedImage.url':
+                delete updatedQuestion.generatedImage.url;
                 break;
             case 'answer.required':
                 delete updatedQuestion.answer.required;
@@ -1227,6 +1248,30 @@ async function clearQuestionOverrideFields(guildId, challengeId, questionId, fie
                     break;
                 case 'generatedImage.imageDirections':
                     delete updatedQuestion.generatedImage.imageDirections;
+                    break;
+                case 'generatedImage.imagePoolId':
+                    delete updatedQuestion.generatedImage.imagePoolId;
+                    break;
+                case 'generatedImage.gallerySize':
+                    delete updatedQuestion.generatedImage.gallerySize;
+                    break;
+                case 'generatedImage.compositeImageGallery':
+                    delete updatedQuestion.generatedImage.compositeImageGallery;
+                    break;
+                case 'generatedImage.solutionImageCount':
+                    delete updatedQuestion.generatedImage.solutionImageCount;
+                    break;
+                case 'generatedImage.controlImageCount':
+                    delete updatedQuestion.generatedImage.controlImageCount;
+                    break;
+                case 'generatedImage.maxControlImageRepeats':
+                    delete updatedQuestion.generatedImage.maxControlImageRepeats;
+                    break;
+                case 'generatedImage.config':
+                    delete updatedQuestion.generatedImage.config;
+                    break;
+                case 'generatedImage.url':
+                    delete updatedQuestion.generatedImage.url;
                     break;
                 case 'answer.required':
                     delete updatedQuestion.answer.required;
