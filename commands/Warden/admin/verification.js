@@ -257,13 +257,6 @@ function parseDurationSeconds(input) {
     return undefined;
 }
 
-function parseIdList(input) {
-    return [...new Set(String(input ?? '')
-        .split(/[\s,]+/)
-        .map((challengeId) => challengeId.trim())
-        .filter(Boolean))];
-}
-
 function sameStringSet(leftValues = [], rightValues = []) {
     const left = [...new Set(leftValues.map(String))].sort();
     const right = [...new Set(rightValues.map(String))].sort();
@@ -272,10 +265,6 @@ function sameStringSet(leftValues = [], rightValues = []) {
 
 function buildUnchangedFirstOptions(options = []) {
     return [UNCHANGED_OPTION, ...options];
-}
-
-function buildNoneFirstOptions(options = []) {
-    return [NONE_OPTION, ...options];
 }
 
 function buildUnchangedAndNoneOptions(options = []) {
@@ -299,26 +288,6 @@ function assertSelectOptionLimit(options, label) {
     if (optionCount > 25) {
         throw new Error(`${label} has ${optionCount} options, but Discord select menus support up to 25. Add paging or reduce the configured entries.`);
     }
-}
-
-function normalizeDegreeValue(value) {
-    const numeric = Number(value);
-
-    if (!Number.isInteger(numeric) || numeric < 0 || numeric > 360 || numeric % 45 !== 0) {
-        throw new Error(`Invalid degree "${value}". Use 0,45,90,135,180,225,270,315.`);
-    }
-
-    return numeric === 360 ? 0 : numeric;
-}
-
-function parseDegreeList(input) {
-    const values = String(input ?? '')
-        .split(/[\s,]+/)
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .map(normalizeDegreeValue);
-
-    return [...new Set(values)].sort((left, right) => left - right);
 }
 
 function parseAnswerOverrideList(input) {
@@ -1762,8 +1731,8 @@ function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
     if (hasOwnValue(questionOverride, 'separateStep')) add('separate-step', 'Clear Separate Step', 'separateStep');
     if (hasOwnValue(questionOverride, 'label')) add('label', 'Clear Label', 'label');
     if (hasOwnValue(questionOverride, 'text')) add('text', 'Clear Text', 'text');
-    if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'imagePoolId', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
-        add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.imagePoolId', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url', 'answer.type']);
+    if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
+        add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url', 'answer.type']);
     }
     if (hasOwnValue(generatedImageOverride, 'imagePoolId')) add('image-pool', 'Clear Image Pool', 'generatedImage.imagePoolId');
     if (taskType === 'prompt-text' && hasOwnValue(generatedImageOverride, 'text')) add('image-text', 'Clear Prompt Text', 'generatedImage.text');
@@ -1935,11 +1904,8 @@ function getImagePoolModalOptions() {
 }
 
 function buildQuestionImagePoolSelectField(effectiveQuestion) {
-    const taskType = getQuestionTaskType(effectiveQuestion);
     const currentImagePoolId = effectiveQuestion.generatedImage?.imagePoolId;
-    const selectedValue = taskType === 'none' && !currentImagePoolId
-        ? SELECT_NONE
-        : (currentImagePoolId || SELECT_UNCHANGED);
+    const selectedValue = currentImagePoolId || SELECT_NONE;
 
     return buildModalStringSelectField({
         label: 'Assigned Image Pool',
@@ -1956,11 +1922,6 @@ function buildQuestionImagePoolSelectField(effectiveQuestion) {
 
 function getTaskImageRoleConfig(taskType) {
     return QUESTION_TASK_IMAGE_ROLE_CONFIG[normalizeTaskType(taskType)];
-}
-
-function getQuestionAssignedImagePool(effectiveQuestion) {
-    const imagePoolId = effectiveQuestion.generatedImage?.imagePoolId;
-    return imagePoolId ? getVerificationImagePool(imagePoolId) : undefined;
 }
 
 function buildImagePoolImageOptions(imagePool) {
@@ -2150,7 +2111,7 @@ function showQuestionImageIdsModal(interaction, parts) {
 
         if (!roleConfig) throw new Error('This question does not use editable image IDs.');
 
-        const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+        const imagePool = getQuestionImagePool(effectiveQuestion);
         if (!imagePool) {
             await respondAdminError(sourceInteraction, {
                 embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image IDs.')],
@@ -2190,7 +2151,7 @@ function showQuestionDirectionsModal(interaction, parts) {
 
         if (taskType !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
 
-        const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+        const imagePool = getQuestionImagePool(effectiveQuestion);
         if (!imagePool) {
             await respondAdminError(sourceInteraction, {
                 embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image Directions.')],
@@ -2441,7 +2402,7 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
     const roleConfig = getTaskImageRoleConfig(taskType);
     if (!roleConfig) return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
 
-    const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+    const imagePool = getQuestionImagePool(effectiveQuestion);
     if (!imagePool) return interaction.editReply({ embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image IDs.')] });
 
     const updates = {};
@@ -2480,7 +2441,7 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
     if (getQuestionTaskType(effectiveQuestion) !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
 
-    const imagePool = getQuestionAssignedImagePool(effectiveQuestion);
+    const imagePool = getQuestionImagePool(effectiveQuestion);
     if (!imagePool) return interaction.editReply({ embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image Directions.')] });
 
     const imageIds = getModalSelectValues(interaction, 'direction_image_ids');
