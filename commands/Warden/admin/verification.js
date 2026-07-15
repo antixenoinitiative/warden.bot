@@ -198,7 +198,6 @@ async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSe
         reason,
         source,
     });
-    await followUpAdminConfigWarning(interaction, safeguard, { changedChallengeId: context.challengeId, changedQuestionId: context.question.id });
     const finalSettings = safeguard.finalSettings ?? updatedSettings;
     const effectiveChallenge = await getVerificationAdminChallenge(context.guildId, context.challengeId) ?? context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
@@ -212,7 +211,7 @@ async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSe
         question: effectiveQuestion,
         expanded: true,
     });
-    return replyWithUpdatedAdminPanel(interaction, {
+    const response = await replyWithUpdatedAdminPanel(interaction, {
         panelPayload,
         sourceMessageId,
         title: 'Question Updated',
@@ -220,6 +219,13 @@ async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSe
         preferSourceUpdate,
         fallback: 'panel',
     });
+
+    await followUpAdminConfigWarning(interaction, safeguard, {
+        changedChallengeId: context.challengeId,
+        changedQuestionId: context.question.id,
+    });
+
+    return response;
 }
 
 
@@ -1226,9 +1232,8 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
 
     const updatedSettings = await saveVerificationGuildSettingsOnly(guildId, nextSettings, interaction.user.id);
     const safeguard = await runAdminConfigSafeguard(interaction, { guildId, settings: updatedSettings, reason: 'Settings options updated.', source: 'settings-options-modal' });
-    await followUpAdminConfigWarning(interaction, safeguard);
 
-    return replyWithUpdatedSettingsPanel(interaction, {
+    const response = await replyWithUpdatedSettingsPanel(interaction, {
         guildId,
         ownerUserId,
         sourceMessageId,
@@ -1236,6 +1241,10 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
         title: 'Settings Updated',
         description: 'Verification settings were updated.',
     });
+
+    await followUpAdminConfigWarning(interaction, safeguard);
+
+    return response;
 }
 
 async function handleSettingsTimersModalSubmit(interaction, parts = []) {
