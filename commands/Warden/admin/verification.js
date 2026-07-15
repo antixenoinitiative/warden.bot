@@ -1734,7 +1734,9 @@ function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
     if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
         add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url', 'answer.type']);
     }
-    if (hasOwnValue(generatedImageOverride, 'imagePoolId')) add('image-pool', 'Clear Image Pool', 'generatedImage.imagePoolId');
+    if (hasOwnValue(generatedImageOverride, 'imagePoolId') || hasOwnValue(generatedImageOverride.config, 'imagePoolId')) {
+        add('image-pool', 'Clear Image Pool', ['generatedImage.imagePoolId', 'generatedImage.config.imagePoolId']);
+    }
     if (taskType === 'prompt-text' && hasOwnValue(generatedImageOverride, 'text')) add('image-text', 'Clear Prompt Text', 'generatedImage.text');
     if (['gallery-standard', 'gallery-rotation-alignment'].includes(taskType) && hasOwnValue(generatedImageOverride, 'imageIds')) add('image-ids', 'Clear Image IDs', 'generatedImage.imageIds');
     if (taskType === 'gallery-rotation-alignment' && hasOwnValue(generatedImageOverride, 'imageDirections')) add('directions', 'Clear Directions', 'generatedImage.imageDirections');
@@ -1863,16 +1865,17 @@ function buildQuestionOrderSelectField(effectiveChallenge, selectedQuestionId) {
     const options = getQuestionOrderSelectOptions(effectiveChallenge, selectedQuestionId);
     assertSelectOptionLimit(options, 'Question order options');
     const supportsUnchanged = options.some((option) => option.value === SELECT_UNCHANGED);
+    const currentOrderValue = String(getChallengeQuestions(effectiveChallenge).findIndex((question) => question.id === selectedQuestionId) + 1);
 
     return buildModalStringSelectField({
         label: 'Order Number',
         description: supportsUnchanged
             ? 'Choose the question slot, or leave unchanged.'
-            : 'Choose the question slot.',
+            : 'Choose the question slot; current order means no change.',
         customId: 'order_number',
         placeholder: 'Choose order number...',
         options,
-        selectedValues: supportsUnchanged ? [SELECT_UNCHANGED] : [],
+        selectedValues: supportsUnchanged ? [SELECT_UNCHANGED] : [currentOrderValue],
         minValues: 1,
         maxValues: 1,
         required: true,
@@ -2304,6 +2307,9 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         });
     }
 
+    const currentOrder = getQuestionNumber(effectiveChallenge, effectiveQuestion);
+    if (orderNumber === currentOrder) orderNumber = undefined;
+
     if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !taskChanged && !imagePoolChanged) {
         return interaction.editReply({ embeds: [userErrorEmbed('No question option changes were submitted.')] });
     }
@@ -2337,6 +2343,8 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     if (selectedImagePoolId !== undefined && imagePoolChanged) {
         if (selectedImagePoolId === null || selectedTaskUsesImagePool) {
             setGeneratedImagePatchValue(selectedPatch, 'imagePoolId', selectedImagePoolId);
+            setGeneratedImagePatchValue(selectedPatch, 'imageIds', null);
+            setGeneratedImagePatchValue(selectedPatch, 'imageDirections', null);
         }
     }
     patches[context.question.id] = selectedPatch;
