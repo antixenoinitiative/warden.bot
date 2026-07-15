@@ -10,12 +10,7 @@ const {
     buildVerificationErrorEmbed,
     buildVerificationPublicEmbed,
 } = require('../verification/verificationResponses');
-const {
-    verificationChallenges,
-    getEnabledVerificationChallenges,
-    normalizeVerificationChallenge,
-    buildQuestionScreens,
-} = require('../verification/verificationChallenges/verificationChallenges');
+const { buildQuestionScreens } = require('../verification/verificationChallenges/verificationChallenges');
 const {
     getVerificationImagePool,
     verificationImagePools,
@@ -24,6 +19,11 @@ const {
     DEFAULT_ROTATION_ALIGNMENT_DEGREES,
 } = require('../verification/verificationChallenges/questionTasks/shared/degrees');
 const { evaluateChallengeConfigIssues } = require('../verification/verificationChallenges/verificationConfigIssues');
+const {
+    getVerificationAdminChallengeCatalog,
+    getVerificationAdminChallenge,
+    resolveVerificationAdminGuildId,
+} = require('../verification/verificationAdminCatalog');
 const {
     applyVerificationConfigSafeguard,
     buildVerificationConfigWarningEmbed,
@@ -199,8 +199,8 @@ async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSe
     });
     await followUpAdminConfigWarning(interaction, safeguard, { changedChallengeId: context.challengeId, changedQuestionId: context.question.id });
     const finalSettings = safeguard.finalSettings ?? updatedSettings;
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, finalSettings);
-    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id);
+    const effectiveChallenge = await getVerificationAdminChallenge(context.guildId, context.challengeId) ?? context.challenge;
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     const panelPayload = buildQuestionWorkspacePayload({
         verificationSettings: finalSettings,
         mode: 'edit',
@@ -352,8 +352,8 @@ function buildActiveChallengeIdsValue(verificationSettings) {
         : 'None';
 }
 
-function buildAvailableChallengeIdsValue(enabledChallengeIds) {
-    const challengeList = Object.values(verificationChallenges)
+function buildAvailableChallengeIdsValue(challenges, enabledChallengeIds) {
+    const challengeList = Object.values(challenges)
         .map(challenge => `- ${enabledChallengeIds.includes(challenge.id) ? '**' : ''}${challenge.id}${enabledChallengeIds.includes(challenge.id) ? '** [active]' : ''}`)
         .join('\n');
 
@@ -375,15 +375,15 @@ function buildSettingsStatusEmbed(verificationSettings) {
     ).embeds[0];
 }
 
-function assertSettingsChallengeSelectMenuLimit() {
-    const count = Object.values(verificationChallenges).length;
+function assertSettingsChallengeSelectMenuLimit(challenges) {
+    const count = Object.values(challenges).length;
     if (count > SETTINGS_SELECT_MENU_MAX_OPTIONS) {
         throw new Error(`There are ${count} configured challenges, but this select-menu editor supports up to ${SETTINGS_SELECT_MENU_MAX_OPTIONS}. Add paging before editing active challenges through this panel.`);
     }
 }
 
-function getChallengeSelectOptions() {
-    return Object.values(verificationChallenges).map((challenge) => ({
+function getChallengeSelectOptions(challenges) {
+    return Object.values(challenges).map((challenge) => ({
         label: challenge.id || challenge.title,
         value: String(challenge.id),
         description: challenge.title || challenge.id,
@@ -419,53 +419,55 @@ async function handleVerificationSettingsCommand(interaction, guildId) {
     }));
 }
 
-function buildChallengeListOverviewEmbed(verificationSettings, enabledChallengeIds) {
+function buildChallengeListOverviewEmbed(verificationSettings, challenges, enabledChallengeIds) {
     return buildVerificationAdminConfiguration(
         'Challenges',
         'Configured verification challenges.',
         [
             { name: 'Active Challenge IDs', value: buildActiveChallengeIdsValue(verificationSettings), inline: false },
-            { name: 'Available Challenge IDs', value: buildAvailableChallengeIdsValue(enabledChallengeIds), inline: false },
+            { name: 'Available Challenge IDs', value: buildAvailableChallengeIdsValue(challenges, enabledChallengeIds), inline: false },
         ],
     ).embeds[0];
 }
 
-function buildChallengePickerEmbed(verificationSettings, enabledChallengeIds) {
-    const embed = buildChallengeListOverviewEmbed(verificationSettings, enabledChallengeIds);
+function buildChallengePickerEmbed(verificationSettings, challenges, enabledChallengeIds) {
+    const embed = buildChallengeListOverviewEmbed(verificationSettings, challenges, enabledChallengeIds);
     embed.addFields({ name: 'Details', value: 'Select a challenge below to open its interactive challenge editor.', inline: false });
     return embed;
 }
 
-function assertChallengeSelectMenuLimit() {
-    const count = Object.values(verificationChallenges).length;
+function assertChallengeSelectMenuLimit(challenges) {
+    const count = Object.values(challenges).length;
     if (count > CHALLENGE_SELECT_MENU_MAX_OPTIONS) {
         throw new Error(`There are ${count} configured challenges, but this select-menu editor supports up to ${CHALLENGE_SELECT_MENU_MAX_OPTIONS}. Add paging before editing challenges through this panel.`);
     }
 }
 
-function buildChallengeSelectRow(guildId, ownerUserId) {
-    assertChallengeSelectMenuLimit();
+function buildChallengeSelectRow(guildId, ownerUserId, challenges) {
+    assertChallengeSelectMenuLimit(challenges);
     return new Discord.ActionRowBuilder().addComponents(buildStringSelectComponent({
         customId: buildAdminCustomId('challengeSelect', guildId, ownerUserId),
         placeholder: 'Choose a challenge...',
-        options: getChallengeSelectOptions(),
+        options: getChallengeSelectOptions(challenges),
     }));
 }
 
-function buildChallengesPanelPayload({ verificationSettings, enabledChallengeIds, guildId, ownerUserId }) {
+function buildChallengesPanelPayload({ verificationSettings, challenges, enabledChallengeIds, guildId, ownerUserId }) {
     return {
-        embeds: [buildChallengePickerEmbed(verificationSettings, enabledChallengeIds)],
-        components: [buildChallengeSelectRow(guildId, ownerUserId)],
+        embeds: [buildChallengePickerEmbed(verificationSettings, challenges, enabledChallengeIds)],
+        components: [buildChallengeSelectRow(guildId, ownerUserId, challenges)],
     };
 }
 
 async function handleVerificationChallengesCommand(interaction, guildId) {
-    try { assertChallengeSelectMenuLimit(); }
+    const challenges = await getVerificationAdminChallengeCatalog(guildId);
+    try { assertChallengeSelectMenuLimit(challenges); }
     catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
     const verificationSettings = await getVerificationSettings(guildId);
-    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
     return interaction.editReply(buildChallengesPanelPayload({
         verificationSettings,
+        challenges,
         enabledChallengeIds,
         guildId,
         ownerUserId: interaction.user.id,
@@ -477,16 +479,16 @@ async function handleChallengeSelectMenu(interaction, parts) {
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     const challengeId = interaction.values?.[0];
-    if (!verificationChallenges[challengeId]) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
+    if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(guildId);
-    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
     return sendChallengeOverview(interaction, { guildId, verificationSettings, enabledChallengeIds, challengeId, mode: 'edit' });
 }
 
-function buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId) {
-    const challenge = verificationChallenges[challengeId];
-    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+function buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId, challenge) {
+    const effectiveChallenge = challenge;
     const fields = [
         { name: 'Challenge Title', value: truncateEmbedFieldValue(effectiveChallenge.title ?? 'Not set'), inline: false },
         { name: 'Challenge Description', value: truncateEmbedFieldValue(effectiveChallenge.description ?? 'Not set'), inline: false },
@@ -535,9 +537,9 @@ function buildChallengeQuestionsComponents(mode, guildId, userId, challengeId) {
     )];
 }
 
-function buildChallengeOverviewPanelPayload({ verificationSettings, enabledChallengeIds, mode, guildId, userId, challengeId }) {
+function buildChallengeOverviewPanelPayload({ verificationSettings, enabledChallengeIds, mode, guildId, userId, challengeId, challenge }) {
     return {
-        embeds: [buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId)],
+        embeds: [buildChallengeOverviewEmbed(verificationSettings, enabledChallengeIds, challengeId, challenge)],
         components: buildChallengeOverviewComponents(mode, guildId, userId, challengeId),
     };
 }
@@ -577,10 +579,11 @@ async function sendChallengeOverview(interaction, {
     mode,
 }) {
     if (!challengeId) {
-        return interaction.editReply({ embeds: [buildChallengeListOverviewEmbed(verificationSettings, enabledChallengeIds)], components: [] });
+        const challenges = await getVerificationAdminChallengeCatalog(guildId);
+        return interaction.editReply({ embeds: [buildChallengeListOverviewEmbed(verificationSettings, challenges, enabledChallengeIds)], components: [] });
     }
 
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)], components: [] });
     return interaction.editReply(buildChallengeOverviewPanelPayload({
         verificationSettings,
@@ -589,6 +592,7 @@ async function sendChallengeOverview(interaction, {
         guildId,
         userId: interaction.user.id,
         challengeId,
+        challenge,
     }));
 }
 
@@ -664,7 +668,8 @@ function getDefaultAnswerTypeForTask(taskType) {
 function getKnownChallengeId(interaction, optionName = 'challenge') {
     const challengeId = String(interaction.options.getString(optionName) ?? '').trim();
     if (!challengeId) return { error: userErrorEmbed(`Please provide a challenge ID in \`${optionName}\`.`) };
-    if (!verificationChallenges[challengeId]) return { error: userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`) };
+    // Catalog-backed admin choices are loaded asynchronously by panel handlers.
+    if (!challengeId) return { error: userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`) };
     return { challengeId };
 }
 
@@ -906,7 +911,7 @@ function getChallengeAuditIssues(challenge, verificationSettings) {
 
 
 function buildChallengeAuditFields(challenge, verificationSettings, enabledChallengeIds) {
-    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    const effectiveChallenge = challenge;
     const screens = buildQuestionScreens(effectiveChallenge);
     const issues = getChallengeAuditIssues(challenge, verificationSettings);
 
@@ -1089,8 +1094,10 @@ async function showSettingsOptionsModal(interaction, parts) {
         });
     }
 
+    const challenges = await getVerificationAdminChallengeCatalog(guildId);
+
     try {
-        assertSettingsChallengeSelectMenuLimit();
+        assertSettingsChallengeSelectMenuLimit(challenges);
     }
     catch (err) {
         return respondAdminError(interaction, {
@@ -1100,7 +1107,7 @@ async function showSettingsOptionsModal(interaction, parts) {
 
     const verificationSettings = await getVerificationSettings(guildId);
 
-    const settingsChallengeOptions = getChallengeSelectOptions();
+    const settingsChallengeOptions = getChallengeSelectOptions(challenges);
     const modal = buildAdminModal(
         buildAdminCustomId('settingsOptionsModal', guildId, ownerUserId, interaction.message?.id ?? ''),
         'Verification Settings',
@@ -1196,13 +1203,15 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
         });
     }
 
+    const challenges = await getVerificationAdminChallengeCatalog(guildId);
+    const challengeOptions = getChallengeSelectOptions(challenges);
     let selectedMode;
     let selectedChallengeIds;
     let selectedAutokickState;
 
     try {
         selectedMode = getRequiredModalSingleSelect(interaction, 'mode', SETTINGS_MODE_OPTIONS, 'verification mode');
-        selectedChallengeIds = getRequiredModalMultiSelect(interaction, 'active_challenge_ids', getChallengeSelectOptions(), 'active challenge');
+        selectedChallengeIds = getRequiredModalMultiSelect(interaction, 'active_challenge_ids', challengeOptions, 'active challenge');
         selectedAutokickState = getRequiredModalSingleSelect(interaction, 'autokick_enabled', SETTINGS_AUTOKICK_OPTIONS, 'autokick state');
     }
     catch (err) {
@@ -1301,7 +1310,7 @@ async function validateChallengeAdminInteraction(interaction, parts) {
         await respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
         return { error: true };
     }
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) {
         await respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
         return { error: true };
@@ -1314,7 +1323,7 @@ async function handleChallengeQuestionsButton(interaction, parts) {
     if (context.error) return;
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveChallenge = context.challenge
     return interaction.editReply(buildChallengeQuestionsPanelPayload({
         challengeId: context.challengeId,
         challenge: effectiveChallenge,
@@ -1329,7 +1338,7 @@ async function handleChallengeOverviewButton(interaction, parts) {
     if (context.error) return;
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: verificationSettings }).map((challenge) => challenge.id);
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? []
     return interaction.editReply(buildChallengeOverviewPanelPayload({
         verificationSettings,
         enabledChallengeIds,
@@ -1337,6 +1346,7 @@ async function handleChallengeOverviewButton(interaction, parts) {
         guildId: context.guildId,
         userId: context.ownerUserId,
         challengeId: context.challengeId,
+        challenge: context.challenge,
     }));
 }
 
@@ -1344,7 +1354,7 @@ async function handleQuestionSelectOpenButton(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     try {
@@ -1357,7 +1367,7 @@ async function handleQuestionSelectOpenButton(interaction, parts) {
 
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    const effectiveChallenge = challenge
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
         mode,
@@ -1378,7 +1388,7 @@ async function handleQuestionSelectMenu(interaction, parts) {
     if (context.error) return;
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveChallenge = context.challenge
     const effectiveQuestion = resolveQuestion(effectiveChallenge, selectedQuestionId) ?? context.question;
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
@@ -1401,7 +1411,7 @@ async function handleQuestionEditToolsButton(interaction, parts) {
     }
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveChallenge = context.challenge
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
@@ -1420,12 +1430,12 @@ async function handleChallengeDetailsButton(interaction, parts) {
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
 
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    const effectiveChallenge = challenge
     const questions = effectiveChallenge.questions ?? [];
 
     if (mode === 'edit') {
@@ -1444,7 +1454,7 @@ async function showChallengeEditModalFromButton(interaction, parts) {
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
 
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     const modal = buildAdminModal(
@@ -1467,15 +1477,15 @@ async function showChallengeEditModalFromButton(interaction, parts) {
     return interaction.showModal(modal);
 }
 
-function getQuestionAdminContext(parts) {
+async function getQuestionAdminContext(parts) {
     const [guildId, ownerUserId, challengeId, questionId] = parts;
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     const question = challenge ? resolveQuestion(challenge, questionId) : undefined;
     return { guildId, ownerUserId, challengeId, questionId, challenge, question };
 }
 
 async function validateQuestionAdminInteraction(interaction, parts) {
-    const context = getQuestionAdminContext(parts);
+    const context = await getQuestionAdminContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         await sendAdminPanelOwnerError(interaction);
         return { error: true };
@@ -1652,11 +1662,11 @@ async function handleQuestionDetailPageButton(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId, pageIndex = '0'] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    const effectiveChallenge = challenge
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, effectiveChallenge, effectiveChallenge.questions ?? [], Number(pageIndex) || 0);
 }
 
@@ -1666,7 +1676,7 @@ async function handleQuestionDetailViewButton(interaction, parts) {
     if (context.error) return;
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveChallenge = context.challenge
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     return interaction.editReply({
         embeds: [buildQuestionDetailEmbed(verificationSettings, context.challengeId, effectiveChallenge, effectiveQuestion)],
@@ -1678,11 +1688,11 @@ async function handleQuestionDetailBackButton(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId, pageIndex = '0'] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    const challenge = verificationChallenges[challengeId];
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    const effectiveChallenge = challenge
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, effectiveChallenge, effectiveChallenge.questions ?? [], Number(pageIndex) || 0);
 }
 
@@ -1790,7 +1800,7 @@ async function handleQuestionEditDoneButton(interaction, parts) {
     await interaction.deferUpdate();
 
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveChallenge = context.challenge
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
 
     return interaction.editReply(buildQuestionWorkspacePayload({
@@ -1809,7 +1819,7 @@ async function showQuestionClearSelectorModal(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveChallenge = context.challenge
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
     const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
@@ -2073,7 +2083,7 @@ function showQuestionTextModal(interaction, parts) {
 function showQuestionOptionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
         const verificationSettings = await getVerificationSettings(context.guildId);
-        const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+        const effectiveChallenge = context.challenge
         const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
         return buildAdminModal(
             buildAdminCustomId('questionOptionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
@@ -2263,14 +2273,14 @@ function buildTaskTypePatch(taskType) {
 }
 
 async function handleQuestionOptionsModalSubmit(interaction, parts) {
-    const context = getQuestionModalSubmitContext(parts);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const currentSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, currentSettings);
+    const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id);
 
     let orderNumber;
@@ -2354,7 +2364,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionTextModalSubmit(interaction, parts) {
-    const context = getQuestionModalSubmitContext(parts);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2372,7 +2382,7 @@ async function handleQuestionTextModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionImageTextModalSubmit(interaction, parts) {
-    const context = getQuestionModalSubmitContext(parts);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2389,7 +2399,7 @@ async function handleQuestionImageTextModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionAnswersModalSubmit(interaction, parts) {
-    const context = getQuestionModalSubmitContext(parts);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2421,7 +2431,7 @@ function applyPendingImageIds(question, updates) {
 }
 
 async function handleQuestionImageIdsModalSubmit(interaction, parts) {
-    const context = getQuestionModalSubmitContext(parts);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2462,7 +2472,7 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionDirectionsModalSubmit(interaction, parts) {
-    const context = getQuestionModalSubmitContext(parts);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2501,16 +2511,16 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-directions-modal', 'Question image directions updated.', { sourceMessageId: context.sourceMessageId });
 }
 
-function getQuestionModalSubmitContext(parts) {
+async function getQuestionModalSubmitContext(parts) {
     const [guildId, ownerUserId, challengeId, questionId, sourceMessageId = ''] = parts;
     return {
-        ...getQuestionAdminContext([guildId, ownerUserId, challengeId, questionId]),
+        ...await getQuestionAdminContext([guildId, ownerUserId, challengeId, questionId]),
         sourceMessageId,
     };
 }
 
 async function handleQuestionClearModalSubmit(interaction, parts = []) {
-    const context = getQuestionModalSubmitContext(parts);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
@@ -2518,7 +2528,7 @@ async function handleQuestionClearModalSubmit(interaction, parts = []) {
     if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveChallenge = context.challenge
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
     const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
@@ -2555,14 +2565,16 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
     if (!isMatchingAdminGuild(interaction, guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!verificationChallenges[challengeId]) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
+    if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     const title = getModalTextInput(interaction, 'challenge_title');
     const description = getModalTextInput(interaction, 'challenge_description');
     if (!title && !description) return interaction.editReply({ embeds: [userErrorEmbed('No challenge changes were submitted.')] });
 
     const updatedSettings = await updateChallengeMetaFromModal(guildId, challengeId, title, description, interaction.user.id);
-    const enabledChallengeIds = getEnabledVerificationChallenges({ verification: updatedSettings }).map((challenge) => challenge.id);
+    const updatedChallenge = await getVerificationAdminChallenge(guildId, challengeId) ?? challenge;
+    const enabledChallengeIds = updatedSettings.activeChallengeIds ?? [];
     return replyWithUpdatedAdminPanel(interaction, {
         panelPayload: buildChallengeOverviewPanelPayload({
             verificationSettings: updatedSettings,
@@ -2571,6 +2583,7 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
             guildId,
             userId: ownerUserId,
             challengeId,
+            challenge: updatedChallenge,
         }),
         sourceMessageId,
         title: 'Challenge Updated',
@@ -2788,9 +2801,7 @@ async function handleVerificationPostCommand(interaction, guildId) {
 }
 
 function getChallengeIdChoices() {
-    return Object.values(verificationChallenges)
-        .map((challenge) => challenge.id)
-        .filter(Boolean);
+    return [];
 }
 
 function buildChallengeIdAutocompleteChoices(focusedValue) {
@@ -2887,9 +2898,13 @@ module.exports = {
         try {
             const group = interaction.options.getSubcommandGroup(false);
             const subcommand = interaction.options.getSubcommand();
-            const guildId = interaction.guild?.id;
+            const guildId = resolveVerificationAdminGuildId(interaction);
 
             await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+
+            if (!guildId && (!group && (subcommand === 'settings' || subcommand === 'challenges'))) {
+                return interaction.editReply({ embeds: [userErrorEmbed('Verification settings require a guild context.')] });
+            }
 
             if (!group && subcommand === 'post') return handleVerificationPostCommand(interaction, guildId);
             if (!group && subcommand === 'settings') return handleVerificationSettingsCommand(interaction, guildId);

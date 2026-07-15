@@ -143,9 +143,12 @@ function mainOperation(){
 			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			warden_vars = database
 
-			const verificationGuildId = process.env.GUILDID || guild?.id || 'global'
+			const verificationGuildId = process.env.GUILDID || guild?.id
 
-			try {
+			if (!verificationGuildId) {
+				console.warn('[STARTUP] Skipped verification challenge catalog sync because no verification guild ID is configured.')
+			}
+			else try {
 				const { ensureVerificationChallengeTemplatesSeeded } = require('./commands/Warden/verification/verificationChallengeRepository')
 
 				await ensureVerificationChallengeTemplatesSeeded(verificationGuildId)
@@ -155,7 +158,7 @@ function mainOperation(){
 				console.error('[STARTUP] Failed to seed verification challenge catalog templates:', err)
 			}
 
-			try {
+			if (verificationGuildId) try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
 				const { syncVerificationChallengeCatalogFromSettings } = require('./commands/Warden/verification/verificationChallengeRepository')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
