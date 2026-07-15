@@ -126,14 +126,16 @@ async function respondAdminError(interaction, payload) {
     return interaction.reply(response);
 }
 
+function isAdminPanelModalFromMessage(interaction) {
+    return typeof interaction.isFromMessage === 'function'
+        ? interaction.isFromMessage()
+        : Boolean(interaction.message);
+}
+
 async function deferAdminPanelModalSubmit(interaction) {
     const canUpdateSourceMessage =
         typeof interaction.deferUpdate === 'function'
-        && (
-            typeof interaction.isFromMessage === 'function'
-                ? interaction.isFromMessage()
-                : Boolean(interaction.message)
-        );
+        && isAdminPanelModalFromMessage(interaction);
 
     if (canUpdateSourceMessage) {
         await interaction.deferUpdate();
@@ -2352,8 +2354,8 @@ function buildTaskTypePatch(taskType) {
 }
 
 async function handleQuestionOptionsModalSubmit(interaction, parts) {
-    const context = await getQuestionModalSubmitContext(parts);
     const responseMode = await deferAdminPanelModalSubmit(interaction);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         return respondAdminModalError(interaction, responseMode, {
             content: 'This admin panel belongs to another user.',
@@ -2447,8 +2449,8 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionTextModalSubmit(interaction, parts) {
-    const context = await getQuestionModalSubmitContext(parts);
     const responseMode = await deferAdminPanelModalSubmit(interaction);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         return respondAdminModalError(interaction, responseMode, {
             content: 'This admin panel belongs to another user.',
@@ -2469,8 +2471,8 @@ async function handleQuestionTextModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionImageTextModalSubmit(interaction, parts) {
-    const context = await getQuestionModalSubmitContext(parts);
     const responseMode = await deferAdminPanelModalSubmit(interaction);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         return respondAdminModalError(interaction, responseMode, {
             content: 'This admin panel belongs to another user.',
@@ -2489,8 +2491,8 @@ async function handleQuestionImageTextModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionAnswersModalSubmit(interaction, parts) {
-    const context = await getQuestionModalSubmitContext(parts);
     const responseMode = await deferAdminPanelModalSubmit(interaction);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         return respondAdminModalError(interaction, responseMode, {
             content: 'This admin panel belongs to another user.',
@@ -2524,8 +2526,8 @@ function applyPendingImageIds(question, updates) {
 }
 
 async function handleQuestionImageIdsModalSubmit(interaction, parts) {
-    const context = await getQuestionModalSubmitContext(parts);
     const responseMode = await deferAdminPanelModalSubmit(interaction);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         return respondAdminModalError(interaction, responseMode, {
             content: 'This admin panel belongs to another user.',
@@ -2568,8 +2570,8 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
 }
 
 async function handleQuestionDirectionsModalSubmit(interaction, parts) {
-    const context = await getQuestionModalSubmitContext(parts);
     const responseMode = await deferAdminPanelModalSubmit(interaction);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         return respondAdminModalError(interaction, responseMode, {
             content: 'This admin panel belongs to another user.',
@@ -2619,8 +2621,8 @@ async function getQuestionModalSubmitContext(parts) {
 }
 
 async function handleQuestionClearModalSubmit(interaction, parts = []) {
-    const context = await getQuestionModalSubmitContext(parts);
     const responseMode = await deferAdminPanelModalSubmit(interaction);
+    const context = await getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
         return respondAdminModalError(interaction, responseMode, {
             content: 'This admin panel belongs to another user.',
@@ -2794,9 +2796,16 @@ async function handleVerificationAdminComponentInteraction(interaction) {
 }
 
 async function sendVerificationAdminModalError(interaction) {
-    return respondAdminError(interaction, {
+    const payload = {
+        flags: Discord.MessageFlags.Ephemeral,
         embeds: [userErrorEmbed('Failed to update verification admin settings. Please try again later.')],
-    });
+    };
+
+    if (interaction.deferred && isAdminPanelModalFromMessage(interaction)) {
+        return interaction.followUp(payload);
+    }
+
+    return respondAdminError(interaction, payload);
 }
 
 async function handleVerificationAdminModalSubmit(interaction) {
