@@ -582,11 +582,16 @@ async function insertChallengeConfigRow(rowValues, query = (sql, values) => getD
     );
 }
 
-async function markVerificationChallengeCatalogAuthoritative(guildId) {
-    await getDatabase().query(
+async function markVerificationChallengeCatalogAuthoritative(guildId, query = (sql, values) => getDatabase().query(sql, values)) {
+    await query(
         'UPDATE verification_guild_settings SET challenge_catalog_authoritative = 1 WHERE guild_id = ?',
         [normalizeGuildId(guildId)],
     );
+}
+
+async function ensureVerificationChallengeCatalogReady() {
+    const { ensureVerificationChallengeCatalogTables } = require('./verificationChallengeRepository');
+    await ensureVerificationChallengeCatalogTables();
 }
 
 async function readVerificationChallengeOverridesFromCatalog(guildId) {
@@ -594,12 +599,18 @@ async function readVerificationChallengeOverridesFromCatalog(guildId) {
     return getVerificationChallengeOverridesFromCatalog(normalizeGuildId(guildId));
 }
 
-async function syncVerificationChallengeCatalog(guildId, settings, updatedBy) {
+function clearVerificationChallengeCatalogReadCache(guildId) {
+    const { clearVerificationChallengeCatalogCache } = require('./verificationChallengeRepository');
+    clearVerificationChallengeCatalogCache(normalizeGuildId(guildId));
+}
+
+async function syncVerificationChallengeCatalog(guildId, settings, updatedBy, query) {
     const { syncVerificationChallengeCatalogFromSettings } = require('./verificationChallengeRepository');
     await syncVerificationChallengeCatalogFromSettings(
         normalizeGuildId(guildId),
         settings,
         updatedBy ?? 'settings-save',
+        query,
     );
 }
 
@@ -608,94 +619,96 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
     const normalizedSettings = normalizeSettings(settings);
 
     await ensureVerificationSettingsTables();
-    await withVerificationSettingsTransaction(async (query) => {
-        await query(
-            `INSERT INTO verification_guild_settings (guild_id, mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE
-                mode = VALUES(mode),
-                active_challenge_ids_json = VALUES(active_challenge_ids_json),
-                challenge_expiry_seconds = VALUES(challenge_expiry_seconds),
-                cooldown_seconds = VALUES(cooldown_seconds),
-                autokick_enabled = VALUES(autokick_enabled),
-                autokick_seconds = VALUES(autokick_seconds),
-                updated_by = VALUES(updated_by)`,
-            [
-                normalizedGuildId,
-                normalizedSettings.mode,
-                stringifyJsonOrNull(normalizedSettings.activeChallengeIds),
-                normalizedSettings.challengeExpirySeconds,
-                normalizedSettings.cooldownSeconds,
-                normalizedSettings.autokickEnabled ? 1 : 0,
-                normalizedSettings.autokickSeconds,
-                updatedBy ? String(updatedBy) : null,
-            ],
-        );
-
-        await query('DELETE FROM verification_challenge_config WHERE guild_id = ?', [normalizedGuildId]);
-
-        for (const [challengeId, challengeOverride] of Object.entries(normalizedSettings.challengeOverrides)) {
-            if (challengeOverride.title || challengeOverride.description) {
-                await insertChallengeConfigRow([
+    await ensureVerificationChallengeCatalogReady();
+    try {
+        await withVerificationSettingsTransaction(async (query) => {
+            await query(
+                `INSERT INTO verification_guild_settings (guild_id, mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    mode = VALUES(mode),
+                    active_challenge_ids_json = VALUES(active_challenge_ids_json),
+                    challenge_expiry_seconds = VALUES(challenge_expiry_seconds),
+                    cooldown_seconds = VALUES(cooldown_seconds),
+                    autokick_enabled = VALUES(autokick_enabled),
+                    autokick_seconds = VALUES(autokick_seconds),
+                    updated_by = VALUES(updated_by)`,
+                [
                     normalizedGuildId,
-                    challengeId,
-                    CHALLENGE_META_QUESTION_ID,
-                    null,
-                    challengeOverride.title ?? null,
-                    challengeOverride.description ?? null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
+                    normalizedSettings.mode,
+                    stringifyJsonOrNull(normalizedSettings.activeChallengeIds),
+                    normalizedSettings.challengeExpirySeconds,
+                    normalizedSettings.cooldownSeconds,
+                    normalizedSettings.autokickEnabled ? 1 : 0,
+                    normalizedSettings.autokickSeconds,
                     updatedBy ? String(updatedBy) : null,
-                ], query);
-            }
+                ],
+            );
 
-            for (const [questionId, questionOverride] of Object.entries(challengeOverride.questions ?? {})) {
-                if (!questionOverrideIsEmpty(questionOverride)) {
-                    await insertChallengeConfigRow(questionConfigToRow(normalizedGuildId, challengeId, questionId, questionOverride, updatedBy), query);
+            await query('DELETE FROM verification_challenge_config WHERE guild_id = ?', [normalizedGuildId]);
+
+            for (const [challengeId, challengeOverride] of Object.entries(normalizedSettings.challengeOverrides)) {
+                if (challengeOverride.title || challengeOverride.description) {
+                    await insertChallengeConfigRow([
+                        normalizedGuildId,
+                        challengeId,
+                        CHALLENGE_META_QUESTION_ID,
+                        null,
+                        challengeOverride.title ?? null,
+                        challengeOverride.description ?? null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        updatedBy ? String(updatedBy) : null,
+                    ], query);
+                }
+
+                for (const [questionId, questionOverride] of Object.entries(challengeOverride.questions ?? {})) {
+                    if (!questionOverrideIsEmpty(questionOverride)) {
+                        await insertChallengeConfigRow(questionConfigToRow(normalizedGuildId, challengeId, questionId, questionOverride, updatedBy), query);
+                    }
                 }
             }
-        }
-    });
 
-    if (updatedBy) {
-        const updatedAt = new Date().toISOString();
-        for (const challengeOverride of Object.values(normalizedSettings.challengeOverrides)) {
-            for (const questionOverride of Object.values(challengeOverride.questions ?? {})) {
-                questionOverride.updatedBy = String(updatedBy);
-                questionOverride.updatedAt = updatedAt;
-            }
-        }
-    }
-
-    let catalogOverrides;
-    try {
-        await syncVerificationChallengeCatalog(normalizedGuildId, normalizedSettings, updatedBy);
-        await markVerificationChallengeCatalogAuthoritative(normalizedGuildId);
-        catalogOverrides = await readVerificationChallengeOverridesFromCatalog(normalizedGuildId);
+            await syncVerificationChallengeCatalog(normalizedGuildId, normalizedSettings, updatedBy, query);
+            await markVerificationChallengeCatalogAuthoritative(normalizedGuildId, query);
+        });
     }
     catch (err) {
         settingsCache.delete(normalizedGuildId);
+        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
         console.error('Failed to persist authoritative verification challenge catalog values:', err);
         throw err;
+    }
+
+    let catalogOverrides = normalizedSettings.challengeOverrides;
+    let catalogReadSucceeded = false;
+    try {
+        catalogOverrides = await readVerificationChallengeOverridesFromCatalog(normalizedGuildId);
+        catalogReadSucceeded = true;
+    }
+    catch (err) {
+        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
+        console.error('Verification settings were saved, but the catalog could not be refreshed:', err);
     }
 
     const catalogSettings = normalizeSettings({
         ...normalizedSettings,
         challengeOverrides: catalogOverrides,
     });
-    settingsCache.set(normalizedGuildId, catalogSettings);
+    if (catalogReadSucceeded) settingsCache.set(normalizedGuildId, catalogSettings);
+    else settingsCache.delete(normalizedGuildId);
     return catalogSettings;
 }
 
@@ -759,8 +772,18 @@ async function getVerificationSettings(guildId) {
             ...guildSettings,
             challengeOverrides: normalizeChallengeConfigRows(configRows),
         });
-        await syncVerificationChallengeCatalog(normalizedGuildId, legacySettings, 'catalog-bootstrap');
-        await markVerificationChallengeCatalogAuthoritative(normalizedGuildId);
+        await ensureVerificationChallengeCatalogReady();
+        try {
+            await withVerificationSettingsTransaction(async (query) => {
+                await syncVerificationChallengeCatalog(normalizedGuildId, legacySettings, 'catalog-bootstrap', query);
+                await markVerificationChallengeCatalogAuthoritative(normalizedGuildId, query);
+            });
+        }
+        catch (err) {
+            settingsCache.delete(normalizedGuildId);
+            clearVerificationChallengeCatalogReadCache(normalizedGuildId);
+            throw err;
+        }
         console.log(`[VERIFICATION] Migrated legacy challenge overrides into the authoritative catalog for guild ${normalizedGuildId}.`);
     }
 
