@@ -124,6 +124,17 @@ const {
     clearQuestionOverrideFields,
 } = require('../verification/verificationSettings');
 
+const SETTINGS_MODE_OPTIONS = [
+    { label: 'Challenge', value: VERIFICATION_MODES.challenge },
+    { label: 'Halt', value: VERIFICATION_MODES.halt },
+    { label: 'One-Click', value: VERIFICATION_MODES.oneClick },
+];
+
+const SETTINGS_AUTOKICK_OPTIONS = [
+    { label: 'ON', value: 'on' },
+    { label: 'OFF', value: 'off' },
+];
+
 function userErrorEmbed(message) {
     return buildVerificationErrorEmbed(message, { footer: { enabled: false }, timestamp: false });
 }
@@ -153,6 +164,12 @@ function parseIdList(input) {
         .split(/[\s,]+/)
         .map((challengeId) => challengeId.trim())
         .filter(Boolean))];
+}
+
+function sameStringSet(leftValues = [], rightValues = []) {
+    const left = [...new Set(leftValues.map(String))].sort();
+    const right = [...new Set(rightValues.map(String))].sort();
+    return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function normalizeDegreeValue(value) {
@@ -260,41 +277,6 @@ function buildSettingsStatusEmbed(verificationSettings) {
     ).embeds[0];
 }
 
-function buildChallengeSelectOption(challenge, enabledChallengeIds = []) {
-    const title = challenge.title || challenge.id;
-    const option = new Discord.StringSelectMenuOptionBuilder()
-        .setLabel(truncateSelectText(challenge.id || title))
-        .setValue(String(challenge.id))
-        .setDescription(truncateSelectText(title));
-    if (enabledChallengeIds.includes(challenge.id)) option.setDefault(true);
-    return option;
-}
-
-function buildSettingsModeSelectComponent(verificationSettings) {
-    const options = [
-        ['Challenge', VERIFICATION_MODES.challenge],
-        ['Halt', VERIFICATION_MODES.halt],
-        ['One-Click', VERIFICATION_MODES.oneClick],
-    ].map(([name, value]) => {
-        const option = new Discord.StringSelectMenuOptionBuilder()
-            .setLabel(name)
-            .setValue(value);
-
-        if (verificationSettings.mode === value) option.setDefault(true);
-        return option;
-    });
-
-    const select = new Discord.StringSelectMenuBuilder()
-        .setCustomId('mode')
-        .setPlaceholder('Choose verification mode...')
-        .setMinValues(1)
-        .setMaxValues(1)
-        .addOptions(options);
-
-    select.setRequired?.(true);
-    return select;
-}
-
 function assertSettingsChallengeSelectMenuLimit() {
     const count = Object.values(verificationChallenges).length;
     if (count > SETTINGS_SELECT_MENU_MAX_OPTIONS) {
@@ -302,41 +284,12 @@ function assertSettingsChallengeSelectMenuLimit() {
     }
 }
 
-function buildSettingsActiveChallengesSelectComponent(verificationSettings) {
-    assertSettingsChallengeSelectMenuLimit();
-
-    const challenges = Object.values(verificationChallenges);
-
-    const select = new Discord.StringSelectMenuBuilder()
-        .setCustomId('active_challenge_ids')
-        .setPlaceholder('Choose active challenges...')
-        .setMinValues(1)
-        .setMaxValues(Math.max(1, challenges.length))
-        .addOptions(challenges.map((challenge) => buildChallengeSelectOption(challenge, verificationSettings.activeChallengeIds ?? [])));
-
-    select.setRequired?.(true);
-    return select;
-}
-
-function buildSettingsAutokickSelectComponent(verificationSettings) {
-    const select = new Discord.StringSelectMenuBuilder()
-        .setCustomId('autokick_enabled')
-        .setPlaceholder('Choose autokick state...')
-        .setMinValues(1)
-        .setMaxValues(1)
-        .addOptions([
-            new Discord.StringSelectMenuOptionBuilder()
-                .setLabel('ON')
-                .setValue('on')
-                .setDefault(verificationSettings.autokickEnabled === true),
-            new Discord.StringSelectMenuOptionBuilder()
-                .setLabel('OFF')
-                .setValue('off')
-                .setDefault(verificationSettings.autokickEnabled !== true),
-        ]);
-
-    select.setRequired?.(true);
-    return select;
+function getSettingsChallengeOptions() {
+    return Object.values(verificationChallenges).map((challenge) => ({
+        label: challenge.id || challenge.title,
+        value: String(challenge.id),
+        description: challenge.title || challenge.id,
+    }));
 }
 
 function buildSettingsActionRows(guildId, ownerUserId) {
@@ -394,11 +347,11 @@ function assertChallengeSelectMenuLimit() {
 
 function buildChallengeSelectRow(guildId, ownerUserId) {
     assertChallengeSelectMenuLimit();
-    const challenges = Object.values(verificationChallenges);
-    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
-        .setCustomId(buildAdminCustomId('challengeSelect', guildId, ownerUserId))
-        .setPlaceholder('Choose a challenge...')
-        .addOptions(challenges.map((challenge) => buildChallengeSelectOption(challenge))));
+    return new Discord.ActionRowBuilder().addComponents(buildStringSelectComponent({
+        customId: buildAdminCustomId('challengeSelect', guildId, ownerUserId),
+        placeholder: 'Choose a challenge...',
+        options: getSettingsChallengeOptions(),
+    }));
 }
 
 function buildChallengesPanelPayload({ verificationSettings, enabledChallengeIds, guildId, ownerUserId }) {
@@ -1007,6 +960,107 @@ function buildModalStringSelectLabel(label, select, { description } = {}) {
     return modalLabel;
 }
 
+function normalizeSelectedValues(selectedValues) {
+    return new Set((Array.isArray(selectedValues) ? selectedValues : [selectedValues])
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean));
+}
+
+function buildStringSelectOption(option, selectedValues = []) {
+    const selected = normalizeSelectedValues(selectedValues);
+
+    const selectOption = new Discord.StringSelectMenuOptionBuilder()
+        .setLabel(truncateSelectText(option.label ?? option.value))
+        .setValue(String(option.value));
+
+    if (option.description) {
+        selectOption.setDescription(truncateSelectText(option.description));
+    }
+
+    if (selected.has(String(option.value))) {
+        selectOption.setDefault(true);
+    }
+
+    return selectOption;
+}
+
+function buildStringSelectComponent({
+    customId,
+    placeholder,
+    options,
+    selectedValues = [],
+    minValues = 1,
+    maxValues = 1,
+    required = true,
+}) {
+    const select = new Discord.StringSelectMenuBuilder()
+        .setCustomId(customId)
+        .setPlaceholder(truncateSelectText(placeholder ?? 'Choose an option...'))
+        .setMinValues(minValues)
+        .setMaxValues(maxValues)
+        .addOptions(options.map((option) => buildStringSelectOption(option, selectedValues)));
+
+    select.setRequired?.(required);
+    return select;
+}
+
+function buildModalStringSelectField({
+    label,
+    description,
+    customId,
+    placeholder,
+    options,
+    selectedValues = [],
+    minValues = 1,
+    maxValues = 1,
+    required = true,
+}) {
+    return buildModalStringSelectLabel(
+        label,
+        buildStringSelectComponent({
+            customId,
+            placeholder,
+            options,
+            selectedValues,
+            minValues,
+            maxValues,
+            required,
+        }),
+        { description },
+    );
+}
+
+function getAllowedOptionValues(options) {
+    return new Set(options.map((option) => String(option.value)));
+}
+
+function getRequiredModalSingleSelect(interaction, customId, options, fieldLabel) {
+    const value = getModalSingleSelectValue(interaction, customId);
+    const allowedValues = getAllowedOptionValues(options);
+
+    if (!value || !allowedValues.has(String(value))) {
+        throw new Error(`Please select a valid ${fieldLabel}.`);
+    }
+
+    return value;
+}
+
+function getRequiredModalMultiSelect(interaction, customId, options, fieldLabel) {
+    const values = getModalSelectValues(interaction, customId);
+    const allowedValues = getAllowedOptionValues(options);
+    const invalidValues = values.filter((value) => !allowedValues.has(String(value)));
+
+    if (values.length < 1) {
+        throw new Error(`Please select at least one ${fieldLabel}.`);
+    }
+
+    if (invalidValues.length > 0) {
+        throw new Error(`Unknown ${fieldLabel}${invalidValues.length === 1 ? '' : 's'}: ${invalidValues.join(', ')}`);
+    }
+
+    return values;
+}
+
 function buildAdminModal(customId, title, ...labels) {
     assertModalLabelSupport();
 
@@ -1058,14 +1112,31 @@ async function showSettingsOptionsModal(interaction, parts) {
     const modal = buildAdminModal(
         buildAdminCustomId('settingsOptionsModal', guildId, ownerUserId, interaction.message?.id ?? ''),
         'Verification Settings',
-        buildModalStringSelectLabel('Mode', buildSettingsModeSelectComponent(verificationSettings), {
+        buildModalStringSelectField({
+            label: 'Mode',
             description: 'Choose the verification mode.',
+            customId: 'mode',
+            placeholder: 'Choose verification mode...',
+            options: SETTINGS_MODE_OPTIONS,
+            selectedValues: [verificationSettings.mode],
         }),
-        buildModalStringSelectLabel('Active Challenges', buildSettingsActiveChallengesSelectComponent(verificationSettings), {
+        buildModalStringSelectField({
+            label: 'Active Challenges',
             description: 'Choose which challenges are active.',
+            customId: 'active_challenge_ids',
+            placeholder: 'Choose active challenges...',
+            options: getSettingsChallengeOptions(),
+            selectedValues: verificationSettings.activeChallengeIds ?? [],
+            minValues: 1,
+            maxValues: Math.max(1, Object.values(verificationChallenges).length),
         }),
-        buildModalStringSelectLabel('Autokick', buildSettingsAutokickSelectComponent(verificationSettings), {
+        buildModalStringSelectField({
+            label: 'Autokick',
             description: 'Choose whether failed verification autokicks.',
+            customId: 'autokick_enabled',
+            placeholder: 'Choose autokick state...',
+            options: SETTINGS_AUTOKICK_OPTIONS,
+            selectedValues: [verificationSettings.autokickEnabled === true ? 'on' : 'off'],
         }),
     );
 
@@ -1149,31 +1220,20 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
         });
     }
 
-    const selectedMode = getModalSingleSelectValue(interaction, 'mode');
-    const selectedChallengeIds = getModalSelectValues(interaction, 'active_challenge_ids');
-    const selectedAutokickState = getModalSingleSelectValue(interaction, 'autokick_enabled');
+    let selectedMode;
+    let selectedChallengeIds;
+    let selectedAutokickState;
 
-    if (!Object.values(VERIFICATION_MODES).includes(selectedMode)) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please select a valid verification mode.')] });
+    try {
+        selectedMode = getRequiredModalSingleSelect(interaction, 'mode', SETTINGS_MODE_OPTIONS, 'verification mode');
+        selectedChallengeIds = getRequiredModalMultiSelect(interaction, 'active_challenge_ids', getSettingsChallengeOptions(), 'active challenge');
+        selectedAutokickState = getRequiredModalSingleSelect(interaction, 'autokick_enabled', SETTINGS_AUTOKICK_OPTIONS, 'autokick state');
     }
-
-    if (selectedChallengeIds.length < 1) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please select at least one active challenge.')] });
-    }
-
-    const unknownChallengeIds = selectedChallengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
-    if (unknownChallengeIds.length > 0) {
-        return interaction.editReply({
-            embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)],
-        });
-    }
-
-    if (!['on', 'off'].includes(selectedAutokickState)) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Please select a valid autokick state.')] });
+    catch (err) {
+        return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
     }
 
     const currentSettings = await getVerificationSettings(guildId);
-
     const nextSettings = {
         ...currentSettings,
         mode: selectedMode,
@@ -1181,12 +1241,11 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
         autokickEnabled: selectedAutokickState === 'on',
     };
 
-    const changed =
-        currentSettings.mode !== nextSettings.mode ||
-        JSON.stringify(currentSettings.activeChallengeIds ?? []) !== JSON.stringify(nextSettings.activeChallengeIds ?? []) ||
-        currentSettings.autokickEnabled !== nextSettings.autokickEnabled;
-
-    if (!changed) {
+    if (
+        currentSettings.mode === nextSettings.mode &&
+        sameStringSet(currentSettings.activeChallengeIds ?? [], nextSettings.activeChallengeIds ?? []) &&
+        currentSettings.autokickEnabled === nextSettings.autokickEnabled
+    ) {
         return interaction.editReply({
             embeds: [userErrorEmbed('No verification settings changes were submitted.')],
         });
@@ -1797,26 +1856,16 @@ function parseQuestionDirectionsParts(parts) {
 
 function buildQuestionTaskSelectComponent(currentTaskType) {
     const normalizedCurrentTaskType = normalizeTaskType(currentTaskType);
-    const select = new Discord.StringSelectMenuBuilder()
-        .setCustomId('task_type')
-        .setPlaceholder(`Task: ${getQuestionTaskTypeLabel(normalizedCurrentTaskType)}`)
-        .setMinValues(1)
-        .setMaxValues(1)
-        .addOptions(QUESTION_TASK_TYPE_OPTIONS.map((option) => {
-            const selectOption = new Discord.StringSelectMenuOptionBuilder()
-                .setLabel(option.label)
-                .setValue(option.value)
-                .setDescription(option.description);
 
-            if (option.value === normalizedCurrentTaskType) {
-                selectOption.setDefault(true);
-            }
-
-            return selectOption;
-        }));
-
-    select.setRequired?.(true);
-    return select;
+    return buildStringSelectComponent({
+        customId: 'task_type',
+        placeholder: `Task: ${getQuestionTaskTypeLabel(normalizedCurrentTaskType)}`,
+        options: QUESTION_TASK_TYPE_OPTIONS,
+        selectedValues: [normalizedCurrentTaskType],
+        minValues: 1,
+        maxValues: 1,
+        required: true,
+    });
 }
 
 function buildQuestionTaskSelectModalLabel(currentTaskType) {
