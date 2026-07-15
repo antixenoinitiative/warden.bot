@@ -143,11 +143,13 @@ function mainOperation(){
 			const database = await require(`./${botFunc.botIdent().activeBot.botName}/db/database`)
 			warden_vars = database
 
+			const verificationGuildId = process.env.GUILDID || guild?.id || 'global'
+
 			try {
 				const { ensureVerificationChallengeTemplatesSeeded } = require('./commands/Warden/verification/verificationChallengeRepository')
 
-				await ensureVerificationChallengeTemplatesSeeded('global')
-				console.log('[STARTUP] Seeded verification challenge catalog templates.')
+				await ensureVerificationChallengeTemplatesSeeded(verificationGuildId)
+				console.log('[STARTUP] Checked verification challenge catalog templates.')
 			}
 			catch (err) {
 				console.error('[STARTUP] Failed to seed verification challenge catalog templates:', err)
@@ -155,14 +157,23 @@ function mainOperation(){
 
 			try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
+				const { syncVerificationChallengeCatalogFromSettings } = require('./commands/Warden/verification/verificationChallengeRepository')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
 				const { applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationConfigSafeguards')
 
 				await ensureVerificationSettingsTable()
-				const verificationSettings = await getVerificationSettings(process.env.GUILDID)
+				const verificationSettings = await getVerificationSettings(verificationGuildId)
+
+				try {
+					await syncVerificationChallengeCatalogFromSettings(verificationGuildId, verificationSettings, 'startup')
+					console.log('[STARTUP] Synced verification challenge catalog effective values.')
+				}
+				catch (syncErr) {
+					console.error('[STARTUP] Failed to sync verification challenge catalog effective values:', syncErr)
+				}
 
 				await applyVerificationConfigSafeguard({
-					guildId: process.env.GUILDID,
+					guildId: verificationGuildId,
 					guild,
 					settings: verificationSettings,
 					source: 'startup',

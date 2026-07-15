@@ -652,6 +652,18 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
     }
 
     settingsCache.set(normalizedGuildId, normalizedSettings);
+
+    try {
+        const {
+            syncVerificationChallengeCatalogFromSettings,
+        } = require('./verificationChallengeRepository');
+
+        await syncVerificationChallengeCatalogFromSettings(normalizedGuildId, normalizedSettings, updatedBy ?? 'settings-save');
+    }
+    catch (err) {
+        console.error('Failed to sync verification challenge catalog after settings save:', err);
+    }
+
     return normalizedSettings;
 }
 

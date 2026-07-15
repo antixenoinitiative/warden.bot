@@ -1,4 +1,5 @@
 const { verificationChallenges } = require('./verificationChallenges/verificationChallengesConfig');
+const { normalizeVerificationChallenge } = require('./verificationChallenges/verificationChallenges');
 let database;
 
 const DEFAULT_GUILD_ID = 'global';
@@ -196,6 +197,9 @@ async function insertQuestionRowIfMissing(row) {
     `, [row.guild_id, row.challenge_id, row.question_id, row.question_order, row.source_type, row.source_template_id, row.template_version, row.protected_template, row.question_label, row.question_text, row.separate_step, row.task_enabled, row.task_type, row.task_prompt_text, row.task_image_pool_id, row.task_image_ids_json, row.task_image_directions_json, row.task_config_json, row.answer_required, row.answer_type, row.answer_input_label, row.answer_input_placeholder, row.answers_json]);
 }
 
+// Insert-only foundation helper for protected template rows. It intentionally
+// preserves existing catalog values; use syncVerificationChallengeCatalogFromSettings
+// when legacy settings should be mirrored into protected template rows.
 async function ensureVerificationChallengeTemplatesSeeded(guildId = DEFAULT_GUILD_ID) {
     const normalizedGuildId = normalizeGuildId(guildId);
     await ensureVerificationChallengeCatalogTables();
@@ -207,6 +211,80 @@ async function ensureVerificationChallengeTemplatesSeeded(guildId = DEFAULT_GUIL
         await insertChallengeRowIfMissing(challengeRow);
         for (const questionRow of questionRows) {
             await insertQuestionRowIfMissing(questionRow);
+        }
+    }
+
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+}
+
+async function upsertProtectedTemplateChallengeRow(row, updatedBy = 'sync') {
+    const normalizedUpdatedBy = String(updatedBy ?? 'sync');
+    await getDatabase().query(`
+        INSERT INTO verification_challenge_catalog (
+            guild_id, challenge_id, source_type, source_template_id, template_version,
+            protected_template, title, description, color, fields_json, enabled,
+            created_by, updated_by
+        ) VALUES (?, ?, 'template', ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            title = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(title), title),
+            description = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(description), description),
+            color = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(color), color),
+            fields_json = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(fields_json), fields_json),
+            enabled = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(enabled), enabled),
+            source_template_id = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(source_template_id), source_template_id),
+            template_version = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(template_version), template_version),
+            updated_by = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(updated_by), updated_by)
+    `, [row.guild_id, row.challenge_id, row.source_template_id, row.template_version, row.title, row.description, row.color, row.fields_json, row.enabled, normalizedUpdatedBy, normalizedUpdatedBy]);
+}
+
+async function upsertProtectedTemplateQuestionRow(row, updatedBy = 'sync') {
+    const normalizedUpdatedBy = String(updatedBy ?? 'sync');
+    await getDatabase().query(`
+        INSERT INTO verification_question_catalog (
+            guild_id, challenge_id, question_id, question_order, source_type, source_template_id,
+            template_version, protected_template, question_label, question_text, separate_step,
+            task_enabled, task_type, task_prompt_text, task_image_pool_id, task_image_ids_json,
+            task_image_directions_json, task_config_json, answer_required, answer_type,
+            answer_input_label, answer_input_placeholder, answers_json, created_by, updated_by
+        ) VALUES (?, ?, ?, ?, 'template', ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            question_order = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(question_order), question_order),
+            question_label = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(question_label), question_label),
+            question_text = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(question_text), question_text),
+            separate_step = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(separate_step), separate_step),
+            task_enabled = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(task_enabled), task_enabled),
+            task_type = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(task_type), task_type),
+            task_prompt_text = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(task_prompt_text), task_prompt_text),
+            task_image_pool_id = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(task_image_pool_id), task_image_pool_id),
+            task_image_ids_json = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(task_image_ids_json), task_image_ids_json),
+            task_image_directions_json = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(task_image_directions_json), task_image_directions_json),
+            task_config_json = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(task_config_json), task_config_json),
+            answer_required = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(answer_required), answer_required),
+            answer_type = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(answer_type), answer_type),
+            answer_input_label = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(answer_input_label), answer_input_label),
+            answer_input_placeholder = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(answer_input_placeholder), answer_input_placeholder),
+            answers_json = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(answers_json), answers_json),
+            source_template_id = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(source_template_id), source_template_id),
+            template_version = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(template_version), template_version),
+            updated_by = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(updated_by), updated_by)
+    `, [row.guild_id, row.challenge_id, row.question_id, row.question_order, row.source_template_id, row.template_version, row.question_label, row.question_text, row.separate_step, row.task_enabled, row.task_type, row.task_prompt_text, row.task_image_pool_id, row.task_image_ids_json, row.task_image_directions_json, row.task_config_json, row.answer_required, row.answer_type, row.answer_input_label, row.answer_input_placeholder, row.answers_json, normalizedUpdatedBy, normalizedUpdatedBy]);
+}
+
+// Transition helper: mirror current effective legacy verification config into
+// protected template catalog rows while runtime/Admin UX continue using the
+// legacy settings path. Future catalog-authoritative migration should remove
+// the legacy override dependency from this sync path.
+async function syncVerificationChallengeCatalogFromSettings(guildId, verificationSettings, updatedBy = 'sync') {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    await ensureVerificationChallengeCatalogTables();
+    await ensureVerificationChallengeTemplatesSeeded(normalizedGuildId);
+
+    for (const staticChallenge of Object.values(verificationChallenges)) {
+        const effectiveChallenge = normalizeVerificationChallenge(staticChallenge, verificationSettings);
+        const { challengeRow, questionRows } = templateChallengeToCatalogRows(effectiveChallenge, normalizedGuildId);
+        await upsertProtectedTemplateChallengeRow(challengeRow, updatedBy);
+        for (const questionRow of questionRows) {
+            await upsertProtectedTemplateQuestionRow(questionRow, updatedBy);
         }
     }
 
@@ -306,6 +384,9 @@ function clearVerificationChallengeCatalogCache(guildId) {
 module.exports = {
     ensureVerificationChallengeCatalogTables,
     ensureVerificationChallengeTemplatesSeeded,
+    syncVerificationChallengeCatalogFromSettings,
+    upsertProtectedTemplateChallengeRow,
+    upsertProtectedTemplateQuestionRow,
     getVerificationChallengeCatalog,
     getVerificationChallengeFromCatalog,
     templateChallengeToCatalogRows,
