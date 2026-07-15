@@ -160,20 +160,12 @@ function mainOperation(){
 
 			if (verificationGuildId) try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
-				const { syncVerificationChallengeCatalogFromSettings } = require('./commands/Warden/verification/verificationChallengeRepository')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
 				const { applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationConfigSafeguards')
 
 				await ensureVerificationSettingsTable()
 				const verificationSettings = await getVerificationSettings(verificationGuildId)
-
-				try {
-					await syncVerificationChallengeCatalogFromSettings(verificationGuildId, verificationSettings, 'startup')
-					console.log('[STARTUP] Synced verification challenge catalog effective values.')
-				}
-				catch (syncErr) {
-					console.error('[STARTUP] Failed to sync verification challenge catalog effective values:', syncErr)
-				}
+				console.log('[STARTUP] Loaded catalog-authoritative verification challenge settings.')
 
 				await applyVerificationConfigSafeguard({
 					guildId: verificationGuildId,
