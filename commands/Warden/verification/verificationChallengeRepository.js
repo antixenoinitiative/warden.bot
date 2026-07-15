@@ -419,17 +419,19 @@ function settingsValuesEqual(left, right) {
     return JSON.stringify(normalizeComparableValue(left)) === JSON.stringify(normalizeComparableValue(right));
 }
 
-function buildSettingsValueDiff(actual = {}, baseline = {}) {
+function buildSettingsValueDiff(actual = {}, baseline = {}, depth = 0) {
     return Object.entries(actual).reduce((diff, [key, actualValue]) => {
         const baselineValue = baseline?.[key];
         if (settingsValuesEqual(actualValue, baselineValue)) return diff;
 
         if (
-            actualValue && baselineValue
+            depth === 0 && actualValue && baselineValue
             && typeof actualValue === 'object' && !Array.isArray(actualValue)
             && typeof baselineValue === 'object' && !Array.isArray(baselineValue)
         ) {
-            const nestedDiff = buildSettingsValueDiff(actualValue, baselineValue);
+            // Runtime shallowly replaces generatedImage/answer members. Recurse
+            // through those containers, but retain each changed child object whole.
+            const nestedDiff = buildSettingsValueDiff(actualValue, baselineValue, depth + 1);
             if (Object.keys(nestedDiff).length > 0) diff[key] = nestedDiff;
             return diff;
         }
