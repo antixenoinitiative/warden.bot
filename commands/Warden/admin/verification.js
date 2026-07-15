@@ -2006,6 +2006,10 @@ function taskUsesDirections(taskType) {
     return taskType === 'gallery-rotation-alignment';
 }
 
+function taskUsesImagePool(taskType) {
+    return taskUsesImageIds(taskType);
+}
+
 function buildQuestionTaskSelectComponent(currentTaskType) {
     const normalizedCurrentTaskType = normalizeTaskType(currentTaskType);
 
@@ -2280,11 +2284,14 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     const imagePoolChanged = selectedImagePoolId !== undefined
         && String(selectedImagePoolId ?? '') !== String(currentImagePoolId ?? '');
 
-    if (selectedImagePoolId && !verificationImagePools[selectedImagePoolId]) {
+    const selectedTaskUsesImagePool = taskUsesImagePool(selectedTaskType);
+    if (selectedImagePoolId && imagePoolChanged && !verificationImagePools[selectedImagePoolId]) {
         return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image pool selected: ${selectedImagePoolId}`)] });
     }
-    if (selectedImagePoolId && selectedTaskType === 'none') {
-        return interaction.editReply({ embeds: [userErrorEmbed('Choose an image Task type before assigning an Image Pool.')] });
+    if (selectedImagePoolId && imagePoolChanged && !selectedTaskUsesImagePool) {
+        return interaction.editReply({
+            embeds: [userErrorEmbed('Choose a gallery/image Task type before assigning an Image Pool.')],
+        });
     }
 
     if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !taskChanged && !imagePoolChanged) {
@@ -2315,7 +2322,13 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         Object.assign(selectedPatch, taskPatch);
     }
     if (answerRequired !== undefined) selectedPatch.answer = { ...(selectedPatch.answer ?? {}), required: answerRequired };
-    if (selectedImagePoolId !== undefined) setGeneratedImagePatchValue(selectedPatch, 'imagePoolId', selectedImagePoolId);
+    // The modal is static, so the Image Pool select can submit the current pool even when
+    // the admin only changed Task. Only apply imagePoolId when it actually changed.
+    if (selectedImagePoolId !== undefined && imagePoolChanged) {
+        if (selectedImagePoolId === null || selectedTaskUsesImagePool) {
+            setGeneratedImagePatchValue(selectedPatch, 'imagePoolId', selectedImagePoolId);
+        }
+    }
     patches[context.question.id] = selectedPatch;
 
     const updatedSettings = await updateQuestionOptionOverrides(context.guildId, context.challengeId, patches, interaction.user.id);
