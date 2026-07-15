@@ -284,7 +284,7 @@ function assertSettingsChallengeSelectMenuLimit() {
     }
 }
 
-function getSettingsChallengeOptions() {
+function getChallengeSelectOptions() {
     return Object.values(verificationChallenges).map((challenge) => ({
         label: challenge.id || challenge.title,
         value: String(challenge.id),
@@ -350,7 +350,7 @@ function buildChallengeSelectRow(guildId, ownerUserId) {
     return new Discord.ActionRowBuilder().addComponents(buildStringSelectComponent({
         customId: buildAdminCustomId('challengeSelect', guildId, ownerUserId),
         placeholder: 'Choose a challenge...',
-        options: getSettingsChallengeOptions(),
+        options: getChallengeSelectOptions(),
     }));
 }
 
@@ -973,19 +973,19 @@ function buildStringSelectOption(option, selectedValues = []) {
     return selectOption;
 }
 
-function buildStringSelectComponent({ customId, placeholder, options, selectedValues = [], minValues = 1, maxValues = 1, required = true }) {
+function buildStringSelectComponent({ customId, placeholder, options, selectedValues = [], minValues = 1, maxValues = 1, required }) {
     const select = new Discord.StringSelectMenuBuilder()
         .setCustomId(customId)
         .setPlaceholder(truncateSelectText(placeholder ?? 'Choose an option...'))
         .setMinValues(minValues)
         .setMaxValues(maxValues)
         .addOptions(options.map((option) => buildStringSelectOption(option, selectedValues)));
-    select.setRequired?.(required);
+    if (required !== undefined) select.setRequired?.(required);
     return select;
 }
 
-function buildModalStringSelectField({ label, description, ...selectOptions }) {
-    return buildModalStringSelectLabel(label, buildStringSelectComponent(selectOptions), { description });
+function buildModalStringSelectField({ label, description, required = true, ...selectOptions }) {
+    return buildModalStringSelectLabel(label, buildStringSelectComponent({ ...selectOptions, required }), { description });
 }
 
 function getAllowedOptionValues(options) {
@@ -1055,7 +1055,7 @@ async function showSettingsOptionsModal(interaction, parts) {
 
     const verificationSettings = await getVerificationSettings(guildId);
 
-    const settingsChallengeOptions = getSettingsChallengeOptions();
+    const settingsChallengeOptions = getChallengeSelectOptions();
     const modal = buildAdminModal(
         buildAdminCustomId('settingsOptionsModal', guildId, ownerUserId, interaction.message?.id ?? ''),
         'Verification Settings',
@@ -1152,7 +1152,7 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
 
     try {
         selectedMode = getRequiredModalSingleSelect(interaction, 'mode', SETTINGS_MODE_OPTIONS, 'verification mode');
-        selectedChallengeIds = getRequiredModalMultiSelect(interaction, 'active_challenge_ids', getSettingsChallengeOptions(), 'active challenge');
+        selectedChallengeIds = getRequiredModalMultiSelect(interaction, 'active_challenge_ids', getChallengeSelectOptions(), 'active challenge');
         selectedAutokickState = getRequiredModalSingleSelect(interaction, 'autokick_enabled', SETTINGS_AUTOKICK_OPTIONS, 'autokick state');
     }
     catch (err) {
