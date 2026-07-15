@@ -213,11 +213,15 @@ async function followUpAdminConfigWarning(interaction, safeguardResult, { change
     });
     const payload = { flags: Discord.MessageFlags.Ephemeral, embeds: [embed] };
     try {
-        if (interaction.deferred || interaction.replied) return await interaction.followUp(payload);
-        return await interaction.reply(payload);
+        if (!interaction.deferred && !interaction.replied) {
+            console.warn('[ADMIN UX] Skipped verification configuration warning follow-up because the primary interaction response was not finalized yet.');
+            return undefined;
+        }
+
+        return await interaction.followUp(payload);
     }
     catch (err) {
-        console.error('Failed to send verification configuration warning to admin:', err);
+        console.error('Failed to send verification configuration warning follow-up to admin:', err);
         return undefined;
     }
 }
