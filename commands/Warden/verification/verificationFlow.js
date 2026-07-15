@@ -42,6 +42,7 @@ const {
     sanitizeMessageEditOptions,
     sendInitialInteractionResponse,
 } = require('./verificationResponses');
+const { applyVerificationConfigSafeguard, evaluateVerificationConfig } = require('./verificationConfigSafeguards');
 
 const DEFAULT_CHALLENGE_EXPIRY_MS = 10 * 60 * 1000;
 const VERIFICATION_SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
@@ -401,6 +402,25 @@ async function handleVerifyStart(interaction) {
     }
 
     const challenge = selectVerificationChallenge(verificationSettings);
+    const configReport = evaluateVerificationConfig(verificationSettings);
+    const challengeBlockingIssues = configReport.blockingIssues.filter((issue) => issue.challengeId === challenge.id);
+    if (challengeBlockingIssues.length > 0) {
+        console.warn('[VERIFY START] Selected verification challenge has blocking configuration issues:', challengeBlockingIssues.map((issue) => issue.message).join(' | '));
+        await applyVerificationConfigSafeguard({
+            guildId: interaction.guildId,
+            guild: interaction.guild,
+            settings: verificationSettings,
+            source: 'runtime-verify-start',
+            actorId: 'system',
+            reason: 'Runtime verification start found an unsafe active challenge.',
+            notifyStaff: true,
+            deactivateUnsafeActiveChallenges: true,
+        });
+        return sendInitialInteractionResponse(interaction, {
+            content: 'Verification is temporarily unavailable. Please contact staff.',
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
     const screens = buildQuestionScreens(challenge);
     const screenIssues = validateQuestionScreens(screens);
     if (screenIssues.length > 0) {

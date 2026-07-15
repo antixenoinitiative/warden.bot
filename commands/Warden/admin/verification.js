@@ -15,9 +15,13 @@ const {
     getEnabledVerificationChallenges,
     normalizeVerificationChallenge,
     buildQuestionScreens,
-    validateQuestionScreens,
 } = require('../verification/verificationChallenges/verificationChallenges');
 const { getVerificationImagePool } = require('../verification/verificationImages');
+const { evaluateChallengeConfigIssues } = require('../verification/verificationChallenges/verificationConfigIssues');
+const {
+    applyVerificationConfigSafeguard,
+    buildVerificationConfigWarningEmbed,
+} = require('../verification/verificationConfigSafeguards');
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
 const ADMIN_CUSTOM_ID_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
@@ -120,9 +124,85 @@ const {
     setQuestionImageIdOverrides,
     setQuestionImageDirectionOverrides,
     updateQuestionOptionOverrides,
-    clearQuestionOverrideField,
     clearQuestionOverrideFields,
 } = require('../verification/verificationSettings');
+
+
+async function runAdminConfigSafeguard(interaction, { guildId, settings, changedChallengeId, changedQuestionId, reason, source }) {
+    return applyVerificationConfigSafeguard({
+        guildId,
+        guild: interaction.guild,
+        settings,
+        source,
+        actorId: interaction.user.id,
+        changedChallengeId,
+        changedQuestionId,
+        reason,
+        notifyStaff: false,
+        deactivateUnsafeActiveChallenges: true,
+    });
+}
+
+async function followUpAdminConfigWarning(interaction, safeguardResult, { changedChallengeId, changedQuestionId } = {}) {
+    const issues = (safeguardResult.finalReport?.issues ?? safeguardResult.report?.issues ?? [])
+        .filter((issue) => !changedChallengeId || issue.challengeId === changedChallengeId)
+        .filter((issue) => !changedQuestionId || issue.questionId === changedQuestionId);
+    if (issues.length < 1 && (safeguardResult.disabledChallengeIds?.length ?? 0) < 1) return undefined;
+    const embed = buildVerificationConfigWarningEmbed({
+        report: { issues },
+        disabledChallengeIds: safeguardResult.disabledChallengeIds ?? [],
+        fallbackApplied: safeguardResult.fallbackApplied === true,
+        source: 'Admin change',
+        actorId: interaction.user.id,
+        finalActiveChallengeIds: safeguardResult.finalSettings?.activeChallengeIds ?? [],
+        description: 'Your change left required verification configuration missing. Unsafe active challenges were automatically disabled when needed.',
+    });
+    const payload = { flags: Discord.MessageFlags.Ephemeral, embeds: [embed] };
+    try {
+        if (interaction.deferred || interaction.replied) return await interaction.followUp(payload);
+        return await interaction.reply(payload);
+    }
+    catch (err) {
+        console.error('Failed to send verification configuration warning to admin:', err);
+        return undefined;
+    }
+}
+
+
+async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, source, reason, options = {}) {
+    const { sourceMessageId = '', preferSourceUpdate = true } = options;
+    const safeguard = await runAdminConfigSafeguard(interaction, {
+        guildId: context.guildId,
+        settings: updatedSettings,
+        changedChallengeId: context.challengeId,
+        changedQuestionId: context.question.id,
+        reason,
+        source,
+    });
+    await followUpAdminConfigWarning(interaction, safeguard, { changedChallengeId: context.challengeId, changedQuestionId: context.question.id });
+    const finalSettings = safeguard.finalSettings ?? updatedSettings;
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, finalSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id);
+    const panelPayload = buildQuestionWorkspacePayload({
+        verificationSettings: finalSettings,
+        mode: 'edit',
+        guildId: context.guildId,
+        ownerUserId: context.ownerUserId,
+        challengeId: context.challengeId,
+        challenge: effectiveChallenge,
+        question: effectiveQuestion,
+        expanded: true,
+    });
+    return replyWithUpdatedAdminPanel(interaction, {
+        panelPayload,
+        sourceMessageId,
+        title: 'Question Updated',
+        description: reason,
+        preferSourceUpdate,
+        fallback: 'panel',
+    });
+}
+
 
 const SETTINGS_MODE_OPTIONS = [
     { label: 'Challenge', value: VERIFICATION_MODES.challenge },
@@ -517,9 +597,13 @@ const GENERATED_IMAGE_TASK_CONFIG_FIELDS = [
     'url',
 ];
 
+function isQuestionTaskType(value) {
+    return QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === value);
+}
+
 function normalizeTaskType(taskType) {
     const value = String(taskType ?? 'none').trim() || 'none';
-    return QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === value) ? value : 'none';
+    return isQuestionTaskType(value) ? value : 'none';
 }
 
 function getQuestionTaskType(question) {
@@ -535,34 +619,6 @@ function getQuestionTaskTypeLabel(taskType) {
 function getDefaultAnswerTypeForTask(taskType) {
     return POSITION_ANSWER_TASK_TYPES.has(normalizeTaskType(taskType)) ? 'positions' : 'text';
 }
-
-const QUESTION_CLEAR_FIELD_MAP = {
-    order: 'order',
-    label: 'label',
-    'separate-step': 'separateStep',
-    text: 'text',
-    task: [
-        'generatedImage.enabled',
-        'generatedImage.type',
-        'generatedImage.text',
-        'generatedImage.imageIds',
-        'generatedImage.imageDirections',
-        'generatedImage.imagePoolId',
-        'generatedImage.gallerySize',
-        'generatedImage.compositeImageGallery',
-        'generatedImage.solutionImageCount',
-        'generatedImage.controlImageCount',
-        'generatedImage.maxControlImageRepeats',
-        'generatedImage.config',
-        'generatedImage.url',
-        'answer.type',
-    ],
-    'answer-required': 'answer.required',
-    'image-text': 'generatedImage.text',
-    answers: 'answer.accepted',
-    'image-ids': 'generatedImage.imageIds',
-    directions: 'generatedImage.imageDirections',
-};
 
 function getKnownChallengeId(interaction, optionName = 'challenge') {
     const challengeId = String(interaction.options.getString(optionName) ?? '').trim();
@@ -801,69 +857,17 @@ function validatePendingQuestionImageIds(question, role, imageIds) {
     return undefined;
 }
 
-const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
-
-function getConfiguredRoleIds(generatedImage, role) {
-    return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
+function getChallengeAuditIssues(challenge, verificationSettings) {
+    return [...new Set(evaluateChallengeConfigIssues(challenge, verificationSettings)
+        .map((issue) => issue.message ?? issue.label)
+        .filter(Boolean))];
 }
 
-function getInvalidConfiguredDirections(directions) {
-    return (Array.isArray(directions) ? directions : [])
-        .filter((degrees) => !Number.isInteger(Number(degrees)) || !ALLOWED_IMAGE_DIRECTION_DEGREES.has(Number(degrees)));
-}
-
-function getChallengeAuditIssues(challenge) {
-    const issues = validateQuestionScreens(buildQuestionScreens(challenge)).map((issue) => issue.message);
-
-    for (const question of challenge.questions ?? []) {
-        const generatedImage = question.generatedImage ?? {};
-        const answer = question.answer ?? {};
-        const prefix = `${challenge.id}/${question.id}`;
-
-        if (generatedImage.requiresConfiguredText && !generatedImage.text) {
-            issues.push(`${prefix}: generated image text`);
-        }
-
-        if (answer.requiresConfiguredAnswers && answer.required === true && !answer.accepted?.length) {
-            issues.push(`${prefix}: accepted answers`);
-        }
-
-        if (generatedImage.type === 'gallery-standard'
-            && (generatedImage.requiresConfiguredImageIds || getConfiguredRoleIds(generatedImage, 'solution').length < 1 || getConfiguredRoleIds(generatedImage, 'control').length < 1)) {
-            if (getConfiguredRoleIds(generatedImage, 'solution').length < 1) issues.push(`${prefix}: solution image IDs`);
-            if (getConfiguredRoleIds(generatedImage, 'control').length < 1) issues.push(`${prefix}: control image IDs`);
-        }
-
-        if (generatedImage.type === 'gallery-rotation-alignment'
-            && (generatedImage.requiresConfiguredImageIds || getConfiguredRoleIds(generatedImage, 'center').length < 1 || getConfiguredRoleIds(generatedImage, 'outer').length < 1)) {
-            if (getConfiguredRoleIds(generatedImage, 'center').length < 1) issues.push(`${prefix}: center image IDs`);
-            if (getConfiguredRoleIds(generatedImage, 'outer').length < 1) issues.push(`${prefix}: outer image IDs`);
-        }
-
-        if (generatedImage.type === 'gallery-rotation-alignment'
-            && (generatedImage.requiresConfiguredImageDirections || getConfiguredRoleIds(generatedImage, 'center').length > 0 || getConfiguredRoleIds(generatedImage, 'outer').length > 0)) {
-            const directions = generatedImage.imageDirections ?? {};
-            const imageIds = [...new Set([...getConfiguredRoleIds(generatedImage, 'center'), ...getConfiguredRoleIds(generatedImage, 'outer')])];
-            const missingDirectionIds = imageIds.filter((imageId) => !Array.isArray(directions[imageId]) || directions[imageId].length < 1);
-
-            if (missingDirectionIds.length > 0) {
-                issues.push(`${prefix}: image directions (${missingDirectionIds.join(', ')})`);
-            }
-
-            const invalidDirectionIds = imageIds.filter((imageId) => getInvalidConfiguredDirections(directions[imageId]).length > 0);
-            if (invalidDirectionIds.length > 0) {
-                issues.push(`${prefix}: invalid image directions (${invalidDirectionIds.join(', ')})`);
-            }
-        }
-    }
-
-    return [...new Set(issues)];
-}
 
 function buildChallengeAuditFields(challenge, verificationSettings, enabledChallengeIds) {
     const effectiveChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
     const screens = buildQuestionScreens(effectiveChallenge);
-    const issues = getChallengeAuditIssues(effectiveChallenge);
+    const issues = getChallengeAuditIssues(challenge, verificationSettings);
 
     return [
         { name: `${challenge.id} status`, value: enabledChallengeIds.includes(challenge.id) ? 'Active/enabled' : 'Not active', inline: true },
@@ -1097,38 +1101,43 @@ function showSettingsTimersModal(interaction, parts) {
     return interaction.showModal(modal);
 }
 
-async function replyWithUpdatedSettingsPanel(interaction, {
-    guildId,
-    ownerUserId,
+async function replyWithUpdatedAdminPanel(interaction, {
+    panelPayload,
     sourceMessageId,
-    verificationSettings,
-    title = 'Settings Updated',
-    description = 'Verification settings were updated.',
+    title = 'Updated',
+    description = 'Admin panel updated.',
+    preferSourceUpdate = true,
+    fallback = 'panel',
 }) {
-    const panelPayload = buildSettingsPanelPayload({
-        verificationSettings,
-        guildId,
-        ownerUserId,
-    });
-
     let sourceUpdated = false;
+    const handleEditError = (err) => {
+        if (err?.code === 10008) {
+            console.warn('[ADMIN UX] Source admin panel message was no longer editable; using fallback response.');
+            return;
+        }
+        console.error('Failed to update admin panel message:', err);
+    };
 
-    if (interaction.message) {
-        await interaction.message.edit(panelPayload)
-            .then(() => { sourceUpdated = true; })
-            .catch((err) => console.error('Failed to update settings panel message:', err));
+    if (preferSourceUpdate && interaction.message) {
+        await interaction.message.edit(panelPayload).then(() => { sourceUpdated = true; }).catch(handleEditError);
     }
-    else if (sourceMessageId && typeof interaction.webhook?.editMessage === 'function') {
-        await interaction.webhook.editMessage(sourceMessageId, panelPayload)
-            .then(() => { sourceUpdated = true; })
-            .catch((err) => console.error('Failed to update settings panel message by ID:', err));
+    else if (preferSourceUpdate && sourceMessageId && typeof interaction.webhook?.editMessage === 'function') {
+        await interaction.webhook.editMessage(sourceMessageId, panelPayload).then(() => { sourceUpdated = true; }).catch(handleEditError);
     }
 
-    if (sourceUpdated) {
-        return interaction.editReply(buildVerificationAdminActionCompleted(title, description));
-    }
-
+    if (sourceUpdated) return interaction.editReply(buildVerificationAdminActionCompleted(title, description));
+    if (fallback === 'ack') return interaction.editReply(buildVerificationAdminActionCompleted(title, `${description} Re-run the command to view the refreshed panel.`));
     return interaction.editReply(panelPayload);
+}
+
+async function replyWithUpdatedSettingsPanel(interaction, { guildId, ownerUserId, sourceMessageId, verificationSettings, title = 'Settings Updated', description = 'Verification settings were updated.' }) {
+    return replyWithUpdatedAdminPanel(interaction, {
+        panelPayload: buildSettingsPanelPayload({ verificationSettings, guildId, ownerUserId }),
+        sourceMessageId,
+        title,
+        description,
+        fallback: 'panel',
+    });
 }
 
 async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
@@ -1178,12 +1187,14 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
     }
 
     const updatedSettings = await saveVerificationGuildSettingsOnly(guildId, nextSettings, interaction.user.id);
+    const safeguard = await runAdminConfigSafeguard(interaction, { guildId, settings: updatedSettings, reason: 'Settings options updated.', source: 'settings-options-modal' });
+    await followUpAdminConfigWarning(interaction, safeguard);
 
     return replyWithUpdatedSettingsPanel(interaction, {
         guildId,
         ownerUserId,
         sourceMessageId,
-        verificationSettings: updatedSettings,
+        verificationSettings: safeguard.finalSettings ?? updatedSettings,
         title: 'Settings Updated',
         description: 'Verification settings were updated.',
     });
@@ -1396,7 +1407,7 @@ async function showChallengeEditModalFromButton(interaction, parts) {
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     const modal = buildAdminModal(
-        buildAdminCustomId('challengeEditModal', guildId, ownerUserId, challengeId),
+        buildAdminCustomId('challengeEditModal', guildId, ownerUserId, challengeId, interaction.message?.id ?? ''),
         'Edit Challenge',
         buildModalTextLabel('challenge_title', 'Challenge Title', {
             placeholder: challenge.title ?? 'Leave empty for no change',
@@ -1657,31 +1668,54 @@ function buildQuestionEditPanelComponents(guildId, userId, challengeId, question
 
     const rows = buildActionRows(actionButtons, { maxRows: 4 });
     rows.push(new Discord.ActionRowBuilder().addComponents(
-        button('questionClearPanel', 'Clear Overrides', Discord.ButtonStyle.Danger),
+        button('questionClearSelector', 'Clear Selector', Discord.ButtonStyle.Danger),
         button('questionEditDone', 'Done', Discord.ButtonStyle.Success),
     ));
     return rows;
 }
 
-function buildQuestionClearComponents(guildId, userId, challengeId, questionId) {
-    const clearButtons = [
-        ['order', 'Clear Order'],
-        ['separate-step', 'Clear Separate Step'],
-        ['text', 'Clear Text'],
-        ['task', 'Clear Task'],
-        ['image-text', 'Clear Prompt Text'],
-        ['answer-required', 'Clear Answer Required'],
-        ['answers', 'Clear Answers'],
-        ['image-ids', 'Clear Image IDs'],
-        ['directions', 'Clear Directions'],
-        ['all', 'Clear All'],
-    ].map(([field, label]) => new Discord.ButtonBuilder()
-        .setCustomId(buildAdminCustomId('questionClear', field, guildId, userId, challengeId, questionId))
-        .setLabel(label)
-        .setStyle(field === 'all' ? Discord.ButtonStyle.Danger : Discord.ButtonStyle.Secondary));
-
-    return buildActionRows(clearButtons);
+function hasOwnValue(object, key) {
+    return Object.prototype.hasOwnProperty.call(object ?? {}, key);
 }
+
+function hasAnyOwnValue(object, keys) {
+    return keys.some((key) => hasOwnValue(object, key));
+}
+
+function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
+    const definitions = [];
+    const add = (field, label, paths) => definitions.push({ field, label, paths: Array.isArray(paths) ? paths : [paths] });
+    const generatedImageOverride = questionOverride.generatedImage ?? {};
+    const answerOverride = questionOverride.answer ?? {};
+    const taskType = getQuestionTaskType(effectiveQuestion);
+
+    if (hasOwnValue(questionOverride, 'order')) add('order', 'Clear Order', 'order');
+    if (hasOwnValue(questionOverride, 'separateStep')) add('separate-step', 'Clear Separate Step', 'separateStep');
+    if (hasOwnValue(questionOverride, 'label')) add('label', 'Clear Label', 'label');
+    if (hasOwnValue(questionOverride, 'text')) add('text', 'Clear Text', 'text');
+    if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'imagePoolId', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
+        add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.imagePoolId', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url', 'answer.type']);
+    }
+    if (taskType === 'prompt-text' && hasOwnValue(generatedImageOverride, 'text')) add('image-text', 'Clear Prompt Text', 'generatedImage.text');
+    if (['gallery-standard', 'gallery-rotation-alignment'].includes(taskType) && hasOwnValue(generatedImageOverride, 'imageIds')) add('image-ids', 'Clear Image IDs', 'generatedImage.imageIds');
+    if (taskType === 'gallery-rotation-alignment' && hasOwnValue(generatedImageOverride, 'imageDirections')) add('directions', 'Clear Directions', 'generatedImage.imageDirections');
+    if (hasOwnValue(answerOverride, 'required')) add('answer-required', 'Clear Answer Required', 'answer.required');
+    if (effectiveQuestion.answer?.type === 'text' && Array.isArray(answerOverride.accepted) && answerOverride.accepted.length > 0) add('answers', 'Clear Answers', 'answer.accepted');
+
+    if (definitions.length >= 2) {
+        definitions.push({ field: 'all-visible', label: 'Clear Shown Overrides', paths: [...new Set(definitions.flatMap((definition) => definition.paths))] });
+    }
+    return definitions;
+}
+
+function getQuestionClearSelectOptions(definitions) {
+    return definitions.map((definition) => ({
+        label: definition.label,
+        value: definition.field,
+        description: definition.paths.length === 1 ? definition.paths[0] : `${definition.paths.length} override entries`,
+    }));
+}
+
 
 function buildQuestionEditPanelPayload(verificationSettings, guildId, userId, challengeId, challenge, question) {
     const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, challengeId, question.id));
@@ -1730,15 +1764,40 @@ async function handleQuestionEditDoneButton(interaction, parts) {
     }));
 }
 
-async function sendQuestionClearPanel(interaction, parts) {
+async function showQuestionClearSelectorModal(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
-    return interaction.reply({
-        content: `Choose which overrides to clear for **${context.challengeId}/${context.question.id}**.`,
-        components: buildQuestionClearComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id),
-        flags: Discord.MessageFlags.Ephemeral,
-    });
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
+    const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
+    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
+
+    if (definitions.length < 1) {
+        return respondAdminError(interaction, {
+            content: `There are no clearable DB-configured overrides for **${context.challengeId}/${context.question.id}**.`,
+        });
+    }
+
+    const modal = buildAdminModal(
+        buildAdminCustomId('questionClearModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, interaction.message?.id ?? ''),
+        'Clear Question Override',
+        buildModalStringSelectField({
+            label: 'Override entry to clear',
+            description: 'Select one DB-configured override entry to clear for this selected Question.',
+            customId: 'clear_field',
+            placeholder: 'Choose an override entry to clear...',
+            options: getQuestionClearSelectOptions(definitions),
+            selectedValues: [],
+            minValues: 1,
+            maxValues: 1,
+            required: true,
+        }),
+    );
+
+    return interaction.showModal(modal);
 }
+
 
 function truncateModalLabel(label) {
     const text = String(label ?? 'Image ID');
@@ -1769,12 +1828,19 @@ function sanitizeDirectionImageIds(imageIds) {
 }
 
 function parseQuestionDirectionsParts(parts) {
-    const [guildId, ownerUserId, challengeId, questionId, taskType, ...imageIds] = parts;
+    const [guildId, ownerUserId, challengeId, questionId, fifthPart = '', ...remainingParts] = parts;
+
+    const fifthPartIsTaskType = isQuestionTaskType(fifthPart);
+    const sourceMessageId = fifthPart && !fifthPartIsTaskType ? fifthPart : '';
+    const taskType = fifthPartIsTaskType ? fifthPart : remainingParts[0];
+    const imageIds = fifthPartIsTaskType ? remainingParts : remainingParts.slice(1);
+
     return {
         guildId,
         ownerUserId,
         challengeId,
         questionId,
+        sourceMessageId,
         taskType,
         imageIds: sanitizeDirectionImageIds(imageIds),
     };
@@ -1805,14 +1871,14 @@ function buildQuestionTaskSelectModalLabel(currentTaskType) {
 async function showQuestionModal(interaction, parts, buildModal) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
-    const modal = await buildModal(context, context.question);
+    const modal = await buildModal(context, context.question, interaction);
     if (!modal) return;
     return interaction.showModal(modal);
 }
 
 function showQuestionTextModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, question) => buildAdminModal(
-        buildAdminCustomId('questionTextModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+    return showQuestionModal(interaction, parts, (context, question, sourceInteraction) => buildAdminModal(
+        buildAdminCustomId('questionTextModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
         'Edit Question Text',
         buildModalTextLabel('label', 'Label', {
             placeholder: question.label ?? 'Leave empty for no change',
@@ -1828,11 +1894,11 @@ function showQuestionTextModal(interaction, parts) {
 }
 
 function showQuestionOptionsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, async (context, question) => {
+    return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
         const verificationSettings = await getVerificationSettings(context.guildId);
         const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
         return buildAdminModal(
-            buildAdminCustomId('questionOptionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+            buildAdminCustomId('questionOptionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
             'Question Options',
             buildModalTextLabel('order_number', 'Order Number', {
                 placeholder: '1, 2, 3, or leave empty',
@@ -1855,11 +1921,11 @@ function showQuestionOptionsModal(interaction, parts) {
 }
 
 function showQuestionImageTextModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, question) => {
+    return showQuestionModal(interaction, parts, (context, question, sourceInteraction) => {
         const taskType = parts[4] ?? getQuestionTaskType(question);
         if (taskType !== 'prompt-text') throw new Error('This question does not use prompt image text.');
         return buildAdminModal(
-            buildAdminCustomId('questionImageTextModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+            buildAdminCustomId('questionImageTextModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
             'Edit Prompt Image Text',
             buildModalTextLabel('image_text', 'Prompt Image Text', {
                 style: Discord.TextInputStyle.Paragraph,
@@ -1871,11 +1937,11 @@ function showQuestionImageTextModal(interaction, parts) {
 }
 
 function showQuestionAnswersModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, question) => {
+    return showQuestionModal(interaction, parts, (context, question, sourceInteraction) => {
         const answerType = parts[4] ?? question.answer?.type;
         if (answerType !== 'text') throw new Error('This question does not use editable text answers.');
         return buildAdminModal(
-            buildAdminCustomId('questionAnswersModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+            buildAdminCustomId('questionAnswersModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
             'Edit Accepted Answers',
             buildModalTextLabel('answers', 'Accepted Answers', {
                 style: Discord.TextInputStyle.Paragraph,
@@ -1887,7 +1953,7 @@ function showQuestionAnswersModal(interaction, parts) {
 }
 
 function showQuestionImageIdsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, question) => {
+    return showQuestionModal(interaction, parts, (context, question, sourceInteraction) => {
         const type = parts[4] ?? getQuestionTaskType(question);
         if (!['gallery-standard', 'gallery-rotation-alignment'].includes(type)) throw new Error('This question does not use editable image IDs.');
         const roles = type === 'gallery-standard' ? ['solution', 'control'] : ['center', 'outer'];
@@ -1897,7 +1963,7 @@ function showQuestionImageIdsModal(interaction, parts) {
             description: `Leave empty to keep current ${role} IDs.`,
         }));
         return buildAdminModal(
-            buildAdminCustomId('questionImageIdsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+            buildAdminCustomId('questionImageIdsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
             type === 'gallery-standard' ? 'Edit Image IDs' : 'Edit Rotation Image IDs',
             labels,
         );
@@ -1941,7 +2007,7 @@ async function handleQuestionEditDirectionsButton(interaction, parts) {
 }
 
 function showQuestionDirectionsModal(interaction, parts) {
-    return showQuestionModal(interaction, parts, (context, question) => {
+    return showQuestionModal(interaction, parts, (context, question, sourceInteraction) => {
         const parsedDirections = parseQuestionDirectionsParts(parts);
         const taskType = parsedDirections.taskType ?? getQuestionTaskType(question);
         if (taskType !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
@@ -1956,8 +2022,19 @@ function showQuestionDirectionsModal(interaction, parts) {
             description: 'Leave empty for no change.',
         }));
 
+        const sourceMessageId = sourceInteraction.message?.id;
+        const customIdParts = [
+            context.guildId,
+            context.ownerUserId,
+            context.challengeId,
+            context.question.id,
+            ...(sourceMessageId ? [sourceMessageId] : []),
+            taskType,
+            ...directionImageIds,
+        ];
+
         return buildAdminModal(
-            buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, taskType, ...directionImageIds),
+            buildAdminCustomId('questionDirectionsModal', ...customIdParts),
             'Edit Image Directions',
             labels,
         );
@@ -2026,13 +2103,8 @@ function buildTaskTypePatch(taskType) {
     return { generatedImage, answer: { type: getDefaultAnswerTypeForTask(normalizedTaskType) }, imageIdsKeepRoles };
 }
 
-async function replyWithUpdatedQuestionPanel(interaction, guildId, ownerUserId, challengeId, challenge, question) {
-    const updatedSettings = await getVerificationSettings(guildId);
-    return interaction.editReply(buildQuestionEditPanelPayload(updatedSettings, guildId, ownerUserId, challengeId, challenge, question));
-}
-
 async function handleQuestionOptionsModalSubmit(interaction, parts) {
-    const context = getQuestionAdminContext(parts);
+    const context = getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2057,7 +2129,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
 
     const currentTaskType = getQuestionTaskType(effectiveQuestion);
     const selectedTaskType = getModalSingleSelectValue(interaction, 'task_type') ?? currentTaskType;
-    if (!QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === selectedTaskType)) {
+    if (!isQuestionTaskType(selectedTaskType)) {
         return interaction.editReply({ embeds: [userErrorEmbed('Unknown task type selected.')] });
     }
     const taskChanged = selectedTaskType !== currentTaskType;
@@ -2093,22 +2165,11 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     patches[context.question.id] = selectedPatch;
 
     const updatedSettings = await updateQuestionOptionOverrides(context.guildId, context.challengeId, patches, interaction.user.id);
-    const updatedEffectiveChallenge = normalizeVerificationChallenge(context.challenge, updatedSettings);
-    const updatedEffectiveQuestion = resolveQuestion(updatedEffectiveChallenge, context.question.id);
-    return interaction.editReply(buildQuestionWorkspacePayload({
-        verificationSettings: updatedSettings,
-        mode: 'edit',
-        guildId: context.guildId,
-        ownerUserId: context.ownerUserId,
-        challengeId: context.challengeId,
-        challenge: updatedEffectiveChallenge,
-        question: updatedEffectiveQuestion,
-        expanded: true,
-    }));
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-options-modal', 'Question options updated.', { sourceMessageId: context.sourceMessageId });
 }
 
 async function handleQuestionTextModalSubmit(interaction, parts) {
-    const context = getQuestionAdminContext(parts);
+    const context = getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2118,15 +2179,15 @@ async function handleQuestionTextModalSubmit(interaction, parts) {
     const text = getModalTextInput(interaction, 'text');
     if (!label && !text) return interaction.editReply({ embeds: [userErrorEmbed('No question text changes were submitted.')] });
 
-    await setQuestionCommonOverrides(context.guildId, context.challengeId, context.question.id, {
+    const updatedSettings = await setQuestionCommonOverrides(context.guildId, context.challengeId, context.question.id, {
         ...(label ? { label } : {}),
         ...(text ? { text } : {}),
     }, interaction.user.id);
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-text-modal', 'Question text updated.', { sourceMessageId: context.sourceMessageId });
 }
 
 async function handleQuestionImageTextModalSubmit(interaction, parts) {
-    const context = getQuestionAdminContext(parts);
+    const context = getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2138,12 +2199,12 @@ async function handleQuestionImageTextModalSubmit(interaction, parts) {
     const imageText = getModalTextInput(interaction, 'image_text');
     if (!imageText) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
 
-    await setQuestionImageTextOverride(context.guildId, context.challengeId, context.question.id, imageText, interaction.user.id);
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    const updatedSettings = await setQuestionImageTextOverride(context.guildId, context.challengeId, context.question.id, imageText, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-text-modal', 'Question prompt text updated.', { sourceMessageId: context.sourceMessageId });
 }
 
 async function handleQuestionAnswersModalSubmit(interaction, parts) {
-    const context = getQuestionAdminContext(parts);
+    const context = getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2157,8 +2218,8 @@ async function handleQuestionAnswersModalSubmit(interaction, parts) {
     const answers = parseAnswerOverrideList(answersInput);
     if (answers.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one accepted answer.')] });
 
-    await setQuestionAnswerOverrides(context.guildId, context.challengeId, context.question.id, answers, interaction.user.id);
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    const updatedSettings = await setQuestionAnswerOverrides(context.guildId, context.challengeId, context.question.id, answers, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-answers-modal', 'Question accepted answers updated.', { sourceMessageId: context.sourceMessageId });
 }
 
 function applyPendingImageIds(question, updates) {
@@ -2175,7 +2236,7 @@ function applyPendingImageIds(question, updates) {
 }
 
 async function handleQuestionImageIdsModalSubmit(interaction, parts) {
-    const context = getQuestionAdminContext(parts);
+    const context = getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2204,12 +2265,12 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
         if (validationError) return interaction.editReply({ embeds: [userErrorEmbed(validationError)] });
     }
 
-    await setQuestionImageIdOverrides(context.guildId, context.challengeId, context.question.id, updates, interaction.user.id);
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    const updatedSettings = await setQuestionImageIdOverrides(context.guildId, context.challengeId, context.question.id, updates, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-ids-modal', 'Question image IDs updated.', { sourceMessageId: context.sourceMessageId });
 }
 
 async function handleQuestionDirectionsModalSubmit(interaction, parts) {
-    const context = getQuestionAdminContext(parts);
+    const context = getQuestionModalSubmitContext(parts);
     if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
@@ -2240,41 +2301,54 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const unconfiguredIds = directionUpdates.map(({ imageId }) => imageId).filter((imageId) => !configuredRotationIds.has(imageId));
     if (unconfiguredIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Configure image IDs as center or outer before setting directions: ${[...new Set(unconfiguredIds)].join(', ')}`)] });
 
-    await setQuestionImageDirectionOverrides(
+    const updatedSettings = await setQuestionImageDirectionOverrides(
         context.guildId,
         context.challengeId,
         context.question.id,
         Object.fromEntries(directionUpdates.map(({ imageId, degrees }) => [imageId, degrees])),
         interaction.user.id,
     );
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-directions-modal', 'Question image directions updated.', { sourceMessageId: context.sourceMessageId });
 }
 
-async function handleQuestionClearButton(interaction, parts) {
-    const [field, ...contextParts] = parts;
-    const context = await validateQuestionAdminInteraction(interaction, contextParts);
-    if (context.error) return;
+function getQuestionModalSubmitContext(parts) {
+    const [guildId, ownerUserId, challengeId, questionId, sourceMessageId = ''] = parts;
+    return {
+        ...getQuestionAdminContext([guildId, ownerUserId, challengeId, questionId]),
+        sourceMessageId,
+    };
+}
+
+async function handleQuestionClearModalSubmit(interaction, parts = []) {
+    const context = getQuestionModalSubmitContext(parts);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
-    const clearMap = {
-        ...QUESTION_CLEAR_FIELD_MAP,
-        label: 'label',
-        'separate-step': 'separateStep',
-    };
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
-    let updatedSettings;
-    if (field === 'all') {
-        updatedSettings = await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, Object.values(clearMap).flat(), interaction.user.id);
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
+    const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
+    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
+    const clearMap = Object.fromEntries(definitions.map((definition) => [definition.field, definition.paths]));
+
+    let selectedField;
+    try {
+        selectedField = getRequiredModalSingleSelect(interaction, 'clear_field', getQuestionClearSelectOptions(definitions), 'override entry to clear');
     }
-    else {
-        const mappedField = clearMap[field];
-        if (!mappedField) return interaction.editReply({ embeds: [userErrorEmbed('Unknown clear field.')] });
-        updatedSettings = Array.isArray(mappedField)
-            ? await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, mappedField, interaction.user.id)
-            : await clearQuestionOverrideField(context.guildId, context.challengeId, context.question.id, mappedField, interaction.user.id);
+    catch (err) {
+        return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
     }
 
-    return interaction.editReply(buildQuestionEditPanelPayload(updatedSettings, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question));
+    const paths = clearMap[selectedField];
+    if (!paths) return interaction.editReply({ embeds: [userErrorEmbed('That clear action is no longer available for this question’s current Task/Answer.')] });
+
+    const updatedSettings = await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, paths, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-clear-modal', 'Question override cleared.', {
+        sourceMessageId: context.sourceMessageId,
+    });
 }
 
 
@@ -2286,7 +2360,7 @@ async function updateChallengeMetaFromModal(guildId, challengeId, submittedTitle
 }
 
 async function handleChallengeEditModalSubmit(interaction, parts) {
-    const [guildId, ownerUserId, challengeId] = parts;
+    const [guildId, ownerUserId, challengeId, sourceMessageId = ''] = parts;
     if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
@@ -2299,7 +2373,20 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
 
     const updatedSettings = await updateChallengeMetaFromModal(guildId, challengeId, title, description, interaction.user.id);
     const enabledChallengeIds = getEnabledVerificationChallenges({ verification: updatedSettings }).map((challenge) => challenge.id);
-    return interaction.editReply({ embeds: [buildChallengeOverviewEmbed(updatedSettings, enabledChallengeIds, challengeId)] });
+    return replyWithUpdatedAdminPanel(interaction, {
+        panelPayload: buildChallengeOverviewPanelPayload({
+            verificationSettings: updatedSettings,
+            enabledChallengeIds,
+            mode: 'edit',
+            guildId,
+            userId: ownerUserId,
+            challengeId,
+        }),
+        sourceMessageId,
+        title: 'Challenge Updated',
+        description: 'Challenge metadata was updated.',
+        fallback: 'panel',
+    });
 }
 
 async function handleVerificationAdminComponentInteraction(interaction) {
@@ -2384,11 +2471,8 @@ async function handleVerificationAdminComponentInteraction(interaction) {
             case 'questionDetailBack':
                 await handleQuestionDetailBackButton(interaction, parsed.parts);
                 return true;
-            case 'questionClearPanel':
-                await sendQuestionClearPanel(interaction, parsed.parts);
-                return true;
-            case 'questionClear':
-                await handleQuestionClearButton(interaction, parsed.parts);
+            case 'questionClearSelector':
+                await showQuestionClearSelectorModal(interaction, parsed.parts);
                 return true;
             default:
                 return false;
@@ -2448,6 +2532,9 @@ async function handleVerificationAdminModalSubmit(interaction) {
                 return true;
             case 'questionDirectionsModal':
                 await handleQuestionDirectionsModalSubmit(interaction, parsed.parts);
+                return true;
+            case 'questionClearModal':
+                await handleQuestionClearModalSubmit(interaction, parsed.parts);
                 return true;
             default:
                 return false;
