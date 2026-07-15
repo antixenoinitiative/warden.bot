@@ -465,7 +465,7 @@ async function handleVerificationChallengesCommand(interaction, guildId) {
     try { assertChallengeSelectMenuLimit(challenges); }
     catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
     const verificationSettings = await getVerificationSettings(guildId);
-    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];;
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
     return interaction.editReply(buildChallengesPanelPayload({
         verificationSettings,
         challenges,
@@ -484,7 +484,7 @@ async function handleChallengeSelectMenu(interaction, parts) {
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(guildId);
-    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];;
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
     return sendChallengeOverview(interaction, { guildId, verificationSettings, enabledChallengeIds, challengeId, mode: 'edit' });
 }
 
