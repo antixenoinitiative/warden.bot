@@ -112,11 +112,7 @@ async function sendAdminPermissionError(interaction) {
 const {
     VERIFICATION_MODES,
     getVerificationSettings,
-    setVerificationMode,
-    setActiveChallengeIds,
-    setChallengeExpirySeconds,
-    setCooldownSeconds,
-    setAutokickSettings,
+    saveVerificationGuildSettingsOnly,
     updateChallengeMetaOverrides,
     setQuestionCommonOverrides,
     setQuestionImageTextOverride,
@@ -274,20 +270,29 @@ function buildChallengeSelectOption(challenge, enabledChallengeIds = []) {
     return option;
 }
 
-function buildSettingsModeSelectRow(guildId, ownerUserId, verificationSettings) {
+function buildSettingsModeSelectComponent(verificationSettings) {
     const options = [
         ['Challenge', VERIFICATION_MODES.challenge],
         ['Halt', VERIFICATION_MODES.halt],
         ['One-Click', VERIFICATION_MODES.oneClick],
     ].map(([name, value]) => {
-        const option = new Discord.StringSelectMenuOptionBuilder().setLabel(name).setValue(value);
+        const option = new Discord.StringSelectMenuOptionBuilder()
+            .setLabel(name)
+            .setValue(value);
+
         if (verificationSettings.mode === value) option.setDefault(true);
         return option;
     });
-    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
-        .setCustomId(buildAdminCustomId('settingsModeSelect', guildId, ownerUserId))
+
+    const select = new Discord.StringSelectMenuBuilder()
+        .setCustomId('mode')
         .setPlaceholder('Choose verification mode...')
-        .addOptions(options));
+        .setMinValues(1)
+        .setMaxValues(1)
+        .addOptions(options);
+
+    select.setRequired?.(true);
+    return select;
 }
 
 function assertSettingsChallengeSelectMenuLimit() {
@@ -297,53 +302,60 @@ function assertSettingsChallengeSelectMenuLimit() {
     }
 }
 
-function buildSettingsActiveChallengesSelectRow(guildId, ownerUserId, verificationSettings) {
+function buildSettingsActiveChallengesSelectComponent(verificationSettings) {
     assertSettingsChallengeSelectMenuLimit();
+
     const challenges = Object.values(verificationChallenges);
-    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
-        .setCustomId(buildAdminCustomId('settingsActiveChallengesSelect', guildId, ownerUserId))
+
+    const select = new Discord.StringSelectMenuBuilder()
+        .setCustomId('active_challenge_ids')
         .setPlaceholder('Choose active challenges...')
         .setMinValues(1)
         .setMaxValues(Math.max(1, challenges.length))
-        .addOptions(challenges.map((challenge) => buildChallengeSelectOption(challenge, verificationSettings.activeChallengeIds ?? []))));
+        .addOptions(challenges.map((challenge) => buildChallengeSelectOption(challenge, verificationSettings.activeChallengeIds ?? [])));
+
+    select.setRequired?.(true);
+    return select;
 }
 
-function buildSettingsAutokickSelectRow(guildId, ownerUserId, verificationSettings) {
-    return new Discord.ActionRowBuilder().addComponents(new Discord.StringSelectMenuBuilder()
-        .setCustomId(buildAdminCustomId('settingsAutokickSelect', guildId, ownerUserId))
+function buildSettingsAutokickSelectComponent(verificationSettings) {
+    const select = new Discord.StringSelectMenuBuilder()
+        .setCustomId('autokick_enabled')
         .setPlaceholder('Choose autokick state...')
+        .setMinValues(1)
+        .setMaxValues(1)
         .addOptions([
-            new Discord.StringSelectMenuOptionBuilder().setLabel('ON').setValue('on').setDefault(verificationSettings.autokickEnabled === true),
-            new Discord.StringSelectMenuOptionBuilder().setLabel('OFF').setValue('off').setDefault(verificationSettings.autokickEnabled !== true),
-        ]));
+            new Discord.StringSelectMenuOptionBuilder()
+                .setLabel('ON')
+                .setValue('on')
+                .setDefault(verificationSettings.autokickEnabled === true),
+            new Discord.StringSelectMenuOptionBuilder()
+                .setLabel('OFF')
+                .setValue('off')
+                .setDefault(verificationSettings.autokickEnabled !== true),
+        ]);
+
+    select.setRequired?.(true);
+    return select;
 }
 
-function buildSettingsActionRows(guildId, ownerUserId, { editMode, activeEditor, verificationSettings }) {
-    if (!editMode) {
-        return [new Discord.ActionRowBuilder().addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('settingsEdit', guildId, ownerUserId))
-            .setLabel('Edit')
-            .setStyle(Discord.ButtonStyle.Primary))];
-    }
-
-    const rows = [new Discord.ActionRowBuilder().addComponents(
-        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('settingsModeEditor', guildId, ownerUserId)).setLabel('Mode').setStyle(Discord.ButtonStyle.Secondary),
-        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('settingsActiveChallengesEditor', guildId, ownerUserId)).setLabel('Active Challenges').setStyle(Discord.ButtonStyle.Secondary),
-        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('settingsTimersEditor', guildId, ownerUserId)).setLabel('Timers').setStyle(Discord.ButtonStyle.Secondary),
-        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('settingsAutokickEditor', guildId, ownerUserId)).setLabel('Autokick').setStyle(Discord.ButtonStyle.Secondary),
-        new Discord.ButtonBuilder().setCustomId(buildAdminCustomId('settingsDone', guildId, ownerUserId)).setLabel('Done').setStyle(Discord.ButtonStyle.Success),
+function buildSettingsActionRows(guildId, ownerUserId) {
+    return [new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('settingsEditOptions', guildId, ownerUserId))
+            .setLabel('Edit Settings')
+            .setStyle(Discord.ButtonStyle.Primary),
+        new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('settingsEditTimers', guildId, ownerUserId))
+            .setLabel('Edit Timers')
+            .setStyle(Discord.ButtonStyle.Secondary),
     )];
-
-    if (activeEditor === 'mode') rows.push(buildSettingsModeSelectRow(guildId, ownerUserId, verificationSettings));
-    if (activeEditor === 'activeChallenges') rows.push(buildSettingsActiveChallengesSelectRow(guildId, ownerUserId, verificationSettings));
-    if (activeEditor === 'autokick') rows.push(buildSettingsAutokickSelectRow(guildId, ownerUserId, verificationSettings));
-    return rows;
 }
 
-function buildSettingsPanelPayload({ verificationSettings, guildId, ownerUserId, editMode = false, activeEditor = null }) {
+function buildSettingsPanelPayload({ verificationSettings, guildId, ownerUserId }) {
     return {
         embeds: [buildSettingsStatusEmbed(verificationSettings)],
-        components: buildSettingsActionRows(guildId, ownerUserId, { editMode, activeEditor, verificationSettings }),
+        components: buildSettingsActionRows(guildId, ownerUserId),
     };
 }
 
@@ -1019,35 +1031,45 @@ function isMatchingAdminGuild(interaction, guildId) {
     return !interaction.guild?.id || String(interaction.guild.id) === String(guildId);
 }
 
-async function validateSettingsAdminInteraction(interaction, parts) {
+async function showSettingsOptionsModal(interaction, parts) {
     const [guildId, ownerUserId] = parts;
-    if (!isAdminSessionOwner(interaction, ownerUserId)) {
-        await sendAdminPanelOwnerError(interaction);
-        return { error: true };
-    }
-    if (!isMatchingAdminGuild(interaction, guildId)) {
-        await respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-        return { error: true };
-    }
-    return { guildId, ownerUserId };
-}
 
-async function handleSettingsPanelButton(interaction, parts, editMode, activeEditor) {
-    const context = await validateSettingsAdminInteraction(interaction, parts);
-    if (context.error) return;
-    if (activeEditor === 'activeChallenges') {
-        try { assertSettingsChallengeSelectMenuLimit(); }
-        catch (err) { return respondAdminError(interaction, { embeds: [userErrorEmbed(err.message)] }); }
+    if (!isAdminSessionOwner(interaction, ownerUserId)) {
+        return sendAdminPanelOwnerError(interaction);
     }
-    await interaction.deferUpdate();
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    return interaction.editReply(buildSettingsPanelPayload({
-        verificationSettings,
-        guildId: context.guildId,
-        ownerUserId: context.ownerUserId,
-        editMode,
-        activeEditor,
-    }));
+
+    if (!isMatchingAdminGuild(interaction, guildId)) {
+        return respondAdminError(interaction, {
+            embeds: [userErrorEmbed('This admin panel belongs to another server.')],
+        });
+    }
+
+    try {
+        assertSettingsChallengeSelectMenuLimit();
+    }
+    catch (err) {
+        return respondAdminError(interaction, {
+            embeds: [userErrorEmbed(err.message)],
+        });
+    }
+
+    const verificationSettings = await getVerificationSettings(guildId);
+
+    const modal = buildAdminModal(
+        buildAdminCustomId('settingsOptionsModal', guildId, ownerUserId, interaction.message?.id ?? ''),
+        'Verification Settings',
+        buildModalStringSelectLabel('Mode', buildSettingsModeSelectComponent(verificationSettings), {
+            description: 'Choose the verification mode.',
+        }),
+        buildModalStringSelectLabel('Active Challenges', buildSettingsActiveChallengesSelectComponent(verificationSettings), {
+            description: 'Choose which challenges are active.',
+        }),
+        buildModalStringSelectLabel('Autokick', buildSettingsAutokickSelectComponent(verificationSettings), {
+            description: 'Choose whether failed verification autokicks.',
+        }),
+    );
+
+    return interaction.showModal(modal);
 }
 
 function showSettingsTimersModal(interaction, parts) {
@@ -1075,44 +1097,111 @@ function showSettingsTimersModal(interaction, parts) {
         }),
     );
 
-    const showPromise = interaction.showModal(modal);
-    showPromise.then(() => {
-        interaction.message?.edit({ components: buildSettingsActionRows(guildId, ownerUserId, { editMode: true, activeEditor: null, verificationSettings: {} }) }).catch(() => {});
-    }).catch(() => {});
-    return showPromise;
+    return interaction.showModal(modal);
 }
 
-async function handleSettingsModeSelect(interaction, parts) {
-    const context = await validateSettingsAdminInteraction(interaction, parts);
-    if (context.error) return;
-    const selectedMode = interaction.values?.[0];
-    if (!Object.values(VERIFICATION_MODES).includes(selectedMode)) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select a valid verification mode.')] });
-    await interaction.deferUpdate();
-    const verificationSettings = await setVerificationMode(context.guildId, selectedMode, interaction.user.id);
-    return interaction.editReply(buildSettingsPanelPayload({ verificationSettings, guildId: context.guildId, ownerUserId: context.ownerUserId, editMode: true }));
+async function replyWithUpdatedSettingsPanel(interaction, {
+    guildId,
+    ownerUserId,
+    sourceMessageId,
+    verificationSettings,
+    title = 'Settings Updated',
+    description = 'Verification settings were updated.',
+}) {
+    const panelPayload = buildSettingsPanelPayload({
+        verificationSettings,
+        guildId,
+        ownerUserId,
+    });
+
+    let sourceUpdated = false;
+
+    if (interaction.message) {
+        await interaction.message.edit(panelPayload)
+            .then(() => { sourceUpdated = true; })
+            .catch((err) => console.error('Failed to update settings panel message:', err));
+    }
+    else if (sourceMessageId && typeof interaction.webhook?.editMessage === 'function') {
+        await interaction.webhook.editMessage(sourceMessageId, panelPayload)
+            .then(() => { sourceUpdated = true; })
+            .catch((err) => console.error('Failed to update settings panel message by ID:', err));
+    }
+
+    if (sourceUpdated) {
+        return interaction.editReply(buildVerificationAdminActionCompleted(title, description));
+    }
+
+    return interaction.editReply(panelPayload);
 }
 
-async function handleSettingsActiveChallengesSelect(interaction, parts) {
-    const context = await validateSettingsAdminInteraction(interaction, parts);
-    if (context.error) return;
-    const selectedChallengeIds = interaction.values ?? [];
-    if (selectedChallengeIds.length < 1) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select at least one active challenge.')] });
+async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
+    const [guildId, ownerUserId, sourceMessageId = ''] = parts;
+
+    if (!isAdminSessionOwner(interaction, ownerUserId)) {
+        return sendAdminPanelOwnerError(interaction);
+    }
+
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+
+    if (!isMatchingAdminGuild(interaction, guildId)) {
+        return interaction.editReply({
+            embeds: [userErrorEmbed('This admin panel belongs to another server.')],
+        });
+    }
+
+    const selectedMode = getModalSingleSelectValue(interaction, 'mode');
+    const selectedChallengeIds = getModalSelectValues(interaction, 'active_challenge_ids');
+    const selectedAutokickState = getModalSingleSelectValue(interaction, 'autokick_enabled');
+
+    if (!Object.values(VERIFICATION_MODES).includes(selectedMode)) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please select a valid verification mode.')] });
+    }
+
+    if (selectedChallengeIds.length < 1) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please select at least one active challenge.')] });
+    }
+
     const unknownChallengeIds = selectedChallengeIds.filter((challengeId) => !verificationChallenges[challengeId]);
-    if (unknownChallengeIds.length > 0) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)] });
-    await interaction.deferUpdate();
-    const verificationSettings = await setActiveChallengeIds(context.guildId, selectedChallengeIds, interaction.user.id);
-    return interaction.editReply(buildSettingsPanelPayload({ verificationSettings, guildId: context.guildId, ownerUserId: context.ownerUserId, editMode: true }));
-}
+    if (unknownChallengeIds.length > 0) {
+        return interaction.editReply({
+            embeds: [userErrorEmbed(`Unknown verification challenge ID${unknownChallengeIds.length === 1 ? '' : 's'}: ${unknownChallengeIds.join(', ')}`)],
+        });
+    }
 
-async function handleSettingsAutokickSelect(interaction, parts) {
-    const context = await validateSettingsAdminInteraction(interaction, parts);
-    if (context.error) return;
-    const selected = interaction.values?.[0];
-    if (!['on', 'off'].includes(selected)) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select a valid autokick state.')] });
-    await interaction.deferUpdate();
-    const currentSettings = await getVerificationSettings(context.guildId);
-    const verificationSettings = await setAutokickSettings(context.guildId, selected === 'on', currentSettings.autokickSeconds, interaction.user.id);
-    return interaction.editReply(buildSettingsPanelPayload({ verificationSettings, guildId: context.guildId, ownerUserId: context.ownerUserId, editMode: true }));
+    if (!['on', 'off'].includes(selectedAutokickState)) {
+        return interaction.editReply({ embeds: [userErrorEmbed('Please select a valid autokick state.')] });
+    }
+
+    const currentSettings = await getVerificationSettings(guildId);
+
+    const nextSettings = {
+        ...currentSettings,
+        mode: selectedMode,
+        activeChallengeIds: selectedChallengeIds,
+        autokickEnabled: selectedAutokickState === 'on',
+    };
+
+    const changed =
+        currentSettings.mode !== nextSettings.mode ||
+        JSON.stringify(currentSettings.activeChallengeIds ?? []) !== JSON.stringify(nextSettings.activeChallengeIds ?? []) ||
+        currentSettings.autokickEnabled !== nextSettings.autokickEnabled;
+
+    if (!changed) {
+        return interaction.editReply({
+            embeds: [userErrorEmbed('No verification settings changes were submitted.')],
+        });
+    }
+
+    const updatedSettings = await saveVerificationGuildSettingsOnly(guildId, nextSettings, interaction.user.id);
+
+    return replyWithUpdatedSettingsPanel(interaction, {
+        guildId,
+        ownerUserId,
+        sourceMessageId,
+        verificationSettings: updatedSettings,
+        title: 'Settings Updated',
+        description: 'Verification settings were updated.',
+    });
 }
 
 async function handleSettingsTimersModalSubmit(interaction, parts = []) {
@@ -1133,18 +1222,36 @@ async function handleSettingsTimersModalSubmit(interaction, parts = []) {
     const autokickSeconds = autokickInput ? parseDurationSeconds(autokickInput) : undefined;
     if (autokickInput && !autokickSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Invalid Autokick Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
 
-    if (expirySeconds) await setChallengeExpirySeconds(guildId, expirySeconds, interaction.user.id);
-    if (cooldownSeconds) await setCooldownSeconds(guildId, cooldownSeconds, interaction.user.id);
-    if (autokickSeconds) {
-        const currentSettings = await getVerificationSettings(guildId);
-        await setAutokickSettings(guildId, currentSettings.autokickEnabled, autokickSeconds, interaction.user.id);
+    const currentSettings = await getVerificationSettings(guildId);
+
+    const nextSettings = {
+        ...currentSettings,
+        ...(expirySeconds ? { challengeExpirySeconds: expirySeconds } : {}),
+        ...(cooldownSeconds ? { cooldownSeconds } : {}),
+        ...(autokickSeconds ? { autokickSeconds } : {}),
+    };
+
+    const changed =
+        nextSettings.challengeExpirySeconds !== currentSettings.challengeExpirySeconds ||
+        nextSettings.cooldownSeconds !== currentSettings.cooldownSeconds ||
+        nextSettings.autokickSeconds !== currentSettings.autokickSeconds;
+
+    if (!changed) {
+        return interaction.editReply({
+            embeds: [userErrorEmbed('No timer changes were submitted.')],
+        });
     }
 
-    const updatedSettings = await getVerificationSettings(guildId);
-    const payload = buildSettingsPanelPayload({ verificationSettings: updatedSettings, guildId, ownerUserId, editMode: true });
-    if (interaction.message) interaction.message.edit(payload).catch((err) => console.error('Failed to update settings panel after timer modal:', err));
-    else if (sourceMessageId && typeof interaction.webhook?.editMessage === 'function') interaction.webhook.editMessage(sourceMessageId, payload).catch((err) => console.error('Failed to update settings panel message after timer modal:', err));
-    return interaction.editReply(payload);
+    const updatedSettings = await saveVerificationGuildSettingsOnly(guildId, nextSettings, interaction.user.id);
+
+    return replyWithUpdatedSettingsPanel(interaction, {
+        guildId,
+        ownerUserId,
+        sourceMessageId,
+        verificationSettings: updatedSettings,
+        title: 'Timers Updated',
+        description: 'Verification timers were updated.',
+    });
 }
 
 async function validateChallengeAdminInteraction(interaction, parts) {
@@ -2236,32 +2343,11 @@ async function handleVerificationAdminComponentInteraction(interaction) {
 
     try {
         switch (parsed.action) {
-            case 'settingsEdit':
-                await handleSettingsPanelButton(interaction, parsed.parts, true, null);
+            case 'settingsEditOptions':
+                await showSettingsOptionsModal(interaction, parsed.parts);
                 return true;
-            case 'settingsDone':
-                await handleSettingsPanelButton(interaction, parsed.parts, false, null);
-                return true;
-            case 'settingsModeEditor':
-                await handleSettingsPanelButton(interaction, parsed.parts, true, 'mode');
-                return true;
-            case 'settingsActiveChallengesEditor':
-                await handleSettingsPanelButton(interaction, parsed.parts, true, 'activeChallenges');
-                return true;
-            case 'settingsTimersEditor':
+            case 'settingsEditTimers':
                 await showSettingsTimersModal(interaction, parsed.parts);
-                return true;
-            case 'settingsAutokickEditor':
-                await handleSettingsPanelButton(interaction, parsed.parts, true, 'autokick');
-                return true;
-            case 'settingsModeSelect':
-                await handleSettingsModeSelect(interaction, parsed.parts);
-                return true;
-            case 'settingsActiveChallengesSelect':
-                await handleSettingsActiveChallengesSelect(interaction, parsed.parts);
-                return true;
-            case 'settingsAutokickSelect':
-                await handleSettingsAutokickSelect(interaction, parsed.parts);
                 return true;
             case 'challengeSelect':
                 await handleChallengeSelectMenu(interaction, parsed.parts);
@@ -2361,6 +2447,9 @@ async function handleVerificationAdminModalSubmit(interaction) {
 
     try {
         switch (parsed.action) {
+            case 'settingsOptionsModal':
+                await handleSettingsOptionsModalSubmit(interaction, parsed.parts);
+                return true;
             case 'settingsTimersModal':
                 await handleSettingsTimersModalSubmit(interaction, parsed.parts);
                 return true;

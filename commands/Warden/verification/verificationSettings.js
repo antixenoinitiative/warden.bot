@@ -714,35 +714,6 @@ async function getVerificationSettings(guildId) {
     return settings;
 }
 
-async function setVerificationMode(guildId, mode, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, mode }, updatedBy);
-}
-
-async function setActiveChallengeIds(guildId, challengeIds, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, activeChallengeIds: challengeIds }, updatedBy);
-}
-
-async function setChallengeExpirySeconds(guildId, challengeExpirySeconds, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, challengeExpirySeconds }, updatedBy);
-}
-
-async function setCooldownSeconds(guildId, cooldownSeconds, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationGuildSettingsOnly(guildId, { ...currentSettings, cooldownSeconds }, updatedBy);
-}
-
-async function setAutokickSettings(guildId, autokickEnabled, autokickSeconds, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    return saveVerificationGuildSettingsOnly(guildId, {
-        ...currentSettings,
-        autokickEnabled,
-        autokickSeconds: autokickSeconds ?? currentSettings.autokickSeconds,
-    }, updatedBy);
-}
-
 function buildChallengeOverrideUpdate(currentSettings, challengeId, updateChallenge) {
     const normalizedChallengeId = normalizeString(challengeId);
     if (!normalizedChallengeId) return normalizeChallengeOverrides(currentSettings.challengeOverrides);
@@ -1228,11 +1199,6 @@ module.exports = {
     getVerificationSettings,
     saveVerificationSettings,
     saveVerificationGuildSettingsOnly,
-    setVerificationMode,
-    setActiveChallengeIds,
-    setChallengeExpirySeconds,
-    setCooldownSeconds,
-    setAutokickSettings,
     setChallengeMetaOverride,
     updateChallengeMetaOverrides,
     setQuestionTextOverride,
