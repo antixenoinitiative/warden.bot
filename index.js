@@ -146,23 +146,21 @@ function mainOperation(){
 			try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
-				const { getMissingChallengeOverrideRequirements } = require('./commands/Warden/verification/verificationChallenges/verificationChallenges')
+				const { applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationConfigSafeguards')
 
 				await ensureVerificationSettingsTable()
 				const verificationSettings = await getVerificationSettings(process.env.GUILDID)
 
-				const missingChallengeRequirements = getMissingChallengeOverrideRequirements(verificationSettings)
-				if (missingChallengeRequirements.length > 0) {
-					const warningDescription = missingChallengeRequirements
-						.map(({ challengeId, missing }) => `- **${challengeId}** missing ${missing.join(' and ')}`)
-						.join('\n')
-					console.warn('[STARTUP] Warden verification challenge configuration warnings:', warningDescription)
-
-					await botFunc.botLog(guild, new Discord.EmbedBuilder()
-						.setTitle('Verification challenge configuration warning')
-						.setDescription(`These active verification challenge IDs need DB-configured override entries before they should be used:\n${warningDescription}`),
-					1, 'staff')
-				}
+				await applyVerificationConfigSafeguard({
+					guildId: process.env.GUILDID,
+					guild,
+					settings: verificationSettings,
+					source: 'startup',
+					actorId: 'startup',
+					reason: 'Startup verification configuration preflight.',
+					notifyStaff: true,
+					deactivateUnsafeActiveChallenges: true,
+				})
 
 				const imagePoolIssues = await getLocalVerificationImagePoolIssues()
 				if (imagePoolIssues.length > 0) {

@@ -247,66 +247,9 @@ function getVerificationChallenge(challengeId) {
     return verificationChallenges[challengeId];
 }
 
-function getRoleIds(generatedImage, role) {
-    return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
-}
-
-function getInvalidDirectionValues(directions) {
-    return (Array.isArray(directions) ? directions : [])
-        .filter((degrees) => !Number.isInteger(Number(degrees)) || !ALLOWED_IMAGE_DIRECTION_DEGREES.has(Number(degrees)));
-}
-
 function getMissingChallengeOverrideRequirements(verificationSettings) {
-    const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
-
-    return enabledChallenges.flatMap((challenge) => {
-        const missing = validateQuestionScreens(buildQuestionScreens(challenge)).map((issue) => issue.message);
-
-        for (const question of challenge.questions ?? []) {
-            const generatedImage = question.generatedImage ?? {};
-            const answer = question.answer ?? {};
-            const prefix = `${challenge.id}/${question.id}`;
-
-            if (generatedImage.requiresConfiguredText && !generatedImage.text) {
-                missing.push(`${prefix}: generated image text`);
-            }
-
-            if (answer.requiresConfiguredAnswers && answer.required === true && !answer.accepted?.length) {
-                missing.push(`${prefix}: accepted answers`);
-            }
-
-            if (generatedImage.type === 'gallery-standard'
-                && (generatedImage.requiresConfiguredImageIds || getRoleIds(generatedImage, 'solution').length < 1 || getRoleIds(generatedImage, 'control').length < 1)) {
-                if (getRoleIds(generatedImage, 'solution').length < 1) missing.push(`${prefix}: solution image IDs`);
-                if (getRoleIds(generatedImage, 'control').length < 1) missing.push(`${prefix}: control image IDs`);
-            }
-
-            if (generatedImage.type === 'gallery-rotation-alignment'
-                && (generatedImage.requiresConfiguredImageIds || getRoleIds(generatedImage, 'center').length < 1 || getRoleIds(generatedImage, 'outer').length < 1)) {
-                if (getRoleIds(generatedImage, 'center').length < 1) missing.push(`${prefix}: center image IDs`);
-                if (getRoleIds(generatedImage, 'outer').length < 1) missing.push(`${prefix}: outer image IDs`);
-            }
-
-            if (generatedImage.type === 'gallery-rotation-alignment' && (generatedImage.requiresConfiguredImageDirections || getRoleIds(generatedImage, 'center').length > 0 || getRoleIds(generatedImage, 'outer').length > 0)) {
-                const directions = generatedImage.imageDirections ?? {};
-                const imageIds = [...new Set([...getRoleIds(generatedImage, 'center'), ...getRoleIds(generatedImage, 'outer')])];
-                const missingDirectionIds = imageIds.filter((imageId) => !Array.isArray(directions[imageId]) || directions[imageId].length < 1);
-
-                if (missingDirectionIds.length > 0) {
-                    missing.push(`${prefix}: image directions (${missingDirectionIds.join(', ')})`);
-                }
-
-                const invalidDirectionIds = imageIds.filter((imageId) => getInvalidDirectionValues(directions[imageId]).length > 0);
-                if (invalidDirectionIds.length > 0) {
-                    missing.push(`${prefix}: invalid image directions (${invalidDirectionIds.join(', ')})`);
-                }
-            }
-        }
-
-        if (missing.length < 1) return [];
-
-        return [{ challengeId: challenge.id, missing }];
-    });
+    const { formatMissingChallengeOverrideRequirements } = require('./verificationConfigIssues');
+    return formatMissingChallengeOverrideRequirements(verificationSettings);
 }
 
 function getEnabledVerificationChallenges(config) {

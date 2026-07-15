@@ -18,6 +18,10 @@ const {
     validateQuestionScreens,
 } = require('../verification/verificationChallenges/verificationChallenges');
 const { getVerificationImagePool } = require('../verification/verificationImages');
+const {
+    applyVerificationConfigSafeguard,
+    buildVerificationConfigWarningEmbed,
+} = require('../verification/verificationConfigSafeguards');
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
 const ADMIN_CUSTOM_ID_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
@@ -123,6 +127,66 @@ const {
     clearQuestionOverrideField,
     clearQuestionOverrideFields,
 } = require('../verification/verificationSettings');
+
+
+async function runAdminConfigSafeguard(interaction, { guildId, settings, changedChallengeId, changedQuestionId, reason, source }) {
+    return applyVerificationConfigSafeguard({
+        guildId,
+        guild: interaction.guild,
+        settings,
+        source,
+        actorId: interaction.user.id,
+        changedChallengeId,
+        changedQuestionId,
+        reason,
+        notifyStaff: false,
+        deactivateUnsafeActiveChallenges: true,
+    });
+}
+
+async function followUpAdminConfigWarning(interaction, safeguardResult, { changedChallengeId, changedQuestionId } = {}) {
+    const issues = (safeguardResult.finalReport?.issues ?? safeguardResult.report?.issues ?? [])
+        .filter((issue) => !changedChallengeId || issue.challengeId === changedChallengeId)
+        .filter((issue) => !changedQuestionId || issue.questionId === changedQuestionId);
+    if (issues.length < 1 && (safeguardResult.disabledChallengeIds?.length ?? 0) < 1) return undefined;
+    const embed = buildVerificationConfigWarningEmbed({
+        report: { issues },
+        disabledChallengeIds: safeguardResult.disabledChallengeIds ?? [],
+        fallbackApplied: safeguardResult.fallbackApplied === true,
+        source: 'Admin change',
+        actorId: interaction.user.id,
+        finalActiveChallengeIds: safeguardResult.finalSettings?.activeChallengeIds ?? [],
+        description: 'Your change left required verification configuration missing. Unsafe active challenges were automatically disabled when needed.',
+    });
+    return respondAdminError(interaction, { embeds: [embed] }).catch((err) => {
+        console.error('Failed to send verification configuration warning to admin:', err);
+    });
+}
+
+async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, source, reason) {
+    const safeguard = await runAdminConfigSafeguard(interaction, {
+        guildId: context.guildId,
+        settings: updatedSettings,
+        changedChallengeId: context.challengeId,
+        changedQuestionId: context.question.id,
+        reason,
+        source,
+    });
+    await followUpAdminConfigWarning(interaction, safeguard, { changedChallengeId: context.challengeId, changedQuestionId: context.question.id });
+    const finalSettings = safeguard.finalSettings ?? updatedSettings;
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, finalSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id);
+    return interaction.editReply(buildQuestionWorkspacePayload({
+        verificationSettings: finalSettings,
+        mode: 'edit',
+        guildId: context.guildId,
+        ownerUserId: context.ownerUserId,
+        challengeId: context.challengeId,
+        challenge: effectiveChallenge,
+        question: effectiveQuestion,
+        expanded: true,
+    }));
+}
 
 const SETTINGS_MODE_OPTIONS = [
     { label: 'Challenge', value: VERIFICATION_MODES.challenge },
@@ -1097,38 +1161,43 @@ function showSettingsTimersModal(interaction, parts) {
     return interaction.showModal(modal);
 }
 
-async function replyWithUpdatedSettingsPanel(interaction, {
-    guildId,
-    ownerUserId,
+async function replyWithUpdatedAdminPanel(interaction, {
+    panelPayload,
     sourceMessageId,
-    verificationSettings,
-    title = 'Settings Updated',
-    description = 'Verification settings were updated.',
+    title = 'Updated',
+    description = 'Admin panel updated.',
+    preferSourceUpdate = true,
+    fallback = 'panel',
 }) {
-    const panelPayload = buildSettingsPanelPayload({
-        verificationSettings,
-        guildId,
-        ownerUserId,
-    });
-
     let sourceUpdated = false;
+    const handleEditError = (err) => {
+        if (err?.code === 10008) {
+            console.warn('[ADMIN UX] Source admin panel message was no longer editable; using fallback response.');
+            return;
+        }
+        console.error('Failed to update admin panel message:', err);
+    };
 
-    if (interaction.message) {
-        await interaction.message.edit(panelPayload)
-            .then(() => { sourceUpdated = true; })
-            .catch((err) => console.error('Failed to update settings panel message:', err));
+    if (preferSourceUpdate && interaction.message) {
+        await interaction.message.edit(panelPayload).then(() => { sourceUpdated = true; }).catch(handleEditError);
     }
-    else if (sourceMessageId && typeof interaction.webhook?.editMessage === 'function') {
-        await interaction.webhook.editMessage(sourceMessageId, panelPayload)
-            .then(() => { sourceUpdated = true; })
-            .catch((err) => console.error('Failed to update settings panel message by ID:', err));
+    else if (preferSourceUpdate && sourceMessageId && typeof interaction.webhook?.editMessage === 'function') {
+        await interaction.webhook.editMessage(sourceMessageId, panelPayload).then(() => { sourceUpdated = true; }).catch(handleEditError);
     }
 
-    if (sourceUpdated) {
-        return interaction.editReply(buildVerificationAdminActionCompleted(title, description));
-    }
-
+    if (sourceUpdated) return interaction.editReply(buildVerificationAdminActionCompleted(title, description));
+    if (fallback === 'ack') return interaction.editReply(buildVerificationAdminActionCompleted(title, `${description} Re-run the command to view the refreshed panel.`));
     return interaction.editReply(panelPayload);
+}
+
+async function replyWithUpdatedSettingsPanel(interaction, { guildId, ownerUserId, sourceMessageId, verificationSettings, title = 'Settings Updated', description = 'Verification settings were updated.' }) {
+    return replyWithUpdatedAdminPanel(interaction, {
+        panelPayload: buildSettingsPanelPayload({ verificationSettings, guildId, ownerUserId }),
+        sourceMessageId,
+        title,
+        description,
+        fallback: 'panel',
+    });
 }
 
 async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
@@ -1178,12 +1247,14 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
     }
 
     const updatedSettings = await saveVerificationGuildSettingsOnly(guildId, nextSettings, interaction.user.id);
+    const safeguard = await runAdminConfigSafeguard(interaction, { guildId, settings: updatedSettings, reason: 'Settings options updated.', source: 'settings-options-modal' });
+    await followUpAdminConfigWarning(interaction, safeguard);
 
     return replyWithUpdatedSettingsPanel(interaction, {
         guildId,
         ownerUserId,
         sourceMessageId,
-        verificationSettings: updatedSettings,
+        verificationSettings: safeguard.finalSettings ?? updatedSettings,
         title: 'Settings Updated',
         description: 'Verification settings were updated.',
     });
@@ -1663,22 +1734,45 @@ function buildQuestionEditPanelComponents(guildId, userId, challengeId, question
     return rows;
 }
 
-function buildQuestionClearComponents(guildId, userId, challengeId, questionId) {
-    const clearButtons = [
-        ['order', 'Clear Order'],
-        ['separate-step', 'Clear Separate Step'],
-        ['text', 'Clear Text'],
-        ['task', 'Clear Task'],
-        ['image-text', 'Clear Prompt Text'],
-        ['answer-required', 'Clear Answer Required'],
-        ['answers', 'Clear Answers'],
-        ['image-ids', 'Clear Image IDs'],
-        ['directions', 'Clear Directions'],
-        ['all', 'Clear All'],
-    ].map(([field, label]) => new Discord.ButtonBuilder()
+function hasOwnValue(object, key) {
+    return Object.prototype.hasOwnProperty.call(object ?? {}, key);
+}
+
+function hasAnyOwnValue(object, keys) {
+    return keys.some((key) => hasOwnValue(object, key));
+}
+
+function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
+    const definitions = [];
+    const add = (field, label, paths) => definitions.push({ field, label, paths: Array.isArray(paths) ? paths : [paths] });
+    const generatedImageOverride = questionOverride.generatedImage ?? {};
+    const answerOverride = questionOverride.answer ?? {};
+    const taskType = getQuestionTaskType(effectiveQuestion);
+
+    if (hasOwnValue(questionOverride, 'order')) add('order', 'Clear Order', 'order');
+    if (hasOwnValue(questionOverride, 'separateStep')) add('separate-step', 'Clear Separate Step', 'separateStep');
+    if (hasOwnValue(questionOverride, 'label')) add('label', 'Clear Label', 'label');
+    if (hasOwnValue(questionOverride, 'text')) add('text', 'Clear Text', 'text');
+    if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'imagePoolId', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
+        add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.imagePoolId', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url', 'answer.type']);
+    }
+    if (taskType === 'prompt-text' && hasOwnValue(generatedImageOverride, 'text')) add('image-text', 'Clear Prompt Text', 'generatedImage.text');
+    if (['gallery-standard', 'gallery-rotation-alignment'].includes(taskType) && hasOwnValue(generatedImageOverride, 'imageIds')) add('image-ids', 'Clear Image IDs', 'generatedImage.imageIds');
+    if (taskType === 'gallery-rotation-alignment' && hasOwnValue(generatedImageOverride, 'imageDirections')) add('directions', 'Clear Directions', 'generatedImage.imageDirections');
+    if (hasOwnValue(answerOverride, 'required')) add('answer-required', 'Clear Answer Required', 'answer.required');
+    if (effectiveQuestion.answer?.type === 'text' && Array.isArray(answerOverride.accepted) && answerOverride.accepted.length > 0) add('answers', 'Clear Answers', 'answer.accepted');
+
+    if (definitions.length >= 2) {
+        definitions.push({ field: 'all-visible', label: 'Clear Shown Overrides', paths: [...new Set(definitions.flatMap((definition) => definition.paths))] });
+    }
+    return definitions;
+}
+
+function buildQuestionClearComponents(guildId, userId, challengeId, questionId, definitions) {
+    const clearButtons = definitions.map(({ field, label }) => new Discord.ButtonBuilder()
         .setCustomId(buildAdminCustomId('questionClear', field, guildId, userId, challengeId, questionId))
         .setLabel(label)
-        .setStyle(field === 'all' ? Discord.ButtonStyle.Danger : Discord.ButtonStyle.Secondary));
+        .setStyle(field === 'all-visible' ? Discord.ButtonStyle.Danger : Discord.ButtonStyle.Secondary));
 
     return buildActionRows(clearButtons);
 }
@@ -1733,9 +1827,20 @@ async function handleQuestionEditDoneButton(interaction, parts) {
 async function sendQuestionClearPanel(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
+    const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
+    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
+    if (definitions.length < 1) {
+        return interaction.reply({
+            content: `There are no clearable overrides for **${context.challengeId}/${context.question.id}**.`,
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
     return interaction.reply({
-        content: `Choose which overrides to clear for **${context.challengeId}/${context.question.id}**.`,
-        components: buildQuestionClearComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id),
+        content: `Choose which overrides to clear for selected question **${context.challengeId}/${context.question.id}**. Only overrides relevant to this question's current Task/Answer are shown.`,
+        components: buildQuestionClearComponents(context.guildId, context.ownerUserId, context.challengeId, context.question.id, definitions),
         flags: Discord.MessageFlags.Ephemeral,
     });
 }
@@ -2093,18 +2198,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     patches[context.question.id] = selectedPatch;
 
     const updatedSettings = await updateQuestionOptionOverrides(context.guildId, context.challengeId, patches, interaction.user.id);
-    const updatedEffectiveChallenge = normalizeVerificationChallenge(context.challenge, updatedSettings);
-    const updatedEffectiveQuestion = resolveQuestion(updatedEffectiveChallenge, context.question.id);
-    return interaction.editReply(buildQuestionWorkspacePayload({
-        verificationSettings: updatedSettings,
-        mode: 'edit',
-        guildId: context.guildId,
-        ownerUserId: context.ownerUserId,
-        challengeId: context.challengeId,
-        challenge: updatedEffectiveChallenge,
-        question: updatedEffectiveQuestion,
-        expanded: true,
-    }));
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-options-modal', 'Question options updated.');
 }
 
 async function handleQuestionTextModalSubmit(interaction, parts) {
@@ -2138,8 +2232,8 @@ async function handleQuestionImageTextModalSubmit(interaction, parts) {
     const imageText = getModalTextInput(interaction, 'image_text');
     if (!imageText) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
 
-    await setQuestionImageTextOverride(context.guildId, context.challengeId, context.question.id, imageText, interaction.user.id);
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    const updatedSettings = await setQuestionImageTextOverride(context.guildId, context.challengeId, context.question.id, imageText, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-text-modal', 'Question prompt text updated.');
 }
 
 async function handleQuestionAnswersModalSubmit(interaction, parts) {
@@ -2157,8 +2251,8 @@ async function handleQuestionAnswersModalSubmit(interaction, parts) {
     const answers = parseAnswerOverrideList(answersInput);
     if (answers.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one accepted answer.')] });
 
-    await setQuestionAnswerOverrides(context.guildId, context.challengeId, context.question.id, answers, interaction.user.id);
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    const updatedSettings = await setQuestionAnswerOverrides(context.guildId, context.challengeId, context.question.id, answers, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-answers-modal', 'Question accepted answers updated.');
 }
 
 function applyPendingImageIds(question, updates) {
@@ -2204,8 +2298,8 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
         if (validationError) return interaction.editReply({ embeds: [userErrorEmbed(validationError)] });
     }
 
-    await setQuestionImageIdOverrides(context.guildId, context.challengeId, context.question.id, updates, interaction.user.id);
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    const updatedSettings = await setQuestionImageIdOverrides(context.guildId, context.challengeId, context.question.id, updates, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-ids-modal', 'Question image IDs updated.');
 }
 
 async function handleQuestionDirectionsModalSubmit(interaction, parts) {
@@ -2240,14 +2334,14 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const unconfiguredIds = directionUpdates.map(({ imageId }) => imageId).filter((imageId) => !configuredRotationIds.has(imageId));
     if (unconfiguredIds.length > 0) return interaction.editReply({ embeds: [userErrorEmbed(`Configure image IDs as center or outer before setting directions: ${[...new Set(unconfiguredIds)].join(', ')}`)] });
 
-    await setQuestionImageDirectionOverrides(
+    const updatedSettings = await setQuestionImageDirectionOverrides(
         context.guildId,
         context.challengeId,
         context.question.id,
         Object.fromEntries(directionUpdates.map(({ imageId, degrees }) => [imageId, degrees])),
         interaction.user.id,
     );
-    return replyWithUpdatedQuestionPanel(interaction, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-directions-modal', 'Question image directions updated.');
 }
 
 async function handleQuestionClearButton(interaction, parts) {
@@ -2256,25 +2350,17 @@ async function handleQuestionClearButton(interaction, parts) {
     if (context.error) return;
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
-    const clearMap = {
-        ...QUESTION_CLEAR_FIELD_MAP,
-        label: 'label',
-        'separate-step': 'separateStep',
-    };
+    const verificationSettings = await getVerificationSettings(context.guildId);
+    const effectiveChallenge = normalizeVerificationChallenge(context.challenge, verificationSettings);
+    const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
+    const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
+    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
+    const clearMap = Object.fromEntries(definitions.map((definition) => [definition.field, definition.paths]));
+    const paths = clearMap[field];
+    if (!paths) return interaction.editReply({ embeds: [userErrorEmbed('That clear action is not available for this question\'s current Task/Answer.')] });
 
-    let updatedSettings;
-    if (field === 'all') {
-        updatedSettings = await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, Object.values(clearMap).flat(), interaction.user.id);
-    }
-    else {
-        const mappedField = clearMap[field];
-        if (!mappedField) return interaction.editReply({ embeds: [userErrorEmbed('Unknown clear field.')] });
-        updatedSettings = Array.isArray(mappedField)
-            ? await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, mappedField, interaction.user.id)
-            : await clearQuestionOverrideField(context.guildId, context.challengeId, context.question.id, mappedField, interaction.user.id);
-    }
-
-    return interaction.editReply(buildQuestionEditPanelPayload(updatedSettings, context.guildId, context.ownerUserId, context.challengeId, context.challenge, context.question));
+    const updatedSettings = await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, paths, interaction.user.id);
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-clear-button', 'Question override cleared.');
 }
 
 
