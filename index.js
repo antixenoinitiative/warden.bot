@@ -145,10 +145,13 @@ function mainOperation(){
 
 			try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
+				const { ensureVerificationChallengeTemplatesSeeded } = require('./commands/Warden/verification/verificationChallengeRepository')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
 				const { applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationConfigSafeguards')
 
 				await ensureVerificationSettingsTable()
+				await ensureVerificationChallengeTemplatesSeeded('global')
+				console.log('[STARTUP] Seeded verification challenge catalog templates.')
 				const verificationSettings = await getVerificationSettings(process.env.GUILDID)
 
 				await applyVerificationConfigSafeguard({
