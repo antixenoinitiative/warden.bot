@@ -1846,23 +1846,33 @@ function truncateModalLabel(label) {
 
 function getQuestionOrderSelectOptions(effectiveChallenge, selectedQuestionId) {
     const questions = getChallengeQuestions(effectiveChallenge);
-    return buildUnchangedFirstOptions(questions.map((question, index) => ({
+    const orderOptions = questions.map((question, index) => ({
         label: String(index + 1),
         value: String(index + 1),
         description: question.id === selectedQuestionId
             ? `Current position: ${question.id}`
             : question.id,
-    })));
+    }));
+
+    return orderOptions.length >= 25
+        ? orderOptions
+        : buildUnchangedFirstOptions(orderOptions);
 }
 
 function buildQuestionOrderSelectField(effectiveChallenge, selectedQuestionId) {
+    const options = getQuestionOrderSelectOptions(effectiveChallenge, selectedQuestionId);
+    assertSelectOptionLimit(options, 'Question order options');
+    const supportsUnchanged = options.some((option) => option.value === SELECT_UNCHANGED);
+
     return buildModalStringSelectField({
         label: 'Order Number',
-        description: 'Choose the question slot, or leave unchanged.',
+        description: supportsUnchanged
+            ? 'Choose the question slot, or leave unchanged.'
+            : 'Choose the question slot.',
         customId: 'order_number',
         placeholder: 'Choose order number...',
-        options: getQuestionOrderSelectOptions(effectiveChallenge, selectedQuestionId),
-        selectedValues: [SELECT_UNCHANGED],
+        options,
+        selectedValues: supportsUnchanged ? [SELECT_UNCHANGED] : [],
         minValues: 1,
         maxValues: 1,
         required: true,
