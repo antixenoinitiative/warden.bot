@@ -144,18 +144,6 @@ function mainOperation(){
 			warden_vars = database
 
 			try {
-				const { runVerificationTaskColumnMigration } = require('./commands/Warden/verification/temporaryMigrations/migrateVerificationTaskColumns')
-				await runVerificationTaskColumnMigration({
-					guildId: process.env.GUILDID,
-					updatedBy: 'startup',
-				})
-			}
-			catch (migrationErr) {
-				console.error('[STARTUP] Failed to run temporary verification task-column migration:', migrationErr)
-				throw migrationErr
-			}
-
-			try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
 				const { getMissingChallengeOverrideRequirements } = require('./commands/Warden/verification/verificationChallenges/verificationChallenges')
