@@ -177,7 +177,10 @@ function normalizeQuestionOverride(questionOverride = {}) {
     if (generatedImageInput.enabled !== undefined) generatedImage.enabled = normalizeBoolean(generatedImageInput.enabled);
     if (normalizeString(generatedImageInput.type)) generatedImage.type = normalizeString(generatedImageInput.type);
     if (normalizeString(generatedImageInput.text)) generatedImage.text = normalizeString(generatedImageInput.text);
-    if (normalizeString(generatedImageInput.imagePoolId)) generatedImage.imagePoolId = normalizeString(generatedImageInput.imagePoolId);
+    if (Object.prototype.hasOwnProperty.call(generatedImageInput, 'imagePoolId')) {
+        const normalizedImagePoolId = normalizeString(generatedImageInput.imagePoolId);
+        generatedImage.imagePoolId = normalizedImagePoolId ?? null;
+    }
     if (generatedImageInput.gallerySize !== undefined) {
         const gallerySize = Math.floor(Number(generatedImageInput.gallerySize));
         if (Number.isInteger(gallerySize) && gallerySize > 0) generatedImage.gallerySize = gallerySize;
@@ -1009,10 +1012,30 @@ async function clearQuestionImageDirections(guildId, challengeId, questionId, im
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+
+function cloneQuestionForClear(question = {}) {
+    return {
+        ...question,
+        generatedImage: {
+            ...(question.generatedImage ?? {}),
+            config: { ...(question.generatedImage?.config ?? {}) },
+        },
+        answer: { ...(question.answer ?? {}) },
+    };
+}
+
+function pruneQuestionClearContainers(updatedQuestion) {
+    if (updatedQuestion.generatedImage?.config && Object.keys(updatedQuestion.generatedImage.config).length < 1) {
+        delete updatedQuestion.generatedImage.config;
+    }
+    if (Object.keys(updatedQuestion.generatedImage ?? {}).length < 1) delete updatedQuestion.generatedImage;
+    if (Object.keys(updatedQuestion.answer ?? {}).length < 1) delete updatedQuestion.answer;
+}
+
 async function clearQuestionOverrideField(guildId, challengeId, questionId, field, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
     const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
-        const updatedQuestion = { ...question, generatedImage: { ...(question.generatedImage ?? {}) }, answer: { ...(question.answer ?? {}) } };
+        const updatedQuestion = cloneQuestionForClear(question);
 
         switch (field) {
             case 'order':
@@ -1044,6 +1067,9 @@ async function clearQuestionOverrideField(guildId, challengeId, questionId, fiel
                 break;
             case 'generatedImage.imagePoolId':
                 delete updatedQuestion.generatedImage.imagePoolId;
+                break;
+            case 'generatedImage.config.imagePoolId':
+                delete updatedQuestion.generatedImage.config.imagePoolId;
                 break;
             case 'generatedImage.gallerySize':
                 delete updatedQuestion.generatedImage.gallerySize;
@@ -1085,22 +1111,18 @@ async function clearQuestionOverrideField(guildId, challengeId, questionId, fiel
                 throw new Error(`Unsupported verification question override field: ${field}`);
         }
 
-        if (Object.keys(updatedQuestion.generatedImage).length < 1) delete updatedQuestion.generatedImage;
-        if (Object.keys(updatedQuestion.answer).length < 1) delete updatedQuestion.answer;
+        pruneQuestionClearContainers(updatedQuestion);
         return updatedQuestion;
     });
 
     return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
+
 async function clearQuestionOverrideFields(guildId, challengeId, questionId, fields, updatedBy) {
     const currentSettings = await getVerificationSettings(guildId);
     const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
-        const updatedQuestion = {
-            ...question,
-            generatedImage: { ...(question.generatedImage ?? {}) },
-            answer: { ...(question.answer ?? {}) },
-        };
+        const updatedQuestion = cloneQuestionForClear(question);
 
         for (const field of fields) {
             switch (field) {
@@ -1133,6 +1155,9 @@ async function clearQuestionOverrideFields(guildId, challengeId, questionId, fie
                     break;
                 case 'generatedImage.imagePoolId':
                     delete updatedQuestion.generatedImage.imagePoolId;
+                    break;
+                case 'generatedImage.config.imagePoolId':
+                    delete updatedQuestion.generatedImage.config.imagePoolId;
                     break;
                 case 'generatedImage.gallerySize':
                     delete updatedQuestion.generatedImage.gallerySize;
@@ -1169,8 +1194,7 @@ async function clearQuestionOverrideFields(guildId, challengeId, questionId, fie
             }
         }
 
-        if (Object.keys(updatedQuestion.generatedImage).length < 1) delete updatedQuestion.generatedImage;
-        if (Object.keys(updatedQuestion.answer).length < 1) delete updatedQuestion.answer;
+        pruneQuestionClearContainers(updatedQuestion);
 
         return updatedQuestion;
     });
