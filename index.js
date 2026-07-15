@@ -144,6 +144,16 @@ function mainOperation(){
 			warden_vars = database
 
 			try {
+				const { ensureVerificationChallengeTemplatesSeeded } = require('./commands/Warden/verification/verificationChallengeRepository')
+
+				await ensureVerificationChallengeTemplatesSeeded('global')
+				console.log('[STARTUP] Seeded verification challenge catalog templates.')
+			}
+			catch (err) {
+				console.error('[STARTUP] Failed to seed verification challenge catalog templates:', err)
+			}
+
+			try {
 				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
 				const { applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationConfigSafeguards')
