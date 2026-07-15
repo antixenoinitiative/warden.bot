@@ -64,6 +64,7 @@ function applyConfiguredQuestionValues(question, challengeId, verificationSettin
 
     if (questionOverride.label) question.label = questionOverride.label;
     if (questionOverride.text) question.text = questionOverride.text;
+    if (questionOverride.order !== undefined) question.order = questionOverride.order;
     if (questionOverride.separateStep !== undefined) question.separateStep = questionOverride.separateStep === true;
 
     if (generatedImage.config && typeof generatedImage.config === 'object') {
@@ -71,6 +72,18 @@ function applyConfiguredQuestionValues(question, challengeId, verificationSettin
     }
 
     return { ...question, generatedImage, answer };
+}
+
+function getQuestionOrder(question, fallbackIndex) {
+    const order = Math.floor(Number(question.order));
+    return Number.isInteger(order) && order > 0 ? order : fallbackIndex + 1;
+}
+
+function sortQuestionsByOrder(questions) {
+    return questions
+        .map((question, index) => ({ question, index, order: getQuestionOrder(question, index) }))
+        .sort((left, right) => left.order - right.order || left.index - right.index)
+        .map(({ question }) => question);
 }
 
 function normalizeVerificationChallenge(challenge, verificationSettings) {
@@ -85,14 +98,14 @@ function normalizeVerificationChallenge(challenge, verificationSettings) {
         description: challengeOverride?.description ?? challenge.description,
         color: challengeOverride?.color ?? challenge.color,
         fields: Array.isArray(challenge.fields) ? challenge.fields : [],
-        questions: getChallengeQuestions(challenge).map((question, index) => applyConfiguredQuestionValues({
+        questions: sortQuestionsByOrder(getChallengeQuestions(challenge).map((question, index) => applyConfiguredQuestionValues({
             ...question,
             id: question.id,
             label: question.label ?? `Question ${index + 1}`,
             separateStep: question.separateStep === true,
             generatedImage: normalizeGeneratedImage(question.generatedImage),
             answer: normalizeQuestionAnswer(question.answer),
-        }, challenge.id, verificationSettings)),
+        }, challenge.id, verificationSettings))),
     };
 }
 

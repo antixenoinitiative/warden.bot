@@ -113,6 +113,11 @@ function normalizeString(value) {
     return normalizedValue || undefined;
 }
 
+function normalizeQuestionOrder(value) {
+    const order = Math.floor(Number(value));
+    return Number.isInteger(order) && order > 0 ? order : undefined;
+}
+
 function normalizeStringArray(value) {
     const values = Array.isArray(value) ? value : String(value ?? '').split(/[\s,]+/);
     return [...new Set(values.map(normalizeString).filter(Boolean))];
@@ -160,7 +165,9 @@ function normalizeQuestionOverride(questionOverride = {}) {
     const normalizedQuestion = {};
     const label = normalizeString(questionOverride.label);
     const text = normalizeString(questionOverride.text);
+    const order = normalizeQuestionOrder(questionOverride.order);
 
+    if (order !== undefined) normalizedQuestion.order = order;
     if (label) normalizedQuestion.label = label;
     if (text) normalizedQuestion.text = text;
     if (questionOverride.separateStep !== undefined) normalizedQuestion.separateStep = normalizeBoolean(questionOverride.separateStep);
@@ -432,6 +439,8 @@ function normalizeQuestionOverrideRow(row) {
     if (accepted.length > 0) answer.accepted = accepted;
 
     const question = {};
+    const order = normalizeQuestionOrder(row.question_order);
+    if (order !== undefined) question.order = order;
     if (normalizeString(row.question_label)) question.label = normalizeString(row.question_label);
     if (normalizeString(row.question_text)) question.text = normalizeString(row.question_text);
     if (row.separate_step !== null && row.separate_step !== undefined) question.separateStep = normalizeBoolean(row.separate_step);
@@ -500,6 +509,7 @@ async function ensureVerificationChallengeConfigTable() {
                 guild_id VARCHAR(32) NOT NULL,
                 challenge_id VARCHAR(128) NOT NULL,
                 question_id VARCHAR(128) NOT NULL DEFAULT '__challenge__',
+                question_order INT NULL,
                 title TEXT NULL,
                 description TEXT NULL,
                 question_label VARCHAR(128) NULL,
@@ -521,7 +531,14 @@ async function ensureVerificationChallengeConfigTable() {
                 PRIMARY KEY (guild_id, challenge_id, question_id),
                 INDEX idx_verification_challenge_config_challenge (guild_id, challenge_id)
             ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-        `).catch((err) => {
+        `).then(async () => {
+            try {
+                await getDatabase().query('ALTER TABLE verification_challenge_config ADD COLUMN question_order INT NULL AFTER question_id');
+            }
+            catch (err) {
+                if (!String(err?.code).includes('ER_DUP_FIELDNAME') && !String(err?.message ?? '').includes('Duplicate column')) throw err;
+            }
+        }).catch((err) => {
             challengeConfigTableReady = undefined;
             throw err;
         });
@@ -606,6 +623,7 @@ function questionConfigToRow(guildId, challengeId, questionId, question, updated
         guildId,
         challengeId,
         questionId,
+        question.order ?? null,
         null,
         null,
         question.label ?? null,
@@ -629,11 +647,11 @@ function questionConfigToRow(guildId, challengeId, questionId, question, updated
 async function insertChallengeConfigRow(rowValues, query = (sql, values) => getDatabase().query(sql, values)) {
     await query(
         `INSERT INTO verification_challenge_config (
-            guild_id, challenge_id, question_id, title, description, question_label, question_text, separate_step,
+            guild_id, challenge_id, question_id, question_order, title, description, question_label, question_text, separate_step,
             generate_image, generated_image_type, generated_image_text, answer_required, answer_type,
             answer_input_label, answer_input_placeholder, answers_json, image_ids_json, image_directions_json,
             image_config_json, updated_by
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         rowValues,
     );
 }
@@ -675,6 +693,7 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
                     normalizedGuildId,
                     challengeId,
                     CHALLENGE_META_QUESTION_ID,
+                    null,
                     challengeOverride.title ?? null,
                     challengeOverride.description ?? null,
                     null,
@@ -853,6 +872,45 @@ function buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, u
 
         return { ...challengeOverride, questions };
     });
+}
+
+function mergeQuestionOverridePatch(currentQuestion, patch) {
+    const mergeNested = (currentValue = {}, patchValue = {}) => {
+        const merged = { ...currentValue, ...patchValue };
+        for (const [key, value] of Object.entries(patchValue)) {
+            if (value === null || value === '') delete merged[key];
+        }
+        return merged;
+    };
+
+    return {
+        ...currentQuestion,
+        ...patch,
+        generatedImage: patch.generatedImage
+            ? mergeNested(currentQuestion.generatedImage, patch.generatedImage)
+            : currentQuestion.generatedImage,
+        answer: patch.answer
+            ? mergeNested(currentQuestion.answer, patch.answer)
+            : currentQuestion.answer,
+    };
+}
+
+async function updateQuestionOptionOverrides(guildId, challengeId, questionPatches, updatedBy) {
+    const currentSettings = await getVerificationSettings(guildId);
+    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, (currentChallenge) => {
+        const questions = { ...(currentChallenge.questions ?? {}) };
+
+        for (const [questionId, patch] of Object.entries(questionPatches ?? {})) {
+            const currentQuestion = questions[questionId] ?? {};
+            const updatedQuestion = normalizeQuestionOverride(mergeQuestionOverridePatch(currentQuestion, patch));
+            if (Object.keys(updatedQuestion).length > 0) questions[questionId] = updatedQuestion;
+            else delete questions[questionId];
+        }
+
+        return { ...currentChallenge, questions };
+    });
+
+    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
 }
 
 async function setChallengeMetaOverride(guildId, challengeId, data, updatedBy) {
@@ -1075,6 +1133,9 @@ async function clearQuestionOverrideField(guildId, challengeId, questionId, fiel
         const updatedQuestion = { ...question, generatedImage: { ...(question.generatedImage ?? {}) }, answer: { ...(question.answer ?? {}) } };
 
         switch (field) {
+            case 'order':
+                delete updatedQuestion.order;
+                break;
             case 'label':
                 delete updatedQuestion.label;
                 break;
@@ -1099,8 +1160,29 @@ async function clearQuestionOverrideField(guildId, challengeId, questionId, fiel
             case 'generatedImage.imageDirections':
                 delete updatedQuestion.generatedImage.imageDirections;
                 break;
+            case 'generatedImage.imagePoolId':
+                delete updatedQuestion.generatedImage.imagePoolId;
+                break;
+            case 'generatedImage.gallerySize':
+                delete updatedQuestion.generatedImage.gallerySize;
+                break;
+            case 'generatedImage.compositeImageGallery':
+                delete updatedQuestion.generatedImage.compositeImageGallery;
+                break;
+            case 'generatedImage.solutionImageCount':
+                delete updatedQuestion.generatedImage.solutionImageCount;
+                break;
+            case 'generatedImage.controlImageCount':
+                delete updatedQuestion.generatedImage.controlImageCount;
+                break;
+            case 'generatedImage.maxControlImageRepeats':
+                delete updatedQuestion.generatedImage.maxControlImageRepeats;
+                break;
             case 'generatedImage.config':
                 delete updatedQuestion.generatedImage.config;
+                break;
+            case 'generatedImage.url':
+                delete updatedQuestion.generatedImage.url;
                 break;
             case 'answer.required':
                 delete updatedQuestion.answer.required;
@@ -1140,6 +1222,9 @@ async function clearQuestionOverrideFields(guildId, challengeId, questionId, fie
 
         for (const field of fields) {
             switch (field) {
+                case 'order':
+                    delete updatedQuestion.order;
+                    break;
                 case 'label':
                     delete updatedQuestion.label;
                     break;
@@ -1149,6 +1234,12 @@ async function clearQuestionOverrideFields(guildId, challengeId, questionId, fie
                 case 'separateStep':
                     delete updatedQuestion.separateStep;
                     break;
+                case 'generatedImage.enabled':
+                    delete updatedQuestion.generatedImage.enabled;
+                    break;
+                case 'generatedImage.type':
+                    delete updatedQuestion.generatedImage.type;
+                    break;
                 case 'generatedImage.text':
                     delete updatedQuestion.generatedImage.text;
                     break;
@@ -1157,6 +1248,36 @@ async function clearQuestionOverrideFields(guildId, challengeId, questionId, fie
                     break;
                 case 'generatedImage.imageDirections':
                     delete updatedQuestion.generatedImage.imageDirections;
+                    break;
+                case 'generatedImage.imagePoolId':
+                    delete updatedQuestion.generatedImage.imagePoolId;
+                    break;
+                case 'generatedImage.gallerySize':
+                    delete updatedQuestion.generatedImage.gallerySize;
+                    break;
+                case 'generatedImage.compositeImageGallery':
+                    delete updatedQuestion.generatedImage.compositeImageGallery;
+                    break;
+                case 'generatedImage.solutionImageCount':
+                    delete updatedQuestion.generatedImage.solutionImageCount;
+                    break;
+                case 'generatedImage.controlImageCount':
+                    delete updatedQuestion.generatedImage.controlImageCount;
+                    break;
+                case 'generatedImage.maxControlImageRepeats':
+                    delete updatedQuestion.generatedImage.maxControlImageRepeats;
+                    break;
+                case 'generatedImage.config':
+                    delete updatedQuestion.generatedImage.config;
+                    break;
+                case 'generatedImage.url':
+                    delete updatedQuestion.generatedImage.url;
+                    break;
+                case 'answer.required':
+                    delete updatedQuestion.answer.required;
+                    break;
+                case 'answer.type':
+                    delete updatedQuestion.answer.type;
                     break;
                 case 'answer.accepted':
                     delete updatedQuestion.answer.accepted;
@@ -1214,6 +1335,7 @@ module.exports = {
     clearQuestionImageIds,
     setQuestionImageDirections,
     setQuestionImageDirectionOverrides,
+    updateQuestionOptionOverrides,
     clearQuestionImageDirections,
     clearQuestionOverrideField,
     clearQuestionOverrideFields,
