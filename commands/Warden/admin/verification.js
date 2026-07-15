@@ -163,18 +163,53 @@ async function runAdminConfigSafeguard(interaction, { guildId, settings, changed
 }
 
 async function followUpAdminConfigWarning(interaction, safeguardResult, { changedChallengeId, changedQuestionId } = {}) {
-    const issues = (safeguardResult.finalReport?.issues ?? safeguardResult.report?.issues ?? [])
-        .filter((issue) => !changedChallengeId || issue.challengeId === changedChallengeId)
-        .filter((issue) => !changedQuestionId || issue.questionId === changedQuestionId);
-    if (issues.length < 1 && (safeguardResult.disabledChallengeIds?.length ?? 0) < 1) return undefined;
+    function issueMatchesChangedScope(issue) {
+        return (!changedChallengeId || issue.challengeId === changedChallengeId)
+            && (!changedQuestionId || issue.questionId === changedQuestionId);
+    }
+
+    function isBlockingIssue(issue) {
+        return issue.severity === 'blocking';
+    }
+
+    const disabledChallengeIds = safeguardResult.disabledChallengeIds ?? [];
+    const disabledSet = new Set(disabledChallengeIds.map(String));
+    const originalIssues = safeguardResult.report?.issues ?? [];
+    const finalIssues = safeguardResult.finalReport?.issues ?? [];
+
+    const originalRelevantIssues = originalIssues
+        .filter(isBlockingIssue)
+        .filter((issue) => issue.active === true || disabledSet.has(String(issue.challengeId)))
+        .filter(issueMatchesChangedScope);
+    const finalRelevantIssues = finalIssues
+        .filter(isBlockingIssue)
+        .filter((issue) => issue.active === true)
+        .filter(issueMatchesChangedScope);
+
+    const issueMap = new Map();
+    for (const issue of [...originalRelevantIssues, ...finalRelevantIssues]) {
+        const key = [
+            issue.challengeId,
+            issue.questionId ?? '',
+            issue.code ?? '',
+            issue.field ?? '',
+            issue.message ?? issue.label ?? '',
+        ].join('|');
+        issueMap.set(key, issue);
+    }
+
+    const issues = [...issueMap.values()];
+    if (issues.length < 1 && disabledChallengeIds.length < 1) return undefined;
     const embed = buildVerificationConfigWarningEmbed({
         report: { issues },
-        disabledChallengeIds: safeguardResult.disabledChallengeIds ?? [],
+        disabledChallengeIds,
         fallbackApplied: safeguardResult.fallbackApplied === true,
         source: 'Admin change',
         actorId: interaction.user.id,
         finalActiveChallengeIds: safeguardResult.finalSettings?.activeChallengeIds ?? [],
-        description: 'Your change left required verification configuration missing. Unsafe active challenges were automatically disabled when needed.',
+        description: disabledChallengeIds.length > 0
+            ? 'Your change left required verification configuration missing. Unsafe active challenges were automatically disabled when needed.'
+            : 'Your change left required verification configuration missing for an active verification challenge.',
     });
     const payload = { flags: Discord.MessageFlags.Ephemeral, embeds: [embed] };
     try {
