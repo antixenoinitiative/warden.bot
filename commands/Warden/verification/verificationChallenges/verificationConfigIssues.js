@@ -29,7 +29,7 @@ function createIssue({ code, challengeId, questionId = null, taskType = 'none', 
     return { severity: 'blocking', code, challengeId, questionId, taskType, field, label, message, active };
 }
 
-function getActiveChallengeIds(verificationSettings = {}) {
+function resolveConfiguredActiveChallengeIds(verificationSettings = {}) {
     if (Array.isArray(verificationSettings.activeChallengeIds) && verificationSettings.activeChallengeIds.length > 0) {
         return verificationSettings.activeChallengeIds.map(String);
     }
@@ -37,7 +37,7 @@ function getActiveChallengeIds(verificationSettings = {}) {
     return legacy ? [String(legacy)] : [DEFAULT_CHALLENGE_ID];
 }
 
-function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, activeChallengeIds = getActiveChallengeIds(verificationSettings)) {
+function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, activeChallengeIds = resolveConfiguredActiveChallengeIds(verificationSettings)) {
     const activeSet = new Set(activeChallengeIds.map(String));
     const normalizedChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
     if (!normalizedChallenge) return [];
@@ -87,7 +87,7 @@ function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, act
 }
 
 function evaluateVerificationConfigIssues(verificationSettings = {}) {
-    const activeChallengeIds = getActiveChallengeIds(verificationSettings);
+    const activeChallengeIds = resolveConfiguredActiveChallengeIds(verificationSettings);
     const challengeIds = [...new Set([...Object.keys(verificationChallenges), ...activeChallengeIds])];
     return challengeIds.flatMap((challengeId) => evaluateChallengeConfigIssues(verificationChallenges[challengeId], verificationSettings, activeChallengeIds));
 }
@@ -103,6 +103,7 @@ function formatMissingChallengeOverrideRequirements(verificationSettings = {}) {
 
 module.exports = {
     ALLOWED_IMAGE_DIRECTION_DEGREES,
+    resolveConfiguredActiveChallengeIds,
     getQuestionTaskType,
     getConfiguredRoleIds,
     getInvalidConfiguredDirections,

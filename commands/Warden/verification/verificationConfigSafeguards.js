@@ -2,11 +2,8 @@ const Discord = require('discord.js');
 const { botLog } = require('../../../functions');
 const { VERIFICATION_MODES, getVerificationSettings, saveVerificationGuildSettingsOnly } = require('./verificationSettings');
 const { DEFAULT_CHALLENGE_ID } = require('./verificationChallenges/verificationChallenges');
-const { evaluateVerificationConfigIssues } = require('./verificationChallenges/verificationConfigIssues');
+const { evaluateVerificationConfigIssues, resolveConfiguredActiveChallengeIds } = require('./verificationChallenges/verificationConfigIssues');
 
-function getActiveChallengeIds(settings = {}) {
-    return Array.isArray(settings.activeChallengeIds) ? settings.activeChallengeIds.map(String) : [];
-}
 
 function formatVerificationConfigIssues(issues = [], limit = 10) {
     const lines = issues.slice(0, limit).map((issue) => {
@@ -18,7 +15,7 @@ function formatVerificationConfigIssues(issues = [], limit = 10) {
 }
 
 function evaluateVerificationConfig(settings = {}, options = {}) {
-    const activeChallengeIds = getActiveChallengeIds(settings);
+    const activeChallengeIds = resolveConfiguredActiveChallengeIds(settings);
     const issues = evaluateVerificationConfigIssues(settings).map((issue) => ({
         ...issue,
         active: activeChallengeIds.includes(String(issue.challengeId)),
@@ -83,7 +80,10 @@ async function applyVerificationConfigSafeguard({
 
     if (disabledChallengeIds.length > 0) {
         const unsafe = new Set(disabledChallengeIds.map(String));
-        let activeChallengeIds = getActiveChallengeIds(originalSettings).filter((challengeId) => !unsafe.has(String(challengeId)));
+        const originalActiveIds = Array.isArray(originalSettings.activeChallengeIds) && originalSettings.activeChallengeIds.length > 0
+            ? originalSettings.activeChallengeIds.map(String)
+            : resolveConfiguredActiveChallengeIds(originalSettings);
+        let activeChallengeIds = originalActiveIds.filter((challengeId) => !unsafe.has(String(challengeId)));
         if (originalSettings.mode === VERIFICATION_MODES.challenge && activeChallengeIds.length < 1) {
             activeChallengeIds = [DEFAULT_CHALLENGE_ID];
             fallbackApplied = true;
