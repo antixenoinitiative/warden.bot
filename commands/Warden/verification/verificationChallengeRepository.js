@@ -5,6 +5,15 @@ let database;
 const DEFAULT_GUILD_ID = 'global';
 const TEMPLATE_VERSION = 1;
 const DEDICATED_TASK_KEYS = new Set(['enabled', 'type', 'text', 'imagePoolId', 'imageIds', 'imageDirections']);
+const SETTINGS_TASK_KEYS = new Set([
+    ...DEDICATED_TASK_KEYS,
+    'gallerySize',
+    'compositeImageGallery',
+    'solutionImageCount',
+    'controlImageCount',
+    'maxControlImageRepeats',
+    'config',
+]);
 const catalogCache = new Map();
 let catalogTablesReady;
 
@@ -53,6 +62,12 @@ function pruneNullishObject(value) {
     return Object.fromEntries(
         Object.entries(value ?? {}).filter(([, entry]) => entry !== undefined && entry !== null),
     );
+}
+
+function normalizeCatalogTimestamp(value) {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value?.toISOString === 'function') return value.toISOString();
+    return String(value);
 }
 
 async function ensureVerificationChallengeCatalogTables() {
@@ -270,10 +285,9 @@ async function upsertProtectedTemplateQuestionRow(row, updatedBy = 'sync') {
     `, [row.guild_id, row.challenge_id, row.question_id, row.question_order, row.source_template_id, row.template_version, row.question_label, row.question_text, row.separate_step, row.task_enabled, row.task_type, row.task_prompt_text, row.task_image_pool_id, row.task_image_ids_json, row.task_image_directions_json, row.task_config_json, row.answer_required, row.answer_type, row.answer_input_label, row.answer_input_placeholder, row.answers_json, normalizedUpdatedBy, normalizedUpdatedBy]);
 }
 
-// Transition helper: mirror current effective legacy verification config into
-// protected template catalog rows while runtime/Admin UX continue using the
-// legacy settings path. Future catalog-authoritative migration should remove
-// the legacy override dependency from this sync path.
+// Transition helper used by the one-time legacy bootstrap and compatibility
+// shadow writes. Catalog-authoritative reads must not run this on every startup,
+// otherwise stale legacy rows could overwrite newer catalog values.
 async function syncVerificationChallengeCatalogFromSettings(guildId, verificationSettings, updatedBy = 'sync') {
     const normalizedGuildId = normalizeGuildId(guildId);
     await ensureVerificationChallengeCatalogTables();
@@ -335,9 +349,70 @@ function catalogRowsToChallenge(challengeRow, questionRows = []) {
                 separateStep: nullableBoolean(row.separate_step),
                 ...(Object.keys(generatedImage).length > 0 ? { generatedImage } : {}),
                 ...(Object.keys(answer).length > 0 ? { answer } : {}),
+                updatedBy: row.updated_by ?? undefined,
+                updatedAt: normalizeCatalogTimestamp(row.updated_at),
             };
         }),
     };
+}
+
+function catalogQuestionToSettingsOverride(question = {}) {
+    const generatedImageInput = question.generatedImage ?? {};
+    const additionalTaskConfig = Object.fromEntries(
+        Object.entries(generatedImageInput)
+            .filter(([key, value]) => !SETTINGS_TASK_KEYS.has(key) && value !== undefined && value !== null),
+    );
+    const taskConfig = {
+        ...(generatedImageInput.config ?? {}),
+        ...additionalTaskConfig,
+    };
+    const generatedImage = pruneNullishObject({
+        enabled: generatedImageInput.enabled,
+        type: generatedImageInput.type,
+        text: generatedImageInput.text,
+        imagePoolId: generatedImageInput.imagePoolId,
+        gallerySize: generatedImageInput.gallerySize,
+        compositeImageGallery: generatedImageInput.compositeImageGallery,
+        solutionImageCount: generatedImageInput.solutionImageCount,
+        controlImageCount: generatedImageInput.controlImageCount,
+        maxControlImageRepeats: generatedImageInput.maxControlImageRepeats,
+        imageIds: generatedImageInput.imageIds,
+        imageDirections: generatedImageInput.imageDirections,
+        ...(Object.keys(taskConfig).length > 0 ? { config: taskConfig } : {}),
+    });
+    const answer = pruneNullishObject({
+        required: question.answer?.required,
+        type: question.answer?.type,
+        inputLabel: question.answer?.inputLabel,
+        inputPlaceholder: question.answer?.inputPlaceholder,
+        accepted: question.answer?.accepted,
+    });
+
+    return pruneNullishObject({
+        order: question.order,
+        label: question.label,
+        text: question.text,
+        separateStep: question.separateStep,
+        ...(Object.keys(generatedImage).length > 0 ? { generatedImage } : {}),
+        ...(Object.keys(answer).length > 0 ? { answer } : {}),
+        updatedBy: question.updatedBy,
+        updatedAt: question.updatedAt,
+    });
+}
+
+function catalogChallengesToSettingsOverrides(catalog = {}) {
+    return Object.fromEntries(Object.values(catalog).map((challenge) => [
+        challenge.id,
+        pruneNullishObject({
+            title: challenge.title,
+            description: challenge.description,
+            color: challenge.color,
+            questions: Object.fromEntries((challenge.questions ?? []).map((question) => [
+                question.id,
+                catalogQuestionToSettingsOverride(question),
+            ])),
+        }),
+    ]));
 }
 
 async function getVerificationChallengeCatalog(guildId = DEFAULT_GUILD_ID) {
@@ -367,6 +442,10 @@ async function getVerificationChallengeFromCatalog(guildId, challengeId) {
     return catalog[String(challengeId)];
 }
 
+async function getVerificationChallengeOverridesFromCatalog(guildId = DEFAULT_GUILD_ID) {
+    return catalogChallengesToSettingsOverrides(await getVerificationChallengeCatalog(guildId));
+}
+
 function clearVerificationChallengeCatalogCache(guildId) {
     if (guildId === undefined || guildId === null) {
         catalogCache.clear();
@@ -389,7 +468,10 @@ module.exports = {
     upsertProtectedTemplateQuestionRow,
     getVerificationChallengeCatalog,
     getVerificationChallengeFromCatalog,
+    getVerificationChallengeOverridesFromCatalog,
     templateChallengeToCatalogRows,
     catalogRowsToChallenge,
+    catalogQuestionToSettingsOverride,
+    catalogChallengesToSettingsOverrides,
     clearVerificationChallengeCatalogCache,
 };
