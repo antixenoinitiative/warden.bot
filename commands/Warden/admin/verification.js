@@ -23,6 +23,7 @@ const {
     getVerificationAdminChallengeCatalog,
     getVerificationAdminChallenge,
     resolveVerificationAdminGuildId,
+    normalizeVerificationAdminGuildId,
 } = require('../verification/verificationAdminCatalog');
 const {
     applyVerificationConfigSafeguard,
@@ -464,7 +465,7 @@ async function handleVerificationChallengesCommand(interaction, guildId) {
     try { assertChallengeSelectMenuLimit(challenges); }
     catch (err) { return interaction.editReply({ embeds: [userErrorEmbed(err.message)] }); }
     const verificationSettings = await getVerificationSettings(guildId);
-    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];;
     return interaction.editReply(buildChallengesPanelPayload({
         verificationSettings,
         challenges,
@@ -483,7 +484,7 @@ async function handleChallengeSelectMenu(interaction, parts) {
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(guildId);
-    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];;
     return sendChallengeOverview(interaction, { guildId, verificationSettings, enabledChallengeIds, challengeId, mode: 'edit' });
 }
 
@@ -699,21 +700,6 @@ function getQuestionOverride(verificationSettings, challengeId, questionId) {
     return verificationSettings.challengeOverrides?.[challengeId]?.questions?.[questionId] ?? {};
 }
 
-function mergeQuestionConfig(question, override = {}) {
-    return {
-        ...question,
-        ...override,
-        generatedImage: {
-            ...(question.generatedImage ?? {}),
-            ...(override.generatedImage ?? {}),
-        },
-        answer: {
-            ...(question.answer ?? {}),
-            ...(override.answer ?? {}),
-        },
-    };
-}
-
 function getQuestionImagePool(question) {
     const imagePoolId = question.generatedImage?.imagePoolId;
     return imagePoolId ? getVerificationImagePool(imagePoolId) : undefined;
@@ -808,12 +794,14 @@ function buildQuestionListEmbed(challengeId, challenge) {
 
 function buildQuestionViewResponse(verificationSettings, challengeId, challenge, question) {
     const override = getQuestionOverride(verificationSettings, challengeId, question.id);
-    const effectiveQuestion = mergeQuestionConfig(question, override);
+    const effectiveQuestion = question;
     const imageIds = effectiveQuestion.generatedImage?.imageIds ?? {};
     const imageDirections = effectiveQuestion.generatedImage?.imageDirections ?? {};
-    const imageTextStatus = override.generatedImage?.text
-        ? `Override: ${override.generatedImage.text}`
-        : (question.generatedImage?.text ? `Static: ${question.generatedImage.text}` : 'Not set');
+    const imageTextStatus = effectiveQuestion.generatedImage?.text
+        ? (override.generatedImage?.text
+            ? `Override: ${override.generatedImage.text}`
+            : `Configured: ${effectiveQuestion.generatedImage.text}`)
+        : 'Not set';
     const answers = effectiveQuestion.answer?.accepted ?? [];
 
     return buildVerificationAdminSummary(
@@ -1322,8 +1310,7 @@ async function handleChallengeQuestionsButton(interaction, parts) {
     const context = await validateChallengeAdminInteraction(interaction, parts);
     if (context.error) return;
     await interaction.deferUpdate();
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = context.challenge
+    const effectiveChallenge = context.challenge;
     return interaction.editReply(buildChallengeQuestionsPanelPayload({
         challengeId: context.challengeId,
         challenge: effectiveChallenge,
@@ -1338,7 +1325,7 @@ async function handleChallengeOverviewButton(interaction, parts) {
     if (context.error) return;
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? []
+    const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
     return interaction.editReply(buildChallengeOverviewPanelPayload({
         verificationSettings,
         enabledChallengeIds,
@@ -1367,7 +1354,7 @@ async function handleQuestionSelectOpenButton(interaction, parts) {
 
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = challenge
+    const effectiveChallenge = challenge;
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
         mode,
@@ -1388,7 +1375,7 @@ async function handleQuestionSelectMenu(interaction, parts) {
     if (context.error) return;
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = context.challenge
+    const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, selectedQuestionId) ?? context.question;
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
@@ -1411,7 +1398,7 @@ async function handleQuestionEditToolsButton(interaction, parts) {
     }
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = context.challenge
+    const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     return interaction.editReply(buildQuestionWorkspacePayload({
         verificationSettings,
@@ -1435,7 +1422,7 @@ async function handleChallengeDetailsButton(interaction, parts) {
 
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = challenge
+    const effectiveChallenge = challenge;
     const questions = effectiveChallenge.questions ?? [];
 
     if (mode === 'edit') {
@@ -1606,7 +1593,7 @@ function buildQuestionWorkspacePayload({ verificationSettings, mode, guildId, ow
         embeds.push(buildQuestionDetailEmbed(verificationSettings, challengeId, challenge, question));
 
         if (mode === 'edit') {
-            const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, challengeId, question.id));
+            const effectiveQuestion = question;
             components.push(...(expanded
                 ? buildQuestionEditPanelComponents(guildId, ownerUserId, challengeId, question.id, effectiveQuestion)
                 : buildQuestionCollapsedEditComponents(mode, guildId, ownerUserId, challengeId, question.id)));
@@ -1665,8 +1652,7 @@ async function handleQuestionDetailPageButton(interaction, parts) {
     const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferUpdate();
-    const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = challenge
+    const effectiveChallenge = challenge;
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, effectiveChallenge, effectiveChallenge.questions ?? [], Number(pageIndex) || 0);
 }
 
@@ -1676,7 +1662,7 @@ async function handleQuestionDetailViewButton(interaction, parts) {
     if (context.error) return;
     await interaction.deferUpdate();
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = context.challenge
+    const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     return interaction.editReply({
         embeds: [buildQuestionDetailEmbed(verificationSettings, context.challengeId, effectiveChallenge, effectiveQuestion)],
@@ -1691,8 +1677,7 @@ async function handleQuestionDetailBackButton(interaction, parts) {
     const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
     await interaction.deferUpdate();
-    const verificationSettings = await getVerificationSettings(guildId);
-    const effectiveChallenge = challenge
+    const effectiveChallenge = challenge;
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, effectiveChallenge, effectiveChallenge.questions ?? [], Number(pageIndex) || 0);
 }
 
@@ -1769,7 +1754,7 @@ function getQuestionClearSelectOptions(definitions) {
 
 
 function buildQuestionEditPanelPayload(verificationSettings, guildId, userId, challengeId, challenge, question) {
-    const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, challengeId, question.id));
+    const effectiveQuestion = question;
     return {
         embeds: [buildQuestionDetailEmbed(verificationSettings, challengeId, challenge, question)],
         components: buildQuestionEditPanelComponents(guildId, userId, challengeId, question.id, effectiveQuestion),
@@ -1800,7 +1785,7 @@ async function handleQuestionEditDoneButton(interaction, parts) {
     await interaction.deferUpdate();
 
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = context.challenge
+    const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
 
     return interaction.editReply(buildQuestionWorkspacePayload({
@@ -1819,7 +1804,7 @@ async function showQuestionClearSelectorModal(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = context.challenge
+    const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
     const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
@@ -2082,9 +2067,8 @@ function showQuestionTextModal(interaction, parts) {
 
 function showQuestionOptionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
-        const verificationSettings = await getVerificationSettings(context.guildId);
-        const effectiveChallenge = context.challenge
-        const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
+        const effectiveChallenge = context.challenge;
+        const effectiveQuestion = question;
         return buildAdminModal(
             buildAdminCustomId('questionOptionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? ''),
             'Question Options',
@@ -2131,8 +2115,7 @@ function showQuestionAnswersModal(interaction, parts) {
 
 function showQuestionImageIdsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
-        const verificationSettings = await getVerificationSettings(context.guildId);
-        const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
+        const effectiveQuestion = question;
         const taskType = parts[4] ?? getQuestionTaskType(effectiveQuestion);
         const roleConfig = getTaskImageRoleConfig(taskType);
 
@@ -2172,8 +2155,7 @@ async function handleQuestionEditDirectionsButton(interaction, parts) {
 
 function showQuestionDirectionsModal(interaction, parts) {
     return showQuestionModal(interaction, parts, async (context, question, sourceInteraction) => {
-        const verificationSettings = await getVerificationSettings(context.guildId);
-        const effectiveQuestion = mergeQuestionConfig(question, getQuestionOverride(verificationSettings, context.challengeId, question.id));
+        const effectiveQuestion = question;
         const taskType = parts[4] ?? getQuestionTaskType(effectiveQuestion);
 
         if (taskType !== 'gallery-rotation-alignment') throw new Error('This question does not use image directions.');
@@ -2388,8 +2370,7 @@ async function handleQuestionImageTextModalSubmit(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
+    const effectiveQuestion = context.question;
     if (getQuestionTaskType(effectiveQuestion) !== 'prompt-text') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use prompt image text.')] });
     const imageText = getModalTextInput(interaction, 'image_text');
     if (!imageText) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
@@ -2405,8 +2386,7 @@ async function handleQuestionAnswersModalSubmit(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
+    const effectiveQuestion = context.question;
     if (effectiveQuestion.answer?.required !== true || effectiveQuestion.answer?.type !== 'text') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable text answers.')] });
     const answersInput = getModalTextInput(interaction, 'answers');
     if (!answersInput) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
@@ -2437,8 +2417,7 @@ async function handleQuestionImageIdsModalSubmit(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
+    const effectiveQuestion = context.question;
     const taskType = getQuestionTaskType(effectiveQuestion);
     const roleConfig = getTaskImageRoleConfig(taskType);
     if (!roleConfig) return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
@@ -2478,8 +2457,7 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
-    const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveQuestion = mergeQuestionConfig(context.question, getQuestionOverride(verificationSettings, context.challengeId, context.question.id));
+    const effectiveQuestion = context.question;
     if (getQuestionTaskType(effectiveQuestion) !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
 
     const imagePool = getQuestionImagePool(effectiveQuestion);
@@ -2528,7 +2506,7 @@ async function handleQuestionClearModalSubmit(interaction, parts = []) {
     if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const verificationSettings = await getVerificationSettings(context.guildId);
-    const effectiveChallenge = context.challenge
+    const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
     const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
@@ -2898,12 +2876,15 @@ module.exports = {
         try {
             const group = interaction.options.getSubcommandGroup(false);
             const subcommand = interaction.options.getSubcommand();
-            const guildId = resolveVerificationAdminGuildId(interaction);
+            let guildId;
 
             await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
 
-            if (!guildId && (!group && (subcommand === 'settings' || subcommand === 'challenges'))) {
-                return interaction.editReply({ embeds: [userErrorEmbed('Verification settings require a guild context.')] });
+            try {
+                guildId = normalizeVerificationAdminGuildId(resolveVerificationAdminGuildId(interaction));
+            }
+            catch (err) {
+                return interaction.editReply({ embeds: [userErrorEmbed('Verification settings require a real guild context.')] });
             }
 
             if (!group && subcommand === 'post') return handleVerificationPostCommand(interaction, guildId);
