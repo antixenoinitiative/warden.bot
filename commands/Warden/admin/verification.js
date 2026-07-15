@@ -961,73 +961,31 @@ function buildModalStringSelectLabel(label, select, { description } = {}) {
 }
 
 function normalizeSelectedValues(selectedValues) {
-    return new Set((Array.isArray(selectedValues) ? selectedValues : [selectedValues])
-        .map((value) => String(value ?? '').trim())
-        .filter(Boolean));
+    return new Set([].concat(selectedValues ?? []).map((value) => String(value).trim()).filter(Boolean));
 }
 
 function buildStringSelectOption(option, selectedValues = []) {
-    const selected = normalizeSelectedValues(selectedValues);
-
     const selectOption = new Discord.StringSelectMenuOptionBuilder()
         .setLabel(truncateSelectText(option.label ?? option.value))
         .setValue(String(option.value));
-
-    if (option.description) {
-        selectOption.setDescription(truncateSelectText(option.description));
-    }
-
-    if (selected.has(String(option.value))) {
-        selectOption.setDefault(true);
-    }
-
+    if (option.description) selectOption.setDescription(truncateSelectText(option.description));
+    if (normalizeSelectedValues(selectedValues).has(String(option.value))) selectOption.setDefault(true);
     return selectOption;
 }
 
-function buildStringSelectComponent({
-    customId,
-    placeholder,
-    options,
-    selectedValues = [],
-    minValues = 1,
-    maxValues = 1,
-    required = true,
-}) {
+function buildStringSelectComponent({ customId, placeholder, options, selectedValues = [], minValues = 1, maxValues = 1, required = true }) {
     const select = new Discord.StringSelectMenuBuilder()
         .setCustomId(customId)
         .setPlaceholder(truncateSelectText(placeholder ?? 'Choose an option...'))
         .setMinValues(minValues)
         .setMaxValues(maxValues)
         .addOptions(options.map((option) => buildStringSelectOption(option, selectedValues)));
-
     select.setRequired?.(required);
     return select;
 }
 
-function buildModalStringSelectField({
-    label,
-    description,
-    customId,
-    placeholder,
-    options,
-    selectedValues = [],
-    minValues = 1,
-    maxValues = 1,
-    required = true,
-}) {
-    return buildModalStringSelectLabel(
-        label,
-        buildStringSelectComponent({
-            customId,
-            placeholder,
-            options,
-            selectedValues,
-            minValues,
-            maxValues,
-            required,
-        }),
-        { description },
-    );
+function buildModalStringSelectField({ label, description, ...selectOptions }) {
+    return buildModalStringSelectLabel(label, buildStringSelectComponent(selectOptions), { description });
 }
 
 function getAllowedOptionValues(options) {
@@ -1036,12 +994,7 @@ function getAllowedOptionValues(options) {
 
 function getRequiredModalSingleSelect(interaction, customId, options, fieldLabel) {
     const value = getModalSingleSelectValue(interaction, customId);
-    const allowedValues = getAllowedOptionValues(options);
-
-    if (!value || !allowedValues.has(String(value))) {
-        throw new Error(`Please select a valid ${fieldLabel}.`);
-    }
-
+    if (!value || !getAllowedOptionValues(options).has(String(value))) throw new Error(`Please select a valid ${fieldLabel}.`);
     return value;
 }
 
@@ -1049,15 +1002,8 @@ function getRequiredModalMultiSelect(interaction, customId, options, fieldLabel)
     const values = getModalSelectValues(interaction, customId);
     const allowedValues = getAllowedOptionValues(options);
     const invalidValues = values.filter((value) => !allowedValues.has(String(value)));
-
-    if (values.length < 1) {
-        throw new Error(`Please select at least one ${fieldLabel}.`);
-    }
-
-    if (invalidValues.length > 0) {
-        throw new Error(`Unknown ${fieldLabel}${invalidValues.length === 1 ? '' : 's'}: ${invalidValues.join(', ')}`);
-    }
-
+    if (values.length < 1) throw new Error(`Please select at least one ${fieldLabel}.`);
+    if (invalidValues.length > 0) throw new Error(`Unknown ${fieldLabel}${invalidValues.length === 1 ? '' : 's'}: ${invalidValues.join(', ')}`);
     return values;
 }
 
@@ -1109,35 +1055,15 @@ async function showSettingsOptionsModal(interaction, parts) {
 
     const verificationSettings = await getVerificationSettings(guildId);
 
+    const settingsChallengeOptions = getSettingsChallengeOptions();
     const modal = buildAdminModal(
         buildAdminCustomId('settingsOptionsModal', guildId, ownerUserId, interaction.message?.id ?? ''),
         'Verification Settings',
-        buildModalStringSelectField({
-            label: 'Mode',
-            description: 'Choose the verification mode.',
-            customId: 'mode',
-            placeholder: 'Choose verification mode...',
-            options: SETTINGS_MODE_OPTIONS,
-            selectedValues: [verificationSettings.mode],
-        }),
-        buildModalStringSelectField({
-            label: 'Active Challenges',
-            description: 'Choose which challenges are active.',
-            customId: 'active_challenge_ids',
-            placeholder: 'Choose active challenges...',
-            options: getSettingsChallengeOptions(),
-            selectedValues: verificationSettings.activeChallengeIds ?? [],
-            minValues: 1,
-            maxValues: Math.max(1, Object.values(verificationChallenges).length),
-        }),
-        buildModalStringSelectField({
-            label: 'Autokick',
-            description: 'Choose whether failed verification autokicks.',
-            customId: 'autokick_enabled',
-            placeholder: 'Choose autokick state...',
-            options: SETTINGS_AUTOKICK_OPTIONS,
-            selectedValues: [verificationSettings.autokickEnabled === true ? 'on' : 'off'],
-        }),
+        ...[
+            { label: 'Mode', description: 'Choose the verification mode.', customId: 'mode', placeholder: 'Choose verification mode...', options: SETTINGS_MODE_OPTIONS, selectedValues: [verificationSettings.mode] },
+            { label: 'Active Challenges', description: 'Choose which challenges are active.', customId: 'active_challenge_ids', placeholder: 'Choose active challenges...', options: settingsChallengeOptions, selectedValues: verificationSettings.activeChallengeIds ?? [], maxValues: Math.max(1, settingsChallengeOptions.length) },
+            { label: 'Autokick', description: 'Choose whether failed verification autokicks.', customId: 'autokick_enabled', placeholder: 'Choose autokick state...', options: SETTINGS_AUTOKICK_OPTIONS, selectedValues: [verificationSettings.autokickEnabled === true ? 'on' : 'off'] },
+        ].map(buildModalStringSelectField),
     );
 
     return interaction.showModal(modal);
