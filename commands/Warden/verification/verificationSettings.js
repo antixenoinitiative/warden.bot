@@ -415,17 +415,22 @@ function normalizeQuestionOverrideRow(row) {
         return { questionId, meta };
     }
 
-    const imageConfig = normalizeObject(safeParseJson(row.image_config_json, {}));
+    const rawTaskConfig = row.task_config_json ?? row.image_config_json;
+    const imageConfig = normalizeObject(safeParseJson(rawTaskConfig, {}));
     const generatedImage = {
         ...imageConfig,
     };
 
-    if (row.generate_image !== null && row.generate_image !== undefined) generatedImage.enabled = normalizeBoolean(row.generate_image);
-    if (normalizeString(row.generated_image_type)) generatedImage.type = normalizeString(row.generated_image_type);
-    if (normalizeString(row.generated_image_text)) generatedImage.text = normalizeString(row.generated_image_text);
+    const rawTaskEnabled = row.task_enabled ?? row.generate_image;
+    const rawTaskType = row.task_type ?? row.generated_image_type;
+    const rawTaskPromptText = row.task_prompt_text ?? row.generated_image_text;
 
-    const imageIds = normalizeImageIds(safeParseJson(row.image_ids_json, {}));
-    const imageDirections = normalizeImageDirections(safeParseJson(row.image_directions_json, {}));
+    if (rawTaskEnabled !== null && rawTaskEnabled !== undefined) generatedImage.enabled = normalizeBoolean(rawTaskEnabled);
+    if (normalizeString(rawTaskType)) generatedImage.type = normalizeString(rawTaskType);
+    if (normalizeString(rawTaskPromptText)) generatedImage.text = normalizeString(rawTaskPromptText);
+
+    const imageIds = normalizeImageIds(safeParseJson(row.task_image_ids_json ?? row.image_ids_json, {}));
+    const imageDirections = normalizeImageDirections(safeParseJson(row.task_image_directions_json ?? row.image_directions_json, {}));
     if (Object.keys(imageIds).length > 0) generatedImage.imageIds = imageIds;
     if (Object.keys(imageDirections).length > 0) generatedImage.imageDirections = imageDirections;
     if (Object.keys(imageConfig).length > 0) generatedImage.config = imageConfig;
@@ -515,6 +520,9 @@ async function ensureVerificationChallengeConfigTable() {
                 question_label VARCHAR(128) NULL,
                 question_text TEXT NULL,
                 separate_step TINYINT(1) NULL,
+                task_enabled TINYINT(1) NULL,
+                task_type VARCHAR(64) NULL,
+                task_prompt_text TEXT NULL,
                 generate_image TINYINT(1) NULL,
                 generated_image_type VARCHAR(64) NULL,
                 generated_image_text TEXT NULL,
@@ -523,6 +531,9 @@ async function ensureVerificationChallengeConfigTable() {
                 answer_input_label VARCHAR(128) NULL,
                 answer_input_placeholder VARCHAR(256) NULL,
                 answers_json TEXT NULL,
+                task_image_ids_json TEXT NULL,
+                task_image_directions_json TEXT NULL,
+                task_config_json TEXT NULL,
                 image_ids_json TEXT NULL,
                 image_directions_json TEXT NULL,
                 image_config_json TEXT NULL,
@@ -532,12 +543,22 @@ async function ensureVerificationChallengeConfigTable() {
                 INDEX idx_verification_challenge_config_challenge (guild_id, challenge_id)
             ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
         `).then(async () => {
-            try {
-                await getDatabase().query('ALTER TABLE verification_challenge_config ADD COLUMN question_order INT NULL AFTER question_id');
-            }
-            catch (err) {
-                if (!String(err?.code).includes('ER_DUP_FIELDNAME') && !String(err?.message ?? '').includes('Duplicate column')) throw err;
-            }
+            const addColumnIfMissing = async (ddl) => {
+                try {
+                    await getDatabase().query(`ALTER TABLE verification_challenge_config ADD COLUMN ${ddl}`);
+                }
+                catch (err) {
+                    if (!String(err?.code).includes('ER_DUP_FIELDNAME') && !String(err?.message ?? '').includes('Duplicate column')) throw err;
+                }
+            };
+
+            await addColumnIfMissing('question_order INT NULL AFTER question_id');
+            await addColumnIfMissing('task_enabled TINYINT(1) NULL AFTER separate_step');
+            await addColumnIfMissing('task_type VARCHAR(64) NULL AFTER task_enabled');
+            await addColumnIfMissing('task_prompt_text TEXT NULL AFTER task_type');
+            await addColumnIfMissing('task_image_ids_json TEXT NULL AFTER answers_json');
+            await addColumnIfMissing('task_image_directions_json TEXT NULL AFTER task_image_ids_json');
+            await addColumnIfMissing('task_config_json TEXT NULL AFTER task_image_directions_json');
         }).catch((err) => {
             challengeConfigTableReady = undefined;
             throw err;
@@ -632,11 +653,17 @@ function questionConfigToRow(guildId, challengeId, questionId, question, updated
         generatedImage.enabled === undefined ? null : (generatedImage.enabled ? 1 : 0),
         generatedImage.type ?? null,
         generatedImage.text ?? null,
+        generatedImage.enabled === undefined ? null : (generatedImage.enabled ? 1 : 0),
+        generatedImage.type ?? null,
+        generatedImage.text ?? null,
         answer.required === undefined ? null : (answer.required ? 1 : 0),
         answer.type ?? null,
         answer.inputLabel ?? null,
         answer.inputPlaceholder ?? null,
         stringifyJsonOrNull(answer.accepted),
+        stringifyJsonOrNull(generatedImage.imageIds),
+        stringifyJsonOrNull(generatedImage.imageDirections),
+        stringifyJsonOrNull(imageConfig),
         stringifyJsonOrNull(generatedImage.imageIds),
         stringifyJsonOrNull(generatedImage.imageDirections),
         stringifyJsonOrNull(imageConfig),
@@ -648,10 +675,11 @@ async function insertChallengeConfigRow(rowValues, query = (sql, values) => getD
     await query(
         `INSERT INTO verification_challenge_config (
             guild_id, challenge_id, question_id, question_order, title, description, question_label, question_text, separate_step,
-            generate_image, generated_image_type, generated_image_text, answer_required, answer_type,
-            answer_input_label, answer_input_placeholder, answers_json, image_ids_json, image_directions_json,
+            task_enabled, task_type, task_prompt_text, generate_image, generated_image_type, generated_image_text,
+            answer_required, answer_type, answer_input_label, answer_input_placeholder, answers_json,
+            task_image_ids_json, task_image_directions_json, task_config_json, image_ids_json, image_directions_json,
             image_config_json, updated_by
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         rowValues,
     );
 }
@@ -696,6 +724,12 @@ async function saveVerificationSettings(guildId, settings, updatedBy) {
                     null,
                     challengeOverride.title ?? null,
                     challengeOverride.description ?? null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null,
                     null,
                     null,

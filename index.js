@@ -148,6 +148,18 @@ function mainOperation(){
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
 				const { getMissingChallengeOverrideRequirements } = require('./commands/Warden/verification/verificationChallenges/verificationChallenges')
 
+				try {
+					const { runVerificationTaskColumnMigration } = require('./commands/Warden/verification/temporaryMigrations/migrateVerificationTaskColumns')
+					await runVerificationTaskColumnMigration({
+						guildId: process.env.GUILDID,
+						updatedBy: 'startup',
+					})
+				}
+				catch (migrationErr) {
+					console.error('[STARTUP] Failed to run temporary verification task-column migration:', migrationErr)
+					throw migrationErr
+				}
+
 				await ensureVerificationSettingsTable()
 				const verificationSettings = await getVerificationSettings(process.env.GUILDID)
 
