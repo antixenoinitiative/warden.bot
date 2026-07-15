@@ -124,7 +124,6 @@ const {
     setQuestionImageIdOverrides,
     setQuestionImageDirectionOverrides,
     updateQuestionOptionOverrides,
-    clearQuestionOverrideField,
     clearQuestionOverrideFields,
 } = require('../verification/verificationSettings');
 
@@ -598,9 +597,13 @@ const GENERATED_IMAGE_TASK_CONFIG_FIELDS = [
     'url',
 ];
 
+function isQuestionTaskType(value) {
+    return QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === value);
+}
+
 function normalizeTaskType(taskType) {
     const value = String(taskType ?? 'none').trim() || 'none';
-    return QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === value) ? value : 'none';
+    return isQuestionTaskType(value) ? value : 'none';
 }
 
 function getQuestionTaskType(question) {
@@ -616,34 +619,6 @@ function getQuestionTaskTypeLabel(taskType) {
 function getDefaultAnswerTypeForTask(taskType) {
     return POSITION_ANSWER_TASK_TYPES.has(normalizeTaskType(taskType)) ? 'positions' : 'text';
 }
-
-const QUESTION_CLEAR_FIELD_MAP = {
-    order: 'order',
-    label: 'label',
-    'separate-step': 'separateStep',
-    text: 'text',
-    task: [
-        'generatedImage.enabled',
-        'generatedImage.type',
-        'generatedImage.text',
-        'generatedImage.imageIds',
-        'generatedImage.imageDirections',
-        'generatedImage.imagePoolId',
-        'generatedImage.gallerySize',
-        'generatedImage.compositeImageGallery',
-        'generatedImage.solutionImageCount',
-        'generatedImage.controlImageCount',
-        'generatedImage.maxControlImageRepeats',
-        'generatedImage.config',
-        'generatedImage.url',
-        'answer.type',
-    ],
-    'answer-required': 'answer.required',
-    'image-text': 'generatedImage.text',
-    answers: 'answer.accepted',
-    'image-ids': 'generatedImage.imageIds',
-    directions: 'generatedImage.imageDirections',
-};
 
 function getKnownChallengeId(interaction, optionName = 'challenge') {
     const challengeId = String(interaction.options.getString(optionName) ?? '').trim();
@@ -1853,11 +1828,13 @@ function sanitizeDirectionImageIds(imageIds) {
 }
 
 function parseQuestionDirectionsParts(parts) {
-    const [guildId, ownerUserId, challengeId, questionId, fifthPart, ...remainingParts] = parts;
-    const hasSourceMessageId = fifthPart && !QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === fifthPart);
-    const sourceMessageId = hasSourceMessageId ? fifthPart : '';
-    const taskType = hasSourceMessageId ? remainingParts[0] : fifthPart;
-    const imageIds = hasSourceMessageId ? remainingParts.slice(1) : remainingParts;
+    const [guildId, ownerUserId, challengeId, questionId, fifthPart = '', ...remainingParts] = parts;
+
+    const fifthPartIsTaskType = isQuestionTaskType(fifthPart);
+    const sourceMessageId = fifthPart && !fifthPartIsTaskType ? fifthPart : '';
+    const taskType = fifthPartIsTaskType ? fifthPart : remainingParts[0];
+    const imageIds = fifthPartIsTaskType ? remainingParts : remainingParts.slice(1);
+
     return {
         guildId,
         ownerUserId,
@@ -2045,8 +2022,19 @@ function showQuestionDirectionsModal(interaction, parts) {
             description: 'Leave empty for no change.',
         }));
 
+        const sourceMessageId = sourceInteraction.message?.id;
+        const customIdParts = [
+            context.guildId,
+            context.ownerUserId,
+            context.challengeId,
+            context.question.id,
+            ...(sourceMessageId ? [sourceMessageId] : []),
+            taskType,
+            ...directionImageIds,
+        ];
+
         return buildAdminModal(
-            buildAdminCustomId('questionDirectionsModal', context.guildId, context.ownerUserId, context.challengeId, context.question.id, sourceInteraction.message?.id ?? '', taskType, ...directionImageIds),
+            buildAdminCustomId('questionDirectionsModal', ...customIdParts),
             'Edit Image Directions',
             labels,
         );
@@ -2141,7 +2129,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
 
     const currentTaskType = getQuestionTaskType(effectiveQuestion);
     const selectedTaskType = getModalSingleSelectValue(interaction, 'task_type') ?? currentTaskType;
-    if (!QUESTION_TASK_TYPE_OPTIONS.some((option) => option.value === selectedTaskType)) {
+    if (!isQuestionTaskType(selectedTaskType)) {
         return interaction.editReply({ embeds: [userErrorEmbed('Unknown task type selected.')] });
     }
     const taskChanged = selectedTaskType !== currentTaskType;
