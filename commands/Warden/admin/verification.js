@@ -126,6 +126,41 @@ async function respondAdminError(interaction, payload) {
     return interaction.reply(response);
 }
 
+async function deferAdminPanelModalSubmit(interaction) {
+    const canUpdateSourceMessage =
+        typeof interaction.deferUpdate === 'function'
+        && (
+            typeof interaction.isFromMessage === 'function'
+                ? interaction.isFromMessage()
+                : Boolean(interaction.message)
+        );
+
+    if (canUpdateSourceMessage) {
+        await interaction.deferUpdate();
+        return { mode: 'source-update' };
+    }
+
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    return { mode: 'reply' };
+}
+
+function isAdminPanelSourceUpdateResponse(responseMode) {
+    return responseMode?.mode === 'source-update';
+}
+
+async function respondAdminModalError(interaction, responseMode, payload) {
+    const errorPayload = {
+        ...payload,
+        flags: payload.flags ?? Discord.MessageFlags.Ephemeral,
+    };
+
+    if (isAdminPanelSourceUpdateResponse(responseMode)) {
+        return interaction.followUp(errorPayload);
+    }
+
+    return interaction.editReply(withoutEphemeralFlags(errorPayload));
+}
+
 async function sendAdminPermissionError(interaction) {
     return respondAdminError(interaction, {
         content: 'You need Administrator permission to use this verification admin panel.',
@@ -228,7 +263,7 @@ async function followUpAdminConfigWarning(interaction, safeguardResult, { change
 
 
 async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, source, reason, options = {}) {
-    const { sourceMessageId = '', preferSourceUpdate = true } = options;
+    const { sourceMessageId = '', preferSourceUpdate = true, responseMode } = options;
     const safeguard = await runAdminConfigSafeguard(interaction, {
         guildId: context.guildId,
         settings: updatedSettings,
@@ -257,6 +292,7 @@ async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSe
         description: reason,
         preferSourceUpdate,
         fallback: 'panel',
+        responseMode,
     });
 
     await followUpAdminConfigWarning(interaction, safeguard, {
@@ -1189,7 +1225,12 @@ async function replyWithUpdatedAdminPanel(interaction, {
     description = 'Admin panel updated.',
     preferSourceUpdate = true,
     fallback = 'panel',
+    responseMode,
 }) {
+    if (isAdminPanelSourceUpdateResponse(responseMode)) {
+        return interaction.editReply(panelPayload);
+    }
+
     let sourceUpdated = false;
     const handleEditError = (err) => {
         if (err?.code === 10008) {
@@ -1211,27 +1252,29 @@ async function replyWithUpdatedAdminPanel(interaction, {
     return interaction.editReply(panelPayload);
 }
 
-async function replyWithUpdatedSettingsPanel(interaction, { guildId, ownerUserId, sourceMessageId, verificationSettings, title = 'Settings Updated', description = 'Verification settings were updated.' }) {
+async function replyWithUpdatedSettingsPanel(interaction, { guildId, ownerUserId, sourceMessageId, verificationSettings, title = 'Settings Updated', description = 'Verification settings were updated.', responseMode }) {
     return replyWithUpdatedAdminPanel(interaction, {
         panelPayload: buildSettingsPanelPayload({ verificationSettings, guildId, ownerUserId }),
         sourceMessageId,
         title,
         description,
         fallback: 'panel',
+        responseMode,
     });
 }
 
 async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
     const [guildId, ownerUserId, sourceMessageId = ''] = parts;
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
 
     if (!isAdminSessionOwner(interaction, ownerUserId)) {
-        return sendAdminPanelOwnerError(interaction);
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
     }
 
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-
     if (!isMatchingAdminGuild(interaction, guildId)) {
-        return interaction.editReply({
+        return respondAdminModalError(interaction, responseMode, {
             embeds: [userErrorEmbed('This admin panel belongs to another server.')],
         });
     }
@@ -1248,7 +1291,7 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
         selectedAutokickState = getRequiredModalSingleSelect(interaction, 'autokick_enabled', SETTINGS_AUTOKICK_OPTIONS, 'autokick state');
     }
     catch (err) {
-        return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(err.message)] });
     }
 
     const currentSettings = await getVerificationSettings(guildId);
@@ -1264,7 +1307,7 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
         sameStringSet(currentSettings.activeChallengeIds ?? [], nextSettings.activeChallengeIds ?? []) &&
         currentSettings.autokickEnabled === nextSettings.autokickEnabled
     ) {
-        return interaction.editReply({
+        return respondAdminModalError(interaction, responseMode, {
             embeds: [userErrorEmbed('No verification settings changes were submitted.')],
         });
     }
@@ -1279,6 +1322,7 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
         verificationSettings: safeguard.finalSettings ?? updatedSettings,
         title: 'Settings Updated',
         description: 'Verification settings were updated.',
+        responseMode,
     });
 
     await followUpAdminConfigWarning(interaction, safeguard);
@@ -1288,21 +1332,25 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
 
 async function handleSettingsTimersModalSubmit(interaction, parts = []) {
     const [guildId, ownerUserId, sourceMessageId = ''] = parts;
-    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
 
     const expiryInput = getModalTextInput(interaction, 'challenge_expiry_timer');
     const cooldownInput = getModalTextInput(interaction, 'challenge_retry_cooldown');
     const autokickInput = getModalTextInput(interaction, 'autokick_timer');
-    if (!expiryInput && !cooldownInput && !autokickInput) return interaction.editReply({ embeds: [userErrorEmbed('No timer changes were submitted.')] });
+    if (!expiryInput && !cooldownInput && !autokickInput) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No timer changes were submitted.')] });
 
     const expirySeconds = expiryInput ? parseDurationSeconds(expiryInput) : undefined;
-    if (expiryInput && !expirySeconds) return interaction.editReply({ embeds: [userErrorEmbed('Invalid Challenge Expiry Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+    if (expiryInput && !expirySeconds) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Invalid Challenge Expiry Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
     const cooldownSeconds = cooldownInput ? parseDurationSeconds(cooldownInput) : undefined;
-    if (cooldownInput && !cooldownSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Invalid Challenge Retry Cooldown. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+    if (cooldownInput && !cooldownSeconds) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Invalid Challenge Retry Cooldown. Use a value like `90s`, `2m`, or `2 minutes`.')] });
     const autokickSeconds = autokickInput ? parseDurationSeconds(autokickInput) : undefined;
-    if (autokickInput && !autokickSeconds) return interaction.editReply({ embeds: [userErrorEmbed('Invalid Autokick Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
+    if (autokickInput && !autokickSeconds) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Invalid Autokick Timer. Use a value like `90s`, `2m`, or `2 minutes`.')] });
 
     const currentSettings = await getVerificationSettings(guildId);
 
@@ -1319,7 +1367,7 @@ async function handleSettingsTimersModalSubmit(interaction, parts = []) {
         nextSettings.autokickSeconds !== currentSettings.autokickSeconds;
 
     if (!changed) {
-        return interaction.editReply({
+        return respondAdminModalError(interaction, responseMode, {
             embeds: [userErrorEmbed('No timer changes were submitted.')],
         });
     }
@@ -1333,6 +1381,7 @@ async function handleSettingsTimersModalSubmit(interaction, parts = []) {
         verificationSettings: updatedSettings,
         title: 'Timers Updated',
         description: 'Verification timers were updated.',
+        responseMode,
     });
 }
 
@@ -2304,10 +2353,14 @@ function buildTaskTypePatch(taskType) {
 
 async function handleQuestionOptionsModalSubmit(interaction, parts) {
     const context = await getQuestionModalSubmitContext(parts);
-    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const currentSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
@@ -2324,13 +2377,13 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         selectedImagePoolId = parseImagePoolSelect(getSingleModalSelectValue(interaction, 'image_pool_id', getImagePoolModalOptions(), 'Assigned Image Pool'));
     }
     catch (err) {
-        return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(err.message)] });
     }
 
     const currentTaskType = getQuestionTaskType(effectiveQuestion);
     const selectedTaskType = getModalSingleSelectValue(interaction, 'task_type') ?? currentTaskType;
     if (!isQuestionTaskType(selectedTaskType)) {
-        return interaction.editReply({ embeds: [userErrorEmbed('Unknown task type selected.')] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown task type selected.')] });
     }
     const taskChanged = selectedTaskType !== currentTaskType;
     const currentImagePoolId = getEffectiveImagePoolId(effectiveQuestion);
@@ -2339,10 +2392,10 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
 
     const selectedTaskUsesImagePool = taskUsesImagePool(selectedTaskType);
     if (selectedImagePoolId && imagePoolChanged && !verificationImagePools[selectedImagePoolId]) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image pool selected: ${selectedImagePoolId}`)] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(`Unknown image pool selected: ${selectedImagePoolId}`)] });
     }
     if (selectedImagePoolId && imagePoolChanged && !selectedTaskUsesImagePool) {
-        return interaction.editReply({
+        return respondAdminModalError(interaction, responseMode, {
             embeds: [userErrorEmbed('Choose a gallery/image Task type before assigning an Image Pool.')],
         });
     }
@@ -2351,7 +2404,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     if (orderNumber === currentOrder) orderNumber = undefined;
 
     if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !taskChanged && !imagePoolChanged) {
-        return interaction.editReply({ embeds: [userErrorEmbed('No question option changes were submitted.')] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No question option changes were submitted.')] });
     }
 
     const patches = orderNumber === undefined
@@ -2390,59 +2443,71 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     patches[context.question.id] = selectedPatch;
 
     const updatedSettings = await updateQuestionOptionOverrides(context.guildId, context.challengeId, patches, interaction.user.id);
-    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-options-modal', 'Question options updated.', { sourceMessageId: context.sourceMessageId });
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-options-modal', 'Question options updated.', { sourceMessageId: context.sourceMessageId, responseMode });
 }
 
 async function handleQuestionTextModalSubmit(interaction, parts) {
     const context = await getQuestionModalSubmitContext(parts);
-    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const label = getModalTextInput(interaction, 'label');
     const text = getModalTextInput(interaction, 'text');
-    if (!label && !text) return interaction.editReply({ embeds: [userErrorEmbed('No question text changes were submitted.')] });
+    if (!label && !text) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No question text changes were submitted.')] });
 
     const updatedSettings = await setQuestionCommonOverrides(context.guildId, context.challengeId, context.question.id, {
         ...(label ? { label } : {}),
         ...(text ? { text } : {}),
     }, interaction.user.id);
-    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-text-modal', 'Question text updated.', { sourceMessageId: context.sourceMessageId });
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-text-modal', 'Question text updated.', { sourceMessageId: context.sourceMessageId, responseMode });
 }
 
 async function handleQuestionImageTextModalSubmit(interaction, parts) {
     const context = await getQuestionModalSubmitContext(parts);
-    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const effectiveQuestion = context.question;
-    if (getQuestionTaskType(effectiveQuestion) !== 'prompt-text') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use prompt image text.')] });
+    if (getQuestionTaskType(effectiveQuestion) !== 'prompt-text') return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This question does not use prompt image text.')] });
     const imageText = getModalTextInput(interaction, 'image_text');
-    if (!imageText) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
+    if (!imageText) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No question changes were submitted.')] });
 
     const updatedSettings = await setQuestionImageTextOverride(context.guildId, context.challengeId, context.question.id, imageText, interaction.user.id);
-    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-text-modal', 'Question prompt text updated.', { sourceMessageId: context.sourceMessageId });
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-text-modal', 'Question prompt text updated.', { sourceMessageId: context.sourceMessageId, responseMode });
 }
 
 async function handleQuestionAnswersModalSubmit(interaction, parts) {
     const context = await getQuestionModalSubmitContext(parts);
-    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const effectiveQuestion = context.question;
-    if (effectiveQuestion.answer?.required !== true || effectiveQuestion.answer?.type !== 'text') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable text answers.')] });
+    if (effectiveQuestion.answer?.required !== true || effectiveQuestion.answer?.type !== 'text') return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This question does not use editable text answers.')] });
     const answersInput = getModalTextInput(interaction, 'answers');
-    if (!answersInput) return interaction.editReply({ embeds: [userErrorEmbed('No question changes were submitted.')] });
+    if (!answersInput) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No question changes were submitted.')] });
     const answers = parseAnswerOverrideList(answersInput);
-    if (answers.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Please provide at least one accepted answer.')] });
+    if (answers.length < 1) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Please provide at least one accepted answer.')] });
 
     const updatedSettings = await setQuestionAnswerOverrides(context.guildId, context.challengeId, context.question.id, answers, interaction.user.id);
-    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-answers-modal', 'Question accepted answers updated.', { sourceMessageId: context.sourceMessageId });
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-answers-modal', 'Question accepted answers updated.', { sourceMessageId: context.sourceMessageId, responseMode });
 }
 
 function applyPendingImageIds(question, updates) {
@@ -2460,71 +2525,79 @@ function applyPendingImageIds(question, updates) {
 
 async function handleQuestionImageIdsModalSubmit(interaction, parts) {
     const context = await getQuestionModalSubmitContext(parts);
-    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const effectiveQuestion = context.question;
     const taskType = getQuestionTaskType(effectiveQuestion);
     const roleConfig = getTaskImageRoleConfig(taskType);
-    if (!roleConfig) return interaction.editReply({ embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
+    if (!roleConfig) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This question does not use editable image IDs.')] });
 
     const imagePool = getQuestionImagePool(effectiveQuestion);
-    if (!imagePool) return interaction.editReply({ embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image IDs.')] });
+    if (!imagePool) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image IDs.')] });
 
     const updates = {};
     for (const role of roleConfig.roles) {
         const selectedIds = getModalSelectValues(interaction, `${role.key}_ids`);
-        if (selectedIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed(`Select at least one ${role.key} image ID.`)] });
+        if (selectedIds.length < 1) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(`Select at least one ${role.key} image ID.`)] });
 
         const unknownImageIds = validateImageIdsInPool(selectedIds, imagePool);
         if (unknownImageIds.length > 0) {
-            return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for pool **${imagePool.id}**: ${unknownImageIds.join(', ')}`)] });
+            return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for pool **${imagePool.id}**: ${unknownImageIds.join(', ')}`)] });
         }
 
         const currentIds = effectiveQuestion.generatedImage?.imageIds?.[role.key] ?? [];
         if (!sameStringSet(currentIds, selectedIds)) updates[role.key] = selectedIds;
     }
-    if (Object.keys(updates).length < 1) return interaction.editReply({ embeds: [userErrorEmbed('No image ID changes were submitted.')] });
+    if (Object.keys(updates).length < 1) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No image ID changes were submitted.')] });
 
     const pendingQuestion = applyPendingImageIds(effectiveQuestion, updates);
     for (const role of Object.keys(updates)) {
         const validationError = validatePendingQuestionImageIds(pendingQuestion, role, updates[role]);
-        if (validationError) return interaction.editReply({ embeds: [userErrorEmbed(validationError)] });
+        if (validationError) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(validationError)] });
     }
 
     const updatedSettings = await setQuestionImageIdOverrides(context.guildId, context.challengeId, context.question.id, updates, interaction.user.id);
-    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-ids-modal', 'Question image IDs updated.', { sourceMessageId: context.sourceMessageId });
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-image-ids-modal', 'Question image IDs updated.', { sourceMessageId: context.sourceMessageId, responseMode });
 }
 
 async function handleQuestionDirectionsModalSubmit(interaction, parts) {
     const context = await getQuestionModalSubmitContext(parts);
-    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const effectiveQuestion = context.question;
-    if (getQuestionTaskType(effectiveQuestion) !== 'gallery-rotation-alignment') return interaction.editReply({ embeds: [userErrorEmbed('This question does not use image directions.')] });
+    if (getQuestionTaskType(effectiveQuestion) !== 'gallery-rotation-alignment') return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This question does not use image directions.')] });
 
     const imagePool = getQuestionImagePool(effectiveQuestion);
-    if (!imagePool) return interaction.editReply({ embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image Directions.')] });
+    if (!imagePool) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Assign an Image Pool in Question Options before editing Image Directions.')] });
 
     const imageIds = getModalSelectValues(interaction, 'direction_image_ids');
     const degrees = getModalSelectValues(interaction, 'direction_degrees').map(Number);
-    if (imageIds.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Select at least one image ID.')] });
-    if (degrees.length < 1) return interaction.editReply({ embeds: [userErrorEmbed('Select at least one direction/orientation.')] });
+    if (imageIds.length < 1) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Select at least one image ID.')] });
+    if (degrees.length < 1) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Select at least one direction/orientation.')] });
 
     const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
     if (unknownImageIds.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for pool **${imagePool.id}**: ${unknownImageIds.join(', ')}`)] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(`Unknown image ID${unknownImageIds.length === 1 ? '' : 's'} for pool **${imagePool.id}**: ${unknownImageIds.join(', ')}`)] });
     }
 
     const directionOptions = new Set(DEFAULT_ROTATION_ALIGNMENT_DEGREES.map(String));
     const invalidDegrees = degrees.filter((degree) => !directionOptions.has(String(degree)));
     if (invalidDegrees.length > 0) {
-        return interaction.editReply({ embeds: [userErrorEmbed(`Invalid direction degree${invalidDegrees.length === 1 ? '' : 's'}: ${invalidDegrees.join(', ')}`)] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(`Invalid direction degree${invalidDegrees.length === 1 ? '' : 's'}: ${invalidDegrees.join(', ')}`)] });
     }
 
     const updatedSettings = await setQuestionImageDirectionOverrides(
@@ -2534,7 +2607,7 @@ async function handleQuestionDirectionsModalSubmit(interaction, parts) {
         Object.fromEntries(imageIds.map((imageId) => [imageId, degrees])),
         interaction.user.id,
     );
-    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-directions-modal', 'Question image directions updated.', { sourceMessageId: context.sourceMessageId });
+    return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-directions-modal', 'Question image directions updated.', { sourceMessageId: context.sourceMessageId, responseMode });
 }
 
 async function getQuestionModalSubmitContext(parts) {
@@ -2547,11 +2620,15 @@ async function getQuestionModalSubmitContext(parts) {
 
 async function handleQuestionClearModalSubmit(interaction, parts = []) {
     const context = await getQuestionModalSubmitContext(parts);
-    if (!isAdminSessionOwner(interaction, context.ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, context.ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
 
-    if (!isMatchingAdminGuild(interaction, context.guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return interaction.editReply({ embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
@@ -2565,15 +2642,16 @@ async function handleQuestionClearModalSubmit(interaction, parts = []) {
         selectedField = getRequiredModalSingleSelect(interaction, 'clear_field', getQuestionClearSelectOptions(definitions), 'override entry to clear');
     }
     catch (err) {
-        return interaction.editReply({ embeds: [userErrorEmbed(err.message)] });
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(err.message)] });
     }
 
     const paths = clearMap[selectedField];
-    if (!paths) return interaction.editReply({ embeds: [userErrorEmbed('That clear action is no longer available for this question’s current Task/Answer.')] });
+    if (!paths) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('That clear action is no longer available for this question’s current Task/Answer.')] });
 
     const updatedSettings = await clearQuestionOverrideFields(context.guildId, context.challengeId, context.question.id, paths, interaction.user.id);
     return replyWithSafeguardedQuestionPanel(interaction, context, updatedSettings, 'question-clear-modal', 'Question override cleared.', {
         sourceMessageId: context.sourceMessageId,
+        responseMode,
     });
 }
 
@@ -2587,16 +2665,20 @@ async function updateChallengeMetaFromModal(guildId, challengeId, submittedTitle
 
 async function handleChallengeEditModalSubmit(interaction, parts) {
     const [guildId, ownerUserId, challengeId, sourceMessageId = ''] = parts;
-    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, ownerUserId)) {
+        return respondAdminModalError(interaction, responseMode, {
+            content: 'This admin panel belongs to another user.',
+        });
+    }
 
-    if (!isMatchingAdminGuild(interaction, guildId)) return interaction.editReply({ embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     const challenge = await getVerificationAdminChallenge(guildId, challengeId);
-    if (!challenge) return interaction.editReply({ embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
+    if (!challenge) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
     const title = getModalTextInput(interaction, 'challenge_title');
     const description = getModalTextInput(interaction, 'challenge_description');
-    if (!title && !description) return interaction.editReply({ embeds: [userErrorEmbed('No challenge changes were submitted.')] });
+    if (!title && !description) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No challenge changes were submitted.')] });
 
     const updatedSettings = await updateChallengeMetaFromModal(guildId, challengeId, title, description, interaction.user.id);
     const updatedChallenge = await getVerificationAdminChallenge(guildId, challengeId) ?? challenge;
@@ -2615,6 +2697,7 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
         title: 'Challenge Updated',
         description: 'Challenge metadata was updated.',
         fallback: 'panel',
+        responseMode,
     });
 }
 
