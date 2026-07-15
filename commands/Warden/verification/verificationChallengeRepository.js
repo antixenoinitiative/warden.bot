@@ -48,6 +48,12 @@ function booleanToTinyInt(value) {
     return value ? 1 : 0;
 }
 
+function pruneNullishObject(value) {
+    return Object.fromEntries(
+        Object.entries(value ?? {}).filter(([, entry]) => entry !== undefined && entry !== null),
+    );
+}
+
 async function ensureVerificationChallengeCatalogTables() {
     if (!catalogTablesReady) {
         catalogTablesReady = Promise.all([
@@ -194,6 +200,8 @@ async function ensureVerificationChallengeTemplatesSeeded(guildId = DEFAULT_GUIL
     const normalizedGuildId = normalizeGuildId(guildId);
     await ensureVerificationChallengeCatalogTables();
 
+    // TODO: Wrap template seeding in a transaction once catalog writes expand beyond
+    // insert-if-missing foundation work.
     for (const challenge of Object.values(verificationChallenges)) {
         const { challengeRow, questionRows } = templateChallengeToCatalogRows(challenge, normalizedGuildId);
         await insertChallengeRowIfMissing(challengeRow);
@@ -222,29 +230,35 @@ function catalogRowsToChallenge(challengeRow, questionRows = []) {
         description: challengeRow.description ?? undefined,
         color: challengeRow.color ?? undefined,
         fields: safeParseJson(challengeRow.fields_json, undefined),
-        questions: rowsWithIndex.map(({ row }) => ({
-            id: row.question_id,
-            order: row.question_order ?? undefined,
-            label: row.question_label ?? undefined,
-            text: row.question_text ?? undefined,
-            separateStep: nullableBoolean(row.separate_step),
-            generatedImage: {
+        questions: rowsWithIndex.map(({ row }) => {
+            const taskConfig = safeParseJson(row.task_config_json, {});
+            const generatedImage = pruneNullishObject({
                 enabled: nullableBoolean(row.task_enabled),
                 type: row.task_type ?? undefined,
                 text: row.task_prompt_text ?? undefined,
                 imagePoolId: row.task_image_pool_id ?? undefined,
                 imageIds: safeParseJson(row.task_image_ids_json, undefined),
                 imageDirections: safeParseJson(row.task_image_directions_json, undefined),
-                ...safeParseJson(row.task_config_json, {}),
-            },
-            answer: {
+                ...taskConfig,
+            });
+            const answer = pruneNullishObject({
                 required: nullableBoolean(row.answer_required),
                 type: row.answer_type ?? undefined,
                 inputLabel: row.answer_input_label ?? undefined,
                 inputPlaceholder: row.answer_input_placeholder ?? undefined,
                 accepted: safeParseJson(row.answers_json, undefined),
-            },
-        })),
+            });
+
+            return {
+                id: row.question_id,
+                order: row.question_order ?? undefined,
+                label: row.question_label ?? undefined,
+                text: row.question_text ?? undefined,
+                separateStep: nullableBoolean(row.separate_step),
+                ...(Object.keys(generatedImage).length > 0 ? { generatedImage } : {}),
+                ...(Object.keys(answer).length > 0 ? { answer } : {}),
+            };
+        }),
     };
 }
 
