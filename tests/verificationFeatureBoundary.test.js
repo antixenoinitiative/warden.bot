@@ -667,6 +667,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
     let blockNextSettingsRead = false;
     let releaseBlockedSettingsRead;
     let notifyBlockedSettingsRead;
+    let mutatedQuestion;
 
     const settingsStub = {
         VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
@@ -683,12 +684,9 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             return { mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} };
         },
         getVerificationSettings: async () => assert.fail('snapshot reads must not reconstruct runtime settings through legacy-shaped catalog overrides'),
-        updateChallengeMetaOverrides: async () => {
-            if (failWrite) throw new Error('write failed');
-            return { mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} };
-        },
     };
     for (const methodName of [
+        'updateChallengeMetaOverrides',
         'setQuestionCommonOverrides',
         'setQuestionImageTextOverride',
         'setQuestionAnswerOverrides',
@@ -697,7 +695,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         'updateQuestionOptionOverrides',
         'clearQuestionOverrideFields',
     ]) {
-        settingsStub[methodName] = async () => ({ mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} });
+        settingsStub[methodName] = async () => assert.fail(`catalog-native writes must not call verificationSettings.${methodName}`);
     }
     const catalogStub = {
         clearVerificationChallengeCatalogCache: () => undefined,
@@ -707,6 +705,34 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             return { alpha: { id: 'alpha', questions: [{ id: 'question-1' }] } };
         },
         catalogChallengesToSettingsOverrides: () => ({ alpha: { questions: {} } }),
+        getVerificationChallengeTemplate: () => ({
+            id: 'alpha',
+            questions: [{
+                id: 'question-1',
+                order: 1,
+                label: 'Template label',
+                generatedImage: { imageIds: { solution: ['template-solution'] } },
+            }],
+        }),
+        mutateVerificationChallengeCatalogEntry: async ({ challengeId, mutate }) => {
+            if (failWrite) throw new Error('write failed');
+            return mutate({ id: challengeId, enabled: true, questions: [] });
+        },
+        mutateVerificationQuestionCatalogEntries: async ({ questionIds, mutate }) => {
+            const questions = new Map(questionIds.map((questionId, index) => [questionId, {
+                id: questionId,
+                order: index + 1,
+                generatedImage: {
+                    enabled: true,
+                    type: 'gallery-standard',
+                    imageIds: { solution: ['solution-1'], control: ['control-1'] },
+                },
+                answer: { required: true, type: 'positions' },
+            }]));
+            const updated = mutate(questions);
+            mutatedQuestion = updated.get(questionIds[0]);
+            return updated;
+        },
     };
 
     require.cache[settingsPath] = { id: settingsPath, filename: settingsPath, loaded: true, exports: settingsStub };
@@ -735,14 +761,36 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         assert.equal(settingsReads, 2);
         assert.equal(catalogReads, 2);
 
+        await db.updateQuestionOptionOverrides('guild-1', 'alpha', {
+            'question-1': {
+                order: 2,
+                generatedImage: { enabled: true, type: 'prompt-text', imageIds: null },
+                answer: { type: 'text' },
+            },
+        }, 'tester');
+        assert.equal(mutatedQuestion.order, 2);
+        assert.equal(mutatedQuestion.generatedImage.type, 'prompt-text');
+        assert.equal(mutatedQuestion.generatedImage.imageIds, undefined);
+        assert.equal(mutatedQuestion.answer.type, 'text');
+
+        await db.clearQuestionOverrideFields(
+            'guild-1',
+            'alpha',
+            'question-1',
+            ['label', 'generatedImage.imageIds'],
+            'tester',
+        );
+        assert.equal(mutatedQuestion.label, 'Template label');
+        assert.deepEqual(mutatedQuestion.generatedImage.imageIds, { solution: ['template-solution'] });
+
         failWrite = true;
         await assert.rejects(
             db.updateChallengeMetaOverrides('guild-1', 'alpha', {}, 'tester'),
             /write failed/,
         );
         await db.loadVerificationSnapshot('guild-1');
-        assert.equal(settingsReads, 3);
-        assert.equal(catalogReads, 3);
+        assert.equal(settingsReads, 5);
+        assert.equal(catalogReads, 5);
 
         for (let index = 0; index <= 100; index += 1) {
             await db.loadVerificationSnapshot(`bounded-guild-${index}`);
@@ -765,6 +813,150 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         restoreModule(handlerPath, cachedHandler);
         restoreModule(catalogPath, cachedCatalog);
         restoreModule(settingsPath, cachedSettings);
+    }
+});
+
+test('catalog question mutations lock targeted rows and roll back atomically', async () => {
+    const databasePath = require.resolve(path.join(repositoryRoot, 'Warden', 'db', 'database'));
+    const repositoryPath = require.resolve(path.join(verificationDirectory, 'verificationChallengeRepository'));
+    const cachedDatabase = require.cache[databasePath];
+    const cachedRepository = require.cache[repositoryPath];
+    const queries = [];
+    const topLevelQueries = [];
+    const updates = [];
+    let acquiredConnections = 0;
+    let releasedConnections = 0;
+    const questionRows = ['first', 'second', 'unrelated'].map((questionId, index) => ({
+        guild_id: 'guild-write',
+        challenge_id: 'alpha',
+        question_id: questionId,
+        question_order: index + 1,
+        question_label: questionId,
+        question_text: `${questionId} text`,
+        separate_step: 0,
+        task_enabled: 0,
+        task_type: 'none',
+        task_prompt_text: null,
+        task_image_pool_id: null,
+        task_image_ids_json: null,
+        task_image_directions_json: null,
+        task_config_json: null,
+        answer_required: 0,
+        answer_type: 'none',
+        answer_input_label: null,
+        answer_input_placeholder: null,
+        answers_json: null,
+        updated_by: 'seed',
+        updated_at: '2026-01-01T00:00:00.000Z',
+    }));
+    Object.assign(questionRows[0], {
+        task_enabled: 1,
+        task_type: 'gallery-standard',
+        task_image_pool_id: 'pool-a',
+        task_image_ids_json: JSON.stringify({ solution: ['s1'], control: ['c1'] }),
+        task_config_json: JSON.stringify({ gallerySize: 9, config: { maxRetries: 2 } }),
+        answer_required: 1,
+        answer_type: 'positions',
+    });
+
+    const executeQuery = (sql, values = []) => {
+        const normalizedSql = String(sql).replace(/\s+/g, ' ').trim();
+        queries.push(normalizedSql);
+        if (normalizedSql.startsWith('SELECT * FROM verification_question_catalog')) {
+            const requestedIds = new Set(values.slice(2).map(String));
+            return questionRows.filter((row) => requestedIds.has(row.question_id));
+        }
+        if (normalizedSql.startsWith('SELECT * FROM verification_challenge_catalog')) {
+            return [{
+                guild_id: 'guild-write',
+                challenge_id: 'alpha',
+                title: 'Alpha',
+                description: 'Challenge',
+                color: '#ffffff',
+                fields_json: null,
+                enabled: 1,
+            }];
+        }
+        if (normalizedSql.startsWith('UPDATE verification_question_catalog')) updates.push(values);
+        return [];
+    };
+
+    require.cache[databasePath] = {
+        id: databasePath,
+        filename: databasePath,
+        loaded: true,
+        exports: {
+            query: async (sql, values = []) => {
+                const normalizedSql = String(sql).replace(/\s+/g, ' ').trim();
+                topLevelQueries.push(normalizedSql);
+                return executeQuery(sql, values);
+            },
+            pool: {
+                getConnection: (callback) => {
+                    acquiredConnections += 1;
+                    callback(null, {
+                        query: (sql, values, queryCallback) => {
+                            try {
+                                queryCallback(null, executeQuery(sql, values));
+                            }
+                            catch (err) {
+                                queryCallback(err);
+                            }
+                        },
+                        release: () => { releasedConnections += 1; },
+                    });
+                },
+            },
+        },
+    };
+    delete require.cache[repositoryPath];
+    const repository = require(repositoryPath);
+
+    try {
+        await repository.mutateVerificationQuestionCatalogEntries({
+            guildId: 'guild-write',
+            challengeId: 'alpha',
+            questionIds: ['first', 'second'],
+            updatedBy: 'admin-user',
+            mutate: (questions) => {
+                questions.set('first', { ...questions.get('first'), order: 2 });
+                questions.set('second', { ...questions.get('second'), order: 1 });
+                return questions;
+            },
+        });
+
+        assert.equal(updates.length, 2);
+        assert.deepEqual(updates.map((values) => values[19]), ['first', 'second']);
+        assert.deepEqual(updates.map((values) => values[0]), [2, 1]);
+        assert.ok(updates.every((values) => values[16] === 'admin-user'));
+        assert.equal(updates[0][5], 'gallery-standard');
+        assert.equal(updates[0][7], 'pool-a');
+        assert.deepEqual(JSON.parse(updates[0][8]), { solution: ['s1'], control: ['c1'] });
+        assert.deepEqual(JSON.parse(updates[0][10]), { gallerySize: 9, config: { maxRetries: 2 } });
+        assert.equal(updates[0][12], 'positions');
+        assert.ok(queries.some((sql) => sql === 'START TRANSACTION'));
+        assert.ok(queries.some((sql) => sql === 'COMMIT'));
+        assert.ok(!topLevelQueries.includes('START TRANSACTION'));
+        assert.ok(!updates.some((values) => values[19] === 'unrelated'));
+        assert.ok(!queries.some((sql) => sql.includes('verification_challenge_config')));
+
+        const rollbackCount = queries.filter((sql) => sql === 'ROLLBACK').length;
+        await assert.rejects(
+            repository.mutateVerificationChallengeCatalogEntry({
+                guildId: 'guild-write',
+                challengeId: 'alpha',
+                updatedBy: 'admin-user',
+                mutate: () => { throw new Error('invalid mutation'); },
+            }),
+            /invalid mutation/,
+        );
+        assert.equal(queries.filter((sql) => sql === 'ROLLBACK').length, rollbackCount + 1);
+        assert.equal(acquiredConnections, 2);
+        assert.equal(releasedConnections, 2);
+    }
+    finally {
+        restoreModule(repositoryPath, cachedRepository);
+        restoreModule(databasePath, cachedDatabase);
     }
 });
 
@@ -793,6 +985,9 @@ test('verification persistence and global interaction routing keep their public 
 
     const adminSource = fs.readFileSync(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verification.js'), 'utf8');
     assert.doesNotMatch(adminSource, /build(?:SettingsStatus|ChallengePicker|ChallengeOverview|QuestionDetail)Embed/);
+
+    const dbHandlerSource = fs.readFileSync(path.join(verificationDirectory, 'verificationDbHandler.js'), 'utf8');
+    assert.doesNotMatch(dbHandlerSource, /verificationSettings\.(?:updateChallengeMetaOverrides|setQuestion|updateQuestionOptionOverrides|clearQuestionOverrideFields)/);
 
     const imageSource = fs.readFileSync(path.join(verificationDirectory, 'verificationImages.js'), 'utf8');
     assert.doesNotMatch(imageSource, /localGalleryImageBufferCache/);
