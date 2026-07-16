@@ -2233,7 +2233,6 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
 
-    const currentSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id);
 

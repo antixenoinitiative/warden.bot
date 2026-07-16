@@ -65,10 +65,66 @@ function booleanToTinyInt(value) {
     return value ? 1 : 0;
 }
 
+async function withVerificationCatalogTransaction(callback) {
+    const db = getDatabase();
+
+    if (!db.pool?.getConnection) {
+        await db.query('START TRANSACTION');
+        try {
+            const result = await callback((sql, values) => db.query(sql, values));
+            await db.query('COMMIT');
+            return result;
+        }
+        catch (err) {
+            await db.query('ROLLBACK').catch((rollbackErr) => {
+                console.error('Failed to roll back verification catalog transaction:', rollbackErr);
+            });
+            throw err;
+        }
+    }
+
+    const connection = await new Promise((resolve, reject) => {
+        db.pool.getConnection((err, conn) => {
+            if (err) reject(err);
+            else resolve(conn);
+        });
+    });
+    const query = (sql, values) => new Promise((resolve, reject) => {
+        connection.query(sql, values, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+        });
+    });
+
+    try {
+        await query('START TRANSACTION');
+        const result = await callback(query);
+        await query('COMMIT');
+        return result;
+    }
+    catch (err) {
+        await query('ROLLBACK').catch((rollbackErr) => {
+            console.error('Failed to roll back verification catalog transaction:', rollbackErr);
+        });
+        throw err;
+    }
+    finally {
+        connection.release();
+    }
+}
+
 function pruneNullishObject(value) {
     return Object.fromEntries(
         Object.entries(value ?? {}).filter(([, entry]) => entry !== undefined && entry !== null),
     );
+}
+
+function cloneCatalogValue(value) {
+    if (Array.isArray(value)) return value.map(cloneCatalogValue);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, cloneCatalogValue(entry)]));
+    }
+    return value;
 }
 
 function normalizeCatalogTimestamp(value) {
@@ -433,38 +489,203 @@ function catalogRowsToChallenge(challengeRow, questionRows = []) {
         description: challengeRow.description ?? undefined,
         color: challengeRow.color ?? undefined,
         fields: safeParseJson(challengeRow.fields_json, undefined),
-        questions: rowsWithIndex.map(({ row }) => {
-            const taskConfig = safeParseJson(row.task_config_json, {});
-            const generatedImage = pruneNullishObject({
-                enabled: nullableBoolean(row.task_enabled),
-                type: row.task_type ?? undefined,
-                text: row.task_prompt_text ?? undefined,
-                imagePoolId: row.task_image_pool_id ?? undefined,
-                imageIds: safeParseJson(row.task_image_ids_json, undefined),
-                imageDirections: safeParseJson(row.task_image_directions_json, undefined),
-                ...taskConfig,
-            });
-            if (row.task_image_pool_id === null) generatedImage.imagePoolId = null;
-            const answer = pruneNullishObject({
-                required: nullableBoolean(row.answer_required),
-                type: row.answer_type ?? undefined,
-                inputLabel: row.answer_input_label ?? undefined,
-                inputPlaceholder: row.answer_input_placeholder ?? undefined,
-                accepted: safeParseJson(row.answers_json, undefined),
-            });
+        questions: rowsWithIndex.map(({ row }) => catalogRowToQuestion(row)),
+    };
+}
 
-            return {
-                id: row.question_id,
-                order: row.question_order ?? undefined,
-                label: row.question_label ?? undefined,
-                text: row.question_text ?? undefined,
-                separateStep: nullableBoolean(row.separate_step),
-                ...(Object.keys(generatedImage).length > 0 ? { generatedImage } : {}),
-                ...(Object.keys(answer).length > 0 ? { answer } : {}),
-                updatedBy: row.updated_by ?? undefined,
-                updatedAt: normalizeCatalogTimestamp(row.updated_at),
-            };
-        }),
+function catalogRowToQuestion(row) {
+    const taskConfig = safeParseJson(row.task_config_json, {});
+    const generatedImage = pruneNullishObject({
+        enabled: nullableBoolean(row.task_enabled),
+        type: row.task_type ?? undefined,
+        text: row.task_prompt_text ?? undefined,
+        imagePoolId: row.task_image_pool_id ?? undefined,
+        imageIds: safeParseJson(row.task_image_ids_json, undefined),
+        imageDirections: safeParseJson(row.task_image_directions_json, undefined),
+        ...taskConfig,
+    });
+    if (row.task_image_pool_id === null) generatedImage.imagePoolId = null;
+    const answer = pruneNullishObject({
+        required: nullableBoolean(row.answer_required),
+        type: row.answer_type ?? undefined,
+        inputLabel: row.answer_input_label ?? undefined,
+        inputPlaceholder: row.answer_input_placeholder ?? undefined,
+        accepted: safeParseJson(row.answers_json, undefined),
+    });
+
+    return {
+        id: row.question_id,
+        order: row.question_order ?? undefined,
+        label: row.question_label ?? undefined,
+        text: row.question_text ?? undefined,
+        separateStep: nullableBoolean(row.separate_step),
+        ...(Object.keys(generatedImage).length > 0 ? { generatedImage } : {}),
+        ...(Object.keys(answer).length > 0 ? { answer } : {}),
+        updatedBy: row.updated_by ?? undefined,
+        updatedAt: normalizeCatalogTimestamp(row.updated_at),
+    };
+}
+
+function questionToCatalogContentValues(question = {}) {
+    const generatedImage = question.generatedImage ?? {};
+    const answer = question.answer ?? {};
+    const taskConfig = Object.fromEntries(
+        Object.entries(generatedImage).filter(([key]) => !DEDICATED_TASK_KEYS.has(key)),
+    );
+    const numericOrder = Number(question.order);
+
+    return [
+        Number.isInteger(numericOrder) && numericOrder > 0 ? numericOrder : null,
+        question.label ?? null,
+        question.text ?? null,
+        booleanToTinyInt(question.separateStep),
+        booleanToTinyInt(generatedImage.enabled),
+        generatedImage.type ?? null,
+        generatedImage.text ?? null,
+        generatedImage.imagePoolId ?? null,
+        stringifyJsonOrNull(generatedImage.imageIds),
+        stringifyJsonOrNull(generatedImage.imageDirections),
+        stringifyJsonOrNull(taskConfig),
+        booleanToTinyInt(answer.required),
+        answer.type ?? null,
+        answer.inputLabel ?? null,
+        answer.inputPlaceholder ?? null,
+        stringifyJsonOrNull(answer.accepted),
+    ];
+}
+
+async function updateLockedChallengeRow(query, guildId, challengeId, challenge, updatedBy) {
+    await query(`
+        UPDATE verification_challenge_catalog
+        SET title = ?, description = ?, color = ?, fields_json = ?, enabled = ?, updated_by = ?
+        WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL
+    `, [
+        challenge.title ?? null,
+        challenge.description ?? null,
+        challenge.color ?? null,
+        stringifyJsonOrNull(challenge.fields),
+        challenge.enabled ? 1 : 0,
+        String(updatedBy ?? 'admin'),
+        guildId,
+        challengeId,
+    ]);
+}
+
+async function updateLockedQuestionRow(query, guildId, challengeId, questionId, question, updatedBy) {
+    await query(`
+        UPDATE verification_question_catalog
+        SET question_order = ?, question_label = ?, question_text = ?, separate_step = ?,
+            task_enabled = ?, task_type = ?, task_prompt_text = ?, task_image_pool_id = ?,
+            task_image_ids_json = ?, task_image_directions_json = ?, task_config_json = ?,
+            answer_required = ?, answer_type = ?, answer_input_label = ?,
+            answer_input_placeholder = ?, answers_json = ?, updated_by = ?
+        WHERE guild_id = ? AND challenge_id = ? AND question_id = ? AND deleted_at IS NULL
+    `, [
+        ...questionToCatalogContentValues(question),
+        String(updatedBy ?? 'admin'),
+        guildId,
+        challengeId,
+        questionId,
+    ]);
+}
+
+async function mutateVerificationChallengeCatalogEntry({ guildId, challengeId, updatedBy, mutate }) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    if (!normalizedChallengeId) throw new Error('Verification challenge ID is required.');
+    if (typeof mutate !== 'function') throw new TypeError('Verification challenge mutation callback is required.');
+
+    await ensureVerificationChallengeCatalogTables();
+    const updatedChallenge = await withVerificationCatalogTransaction(async (query) => {
+        const rows = await query(`
+            SELECT * FROM verification_challenge_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL
+            FOR UPDATE
+        `, [normalizedGuildId, normalizedChallengeId]);
+        const row = rows?.[0];
+        if (!row) throw new Error(`Unknown verification challenge: ${normalizedChallengeId}`);
+
+        const currentChallenge = catalogRowsToChallenge(row, []);
+        const nextChallenge = mutate(cloneCatalogValue(currentChallenge));
+        if (!nextChallenge || String(nextChallenge.id) !== normalizedChallengeId) {
+            throw new Error('Verification challenge mutations cannot change the challenge ID.');
+        }
+        if (!settingsValuesEqual(currentChallenge, nextChallenge)) {
+            await updateLockedChallengeRow(query, normalizedGuildId, normalizedChallengeId, nextChallenge, updatedBy);
+        }
+        return nextChallenge;
+    });
+
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+    return updatedChallenge;
+}
+
+async function mutateVerificationQuestionCatalogEntries({ guildId, challengeId, questionIds, updatedBy, mutate }) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    const normalizedQuestionIds = [...new Set((questionIds ?? [])
+        .map((questionId) => String(questionId ?? '').trim())
+        .filter(Boolean))];
+    if (!normalizedChallengeId) throw new Error('Verification challenge ID is required.');
+    if (normalizedQuestionIds.length < 1) throw new Error('At least one verification question ID is required.');
+    if (typeof mutate !== 'function') throw new TypeError('Verification question mutation callback is required.');
+
+    await ensureVerificationChallengeCatalogTables();
+    const updatedQuestions = await withVerificationCatalogTransaction(async (query) => {
+        const placeholders = normalizedQuestionIds.map(() => '?').join(', ');
+        const rows = await query(`
+            SELECT * FROM verification_question_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND question_id IN (${placeholders})
+                AND deleted_at IS NULL
+            FOR UPDATE
+        `, [normalizedGuildId, normalizedChallengeId, ...normalizedQuestionIds]);
+        const currentQuestions = new Map((rows ?? []).map((row) => [String(row.question_id), catalogRowToQuestion(row)]));
+        const missingQuestionId = normalizedQuestionIds.find((questionId) => !currentQuestions.has(questionId));
+        if (missingQuestionId) {
+            throw new Error(`Unknown verification question: ${normalizedChallengeId}/${missingQuestionId}`);
+        }
+
+        const workingQuestions = new Map([...currentQuestions.entries()]
+            .map(([questionId, question]) => [questionId, cloneCatalogValue(question)]));
+        const nextQuestions = mutate(workingQuestions);
+        if (!(nextQuestions instanceof Map)) {
+            throw new TypeError('Verification question mutation callback must return a Map.');
+        }
+        for (const questionId of normalizedQuestionIds) {
+            const nextQuestion = nextQuestions.get(questionId);
+            if (!nextQuestion || String(nextQuestion.id) !== questionId) {
+                throw new Error('Verification question mutations cannot remove or rename targeted questions.');
+            }
+            if (!settingsValuesEqual(currentQuestions.get(questionId), nextQuestion)) {
+                await updateLockedQuestionRow(
+                    query,
+                    normalizedGuildId,
+                    normalizedChallengeId,
+                    questionId,
+                    nextQuestion,
+                    updatedBy,
+                );
+            }
+        }
+        return nextQuestions;
+    });
+
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+    return updatedQuestions;
+}
+
+function getVerificationChallengeTemplate(challengeId) {
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    const template = verificationChallenges[normalizedChallengeId];
+    if (!template) return undefined;
+
+    const normalized = normalizeVerificationChallenge(template, { challengeOverrides: {} });
+    return {
+        ...normalized,
+        questions: (normalized.questions ?? []).map((question, index) => ({
+            ...question,
+            order: index + 1,
+        })),
     };
 }
 
@@ -657,6 +878,10 @@ module.exports = {
     getVerificationChallengeOverridesFromCatalog,
     templateChallengeToCatalogRows,
     catalogRowsToChallenge,
+    catalogRowToQuestion,
+    getVerificationChallengeTemplate,
+    mutateVerificationChallengeCatalogEntry,
+    mutateVerificationQuestionCatalogEntries,
     catalogQuestionToSettingsOverride,
     catalogChallengesToSettingsOverrides,
     clearVerificationChallengeCatalogCache,
