@@ -8,7 +8,10 @@ const {
     buildVerificationAdminSummary,
     buildVerificationErrorEmbed,
     buildVerificationPublicEmbed,
+    assertModalLabelSupport,
+    buildModalTextLabel,
     mergeVerificationAdminResponses,
+    truncateModalLabel,
 } = require('../verification/verificationResponses');
 const { buildVerificationConfigWarningEmbed } = require('../verification/verificationLegacyUi');
 const {
@@ -977,65 +980,6 @@ function getModalSingleSelectValue(interaction, customId) {
     return getModalSelectValues(interaction, customId)[0];
 }
 
-function assertModalLabelSupport() {
-    if (typeof Discord.LabelBuilder !== 'function') {
-        throw new Error('This discord.js version cannot safely render labeled verification admin modals. Upgrade discord.js before using this verification admin editor.');
-    }
-}
-
-function buildModalTextInputComponent(customId, {
-    style = Discord.TextInputStyle.Short,
-    placeholder,
-    value,
-    required = false,
-    minLength,
-    maxLength,
-} = {}) {
-    const input = new Discord.TextInputBuilder()
-        .setCustomId(customId)
-        .setStyle(style)
-        .setRequired(required);
-
-    if (placeholder && String(placeholder).length <= 100) input.setPlaceholder(String(placeholder));
-
-    if (value !== undefined && value !== null && String(value).length > 0) {
-        const textValue = String(value);
-        const maxValueLength = style === Discord.TextInputStyle.Short ? 100 : 3500;
-        if (textValue.length <= maxValueLength) input.setValue(textValue);
-    }
-
-    if (minLength !== undefined) input.setMinLength(minLength);
-    if (maxLength !== undefined) input.setMaxLength(maxLength);
-
-    return input;
-}
-
-function buildModalTextLabel(customId, label, {
-    description,
-    style = Discord.TextInputStyle.Short,
-    placeholder,
-    value,
-    required = false,
-    minLength,
-    maxLength,
-} = {}) {
-    assertModalLabelSupport();
-
-    const modalLabel = new Discord.LabelBuilder()
-        .setLabel(truncateModalLabel(label))
-        .setTextInputComponent(buildModalTextInputComponent(customId, {
-            style,
-            placeholder,
-            value,
-            required,
-            minLength,
-            maxLength,
-        }));
-
-    if (description) modalLabel.setDescription(String(description).slice(0, 100));
-    return modalLabel;
-}
-
 function buildModalStringSelectLabel(label, select, { description } = {}) {
     assertModalLabelSupport();
 
@@ -1862,12 +1806,6 @@ async function showQuestionClearSelectorModal(interaction, parts) {
     );
 
     return interaction.showModal(modal);
-}
-
-
-function truncateModalLabel(label) {
-    const text = String(label ?? 'Image ID');
-    return text.length <= 45 ? text : `${text.slice(0, 44)}…`;
 }
 
 

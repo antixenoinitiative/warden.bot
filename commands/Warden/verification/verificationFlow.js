@@ -12,6 +12,7 @@ const {
     buildQuestionScreens,
     validateQuestionScreens,
     screenRequiresAnswer,
+    getScreenRequiredAnswerQuestions,
     screenAllowsBack,
     validateScreenAnswers,
 } = require('./verificationChallenges/verificationChallenges');
@@ -32,6 +33,7 @@ const {
     buildQuestionScreenLegacyPages,
     buildOldVersionFallbackOptions,
     buildAnswerModal,
+    buildAnswerInputCustomId,
     buildCompletedQuestionOptions,
     isComponentsV2Available,
     parseAnswerCustomId,
@@ -159,7 +161,6 @@ function createSessionToken() {
 
 function isStaleScreenComponent(parsed, session) {
     return !parsed
-        || parsed.challengeId !== session.challengeId
         || parsed.screenIndex !== session.screenIndex
         || parsed.token !== session.token;
 }
@@ -177,11 +178,8 @@ function shouldSendOldVersionPrompt(session) {
 }
 
 function buildSubmittedScreenValues(screen, interaction) {
-    return (screen?.questions ?? []).reduce((values, question) => {
-        const answerType = question.answer?.type;
-        if (question.answer?.required !== true || answerType === 'none') return values;
-
-        values[question.id] = getModalTextInputValue(interaction, `q:${question.id}:${answerType === 'positions' ? 'positions' : 'answer'}`);
+    return getScreenRequiredAnswerQuestions(screen).reduce((values, question, index) => {
+        values[question.id] = getModalTextInputValue(interaction, buildAnswerInputCustomId(index));
         return values;
     }, {});
 }
@@ -442,7 +440,7 @@ async function handleVerifyStart(interaction) {
         });
     }
     const screens = buildQuestionScreens(challenge);
-    const screenIssues = validateQuestionScreens(screens);
+    const screenIssues = validateQuestionScreens(screens, challenge);
     if (screenIssues.length > 0) {
         const description = screenIssues.map((issue) => issue.message).join('\n');
         await botLog(interaction.guild, new Discord.EmbedBuilder()

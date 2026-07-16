@@ -1,6 +1,9 @@
 module.exports = {
     type: 'prompt-text',
     label: 'Prompt Text',
+    getAttachmentCount(question) {
+        return question?.generatedImage?.text ? 1 : 0;
+    },
 
     async prepareAsset(question, context) {
         const generatedImage = question.generatedImage ?? {};

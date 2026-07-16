@@ -2,6 +2,7 @@ const Discord = require('discord.js');
 const { botIdent } = require('../../../functions');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 const {
+    VERIFICATION_UI_LIMITS,
     screenRequiresAnswer,
     getScreenRequiredAnswerQuestions,
     screenAllowsBack,
@@ -72,6 +73,58 @@ function truncateText(value, limit = DESCRIPTION_LIMIT) {
     if (text.length <= limit) return text;
 
     return `${text.slice(0, Math.max(0, limit - 17))}\n... [truncated]`;
+}
+
+function truncateModalLabel(label) {
+    const text = String(label ?? 'Input');
+    const limit = VERIFICATION_UI_LIMITS.modalLabelLength;
+    return text.length <= limit ? text : `${text.slice(0, limit - 1)}…`;
+}
+
+function assertModalLabelSupport() {
+    if (typeof Discord.LabelBuilder !== 'function') {
+        throw new Error('This discord.js version cannot safely render labeled verification modals.');
+    }
+}
+
+function buildModalTextInputComponent(customId, {
+    style = Discord.TextInputStyle.Short,
+    placeholder,
+    value,
+    required = false,
+    minLength,
+    maxLength,
+} = {}) {
+    const input = new Discord.TextInputBuilder()
+        .setCustomId(customId)
+        .setStyle(style)
+        .setRequired(required);
+
+    if (placeholder) input.setPlaceholder(String(placeholder).slice(0, VERIFICATION_UI_LIMITS.textInputPlaceholderLength));
+
+    if (value !== undefined && value !== null && String(value).length > 0) {
+        const textValue = String(value);
+        const maxValueLength = style === Discord.TextInputStyle.Short ? 100 : 3500;
+        if (textValue.length <= maxValueLength) input.setValue(textValue);
+    }
+
+    if (minLength !== undefined) input.setMinLength(minLength);
+    if (maxLength !== undefined) input.setMaxLength(maxLength);
+
+    return input;
+}
+
+function buildModalTextLabel(customId, label, options = {}) {
+    assertModalLabelSupport();
+
+    const modalLabel = new Discord.LabelBuilder()
+        .setLabel(truncateModalLabel(label))
+        .setTextInputComponent(buildModalTextInputComponent(customId, options));
+
+    if (options.description) {
+        modalLabel.setDescription(String(options.description).slice(0, VERIFICATION_UI_LIMITS.textInputPlaceholderLength));
+    }
+    return modalLabel;
 }
 
 function resolveActiveBotIconURL() {
@@ -380,11 +433,15 @@ function assertComponentsV2Support() {
     }
 }
 
-function buildChallengeComponentCustomId(prefix, challengeId, screenIndex = 0, token) {
-    return `${prefix}${challengeId}-${screenIndex}${token ? `-${token}` : ''}`;
+function buildSessionComponentCustomId(prefix, screenIndex = 0, token) {
+    const customId = `${prefix}${screenIndex}${token ? `-${token}` : ''}`;
+    if (customId.length > VERIFICATION_UI_LIMITS.customIdLength) {
+        throw new Error(`Verification component custom ID exceeds Discord's ${VERIFICATION_UI_LIMITS.customIdLength}-character limit.`);
+    }
+    return customId;
 }
 
-function parseChallengeComponentCustomId(customId, prefix) {
+function parseSessionComponentCustomId(customId, prefix) {
     if (!customId.startsWith(prefix)) return undefined;
 
     const payload = customId.slice(prefix.length);
@@ -392,35 +449,34 @@ function parseChallengeComponentCustomId(customId, prefix) {
     if (tokenSeparatorIndex < 1) return undefined;
 
     const token = payload.slice(tokenSeparatorIndex + 1);
-    const challengeAndScreen = payload.slice(0, tokenSeparatorIndex);
-    const screenSeparatorIndex = challengeAndScreen.lastIndexOf('-');
-    if (screenSeparatorIndex < 1) return undefined;
+    const screenIndex = Number(payload.slice(0, tokenSeparatorIndex));
+    if (!Number.isInteger(screenIndex) || screenIndex < 0 || !token) return undefined;
 
-    const challengeId = challengeAndScreen.slice(0, screenSeparatorIndex);
-    const screenIndex = Number(challengeAndScreen.slice(screenSeparatorIndex + 1));
-    if (!challengeId || !Number.isInteger(screenIndex) || screenIndex < 0 || !token) return undefined;
-
-    return { challengeId, screenIndex, token };
+    return { screenIndex, token };
 }
 
 function parseAnswerCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-answer-');
+    return parseSessionComponentCustomId(customId, 'wardenVerify-answer-');
 }
 
 function parseNextCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-next-');
+    return parseSessionComponentCustomId(customId, 'wardenVerify-next-');
 }
 
 function parseBackCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-back-');
+    return parseSessionComponentCustomId(customId, 'wardenVerify-back-');
 }
 
 function parseOldVersionCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-oldVersion-');
+    return parseSessionComponentCustomId(customId, 'wardenVerify-oldVersion-');
 }
 
 function parseSubmitCustomId(customId) {
-    return parseChallengeComponentCustomId(customId, 'wardenVerify-submit-');
+    return parseSessionComponentCustomId(customId, 'wardenVerify-submit-');
+}
+
+function buildAnswerInputCustomId(index) {
+    return `q:${index}`;
 }
 
 function getCurrentScreen(session) {
@@ -542,7 +598,7 @@ function buildOldVersionActionRows(session) {
     return [
         new Discord.ActionRowBuilder().addComponents(
             new Discord.ButtonBuilder()
-                .setCustomId(buildChallengeComponentCustomId('wardenVerify-oldVersion-', session.challengeId, session.screenIndex, session.token))
+                .setCustomId(buildSessionComponentCustomId('wardenVerify-oldVersion-', session.screenIndex, session.token))
                 .setLabel(verificationEmbedConfig.oldVersionFallbackEmbed?.buttonLabel ?? 'Old Version')
                 .setStyle(Discord.ButtonStyle.Secondary),
         ),
@@ -555,20 +611,20 @@ function buildScreenActionRows(session) {
 
     if (canGoBack(session)) {
         row.addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildChallengeComponentCustomId('wardenVerify-back-', session.challengeId, session.screenIndex, session.token))
+            .setCustomId(buildSessionComponentCustomId('wardenVerify-back-', session.screenIndex, session.token))
             .setLabel('Back')
             .setStyle(Discord.ButtonStyle.Secondary));
     }
 
     if (screenRequiresAnswer(screen)) {
         row.addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildChallengeComponentCustomId('wardenVerify-answer-', session.challengeId, session.screenIndex, session.token))
+            .setCustomId(buildSessionComponentCustomId('wardenVerify-answer-', session.screenIndex, session.token))
             .setLabel('Give Answer')
             .setStyle(Discord.ButtonStyle.Primary));
     }
     else {
         row.addComponents(new Discord.ButtonBuilder()
-            .setCustomId(buildChallengeComponentCustomId('wardenVerify-next-', session.challengeId, session.screenIndex, session.token))
+            .setCustomId(buildSessionComponentCustomId('wardenVerify-next-', session.screenIndex, session.token))
             .setLabel(hasNextScreen(session) ? 'Next' : 'Complete')
             .setStyle(Discord.ButtonStyle.Primary));
     }
@@ -578,6 +634,13 @@ function buildScreenActionRows(session) {
 
 function getScreenFiles(screenAssets = {}) {
     return Object.values(screenAssets).flatMap(getQuestionAssetFiles);
+}
+
+function assertDiscordAttachmentBudget(files) {
+    if (files.length > VERIFICATION_UI_LIMITS.attachmentsPerMessage) {
+        throw new Error(`Verification screen contains ${files.length} Discord attachments; the current limit is ${VERIFICATION_UI_LIMITS.attachmentsPerMessage}.`);
+    }
+    return files.length;
 }
 
 function getAssetDisplayItems(asset) {
@@ -602,6 +665,31 @@ function addAssetMediaGallery(container, asset) {
         gallery.addItems(galleryItem);
     }
     container.addMediaGalleryComponents(gallery);
+}
+
+function countSerializedComponents(components) {
+    const stack = [...components];
+    let count = 0;
+
+    while (stack.length > 0) {
+        const component = stack.pop();
+        if (!component || typeof component.type !== 'number') continue;
+        count += 1;
+
+        if (Array.isArray(component.components)) stack.push(...component.components);
+        if (component.component) stack.push(component.component);
+    }
+
+    return count;
+}
+
+function assertComponentsV2ComponentBudget(components) {
+    const serialized = components.map((component) => component?.toJSON?.() ?? component);
+    const componentCount = countSerializedComponents(serialized);
+    if (componentCount > VERIFICATION_UI_LIMITS.componentsPerMessage) {
+        throw new Error(`Verification screen contains ${componentCount} Discord components; the current limit is ${VERIFICATION_UI_LIMITS.componentsPerMessage}.`);
+    }
+    return componentCount;
 }
 
 function getFileName(file) {
@@ -658,7 +746,9 @@ function buildQuestionScreenComponentsV2(challenge, screen, screenAssets = {}, s
         container.addActionRowComponents(...buildScreenActionRows(session));
     }
 
-    return [container];
+    const components = [container];
+    assertComponentsV2ComponentBudget(components);
+    return components;
 }
 
 function getOldVersionFallbackEmbedConfig(challenge) {
@@ -765,10 +855,12 @@ function buildQuestionScreenOptions(challenge, screen, screenAssets = {}, sessio
     }
 
     assertComponentsV2Support();
+    const files = getScreenFiles(screenAssets);
+    assertDiscordAttachmentBudget(files);
 
     return {
         components: buildQuestionScreenComponentsV2(challenge, screen, screenAssets, session, options),
-        files: getScreenFiles(screenAssets),
+        files,
         flags: Discord.MessageFlags.Ephemeral | Discord.MessageFlags.IsComponentsV2,
     };
 }
@@ -808,25 +900,25 @@ function buildOldVersionFallbackOptions(challenge, session) {
 function buildAnswerModal(session) {
     const screen = getCurrentScreen(session);
     const requiredAnswerQuestions = getScreenRequiredAnswerQuestions(screen);
-    if (requiredAnswerQuestions.length > 5) {
-        throw new Error('This verification screen has too many answer inputs. Mark some questions separateStep:true.');
+    if (requiredAnswerQuestions.length > VERIFICATION_UI_LIMITS.modalInputs) {
+        throw new Error(`This verification screen has more than ${VERIFICATION_UI_LIMITS.modalInputs} answer inputs. Mark some questions separateStep:true.`);
     }
 
     const modal = new Discord.ModalBuilder()
-        .setCustomId(buildChallengeComponentCustomId('wardenVerify-submit-', session.challengeId, session.screenIndex, session.token))
+        .setCustomId(buildSessionComponentCustomId('wardenVerify-submit-', session.screenIndex, session.token))
         .setTitle('Verify');
 
-    for (const question of requiredAnswerQuestions) {
+    for (const [index, question] of requiredAnswerQuestions.entries()) {
         const answer = question.answer ?? {};
-
-        const input = new Discord.TextInputBuilder()
-            .setCustomId(`q:${question.id}:${answer.type === 'positions' ? 'positions' : 'answer'}`)
-            .setLabel(answer.inputLabel ?? (answer.type === 'positions' ? 'Image position(s)' : 'Verification answer'))
-            .setPlaceholder(answer.inputPlaceholder ?? (answer.type === 'positions' ? 'If multiple, separate position numbers by commas or spaces' : 'Enter your answer here'))
-            .setStyle(Discord.TextInputStyle.Short)
-            .setRequired(true);
-
-        modal.addComponents(new Discord.ActionRowBuilder().addComponents(input));
+        modal.addLabelComponents(buildModalTextLabel(
+            buildAnswerInputCustomId(index),
+            answer.inputLabel ?? (answer.type === 'positions' ? 'Image position(s)' : 'Verification answer'),
+            {
+                placeholder: answer.inputPlaceholder ?? (answer.type === 'positions' ? 'If multiple, separate position numbers by commas or spaces' : 'Enter your answer here'),
+                style: Discord.TextInputStyle.Short,
+                required: true,
+            },
+        ));
     }
 
     return modal;
@@ -867,6 +959,10 @@ module.exports = {
     applyTextReplacements,
     applyFieldToEmbed,
     truncateText,
+    truncateModalLabel,
+    assertModalLabelSupport,
+    buildModalTextInputComponent,
+    buildModalTextLabel,
     buildVerificationEmbed,
     buildVerificationResponse,
     buildVerificationPublicEmbed,
@@ -894,9 +990,13 @@ module.exports = {
     buildQuestionScreenLegacyPages,
     buildOldVersionFallbackOptions,
     buildAnswerModal,
+    buildAnswerInputCustomId,
     buildScreenActionRows,
-    buildChallengeComponentCustomId,
-    parseChallengeComponentCustomId,
+    buildSessionComponentCustomId,
+    parseSessionComponentCustomId,
+    countSerializedComponents,
+    assertComponentsV2ComponentBudget,
+    assertDiscordAttachmentBudget,
     parseAnswerCustomId,
     parseNextCustomId,
     parseBackCustomId,
