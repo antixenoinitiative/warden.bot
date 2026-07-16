@@ -15,6 +15,7 @@ const SETTINGS_TASK_KEYS = new Set([
     'config',
 ]);
 const SEEDED_GUILD_CACHE_MAX = 100;
+const MAX_ACTIVE_CATALOG_CHALLENGES = 25;
 const catalogCache = new Map();
 const seededGuilds = new Map();
 const seedLoads = new Map();
@@ -484,12 +485,20 @@ function catalogRowsToChallenge(challengeRow, questionRows = []) {
 
     return {
         id: challengeRow.challenge_id,
+        sourceType: challengeRow.source_type,
+        sourceTemplateId: challengeRow.source_template_id ?? undefined,
+        templateVersion: Number(challengeRow.template_version) || undefined,
+        protectedTemplate: Boolean(Number(challengeRow.protected_template)),
         enabled: Boolean(Number(challengeRow.enabled)),
         title: challengeRow.title ?? undefined,
         description: challengeRow.description ?? undefined,
         color: challengeRow.color ?? undefined,
         fields: safeParseJson(challengeRow.fields_json, undefined),
         questions: rowsWithIndex.map(({ row }) => catalogRowToQuestion(row)),
+        createdBy: challengeRow.created_by ?? undefined,
+        updatedBy: challengeRow.updated_by ?? undefined,
+        createdAt: normalizeCatalogTimestamp(challengeRow.created_at),
+        updatedAt: normalizeCatalogTimestamp(challengeRow.updated_at),
     };
 }
 
@@ -515,13 +524,19 @@ function catalogRowToQuestion(row) {
 
     return {
         id: row.question_id,
+        sourceType: row.source_type,
+        sourceTemplateId: row.source_template_id ?? undefined,
+        templateVersion: Number(row.template_version) || undefined,
+        protectedTemplate: Boolean(Number(row.protected_template)),
         order: row.question_order ?? undefined,
         label: row.question_label ?? undefined,
         text: row.question_text ?? undefined,
         separateStep: nullableBoolean(row.separate_step),
         ...(Object.keys(generatedImage).length > 0 ? { generatedImage } : {}),
         ...(Object.keys(answer).length > 0 ? { answer } : {}),
+        createdBy: row.created_by ?? undefined,
         updatedBy: row.updated_by ?? undefined,
+        createdAt: normalizeCatalogTimestamp(row.created_at),
         updatedAt: normalizeCatalogTimestamp(row.updated_at),
     };
 }
@@ -589,10 +604,58 @@ async function updateLockedQuestionRow(query, guildId, challengeId, questionId, 
     ]);
 }
 
+async function resetProtectedQuestionRow(query, guildId, challengeId, question, updatedBy) {
+    await query(`
+        UPDATE verification_question_catalog
+        SET question_order = ?, question_label = ?, question_text = ?, separate_step = ?,
+            task_enabled = ?, task_type = ?, task_prompt_text = ?, task_image_pool_id = ?,
+            task_image_ids_json = ?, task_image_directions_json = ?, task_config_json = ?,
+            answer_required = ?, answer_type = ?, answer_input_label = ?,
+            answer_input_placeholder = ?, answers_json = ?, source_type = 'template',
+            source_template_id = ?, template_version = ?, protected_template = 1,
+            deleted_at = NULL, updated_by = ?
+        WHERE guild_id = ? AND challenge_id = ? AND question_id = ?
+            AND source_type = 'template' AND protected_template = 1
+    `, [
+        ...questionToCatalogContentValues(question), question.id, TEMPLATE_VERSION,
+        String(updatedBy ?? 'admin'), guildId, challengeId, question.id,
+    ]);
+}
+
+async function resequenceLockedQuestionRows(query, guildId, challengeId, rows, updatedBy) {
+    const ordered = [...rows].sort((left, right) => {
+        const order = (Number(left.question_order) || Number.MAX_SAFE_INTEGER)
+            - (Number(right.question_order) || Number.MAX_SAFE_INTEGER);
+        return order || String(left.question_id).localeCompare(String(right.question_id));
+    });
+    for (const [index, row] of ordered.entries()) {
+        if (Number(row.original_question_order ?? row.question_order) !== index + 1) {
+            await query(`UPDATE verification_question_catalog SET question_order = ?, updated_by = ?
+                WHERE guild_id = ? AND challenge_id = ? AND question_id = ? AND deleted_at IS NULL`,
+            [index + 1, String(updatedBy ?? 'admin'), guildId, challengeId, row.question_id]);
+        }
+        row.question_order = index + 1;
+    }
+    return ordered;
+}
+
+function orderTemplateThenCustom(rows, template) {
+    const templateOrder = new Map((template?.questions ?? []).map((question, index) => [String(question.id), index]));
+    const protectedRows = rows.filter((row) => templateOrder.has(String(row.question_id)))
+        .sort((left, right) => templateOrder.get(String(left.question_id)) - templateOrder.get(String(right.question_id)));
+    const customRows = rows.filter((row) => !templateOrder.has(String(row.question_id)))
+        .sort((left, right) => (Number(left.question_order) || Number.MAX_SAFE_INTEGER)
+            - (Number(right.question_order) || Number.MAX_SAFE_INTEGER)
+            || String(left.question_id).localeCompare(String(right.question_id)));
+    return [...protectedRows, ...customRows].map((row, index) => ({ ...row,
+        original_question_order: row.question_order, question_order: index + 1 }));
+}
+
 async function mutateVerificationChallengeCatalogEntry({ guildId, challengeId, updatedBy, mutate }) {
     const normalizedGuildId = normalizeGuildId(guildId);
     const normalizedChallengeId = String(challengeId ?? '').trim();
     if (!normalizedChallengeId) throw new Error('Verification challenge ID is required.');
+    if (normalizedChallengeId.length > 100) throw new Error('Verification challenge ID must be at most 100 characters.');
     if (typeof mutate !== 'function') throw new TypeError('Verification challenge mutation callback is required.');
 
     await ensureVerificationChallengeCatalogTables();
@@ -672,6 +735,212 @@ async function mutateVerificationQuestionCatalogEntries({ guildId, challengeId, 
 
     clearVerificationChallengeCatalogCache(normalizedGuildId);
     return updatedQuestions;
+}
+
+async function createVerificationChallengeCatalogEntry({ guildId, challengeId, title, description, color, createdBy }) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    if (!normalizedChallengeId) throw new Error('Verification challenge ID is required.');
+    if (normalizedChallengeId.length > 100) throw new Error('Verification challenge ID must be at most 100 characters.');
+    await ensureVerificationChallengeCatalogTables();
+    const challenge = await withVerificationCatalogTransaction(async (query) => {
+        await query(`SELECT guild_id FROM verification_guild_settings WHERE guild_id = ? FOR UPDATE`, [normalizedGuildId]);
+        // Lock the guild's primary-key range so concurrent creates serialize before
+        // enforcing Discord's 25-option challenge selector limit.
+        const guildRows = await query(`
+            SELECT challenge_id FROM verification_challenge_catalog
+            WHERE guild_id = ? FOR UPDATE
+        `, [normalizedGuildId]);
+        const activeRows = await query(`
+            SELECT challenge_id FROM verification_challenge_catalog
+            WHERE guild_id = ? AND deleted_at IS NULL FOR UPDATE
+        `, [normalizedGuildId]);
+        if ((activeRows?.length ?? 0) >= MAX_ACTIVE_CATALOG_CHALLENGES) {
+            const error = new Error(`A server can have at most ${MAX_ACTIVE_CATALOG_CHALLENGES} verification challenges.`);
+            error.code = 'VERIFICATION_CHALLENGE_LIMIT';
+            throw error;
+        }
+        const rows = await query(`
+            SELECT challenge_id FROM verification_challenge_catalog
+            WHERE guild_id = ? AND challenge_id = ? FOR UPDATE
+        `, [normalizedGuildId, normalizedChallengeId]);
+        if (rows?.length || guildRows.some((row) => String(row.challenge_id) === normalizedChallengeId)) {
+            throw new Error(`Verification challenge ID already exists: ${normalizedChallengeId}`);
+        }
+        await query(`
+            INSERT INTO verification_challenge_catalog
+                (guild_id, challenge_id, source_type, template_version, protected_template,
+                 title, description, color, enabled, created_by, updated_by)
+            VALUES (?, ?, 'admin', ?, 0, ?, ?, ?, 0, ?, ?)
+        `, [normalizedGuildId, normalizedChallengeId, TEMPLATE_VERSION, title ?? null,
+            description ?? null, color ?? null, String(createdBy ?? 'admin'), String(createdBy ?? 'admin')]);
+        return { id: normalizedChallengeId, sourceType: 'admin', protectedTemplate: false,
+            enabled: false, title, description, color, questions: [] };
+    });
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+    return challenge;
+}
+
+async function createVerificationQuestionCatalogEntry({ guildId, challengeId, question, createdBy }) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    const normalizedQuestionId = String(question?.id ?? '').trim();
+    if (!normalizedChallengeId || !normalizedQuestionId) throw new Error('Challenge and question IDs are required.');
+    if (normalizedChallengeId.length > 100 || normalizedQuestionId.length > 100) {
+        throw new Error('Challenge and question IDs must be at most 100 characters.');
+    }
+    await ensureVerificationChallengeCatalogTables();
+    const created = await withVerificationCatalogTransaction(async (query) => {
+        const parentRows = await query(`SELECT challenge_id FROM verification_challenge_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [normalizedGuildId, normalizedChallengeId]);
+        if (!parentRows?.length) throw new Error(`Unknown verification challenge: ${normalizedChallengeId}`);
+        const siblingRows = await query(`SELECT question_id, question_order FROM verification_question_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL ORDER BY question_order FOR UPDATE`,
+        [normalizedGuildId, normalizedChallengeId]);
+        if (siblingRows.some((row) => String(row.question_id) === normalizedQuestionId)) {
+            throw new Error(`Verification question ID already exists: ${normalizedChallengeId}/${normalizedQuestionId}`);
+        }
+        const collisionRows = await query(`SELECT question_id FROM verification_question_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND question_id = ? FOR UPDATE`,
+        [normalizedGuildId, normalizedChallengeId, normalizedQuestionId]);
+        if (collisionRows?.length) throw new Error(`Verification question ID already exists: ${normalizedChallengeId}/${normalizedQuestionId}`);
+        await resequenceLockedQuestionRows(query, normalizedGuildId, normalizedChallengeId, siblingRows, createdBy);
+        const createdQuestion = { ...question, id: normalizedQuestionId, order: siblingRows.length + 1 };
+        await query(`INSERT INTO verification_question_catalog
+            (guild_id, challenge_id, question_id, question_order, source_type, template_version,
+             protected_template, question_label, question_text, separate_step, task_enabled, task_type,
+             task_prompt_text, task_image_pool_id, task_image_ids_json, task_image_directions_json,
+             task_config_json, answer_required, answer_type, answer_input_label, answer_input_placeholder,
+             answers_json, created_by, updated_by)
+            VALUES (?, ?, ?, ?, 'admin', ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+            normalizedGuildId, normalizedChallengeId, normalizedQuestionId, createdQuestion.order, TEMPLATE_VERSION,
+            ...questionToCatalogContentValues(createdQuestion).slice(1), String(createdBy ?? 'admin'), String(createdBy ?? 'admin'),
+        ]);
+        return { ...createdQuestion, sourceType: 'admin', protectedTemplate: false };
+    });
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+    return created;
+}
+
+async function deleteOrResetVerificationChallengeCatalogEntry({ guildId, challengeId, updatedBy }) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    await ensureVerificationChallengeCatalogTables();
+    const result = await withVerificationCatalogTransaction(async (query) => {
+        const rows = await query(`SELECT * FROM verification_challenge_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL FOR UPDATE`,
+        [normalizedGuildId, normalizedChallengeId]);
+        const row = rows?.[0];
+        if (!row) throw new Error(`Unknown verification challenge: ${normalizedChallengeId}`);
+        const isProtectedTemplate = row.source_type === 'template' && Boolean(Number(row.protected_template));
+        const isCustom = row.source_type === 'admin' && !Boolean(Number(row.protected_template));
+        if (!isProtectedTemplate && !isCustom) throw new Error('Verification challenge catalog ownership metadata is inconsistent.');
+        const questionRows = await query(`SELECT question_id, question_order, source_type, protected_template, deleted_at
+            FROM verification_question_catalog
+            WHERE guild_id = ? AND challenge_id = ? FOR UPDATE`,
+        [normalizedGuildId, normalizedChallengeId]);
+        for (const questionRow of questionRows) {
+            const protectedQuestion = questionRow.source_type === 'template' && Boolean(Number(questionRow.protected_template));
+            const customQuestion = questionRow.source_type === 'admin' && !Boolean(Number(questionRow.protected_template));
+            if (!protectedQuestion && !customQuestion) {
+                throw new Error(`Verification question catalog ownership metadata is inconsistent: ${normalizedChallengeId}/${questionRow.question_id}`);
+            }
+        }
+        if (isCustom) {
+            const settingsRows = await query(`SELECT active_challenge_ids_json FROM verification_guild_settings
+                WHERE guild_id = ? LIMIT 1 FOR UPDATE`, [normalizedGuildId]);
+            const parsedActiveIds = safeParseJson(settingsRows?.[0]?.active_challenge_ids_json, []);
+            const activeIds = (Array.isArray(parsedActiveIds) ? parsedActiveIds : []).map(String);
+            if (activeIds.includes(normalizedChallengeId)) {
+                const error = new Error('Deactivate this verification challenge in Settings before deleting it.');
+                error.code = 'VERIFICATION_CHALLENGE_ACTIVE';
+                throw error;
+            }
+            await query(`UPDATE verification_question_catalog SET deleted_at = CURRENT_TIMESTAMP, updated_by = ?
+                WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL`,
+            [String(updatedBy ?? 'admin'), normalizedGuildId, normalizedChallengeId]);
+            await query(`UPDATE verification_challenge_catalog SET deleted_at = CURRENT_TIMESTAMP, enabled = 0, updated_by = ?
+                WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL`,
+            [String(updatedBy ?? 'admin'), normalizedGuildId, normalizedChallengeId]);
+            return { action: 'deleted', challengeId: normalizedChallengeId };
+        }
+        const template = getVerificationChallengeTemplate(normalizedChallengeId);
+        if (!template) throw new Error(`Missing protected verification challenge template: ${normalizedChallengeId}`);
+        await updateLockedChallengeRow(query, normalizedGuildId, normalizedChallengeId, template, updatedBy);
+        const currentTemplateIds = new Set((template.questions ?? []).map((question) => String(question.id)));
+        const templateCatalogRows = templateChallengeToCatalogRows(template, normalizedGuildId).questionRows;
+        const obsoleteProtectedRows = questionRows.filter((questionRow) =>
+            questionRow.source_type === 'template' && Boolean(Number(questionRow.protected_template))
+            && !currentTemplateIds.has(String(questionRow.question_id)) && !questionRow.deleted_at);
+        for (const obsoleteRow of obsoleteProtectedRows) {
+            await query(`UPDATE verification_question_catalog
+                SET deleted_at = CURRENT_TIMESTAMP, updated_by = ?
+                WHERE guild_id = ? AND challenge_id = ? AND question_id = ?
+                    AND source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL`,
+            [String(updatedBy ?? 'admin'), normalizedGuildId, normalizedChallengeId, obsoleteRow.question_id]);
+        }
+        for (const question of template.questions ?? []) {
+            const existing = questionRows.find((row) => String(row.question_id) === String(question.id));
+            if (existing && (existing.source_type !== 'template' || !Boolean(Number(existing.protected_template)))) {
+                throw new Error(`Protected template question ID is owned by a custom row: ${normalizedChallengeId}/${question.id}`);
+            }
+            if (existing) {
+                await resetProtectedQuestionRow(query, normalizedGuildId, normalizedChallengeId, question, updatedBy);
+            }
+            else {
+                const templateRow = templateCatalogRows.find((candidate) => candidate.question_id === question.id);
+                await upsertProtectedTemplateQuestionRow(templateRow, updatedBy, query);
+            }
+        }
+        const activeCustomRows = questionRows.filter((questionRow) =>
+            questionRow.source_type === 'admin' && !Boolean(Number(questionRow.protected_template)) && !questionRow.deleted_at);
+        const deterministicRows = orderTemplateThenCustom([
+            ...(template.questions ?? []).map((question) => ({ question_id: question.id, question_order: question.order })),
+            ...activeCustomRows,
+        ], template);
+        await resequenceLockedQuestionRows(query, normalizedGuildId, normalizedChallengeId, deterministicRows, updatedBy);
+        return { action: 'reset', challengeId: normalizedChallengeId };
+    });
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+    return result;
+}
+
+async function deleteOrResetVerificationQuestionCatalogEntry({ guildId, challengeId, questionId, updatedBy }) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    const normalizedQuestionId = String(questionId ?? '').trim();
+    await ensureVerificationChallengeCatalogTables();
+    const result = await withVerificationCatalogTransaction(async (query) => {
+        const parent = await query(`SELECT challenge_id FROM verification_challenge_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL FOR UPDATE`, [normalizedGuildId, normalizedChallengeId]);
+        if (!parent?.length) throw new Error(`Unknown verification challenge: ${normalizedChallengeId}`);
+        const siblings = await query(`SELECT * FROM verification_question_catalog
+            WHERE guild_id = ? AND challenge_id = ? AND deleted_at IS NULL ORDER BY question_order, question_id FOR UPDATE`,
+        [normalizedGuildId, normalizedChallengeId]);
+        const row = siblings.find((candidate) => String(candidate.question_id) === normalizedQuestionId);
+        if (!row) throw new Error(`Unknown verification question: ${normalizedChallengeId}/${normalizedQuestionId}`);
+        const isProtectedTemplate = row.source_type === 'template' && Boolean(Number(row.protected_template));
+        const isCustom = row.source_type === 'admin' && !Boolean(Number(row.protected_template));
+        if (!isProtectedTemplate && !isCustom) throw new Error('Verification question catalog ownership metadata is inconsistent.');
+        if (isProtectedTemplate) {
+            const templateQuestion = getVerificationChallengeTemplate(normalizedChallengeId)?.questions
+                ?.find((question) => question.id === normalizedQuestionId);
+            if (!templateQuestion) throw new Error(`Missing protected verification question template: ${normalizedChallengeId}/${normalizedQuestionId}`);
+            await updateLockedQuestionRow(query, normalizedGuildId, normalizedChallengeId, normalizedQuestionId, templateQuestion, updatedBy);
+            const reordered = orderTemplateThenCustom(siblings, getVerificationChallengeTemplate(normalizedChallengeId));
+            await resequenceLockedQuestionRows(query, normalizedGuildId, normalizedChallengeId, reordered, updatedBy);
+            return { action: 'reset', challengeId: normalizedChallengeId, questionId: normalizedQuestionId };
+        }
+        await query(`UPDATE verification_question_catalog SET deleted_at = CURRENT_TIMESTAMP, updated_by = ?
+            WHERE guild_id = ? AND challenge_id = ? AND question_id = ? AND deleted_at IS NULL`,
+        [String(updatedBy ?? 'admin'), normalizedGuildId, normalizedChallengeId, normalizedQuestionId]);
+        const remaining = siblings.filter((candidate) => String(candidate.question_id) !== normalizedQuestionId);
+        await resequenceLockedQuestionRows(query, normalizedGuildId, normalizedChallengeId, remaining, updatedBy);
+        return { action: 'deleted', challengeId: normalizedChallengeId, questionId: normalizedQuestionId };
+    });
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+    return result;
 }
 
 function getVerificationChallengeTemplate(challengeId) {
@@ -882,6 +1151,10 @@ module.exports = {
     getVerificationChallengeTemplate,
     mutateVerificationChallengeCatalogEntry,
     mutateVerificationQuestionCatalogEntries,
+    createVerificationChallengeCatalogEntry,
+    createVerificationQuestionCatalogEntry,
+    deleteOrResetVerificationChallengeCatalogEntry,
+    deleteOrResetVerificationQuestionCatalogEntry,
     catalogQuestionToSettingsOverride,
     catalogChallengesToSettingsOverrides,
     clearVerificationChallengeCatalogCache,

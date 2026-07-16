@@ -75,10 +75,28 @@ function buildQuestionLookup(challenges) {
     ]));
 }
 
+function attachCatalogMetadata(normalized, catalogEntry) {
+    const questionsById = new Map((catalogEntry.questions ?? []).map((question) => [String(question.id), question]));
+    const questions = Object.freeze((normalized.questions ?? []).map((question) => {
+        const source = questionsById.get(String(question.id)) ?? {};
+        return Object.freeze({ ...question,
+            sourceType: source.sourceType, sourceTemplateId: source.sourceTemplateId,
+            templateVersion: source.templateVersion, protectedTemplate: source.protectedTemplate === true,
+            createdBy: source.createdBy, updatedBy: source.updatedBy,
+            createdAt: source.createdAt, updatedAt: source.updatedAt });
+    }));
+    return Object.freeze({ ...normalized, questions,
+        sourceType: catalogEntry.sourceType, sourceTemplateId: catalogEntry.sourceTemplateId,
+        templateVersion: catalogEntry.templateVersion, protectedTemplate: catalogEntry.protectedTemplate === true,
+        createdBy: catalogEntry.createdBy, updatedBy: catalogEntry.updatedBy,
+        createdAt: catalogEntry.createdAt, updatedAt: catalogEntry.updatedAt });
+}
+
 function buildSnapshot(guildId, guildSettings, challengeCatalog) {
     const generation = ++snapshotGeneration;
     const challenges = Object.freeze(Object.values(challengeCatalog)
-        .map((challenge) => normalizeVerificationChallenge(challenge, { challengeOverrides: {} })));
+        .map((challenge) => attachCatalogMetadata(
+            normalizeVerificationChallenge(challenge, { challengeOverrides: {} }), challenge)));
     const challengesById = new Map(challenges.map((challenge) => [challenge.id, challenge]));
     const activeChallengeIds = Object.freeze([...(guildSettings.activeChallengeIds ?? [])]);
     const activeChallenges = Object.freeze(activeChallengeIds
@@ -425,6 +443,59 @@ function clearQuestionOverrideFields(guildId, challengeId, questionId, fields, u
     });
 }
 
+async function runCatalogCrud(guildId, write) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const committedSettings = (await loadVerificationSnapshot(normalizedGuildId)).guildSettings;
+    return runVerificationWrite(normalizedGuildId, async () => {
+        const result = await write(normalizedGuildId);
+        return { result, committedSettings };
+    });
+}
+
+function createCustomChallenge(guildId, data, actorId) {
+    return runCatalogCrud(guildId, (normalizedGuildId) =>
+        verificationCatalog.createVerificationChallengeCatalogEntry({
+            guildId: normalizedGuildId,
+            challengeId: data.id,
+            title: data.title,
+            description: data.description,
+            color: data.color,
+            createdBy: actorId,
+        }));
+}
+
+function createCustomQuestion(guildId, challengeId, data, actorId) {
+    return runCatalogCrud(guildId, (normalizedGuildId) =>
+        verificationCatalog.createVerificationQuestionCatalogEntry({
+            guildId: normalizedGuildId,
+            challengeId,
+            question: data,
+            createdBy: actorId,
+        }));
+}
+
+async function deleteOrResetChallenge(guildId, challengeId, actorId) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const snapshot = await loadVerificationSnapshot(normalizedGuildId);
+    const challenge = snapshot.challengesById.get(String(challengeId));
+    if (challenge?.protectedTemplate !== true && snapshot.activeChallengeIds.includes(String(challengeId))) {
+        const error = new Error('Deactivate this verification challenge in Settings before deleting it.');
+        error.code = 'VERIFICATION_CHALLENGE_ACTIVE';
+        throw error;
+    }
+    return runCatalogCrud(normalizedGuildId, (targetGuildId) =>
+        verificationCatalog.deleteOrResetVerificationChallengeCatalogEntry({
+            guildId: targetGuildId, challengeId, updatedBy: actorId,
+        }));
+}
+
+function deleteOrResetQuestion(guildId, challengeId, questionId, actorId) {
+    return runCatalogCrud(guildId, (normalizedGuildId) =>
+        verificationCatalog.deleteOrResetVerificationQuestionCatalogEntry({
+            guildId: normalizedGuildId, challengeId, questionId, updatedBy: actorId,
+        }));
+}
+
 module.exports = {
     VERIFICATION_MODES: verificationSettings.VERIFICATION_MODES,
     initializeVerificationData,
@@ -439,4 +510,8 @@ module.exports = {
     setQuestionImageDirectionOverrides,
     updateQuestionOptionOverrides,
     clearQuestionOverrideFields,
+    createCustomChallenge,
+    createCustomQuestion,
+    deleteOrResetChallenge,
+    deleteOrResetQuestion,
 };

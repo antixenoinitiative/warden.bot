@@ -30,6 +30,55 @@ function resolveVerificationAdminGuildId(interaction) {
     return interaction?.guildId || interaction?.guild?.id || process.env.GUILDID;
 }
 
+const CATALOG_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function validateCatalogId(value, label) {
+    const id = String(value ?? '').trim();
+    if (id.length < 1 || id.length > 100 || !CATALOG_ID_PATTERN.test(id)) {
+        throw new Error(`${label} ID must be 1-100 characters of lowercase kebab-case.`);
+    }
+    return id;
+}
+
+function requireCatalogText(value, label, maxLength) {
+    const text = String(value ?? '').trim();
+    if (!text || text.length > maxLength) throw new Error(`${label} must be 1-${maxLength} characters.`);
+    return text;
+}
+
+function createCustomChallenge(guildId, data, actorId) {
+    const description = String(data?.description ?? '').trim();
+    if (description.length > 4000) throw new Error('Challenge description must be at most 4000 characters.');
+    return verificationDb.createCustomChallenge(normalizeVerificationAdminGuildId(guildId), {
+        id: validateCatalogId(data?.id, 'Challenge'),
+        title: requireCatalogText(data?.title, 'Challenge title', 256),
+        description: description || undefined,
+        color: String(data?.color ?? '').trim() || undefined,
+    }, actorId);
+}
+
+function createCustomQuestion(guildId, challengeId, data, actorId) {
+    return verificationDb.createCustomQuestion(normalizeVerificationAdminGuildId(guildId),
+        validateCatalogId(challengeId, 'Challenge'), {
+            id: validateCatalogId(data?.id, 'Question'),
+            label: requireCatalogText(data?.label, 'Question label', 128),
+            text: requireCatalogText(data?.text, 'Question text', 4000),
+            separateStep: data?.separateStep === true,
+            generatedImage: { enabled: false, type: 'none' },
+            answer: { required: false, type: 'none' },
+        }, actorId);
+}
+
+function deleteOrResetChallenge(guildId, challengeId, actorId) {
+    return verificationDb.deleteOrResetChallenge(normalizeVerificationAdminGuildId(guildId),
+        validateCatalogId(challengeId, 'Challenge'), actorId);
+}
+
+function deleteOrResetQuestion(guildId, challengeId, questionId, actorId) {
+    return verificationDb.deleteOrResetQuestion(normalizeVerificationAdminGuildId(guildId),
+        validateCatalogId(challengeId, 'Challenge'), validateCatalogId(questionId, 'Question'), actorId);
+}
+
 async function getVerificationSnapshot(guildId, options) {
     return verificationDb.loadVerificationSnapshot(guildId, options);
 }
@@ -198,4 +247,8 @@ module.exports = {
     setQuestionImageDirectionOverrides: verificationDb.setQuestionImageDirectionOverrides,
     updateQuestionOptionOverrides: verificationDb.updateQuestionOptionOverrides,
     clearQuestionOverrideFields: verificationDb.clearQuestionOverrideFields,
+    createCustomChallenge,
+    createCustomQuestion,
+    deleteOrResetChallenge,
+    deleteOrResetQuestion,
 };

@@ -992,3 +992,570 @@ test('verification persistence and global interaction routing keep their public 
     const imageSource = fs.readFileSync(path.join(verificationDirectory, 'verificationImages.js'), 'utf8');
     assert.doesNotMatch(imageSource, /localGalleryImageBufferCache/);
 });
+
+test('catalog mappings expose immutable ownership metadata and CRUD stays behind the DB boundary', () => {
+    const repositoryPath = path.join(verificationDirectory, 'verificationChallengeRepository.js');
+    const repository = require(repositoryPath);
+    const challenge = repository.catalogRowsToChallenge({
+        challenge_id: 'custom-one', source_type: 'admin', source_template_id: null,
+        template_version: 1, protected_template: 0, enabled: 0, title: 'Custom',
+        created_by: 'creator', updated_by: 'editor',
+        created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-02T00:00:00.000Z',
+    }, [{
+        question_id: 'first-question', question_order: 1, source_type: 'admin',
+        source_template_id: null, template_version: 1, protected_template: 0,
+        question_label: 'First', question_text: 'Text', created_by: 'creator', updated_by: 'editor',
+        created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-02T00:00:00.000Z',
+    }]);
+    assert.equal(challenge.sourceType, 'admin');
+    assert.equal(challenge.protectedTemplate, false);
+    assert.equal(challenge.createdBy, 'creator');
+    assert.equal(challenge.questions[0].sourceType, 'admin');
+    assert.equal(challenge.questions[0].protectedTemplate, false);
+
+    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verification.js'), 'utf8');
+    assert.match(adminSource, /createCustomChallenge/);
+    assert.match(adminSource, /deleteOrResetQuestion/);
+    assert.doesNotMatch(adminSource, /verificationChallengeRepository/);
+    const dbSource = fs.readFileSync(path.join(verificationDirectory, 'verificationDbHandler.js'), 'utf8');
+    assert.match(dbSource, /createVerificationChallengeCatalogEntry/);
+    assert.match(dbSource, /deleteOrResetVerificationChallengeCatalogEntry/);
+});
+
+function loadCatalogRepositoryWithDatabase(executeQuery) {
+    const databasePath = require.resolve(path.join(repositoryRoot, 'Warden', 'db', 'database'));
+    const repositoryPath = require.resolve(path.join(verificationDirectory, 'verificationChallengeRepository'));
+    const cachedDatabase = require.cache[databasePath];
+    const cachedRepository = require.cache[repositoryPath];
+    const lifecycle = { acquired: 0, released: 0, queries: [] };
+
+    const query = async (sql, values = []) => {
+        const normalizedSql = String(sql).replace(/\s+/g, ' ').trim();
+        lifecycle.queries.push([normalizedSql, values]);
+        return executeQuery(normalizedSql, values);
+    };
+    require.cache[databasePath] = {
+        id: databasePath,
+        filename: databasePath,
+        loaded: true,
+        exports: {
+            query,
+            pool: {
+                getConnection: (callback) => {
+                    lifecycle.acquired += 1;
+                    callback(null, {
+                        query: (sql, values, done) => query(sql, values).then(
+                            (rows) => done(null, rows),
+                            (error) => done(error),
+                        ),
+                        release: () => { lifecycle.released += 1; },
+                    });
+                },
+            },
+        },
+    };
+    delete require.cache[repositoryPath];
+    return {
+        repository: require(repositoryPath),
+        lifecycle,
+        restore() {
+            restoreModule(repositoryPath, cachedRepository);
+            restoreModule(databasePath, cachedDatabase);
+        },
+    };
+}
+
+test('custom catalog creation rejects tombstoned IDs and appends questions after contiguous resequencing', async () => {
+    const challengeInserts = [];
+    const questionInserts = [];
+    const orderUpdates = [];
+    let challengeCollision = false;
+    let questionCollision = false;
+    const harness = loadCatalogRepositoryWithDatabase(async (sql, values) => {
+        if (sql.startsWith('CREATE TABLE')) return [];
+        if (sql === 'START TRANSACTION' || sql === 'COMMIT' || sql === 'ROLLBACK') return [];
+        if (sql.startsWith('SELECT challenge_id FROM verification_challenge_catalog') && sql.includes('challenge_id = ? FOR UPDATE')) {
+            if (values[1] === 'new-challenge') return challengeCollision ? [{ challenge_id: 'new-challenge' }] : [];
+            return [{ challenge_id: values[1] }];
+        }
+        if (sql.startsWith('SELECT challenge_id FROM verification_challenge_catalog')) {
+            return [{ challenge_id: values[1] }];
+        }
+        if (sql.startsWith('INSERT INTO verification_challenge_catalog')) {
+            challengeInserts.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('SELECT question_id, question_order FROM verification_question_catalog')) {
+            return [
+                { question_id: 'later', question_order: 7 },
+                { question_id: 'first', question_order: 1 },
+            ];
+        }
+        if (sql.startsWith('SELECT question_id FROM verification_question_catalog')) {
+            return questionCollision ? [{ question_id: 'new-question' }] : [];
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET question_order = ?, updated_by = ?')) {
+            orderUpdates.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('INSERT INTO verification_question_catalog')) {
+            questionInserts.push(values);
+            return { affectedRows: 1 };
+        }
+        return [];
+    });
+
+    try {
+        const challenge = await harness.repository.createVerificationChallengeCatalogEntry({
+            guildId: 'guild-crud', challengeId: 'new-challenge', title: 'New', createdBy: 'admin-1',
+        });
+        assert.deepEqual(challenge, {
+            id: 'new-challenge', sourceType: 'admin', protectedTemplate: false,
+            enabled: false, title: 'New', description: undefined, color: undefined, questions: [],
+        });
+        assert.equal(challengeInserts.length, 1);
+        assert.equal(challengeInserts[0][0], 'guild-crud');
+        assert.equal(challengeInserts[0][1], 'new-challenge');
+
+        challengeCollision = true;
+        await assert.rejects(
+            harness.repository.createVerificationChallengeCatalogEntry({
+                guildId: 'guild-crud', challengeId: 'new-challenge', title: 'Replacement', createdBy: 'admin-1',
+            }),
+            /ID already exists/,
+        );
+
+        const question = await harness.repository.createVerificationQuestionCatalogEntry({
+            guildId: 'guild-crud', challengeId: 'parent', createdBy: 'admin-1',
+            question: { id: 'new-question', label: 'New question', text: 'Answer me', answer: { type: 'none' } },
+        });
+        assert.equal(question.order, 3);
+        assert.equal(question.sourceType, 'admin');
+        assert.deepEqual(orderUpdates.map((values) => [values[4], values[0]]), [['later', 2]]);
+        assert.equal(questionInserts[0][2], 'new-question');
+        assert.equal(questionInserts[0][3], 3);
+
+        questionCollision = true;
+        await assert.rejects(
+            harness.repository.createVerificationQuestionCatalogEntry({
+                guildId: 'guild-crud', challengeId: 'parent', createdBy: 'admin-1',
+                question: { id: 'new-question', label: 'Duplicate', text: 'Duplicate' },
+            }),
+            /ID already exists/,
+        );
+        assert.equal(harness.lifecycle.queries.filter(([sql]) => sql === 'ROLLBACK').length, 2);
+        assert.equal(harness.lifecycle.acquired, 4);
+        assert.equal(harness.lifecycle.released, 4);
+    }
+    finally {
+        harness.restore();
+    }
+});
+
+test('custom challenge deletion cascades softly and active deletion rolls back and releases its lock', async () => {
+    let activeIds = [];
+    const updates = [];
+    const harness = loadCatalogRepositoryWithDatabase(async (sql, values) => {
+        if (sql.startsWith('CREATE TABLE')) return [];
+        if (sql === 'START TRANSACTION' || sql === 'COMMIT' || sql === 'ROLLBACK') return [];
+        if (sql.startsWith('SELECT * FROM verification_challenge_catalog')) {
+            return [{ guild_id: 'guild-delete', challenge_id: 'custom', source_type: 'admin', protected_template: 0 }];
+        }
+        if (sql.startsWith('SELECT question_id, question_order FROM verification_question_catalog')) {
+            return [
+                { question_id: 'one', question_order: 1, source_type: 'admin', protected_template: 0, deleted_at: null },
+                { question_id: 'two', question_order: 2, source_type: 'admin', protected_template: 0, deleted_at: null },
+            ];
+        }
+        if (sql.startsWith('SELECT active_challenge_ids_json')) {
+            return [{ active_challenge_ids_json: JSON.stringify(activeIds) }];
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET deleted_at')
+            || sql.startsWith('UPDATE verification_challenge_catalog SET deleted_at')) {
+            updates.push([sql, values]);
+            return { affectedRows: 1 };
+        }
+        return [];
+    });
+
+    try {
+        const deleted = await harness.repository.deleteOrResetVerificationChallengeCatalogEntry({
+            guildId: 'guild-delete', challengeId: 'custom', updatedBy: 'admin-2',
+        });
+        assert.deepEqual(deleted, { action: 'deleted', challengeId: 'custom' });
+        assert.equal(updates.length, 2);
+        assert.ok(updates[0][0].includes('verification_question_catalog'));
+        assert.ok(updates[1][0].includes('verification_challenge_catalog'));
+        assert.ok(updates.every(([, values]) => values[0] === 'admin-2'));
+
+        activeIds = ['custom'];
+        const updateCount = updates.length;
+        await assert.rejects(
+            harness.repository.deleteOrResetVerificationChallengeCatalogEntry({
+                guildId: 'guild-delete', challengeId: 'custom', updatedBy: 'admin-2',
+            }),
+            (error) => error.code === 'VERIFICATION_CHALLENGE_ACTIVE',
+        );
+        assert.equal(updates.length, updateCount);
+        assert.equal(harness.lifecycle.queries.filter(([sql]) => sql === 'ROLLBACK').length, 1);
+        assert.equal(harness.lifecycle.acquired, 2);
+        assert.equal(harness.lifecycle.released, 2);
+    }
+    finally {
+        harness.restore();
+    }
+});
+
+test('protected challenge reset remains allowed while active and preserves custom questions in deterministic order', async () => {
+    const questionContentUpdates = [];
+    const orderUpdates = [];
+    let settingsRead = false;
+    const harness = loadCatalogRepositoryWithDatabase(async (sql, values) => {
+        if (sql.startsWith('CREATE TABLE')) return [];
+        if (sql === 'START TRANSACTION' || sql === 'COMMIT' || sql === 'ROLLBACK') return [];
+        if (sql.startsWith('SELECT * FROM verification_challenge_catalog')) {
+            return [{ guild_id: 'guild-reset', challenge_id: 'placeholder', source_type: 'template', protected_template: 1 }];
+        }
+        if (sql.startsWith('SELECT question_id, question_order, source_type, protected_template, deleted_at FROM verification_question_catalog')) {
+            return [
+                { question_id: 'custom-child', question_order: 1, source_type: 'admin', protected_template: 0, deleted_at: null },
+                { question_id: 'axi-text', question_order: 8, source_type: 'template', protected_template: 1, deleted_at: null },
+            ];
+        }
+        if (sql.startsWith('SELECT active_challenge_ids_json')) {
+            settingsRead = true;
+            return [{ active_challenge_ids_json: '["placeholder"]' }];
+        }
+        if (sql.startsWith('UPDATE verification_challenge_catalog SET')) return { affectedRows: 1 };
+        if (sql.startsWith('UPDATE verification_question_catalog SET question_order = ?, updated_by = ?')) {
+            orderUpdates.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET')) {
+            questionContentUpdates.push(values);
+            return { affectedRows: 1 };
+        }
+        return [];
+    });
+
+    try {
+        const result = await harness.repository.deleteOrResetVerificationChallengeCatalogEntry({
+            guildId: 'guild-reset', challengeId: 'placeholder', updatedBy: 'admin-3',
+        });
+        assert.deepEqual(result, { action: 'reset', challengeId: 'placeholder' });
+        assert.equal(settingsRead, false, 'protected reset must not apply the active-custom deletion guard');
+        assert.equal(questionContentUpdates.length, 1);
+        assert.equal(questionContentUpdates[0][21], 'axi-text');
+        assert.deepEqual(orderUpdates.map((values) => [values[4], values[0]]), [
+            ['custom-child', 2],
+        ]);
+        assert.ok(!harness.lifecycle.queries.some(([sql, values]) =>
+            sql.includes('SET deleted_at') && values.includes('custom-child')));
+    }
+    finally {
+        harness.restore();
+    }
+});
+
+test('custom question deletion and protected reset both restore contiguous template-first ordering', async () => {
+    const rows = [
+        { question_id: 'custom-first', question_order: 1, source_type: 'admin', protected_template: 0 },
+        { question_id: 'axi-text', question_order: 4, source_type: 'template', protected_template: 1 },
+        { question_id: 'custom-last', question_order: 9, source_type: 'admin', protected_template: 0 },
+    ];
+    const orderUpdates = [];
+    const softDeletes = [];
+    const harness = loadCatalogRepositoryWithDatabase(async (sql, values) => {
+        if (sql.startsWith('CREATE TABLE')) return [];
+        if (sql === 'START TRANSACTION' || sql === 'COMMIT' || sql === 'ROLLBACK') return [];
+        if (sql.startsWith('SELECT challenge_id FROM verification_challenge_catalog')) return [{ challenge_id: 'placeholder' }];
+        if (sql.startsWith('SELECT * FROM verification_question_catalog')) {
+            return rows.map((row) => ({ ...row }));
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET deleted_at')) {
+            softDeletes.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET question_order = ?, updated_by = ?')) {
+            orderUpdates.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET')) return { affectedRows: 1 };
+        return [];
+    });
+
+    try {
+        const deleted = await harness.repository.deleteOrResetVerificationQuestionCatalogEntry({
+            guildId: 'guild-questions', challengeId: 'placeholder', questionId: 'custom-first', updatedBy: 'admin-4',
+        });
+        assert.equal(deleted.action, 'deleted');
+        assert.equal(softDeletes.length, 1);
+        assert.deepEqual(orderUpdates.map((values) => [values[4], values[0]]), [
+            ['axi-text', 1],
+            ['custom-last', 2],
+        ]);
+
+        orderUpdates.length = 0;
+        const reset = await harness.repository.deleteOrResetVerificationQuestionCatalogEntry({
+            guildId: 'guild-questions', challengeId: 'placeholder', questionId: 'axi-text', updatedBy: 'admin-4',
+        });
+        assert.equal(reset.action, 'reset');
+        assert.deepEqual(orderUpdates.map((values) => [values[4], values[0]]), [
+            ['axi-text', 1],
+            ['custom-first', 2],
+            ['custom-last', 3],
+        ]);
+    }
+    finally {
+        harness.restore();
+    }
+});
+
+test('catalog CRUD returns the pre-write committed settings without compatibility projection or eager refresh', async () => {
+    const settingsPath = require.resolve(path.join(verificationDirectory, 'verificationSettings'));
+    const catalogPath = require.resolve(path.join(verificationDirectory, 'verificationChallengeRepository'));
+    const handlerPath = require.resolve(path.join(verificationDirectory, 'verificationDbHandler'));
+    const cachedSettings = require.cache[settingsPath];
+    const cachedCatalog = require.cache[catalogPath];
+    const cachedHandler = require.cache[handlerPath];
+    let settingsReads = 0;
+    let catalogReads = 0;
+    let compatibilityProjections = 0;
+    let writes = 0;
+    const committedSettings = { mode: 'challenge', activeChallengeIds: [], challengeOverrides: {} };
+
+    require.cache[settingsPath] = {
+        id: settingsPath, filename: settingsPath, loaded: true,
+        exports: {
+            VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
+            clearVerificationSettingsCache: () => undefined,
+            getVerificationGuildSettings: async () => { settingsReads += 1; return committedSettings; },
+        },
+    };
+    require.cache[catalogPath] = {
+        id: catalogPath, filename: catalogPath, loaded: true,
+        exports: {
+            clearVerificationChallengeCatalogCache: () => undefined,
+            getVerificationChallengeCatalog: async () => { catalogReads += 1; return {}; },
+            catalogChallengesToSettingsOverrides: () => { compatibilityProjections += 1; return {}; },
+            createVerificationChallengeCatalogEntry: async ({ challengeId }) => {
+                writes += 1;
+                return { id: challengeId, sourceType: 'admin', protectedTemplate: false };
+            },
+        },
+    };
+    delete require.cache[handlerPath];
+    const db = require(handlerPath);
+    try {
+        const result = await db.createCustomChallenge('guild-handler', { id: 'custom', title: 'Custom' }, 'admin-5');
+        assert.equal(writes, 1);
+        assert.equal(settingsReads, 1);
+        assert.equal(catalogReads, 1);
+        assert.equal(compatibilityProjections, 0);
+        assert.strictEqual(result.committedSettings.mode, committedSettings.mode);
+        assert.equal(result.result.id, 'custom');
+
+        await db.loadVerificationSnapshot('guild-handler');
+        assert.equal(settingsReads, 2, 'successful CRUD invalidates rather than eagerly refreshing its snapshot');
+        assert.equal(catalogReads, 2);
+    }
+    finally {
+        restoreModule(handlerPath, cachedHandler);
+        restoreModule(catalogPath, cachedCatalog);
+        restoreModule(settingsPath, cachedSettings);
+    }
+});
+
+test('challenge creation serializes the guild catalog and rejects a twenty-sixth active row atomically', async () => {
+    const inserts = [];
+    const harness = loadCatalogRepositoryWithDatabase(async (sql, values) => {
+        if (sql.startsWith('CREATE TABLE')) return [];
+        if (sql === 'START TRANSACTION' || sql === 'COMMIT' || sql === 'ROLLBACK') return [];
+        if (sql.startsWith('SELECT guild_id FROM verification_guild_settings')) return [{ guild_id: values[0] }];
+        if (sql === 'SELECT challenge_id FROM verification_challenge_catalog WHERE guild_id = ? FOR UPDATE') {
+            return Array.from({ length: 25 }, (_, index) => ({ challenge_id: `challenge-${index}` }));
+        }
+        if (sql === 'SELECT challenge_id FROM verification_challenge_catalog WHERE guild_id = ? AND deleted_at IS NULL FOR UPDATE') {
+            return Array.from({ length: 25 }, (_, index) => ({ challenge_id: `challenge-${index}` }));
+        }
+        if (sql.startsWith('INSERT INTO verification_challenge_catalog')) {
+            inserts.push(values);
+            return { affectedRows: 1 };
+        }
+        return [];
+    });
+
+    try {
+        await assert.rejects(
+            harness.repository.createVerificationChallengeCatalogEntry({
+                guildId: 'guild-limit', challengeId: 'one-too-many', title: 'Too many', createdBy: 'admin-limit',
+            }),
+            (error) => error.code === 'VERIFICATION_CHALLENGE_LIMIT' && /at most 25/.test(error.message),
+        );
+        const statements = harness.lifecycle.queries.map(([sql]) => sql);
+        assert.ok(statements.includes('SELECT guild_id FROM verification_guild_settings WHERE guild_id = ? FOR UPDATE'));
+        assert.ok(statements.includes('SELECT challenge_id FROM verification_challenge_catalog WHERE guild_id = ? FOR UPDATE'));
+        assert.ok(statements.includes('SELECT challenge_id FROM verification_challenge_catalog WHERE guild_id = ? AND deleted_at IS NULL FOR UPDATE'));
+        assert.equal(inserts.length, 0);
+        assert.equal(statements.filter((sql) => sql === 'ROLLBACK').length, 1);
+        assert.equal(statements.filter((sql) => sql === 'COMMIT').length, 0);
+        assert.equal(harness.lifecycle.acquired, 1);
+        assert.equal(harness.lifecycle.released, 1);
+    }
+    finally {
+        harness.restore();
+    }
+});
+
+test('catalog IDs accept the Discord-safe 100-character boundary and reject longer values in service and repository', async () => {
+    const handlerPath = require.resolve(path.join(verificationDirectory, 'verificationDbHandler'));
+    const servicePath = require.resolve(path.join(verificationDirectory, 'verificationService'));
+    const cachedHandler = require.cache[handlerPath];
+    const cachedService = require.cache[servicePath];
+    const forwarded = [];
+    const boundaryId = 'a'.repeat(100);
+    const oversizedId = 'a'.repeat(101);
+    require.cache[handlerPath] = {
+        id: handlerPath, filename: handlerPath, loaded: true,
+        exports: {
+            VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
+            createCustomChallenge: async (...args) => { forwarded.push(args); return { result: { id: args[1].id } }; },
+        },
+    };
+    delete require.cache[servicePath];
+    const service = require(servicePath);
+
+    try {
+        const accepted = await service.createCustomChallenge('guild-id-limit', {
+            id: boundaryId, title: 'Boundary ID',
+        }, 'admin-id');
+        assert.equal(accepted.result.id, boundaryId);
+        assert.equal(forwarded[0][1].id, boundaryId);
+        assert.throws(
+            () => service.createCustomChallenge('guild-id-limit', { id: oversizedId, title: 'Too long' }, 'admin-id'),
+            /1-100 characters/,
+        );
+    }
+    finally {
+        restoreModule(servicePath, cachedService);
+        restoreModule(handlerPath, cachedHandler);
+    }
+
+    const harness = loadCatalogRepositoryWithDatabase(async (sql) => {
+        if (sql.startsWith('CREATE TABLE')) return [];
+        return [];
+    });
+    try {
+        await assert.rejects(
+            harness.repository.createVerificationChallengeCatalogEntry({
+                guildId: 'guild-id-limit', challengeId: oversizedId, title: 'Too long', createdBy: 'admin-id',
+            }),
+            /at most 100 characters/,
+        );
+        await assert.rejects(
+            harness.repository.createVerificationQuestionCatalogEntry({
+                guildId: 'guild-id-limit', challengeId: boundaryId,
+                question: { id: oversizedId, label: 'Too long', text: 'Too long' }, createdBy: 'admin-id',
+            }),
+            /at most 100 characters/,
+        );
+        assert.equal(harness.lifecycle.acquired, 0, 'length validation should happen before transaction acquisition');
+    }
+    finally {
+        harness.restore();
+    }
+});
+
+test('full protected reset reconciles current template rows, tombstones obsolete templates, and preserves custom rows', async () => {
+    let ownershipConflict = false;
+    const obsoleteDeletes = [];
+    const protectedResets = [];
+    const protectedUpserts = [];
+    const orderUpdates = [];
+    const baseRows = [
+        {
+            question_id: 'starter-ship-name', question_order: 8, source_type: 'template',
+            protected_template: 1, deleted_at: '2026-01-01T00:00:00.000Z',
+        },
+        {
+            question_id: 'obsolete-template-question', question_order: 2, source_type: 'template',
+            protected_template: 1, deleted_at: null,
+        },
+        {
+            question_id: 'custom-child', question_order: 1, source_type: 'admin',
+            protected_template: 0, deleted_at: null,
+        },
+    ];
+    const harness = loadCatalogRepositoryWithDatabase(async (sql, values) => {
+        if (sql.startsWith('CREATE TABLE')) return [];
+        if (sql === 'START TRANSACTION' || sql === 'COMMIT' || sql === 'ROLLBACK') return [];
+        if (sql.startsWith('SELECT * FROM verification_challenge_catalog')) {
+            return [{ guild_id: 'guild-full-reset', challenge_id: 'eliteVesselGallery', source_type: 'template', protected_template: 1 }];
+        }
+        if (sql.startsWith('SELECT question_id, question_order, source_type')) {
+            const rows = baseRows.map((row) => ({ ...row }));
+            if (ownershipConflict) {
+                rows.push({
+                    question_id: 'starter-ship-gallery', question_order: 4,
+                    source_type: 'admin', protected_template: 0, deleted_at: null,
+                });
+            }
+            return rows;
+        }
+        if (sql.startsWith('UPDATE verification_challenge_catalog SET')) return { affectedRows: 1 };
+        if (sql.includes("SET deleted_at = CURRENT_TIMESTAMP") && sql.includes("source_type = 'template'")) {
+            obsoleteDeletes.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET question_order = ?, question_label')) {
+            protectedResets.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('INSERT INTO verification_question_catalog')) {
+            protectedUpserts.push(values);
+            return { affectedRows: 1 };
+        }
+        if (sql.startsWith('UPDATE verification_question_catalog SET question_order = ?, updated_by = ?')) {
+            orderUpdates.push(values);
+            return { affectedRows: 1 };
+        }
+        return [];
+    });
+
+    try {
+        const result = await harness.repository.deleteOrResetVerificationChallengeCatalogEntry({
+            guildId: 'guild-full-reset', challengeId: 'eliteVesselGallery', updatedBy: 'admin-reset',
+        });
+        assert.deepEqual(result, { action: 'reset', challengeId: 'eliteVesselGallery' });
+        assert.equal(obsoleteDeletes.length, 1);
+        assert.equal(obsoleteDeletes[0][3], 'obsolete-template-question');
+        assert.equal(protectedResets.length, 1, 'an existing deleted protected row should be restored');
+        assert.equal(protectedResets[0][21], 'starter-ship-name');
+        assert.equal(protectedUpserts.length, 1, 'a missing current template row should be reinserted');
+        assert.equal(protectedUpserts[0][2], 'starter-ship-gallery');
+        assert.deepEqual(orderUpdates.map((values) => [values[4], values[0]]), [
+            ['custom-child', 3],
+        ]);
+        assert.ok(!harness.lifecycle.queries.some(([sql, values]) =>
+            sql.includes('deleted_at = CURRENT_TIMESTAMP') && values.includes('custom-child')));
+
+        ownershipConflict = true;
+        const writesBeforeConflict = obsoleteDeletes.length + protectedResets.length + protectedUpserts.length + orderUpdates.length;
+        await assert.rejects(
+            harness.repository.deleteOrResetVerificationChallengeCatalogEntry({
+                guildId: 'guild-full-reset', challengeId: 'eliteVesselGallery', updatedBy: 'admin-reset',
+            }),
+            /owned by a custom row/,
+        );
+        assert.equal(harness.lifecycle.queries.filter(([sql]) => sql === 'ROLLBACK').length, 1);
+        assert.equal(harness.lifecycle.released, 2);
+        assert.equal(
+            obsoleteDeletes.length + protectedResets.length + protectedUpserts.length + orderUpdates.length,
+            writesBeforeConflict + 2,
+            'the conflicting transaction may stage reset work before detecting the missing template ID collision, then rolls it back',
+        );
+    }
+    finally {
+        harness.restore();
+    }
+});
