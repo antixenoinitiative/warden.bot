@@ -63,6 +63,7 @@ async function applyVerificationConfigSafeguard({
     guildId,
     guild,
     snapshot,
+    committedSettings,
     source = 'unknown',
     actorId = null,
     changedChallengeId = null,
@@ -71,7 +72,27 @@ async function applyVerificationConfigSafeguard({
     notifyStaff = false,
     deactivateUnsafeActiveChallenges = true,
 } = {}) {
-    const originalSnapshot = snapshot ?? await getVerificationSnapshot(guildId);
+    let originalSnapshot;
+    try {
+        originalSnapshot = snapshot ?? await getVerificationSnapshot(guildId);
+    }
+    catch (err) {
+        if (!committedSettings) throw err;
+        verificationDb.invalidateVerificationGuild(guildId);
+        console.error('Verification configuration was committed, but the verification snapshot could not be loaded:', err);
+        return {
+            originalSettings: committedSettings,
+            originalRuntime: null,
+            finalSettings: committedSettings,
+            finalRuntime: null,
+            report: null,
+            finalReport: null,
+            disabledChallengeIds: [],
+            fallbackApplied: false,
+            refreshError: err,
+            staffNotified: false,
+        };
+    }
     const originalSettings = originalSnapshot.settings;
     const originalRuntime = originalSnapshot.runtime;
     const report = evaluateVerificationConfig(originalRuntime, { changedChallengeId, changedQuestionId });

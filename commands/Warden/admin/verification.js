@@ -130,10 +130,11 @@ const {
 } = require('../verification/verificationService');
 
 
-async function runAdminConfigSafeguard(interaction, { guildId, changedChallengeId, changedQuestionId, reason, source }) {
+async function runAdminConfigSafeguard(interaction, { guildId, changedChallengeId, changedQuestionId, reason, source, committedSettings }) {
     return applyVerificationConfigSafeguard({
         guildId,
         guild: interaction.guild,
+        committedSettings,
         source,
         actorId: interaction.user.id,
         changedChallengeId,
@@ -224,7 +225,15 @@ async function replyWithSafeguardedQuestionPanel(interaction, context, updatedSe
         changedQuestionId: context.question.id,
         reason,
         source,
+        committedSettings: updatedSettings,
     });
+    if (safeguard.refreshError) {
+        await followUpAdminConfigWarning(interaction, safeguard, {
+            changedChallengeId: context.challengeId,
+            changedQuestionId: context.question.id,
+        });
+        return undefined;
+    }
     const finalSettings = safeguard.finalSettings ?? updatedSettings;
     const effectiveChallenge = await getVerificationAdminChallenge(context.guildId, context.challengeId) ?? context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
@@ -1258,7 +1267,17 @@ async function handleSettingsOptionsModalSubmit(interaction, parts = []) {
     }
 
     const updatedSettings = await saveVerificationGuildSettingsOnly(guildId, nextSettings, interaction.user.id);
-    const safeguard = await runAdminConfigSafeguard(interaction, { guildId, reason: 'Settings options updated.', source: 'settings-options-modal' });
+    const safeguard = await runAdminConfigSafeguard(interaction, {
+        guildId,
+        reason: 'Settings options updated.',
+        source: 'settings-options-modal',
+        committedSettings: updatedSettings,
+    });
+
+    if (safeguard.refreshError) {
+        await followUpAdminConfigWarning(interaction, safeguard);
+        return undefined;
+    }
 
     const response = await replyWithUpdatedSettingsPanel(interaction, {
         guildId,

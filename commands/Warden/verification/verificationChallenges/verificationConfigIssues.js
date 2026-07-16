@@ -7,14 +7,12 @@ const {
     buildQuestionScreens,
     validateQuestionScreens,
 } = require('./verificationChallenges');
+const {
+    getQuestionTaskModule,
+    getQuestionTaskType,
+} = require('./questionTasks/taskRegistry');
 
 const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
-
-function getQuestionTaskType(question) {
-    const generatedImage = question?.generatedImage ?? {};
-    if (generatedImage.enabled !== true || generatedImage.type === 'none') return 'none';
-    return String(generatedImage.type ?? 'none');
-}
 
 function getConfiguredRoleIds(generatedImage, role) {
     return Array.isArray(generatedImage?.imageIds?.[role]) ? generatedImage.imageIds[role] : [];
@@ -66,6 +64,9 @@ function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, act
         const prefix = `${normalizedChallenge.id}/${question.id}`;
         const base = { challengeId: normalizedChallenge.id, questionId: question.id, taskType, active };
 
+        if (!getQuestionTaskModule(question)) {
+            issues.push(createIssue({ ...base, code: 'unsupported_task_type', field: 'generatedImage.type', label: 'Task type', message: `${prefix}: Unsupported verification task type "${taskType}".` }));
+        }
         if (generatedImage.requiresConfiguredText === true && !generatedImage.text) {
             issues.push(createIssue({ ...base, code: 'missing_task_prompt_text', field: 'generatedImage.text', label: 'Task prompt text', message: `${prefix}: Prompt Text task requires configured task prompt text.` }));
         }

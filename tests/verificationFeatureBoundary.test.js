@@ -131,6 +131,22 @@ test('catalog-native preflight validates challenges absent from static templates
         challenges: [{ id: 'empty', enabled: true, questions: [] }],
     });
     assert.equal(empty.activeBlockingIssues[0].code, 'missing_questions');
+
+    const unsupportedTask = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['unsupported-task'],
+        challenges: [{
+            id: 'unsupported-task',
+            enabled: true,
+            questions: [{
+                id: 'task',
+                generatedImage: { enabled: true, type: 'not-registered' },
+                answer: { required: false, type: 'none', accepted: [] },
+            }],
+        }],
+    });
+    assert.equal(unsupportedTask.activeBlockingIssues[0].code, 'unsupported_task_type');
+    assert.deepEqual(unsupportedTask.unsafeActiveChallengeIds, ['unsupported-task']);
 });
 
 test('safeguard reports a post-commit snapshot refresh failure without treating the write as failed', async () => {
@@ -183,6 +199,17 @@ test('safeguard reports a post-commit snapshot refresh failure without treating 
         assert.match(result.refreshError.message, /refresh unavailable/);
         assert.deepEqual(result.finalSettings.activeChallengeIds, ['placeholder']);
         assert.match(String(loggedErrors[0]?.[0]), /committed.*snapshot could not be refreshed/);
+
+        const committedSettings = { mode: 'challenge', activeChallengeIds: ['safe'], challengeOverrides: {} };
+        const initialRefreshFailure = await service.applyVerificationConfigSafeguard({
+            guildId: 'guild',
+            committedSettings,
+        });
+        assert.equal(writes, 1);
+        assert.equal(invalidations, 2);
+        assert.strictEqual(initialRefreshFailure.finalSettings, committedSettings);
+        assert.match(initialRefreshFailure.refreshError.message, /refresh unavailable/);
+        assert.match(String(loggedErrors[1]?.[0]), /committed.*snapshot could not be loaded/);
     }
     finally {
         console.error = originalConsoleError;
