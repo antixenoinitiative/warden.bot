@@ -1133,8 +1133,11 @@ test('verification persistence and global interaction routing keep their public 
     assert.doesNotMatch(adminSource, /build(?:SettingsStatus|ChallengePicker|ChallengeOverview|QuestionDetail)Embed/);
 
     const dbHandlerSource = fs.readFileSync(path.join(verificationDirectory, 'verificationDbHandler.js'), 'utf8');
+    const settingsSource = fs.readFileSync(path.join(verificationDirectory, 'verificationSettings.js'), 'utf8');
     assert.doesNotMatch(dbHandlerSource, /verificationSettings\.(?:updateChallengeMetaOverrides|setQuestion|updateQuestionOptionOverrides|clearQuestionOverrideFields)/);
     assert.doesNotMatch(dbHandlerSource, /snapshot\.settings/);
+    assert.doesNotMatch(dbHandlerSource, /challengeOverrides/);
+    assert.doesNotMatch(settingsSource, /verification_challenge_config|challengeOverrides|challenge_catalog_authoritative/);
 
     const verificationServiceSource = fs.readFileSync(path.join(verificationDirectory, 'verificationService.js'), 'utf8');
     const startupSource = fs.readFileSync(path.join(repositoryRoot, 'index.js'), 'utf8');
@@ -1144,6 +1147,49 @@ test('verification persistence and global interaction routing keep their public 
 
     const imageSource = fs.readFileSync(path.join(verificationDirectory, 'verificationImages.js'), 'utf8');
     assert.doesNotMatch(imageSource, /localGalleryImageBufferCache/);
+});
+
+test('catalog read failures do not fall back to legacy verification settings', async () => {
+    const settingsPath = require.resolve(path.join(verificationDirectory, 'verificationSettings'));
+    const catalogPath = require.resolve(path.join(verificationDirectory, 'verificationChallengeRepository'));
+    const handlerPath = require.resolve(path.join(verificationDirectory, 'verificationDbHandler'));
+    const cachedSettings = require.cache[settingsPath];
+    const cachedCatalog = require.cache[catalogPath];
+    const cachedHandler = require.cache[handlerPath];
+
+    require.cache[settingsPath] = {
+        id: settingsPath,
+        filename: settingsPath,
+        loaded: true,
+        exports: {
+            clearVerificationSettingsCache: () => undefined,
+            getVerificationGuildSettings: async () => ({
+                mode: 'challenge',
+                activeChallengeIds: ['legacy-only'],
+                challengeOverrides: { 'legacy-only': { title: 'Must not be used' } },
+            }),
+        },
+    };
+    require.cache[catalogPath] = {
+        id: catalogPath,
+        filename: catalogPath,
+        loaded: true,
+        exports: {
+            clearVerificationChallengeCatalogCache: () => undefined,
+            getVerificationChallengeCatalog: async () => { throw new Error('catalog unavailable'); },
+        },
+    };
+    delete require.cache[handlerPath];
+    const handler = require(handlerPath);
+
+    try {
+        await assert.rejects(handler.loadVerificationSnapshot('catalog-failure'), /catalog unavailable/);
+    }
+    finally {
+        restoreModule(handlerPath, cachedHandler);
+        restoreModule(catalogPath, cachedCatalog);
+        restoreModule(settingsPath, cachedSettings);
+    }
 });
 
 test('catalog mappings expose immutable ownership metadata and CRUD stays behind the DB boundary', () => {

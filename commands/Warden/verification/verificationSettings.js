@@ -2,17 +2,11 @@ const config = require('../../../config.json');
 let database;
 
 function getDatabase() {
-    if (!database) {
-        database = require('../../../Warden/db/database');
-    }
-
+    if (!database) database = require('../../../Warden/db/database');
     return database;
 }
 
 const DEFAULT_GUILD_ID = 'global';
-const CHALLENGE_META_QUESTION_ID = '__challenge__';
-const ALLOWED_IMAGE_ROLES = new Set(['solution', 'control', 'center', 'outer']);
-const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
 const VERIFICATION_MODES = {
     challenge: 'challenge',
     halt: 'halt',
@@ -24,25 +18,18 @@ const DEFAULT_COOLDOWN_SECONDS = 60;
 const DEFAULT_AUTOKICK_SECONDS = 10 * 60;
 const settingsCache = new Map();
 let guildSettingsTableReady;
-let challengeConfigTableReady;
-let settingsTablesReady;
 
 function normalizeGuildId(guildId) {
     return String(guildId ?? DEFAULT_GUILD_ID);
 }
 
 function clearVerificationSettingsCache(guildId) {
-    if (guildId === undefined || guildId === null) {
-        settingsCache.clear();
-        return;
-    }
-
-    settingsCache.delete(normalizeGuildId(guildId));
+    if (guildId === undefined || guildId === null) settingsCache.clear();
+    else settingsCache.delete(normalizeGuildId(guildId));
 }
 
 function safeParseJson(value, fallback) {
     if (value === null || value === undefined || value === '') return fallback;
-
     try {
         return JSON.parse(value);
     }
@@ -63,31 +50,18 @@ function normalizeActiveChallengeIds(value) {
     const rawChallengeIds = Array.isArray(value)
         ? value
         : safeParseJson(value, String(value ?? '').split(/[\s,]+/));
-
-    const challengeIds = (Array.isArray(rawChallengeIds) ? rawChallengeIds : [rawChallengeIds])
+    return [...new Set((Array.isArray(rawChallengeIds) ? rawChallengeIds : [rawChallengeIds])
         .map((challengeId) => String(challengeId ?? '').trim())
-        .filter(Boolean);
-
-    return [...new Set(challengeIds)];
+        .filter(Boolean))];
 }
 
 function normalizeVerificationMode(mode, fallback = VERIFICATION_MODES.challenge) {
-    if (VALID_VERIFICATION_MODES.includes(mode)) {
-        return mode;
-    }
-
-    return fallback;
+    return VALID_VERIFICATION_MODES.includes(mode) ? mode : fallback;
 }
 
 function normalizeTimerSeconds(value, fallback) {
     const seconds = Math.floor(Number(value));
     return Number.isFinite(seconds) && seconds > 0 ? seconds : fallback;
-}
-
-function normalizeNullableTimerSeconds(value) {
-    if (value === null || value === undefined || value === '') return null;
-    const seconds = Math.floor(Number(value));
-    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
 function normalizeBoolean(value) {
@@ -104,7 +78,6 @@ function defaultVerificationSettings() {
         ?? verificationConfig.captchaId
         ?? 'placeholder',
     );
-
     return {
         mode: normalizeVerificationMode(verificationConfig.mode, VERIFICATION_MODES.challenge),
         activeChallengeIds: activeChallengeIds.length > 0 ? activeChallengeIds : ['placeholder'],
@@ -112,167 +85,12 @@ function defaultVerificationSettings() {
         cooldownSeconds: normalizeTimerSeconds(verificationConfig.cooldownSeconds, DEFAULT_COOLDOWN_SECONDS),
         autokickEnabled: verificationConfig.autokickEnabled === true,
         autokickSeconds: normalizeTimerSeconds(verificationConfig.autokickSeconds ?? verificationConfig.autokickTimerSeconds, DEFAULT_AUTOKICK_SECONDS),
-        challengeOverrides: {},
     };
-}
-
-function normalizeString(value) {
-    const normalizedValue = String(value ?? '').trim();
-    return normalizedValue || undefined;
-}
-
-function normalizeQuestionOrder(value) {
-    const order = Math.floor(Number(value));
-    return Number.isInteger(order) && order > 0 ? order : undefined;
-}
-
-function normalizeStringArray(value) {
-    const values = Array.isArray(value) ? value : String(value ?? '').split(/[\s,]+/);
-    return [...new Set(values.map(normalizeString).filter(Boolean))];
-}
-
-function normalizeDirectionList(value) {
-    const values = Array.isArray(value) ? value : String(value ?? '').split(/[\s,]+/);
-    return [...new Set(values
-        .map((degrees) => Number(degrees) === 360 ? 0 : Number(degrees))
-        .filter((degrees) => Number.isInteger(degrees) && ALLOWED_IMAGE_DIRECTION_DEGREES.has(degrees)))]
-        .sort((left, right) => left - right);
-}
-
-function normalizeImageDirections(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-
-    return Object.entries(value).reduce((directions, [imageId, degreeList]) => {
-        const normalizedImageId = normalizeString(imageId);
-        const normalizedDegrees = normalizeDirectionList(degreeList);
-        if (normalizedImageId && normalizedDegrees.length > 0) {
-            directions[normalizedImageId] = normalizedDegrees;
-        }
-        return directions;
-    }, {});
-}
-
-function normalizeImageIds(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-
-    return Object.entries(value).reduce((imageIds, [role, ids]) => {
-        if (!ALLOWED_IMAGE_ROLES.has(role)) return imageIds;
-        const normalizedIds = normalizeStringArray(ids);
-        if (normalizedIds.length > 0) {
-            imageIds[role] = normalizedIds;
-        }
-        return imageIds;
-    }, {});
-}
-
-function normalizeObject(value) {
-    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-}
-
-function normalizeQuestionOverride(questionOverride = {}) {
-    const normalizedQuestion = {};
-    const label = normalizeString(questionOverride.label);
-    const text = normalizeString(questionOverride.text);
-    const order = normalizeQuestionOrder(questionOverride.order);
-
-    if (order !== undefined) normalizedQuestion.order = order;
-    if (label) normalizedQuestion.label = label;
-    if (text) normalizedQuestion.text = text;
-    if (questionOverride.separateStep !== undefined) normalizedQuestion.separateStep = normalizeBoolean(questionOverride.separateStep);
-
-    const generatedImageInput = normalizeObject(questionOverride.generatedImage);
-    const generatedImage = {};
-    if (generatedImageInput.enabled !== undefined) generatedImage.enabled = normalizeBoolean(generatedImageInput.enabled);
-    if (normalizeString(generatedImageInput.type)) generatedImage.type = normalizeString(generatedImageInput.type);
-    if (normalizeString(generatedImageInput.text)) generatedImage.text = normalizeString(generatedImageInput.text);
-    if (Object.prototype.hasOwnProperty.call(generatedImageInput, 'imagePoolId')) {
-        const normalizedImagePoolId = normalizeString(generatedImageInput.imagePoolId);
-        generatedImage.imagePoolId = normalizedImagePoolId ?? null;
-    }
-    if (generatedImageInput.gallerySize !== undefined) {
-        const gallerySize = Math.floor(Number(generatedImageInput.gallerySize));
-        if (Number.isInteger(gallerySize) && gallerySize > 0) generatedImage.gallerySize = gallerySize;
-    }
-    if (generatedImageInput.compositeImageGallery !== undefined) generatedImage.compositeImageGallery = normalizeBoolean(generatedImageInput.compositeImageGallery);
-    if (generatedImageInput.solutionImageCount && typeof generatedImageInput.solutionImageCount === 'object') generatedImage.solutionImageCount = generatedImageInput.solutionImageCount;
-    if (generatedImageInput.controlImageCount && typeof generatedImageInput.controlImageCount === 'object') generatedImage.controlImageCount = generatedImageInput.controlImageCount;
-    if (generatedImageInput.maxControlImageRepeats !== undefined) {
-        const repeats = Math.floor(Number(generatedImageInput.maxControlImageRepeats));
-        if (Number.isInteger(repeats) && repeats > 0) generatedImage.maxControlImageRepeats = repeats;
-    }
-
-    const imageIds = normalizeImageIds(generatedImageInput.imageIds);
-    const imageDirections = normalizeImageDirections(generatedImageInput.imageDirections);
-    const config = normalizeObject(generatedImageInput.config);
-    if (Object.keys(imageIds).length > 0) generatedImage.imageIds = imageIds;
-    if (Object.keys(imageDirections).length > 0) generatedImage.imageDirections = imageDirections;
-    if (Object.keys(config).length > 0) generatedImage.config = config;
-    if (Object.keys(generatedImage).length > 0) normalizedQuestion.generatedImage = generatedImage;
-
-    const answerInput = normalizeObject(questionOverride.answer);
-    const answer = {};
-    if (answerInput.required !== undefined) answer.required = normalizeBoolean(answerInput.required);
-    if (normalizeString(answerInput.type)) answer.type = normalizeString(answerInput.type);
-    if (normalizeString(answerInput.inputLabel)) answer.inputLabel = normalizeString(answerInput.inputLabel);
-    if (normalizeString(answerInput.inputPlaceholder)) answer.inputPlaceholder = normalizeString(answerInput.inputPlaceholder);
-    const accepted = normalizeStringArray(answerInput.accepted);
-    if (accepted.length > 0) answer.accepted = accepted;
-    if (Object.keys(answer).length > 0) normalizedQuestion.answer = answer;
-
-    const updatedBy = normalizeString(questionOverride.updatedBy);
-    const updatedAt = normalizeString(questionOverride.updatedAt);
-    if (updatedBy) normalizedQuestion.updatedBy = updatedBy;
-    if (updatedAt) normalizedQuestion.updatedAt = updatedAt;
-
-    return normalizedQuestion;
-}
-
-function questionOverrideIsEmpty(questionOverride) {
-    const normalizedQuestion = normalizeQuestionOverride(questionOverride);
-    delete normalizedQuestion.updatedBy;
-    delete normalizedQuestion.updatedAt;
-    return Object.keys(normalizedQuestion).length < 1;
-}
-
-function normalizeChallengeOverrides(challengeOverrides) {
-    if (!challengeOverrides || typeof challengeOverrides !== 'object' || Array.isArray(challengeOverrides)) return {};
-
-    return Object.entries(challengeOverrides).reduce((normalizedOverrides, [challengeId, challengeOverride]) => {
-        const normalizedChallengeId = normalizeString(challengeId);
-        if (!normalizedChallengeId || !challengeOverride || typeof challengeOverride !== 'object') return normalizedOverrides;
-
-        const normalizedChallenge = {};
-        const title = normalizeString(challengeOverride.title);
-        const description = normalizeString(challengeOverride.description);
-        const color = normalizeString(challengeOverride.color);
-        if (title) normalizedChallenge.title = title;
-        if (description) normalizedChallenge.description = description;
-        if (color) normalizedChallenge.color = color;
-
-        const questions = normalizeObject(challengeOverride.questions);
-        const normalizedQuestions = Object.entries(questions).reduce((questionOverrides, [questionId, questionOverride]) => {
-            const normalizedQuestionId = normalizeString(questionId);
-            if (!normalizedQuestionId) return questionOverrides;
-            const normalizedQuestion = normalizeQuestionOverride(questionOverride);
-            if (Object.keys(normalizedQuestion).length > 0) {
-                questionOverrides[normalizedQuestionId] = normalizedQuestion;
-            }
-            return questionOverrides;
-        }, {});
-
-        if (Object.keys(normalizedQuestions).length > 0) normalizedChallenge.questions = normalizedQuestions;
-        if (normalizedChallenge.title || normalizedChallenge.description || normalizedChallenge.color || Object.keys(normalizedQuestions).length > 0) {
-            normalizedOverrides[normalizedChallengeId] = normalizedChallenge;
-        }
-
-        return normalizedOverrides;
-    }, {});
 }
 
 function normalizeSettings(settings) {
     const defaults = defaultVerificationSettings();
     const activeChallengeIds = normalizeActiveChallengeIds(settings?.activeChallengeIds ?? defaults.activeChallengeIds);
-
     return {
         mode: normalizeVerificationMode(settings?.mode, defaults.mode),
         activeChallengeIds: activeChallengeIds.length > 0 ? activeChallengeIds : defaults.activeChallengeIds,
@@ -280,7 +98,6 @@ function normalizeSettings(settings) {
         cooldownSeconds: normalizeTimerSeconds(settings?.cooldownSeconds, defaults.cooldownSeconds),
         autokickEnabled: normalizeBoolean(settings?.autokickEnabled),
         autokickSeconds: normalizeTimerSeconds(settings?.autokickSeconds, defaults.autokickSeconds),
-        challengeOverrides: normalizeChallengeOverrides(settings?.challengeOverrides ?? defaults.challengeOverrides),
     };
 }
 
@@ -292,89 +109,7 @@ function parseGuildSettingsRow(row) {
         cooldownSeconds: row.cooldown_seconds,
         autokickEnabled: row.autokick_enabled,
         autokickSeconds: row.autokick_seconds,
-        challengeOverrides: {},
     });
-}
-
-function normalizeQuestionOverrideRow(row) {
-    const questionId = normalizeString(row.question_id);
-    if (!questionId) return undefined;
-
-    if (questionId === CHALLENGE_META_QUESTION_ID) {
-        const meta = {};
-        const title = normalizeString(row.title);
-        const description = normalizeString(row.description);
-        if (title) meta.title = title;
-        if (description) meta.description = description;
-        return { questionId, meta };
-    }
-
-    const imageConfig = normalizeObject(safeParseJson(row.task_config_json, {}));
-    const generatedImage = {
-        ...imageConfig,
-    };
-
-    const rawTaskEnabled = row.task_enabled;
-    const rawTaskType = row.task_type;
-    const rawTaskPromptText = row.task_prompt_text;
-
-    if (rawTaskEnabled !== null && rawTaskEnabled !== undefined) generatedImage.enabled = normalizeBoolean(rawTaskEnabled);
-    if (normalizeString(rawTaskType)) generatedImage.type = normalizeString(rawTaskType);
-    if (normalizeString(rawTaskPromptText)) generatedImage.text = normalizeString(rawTaskPromptText);
-
-    const imageIds = normalizeImageIds(safeParseJson(row.task_image_ids_json, {}));
-    const imageDirections = normalizeImageDirections(safeParseJson(row.task_image_directions_json, {}));
-    if (Object.keys(imageIds).length > 0) generatedImage.imageIds = imageIds;
-    if (Object.keys(imageDirections).length > 0) generatedImage.imageDirections = imageDirections;
-    if (Object.keys(imageConfig).length > 0) generatedImage.config = imageConfig;
-
-    const answer = {};
-    if (row.answer_required !== null && row.answer_required !== undefined) answer.required = normalizeBoolean(row.answer_required);
-    if (normalizeString(row.answer_type)) answer.type = normalizeString(row.answer_type);
-    if (normalizeString(row.answer_input_label)) answer.inputLabel = normalizeString(row.answer_input_label);
-    if (normalizeString(row.answer_input_placeholder)) answer.inputPlaceholder = normalizeString(row.answer_input_placeholder);
-    const accepted = normalizeStringArray(safeParseJson(row.answers_json, []));
-    if (accepted.length > 0) answer.accepted = accepted;
-
-    const question = {};
-    const order = normalizeQuestionOrder(row.question_order);
-    if (order !== undefined) question.order = order;
-    if (normalizeString(row.question_label)) question.label = normalizeString(row.question_label);
-    if (normalizeString(row.question_text)) question.text = normalizeString(row.question_text);
-    if (row.separate_step !== null && row.separate_step !== undefined) question.separateStep = normalizeBoolean(row.separate_step);
-    if (Object.keys(generatedImage).length > 0) question.generatedImage = generatedImage;
-    if (Object.keys(answer).length > 0) question.answer = answer;
-
-    const normalizedQuestion = normalizeQuestionOverride(question);
-    const updatedBy = normalizeString(row.updated_by);
-    const updatedAt = normalizeString(row.updated_at);
-    if (updatedBy) normalizedQuestion.updatedBy = updatedBy;
-    if (updatedAt) normalizedQuestion.updatedAt = updatedAt;
-
-    return { questionId, question: normalizedQuestion };
-}
-
-function normalizeChallengeConfigRows(rows) {
-    return rows.reduce((challengeOverrides, row) => {
-        const challengeId = normalizeString(row.challenge_id);
-        if (!challengeId) return challengeOverrides;
-        const normalizedRow = normalizeQuestionOverrideRow(row);
-        if (!normalizedRow) return challengeOverrides;
-
-        const challengeOverride = challengeOverrides[challengeId] ?? { questions: {} };
-        if (normalizedRow.questionId === CHALLENGE_META_QUESTION_ID) {
-            Object.assign(challengeOverride, normalizedRow.meta);
-        }
-        else if (!questionOverrideIsEmpty(normalizedRow.question)) {
-            challengeOverride.questions[normalizedRow.questionId] = normalizedRow.question;
-        }
-
-        if (challengeOverride.title || challengeOverride.description || Object.keys(challengeOverride.questions).length > 0) {
-            challengeOverrides[challengeId] = challengeOverride;
-        }
-
-        return challengeOverrides;
-    }, {});
 }
 
 async function ensureVerificationGuildSettingsTable() {
@@ -388,458 +123,21 @@ async function ensureVerificationGuildSettingsTable() {
                 cooldown_seconds INT NULL DEFAULT NULL,
                 autokick_enabled TINYINT(1) NOT NULL DEFAULT 0,
                 autokick_seconds INT NULL DEFAULT NULL,
-                challenge_catalog_authoritative TINYINT(1) NOT NULL DEFAULT 0,
                 updated_by VARCHAR(32) NULL,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-        `).then(async () => {
-            try {
-                await getDatabase().query('ALTER TABLE verification_guild_settings ADD COLUMN challenge_catalog_authoritative TINYINT(1) NOT NULL DEFAULT 0 AFTER autokick_seconds');
-            }
-            catch (err) {
-                if (!String(err?.code).includes('ER_DUP_FIELDNAME') && !String(err?.message ?? '').includes('Duplicate column')) throw err;
-            }
-        }).catch((err) => {
+        `).catch((err) => {
             guildSettingsTableReady = undefined;
             throw err;
         });
     }
-
     return guildSettingsTableReady;
-}
-
-async function ensureVerificationChallengeConfigTable() {
-    if (!challengeConfigTableReady) {
-        // Legacy compatibility shadow retained during the catalog write migration.
-        // Catalog rows are authoritative after challenge_catalog_authoritative is set.
-        challengeConfigTableReady = getDatabase().query(`
-            CREATE TABLE IF NOT EXISTS verification_challenge_config (
-                guild_id VARCHAR(32) NOT NULL,
-                challenge_id VARCHAR(128) NOT NULL,
-                question_id VARCHAR(128) NOT NULL DEFAULT '__challenge__',
-                question_order INT NULL,
-                title TEXT NULL,
-                description TEXT NULL,
-                question_label VARCHAR(128) NULL,
-                question_text TEXT NULL,
-                separate_step TINYINT(1) NULL,
-                task_enabled TINYINT(1) NULL,
-                task_type VARCHAR(64) NULL,
-                task_prompt_text TEXT NULL,
-                answer_required TINYINT(1) NULL,
-                answer_type VARCHAR(64) NULL,
-                answer_input_label VARCHAR(128) NULL,
-                answer_input_placeholder VARCHAR(256) NULL,
-                answers_json TEXT NULL,
-                task_image_ids_json TEXT NULL,
-                task_image_directions_json TEXT NULL,
-                task_config_json TEXT NULL,
-                updated_by VARCHAR(32) NULL,
-                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (guild_id, challenge_id, question_id),
-                INDEX idx_verification_challenge_config_challenge (guild_id, challenge_id)
-            ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-        `).then(async () => {
-            const addColumnIfMissing = async (ddl) => {
-                try {
-                    await getDatabase().query(`ALTER TABLE verification_challenge_config ADD COLUMN ${ddl}`);
-                }
-                catch (err) {
-                    if (!String(err?.code).includes('ER_DUP_FIELDNAME') && !String(err?.message ?? '').includes('Duplicate column')) throw err;
-                }
-            };
-
-            await addColumnIfMissing('question_order INT NULL AFTER question_id');
-            await addColumnIfMissing('task_enabled TINYINT(1) NULL AFTER separate_step');
-            await addColumnIfMissing('task_type VARCHAR(64) NULL AFTER task_enabled');
-            await addColumnIfMissing('task_prompt_text TEXT NULL AFTER task_type');
-            await addColumnIfMissing('task_image_ids_json TEXT NULL AFTER answers_json');
-            await addColumnIfMissing('task_image_directions_json TEXT NULL AFTER task_image_ids_json');
-            await addColumnIfMissing('task_config_json TEXT NULL AFTER task_image_directions_json');
-        }).catch((err) => {
-            challengeConfigTableReady = undefined;
-            throw err;
-        });
-    }
-
-    return challengeConfigTableReady;
-}
-
-async function ensureVerificationSettingsTables() {
-    if (!settingsTablesReady) {
-        settingsTablesReady = Promise.all([
-            ensureVerificationGuildSettingsTable(),
-            ensureVerificationChallengeConfigTable(),
-        ]).catch((err) => {
-            settingsTablesReady = undefined;
-            throw err;
-        });
-    }
-
-    return settingsTablesReady;
-}
-
-async function withVerificationSettingsTransaction(callback) {
-    const db = getDatabase();
-
-    if (!db.pool?.getConnection) {
-        await db.query('START TRANSACTION');
-        try {
-            const result = await callback((sql, values) => db.query(sql, values));
-            await db.query('COMMIT');
-            return result;
-        }
-        catch (err) {
-            await db.query('ROLLBACK').catch((rollbackErr) => {
-                console.error('Failed to roll back verification settings transaction:', rollbackErr);
-            });
-            throw err;
-        }
-    }
-
-    const connection = await new Promise((resolve, reject) => {
-        db.pool.getConnection((err, conn) => {
-            if (err) reject(err);
-            else resolve(conn);
-        });
-    });
-
-    const query = (sql, values) => new Promise((resolve, reject) => {
-        connection.query(sql, values, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
-
-    try {
-        await query('START TRANSACTION');
-        const result = await callback(query);
-        await query('COMMIT');
-        return result;
-    }
-    catch (err) {
-        await query('ROLLBACK').catch((rollbackErr) => {
-            console.error('Failed to roll back verification settings transaction:', rollbackErr);
-        });
-        throw err;
-    }
-    finally {
-        connection.release();
-    }
-}
-
-function questionConfigToRow(guildId, challengeId, questionId, question, updatedBy) {
-    const generatedImage = question.generatedImage ?? {};
-    const answer = question.answer ?? {};
-    const imageConfig = { ...(generatedImage.config ?? {}) };
-
-    for (const key of ['imagePoolId', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats']) {
-        if (generatedImage[key] !== undefined) imageConfig[key] = generatedImage[key];
-    }
-
-    return [
-        guildId,
-        challengeId,
-        questionId,
-        question.order ?? null,
-        null,
-        null,
-        question.label ?? null,
-        question.text ?? null,
-        question.separateStep === undefined ? null : (question.separateStep ? 1 : 0),
-        generatedImage.enabled === undefined ? null : (generatedImage.enabled ? 1 : 0),
-        generatedImage.type ?? null,
-        generatedImage.text ?? null,
-        answer.required === undefined ? null : (answer.required ? 1 : 0),
-        answer.type ?? null,
-        answer.inputLabel ?? null,
-        answer.inputPlaceholder ?? null,
-        stringifyJsonOrNull(answer.accepted),
-        stringifyJsonOrNull(generatedImage.imageIds),
-        stringifyJsonOrNull(generatedImage.imageDirections),
-        stringifyJsonOrNull(imageConfig),
-        updatedBy ? String(updatedBy) : null,
-    ];
-}
-
-async function insertChallengeConfigRow(rowValues, query = (sql, values) => getDatabase().query(sql, values)) {
-    await query(
-        `INSERT INTO verification_challenge_config (
-            guild_id,
-            challenge_id,
-            question_id,
-            question_order,
-            title,
-            description,
-            question_label,
-            question_text,
-            separate_step,
-            task_enabled,
-            task_type,
-            task_prompt_text,
-            answer_required,
-            answer_type,
-            answer_input_label,
-            answer_input_placeholder,
-            answers_json,
-            task_image_ids_json,
-            task_image_directions_json,
-            task_config_json,
-            updated_by
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        rowValues,
-    );
-}
-
-async function markVerificationChallengeCatalogAuthoritative(guildId, query = (sql, values) => getDatabase().query(sql, values)) {
-    await query(
-        'UPDATE verification_guild_settings SET challenge_catalog_authoritative = 1 WHERE guild_id = ?',
-        [normalizeGuildId(guildId)],
-    );
-}
-
-async function ensureVerificationChallengeCatalogReady() {
-    const { ensureVerificationChallengeCatalogTables } = require('./verificationChallengeRepository');
-    await ensureVerificationChallengeCatalogTables();
-}
-
-async function readVerificationChallengeOverridesFromCatalog(guildId) {
-    const { getVerificationChallengeOverridesFromCatalog } = require('./verificationChallengeRepository');
-    return getVerificationChallengeOverridesFromCatalog(normalizeGuildId(guildId));
-}
-
-function clearVerificationChallengeCatalogReadCache(guildId) {
-    const { clearVerificationChallengeCatalogCache } = require('./verificationChallengeRepository');
-    clearVerificationChallengeCatalogCache(normalizeGuildId(guildId));
-}
-
-async function syncVerificationChallengeCatalog(guildId, settings, updatedBy, query) {
-    const { syncVerificationChallengeCatalogFromSettings } = require('./verificationChallengeRepository');
-    await syncVerificationChallengeCatalogFromSettings(
-        normalizeGuildId(guildId),
-        settings,
-        updatedBy ?? 'settings-save',
-        query,
-    );
-}
-
-async function writeVerificationChallengeCatalogEntries(guildId, challengeId, settings, options, updatedBy, query) {
-    const { writeVerificationChallengeCatalogEntriesFromSettings } = require('./verificationChallengeRepository');
-    await writeVerificationChallengeCatalogEntriesFromSettings({
-        guildId: normalizeGuildId(guildId),
-        challengeId,
-        verificationSettings: settings,
-        includeChallenge: options?.includeChallenge === true,
-        questionIds: options?.questionIds ?? [],
-        updatedBy: updatedBy ?? 'settings-save',
-        query,
-    });
-}
-
-async function replaceLegacyChallengeConfigShadow(guildId, challengeId, challengeOverride, updatedBy, query) {
-    const normalizedGuildId = normalizeGuildId(guildId);
-    const normalizedChallengeId = normalizeString(challengeId);
-    if (!normalizedChallengeId) throw new Error('A challenge ID is required for a catalog-native verification write.');
-
-    await query(
-        'DELETE FROM verification_challenge_config WHERE guild_id = ? AND challenge_id = ?',
-        [normalizedGuildId, normalizedChallengeId],
-    );
-
-    if (challengeOverride?.title || challengeOverride?.description) {
-        await insertChallengeConfigRow([
-            normalizedGuildId,
-            normalizedChallengeId,
-            CHALLENGE_META_QUESTION_ID,
-            null,
-            challengeOverride.title ?? null,
-            challengeOverride.description ?? null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            updatedBy ? String(updatedBy) : null,
-        ], query);
-    }
-
-    for (const [questionId, questionOverride] of Object.entries(challengeOverride?.questions ?? {})) {
-        if (!questionOverrideIsEmpty(questionOverride)) {
-            await insertChallengeConfigRow(
-                questionConfigToRow(normalizedGuildId, normalizedChallengeId, questionId, questionOverride, updatedBy),
-                query,
-            );
-        }
-    }
-}
-
-async function saveVerificationChallengeCatalogUpdate(guildId, challengeId, settings, options, updatedBy) {
-    const normalizedGuildId = normalizeGuildId(guildId);
-    const normalizedChallengeId = normalizeString(challengeId);
-    if (!normalizedChallengeId) throw new Error('A challenge ID is required for a catalog-native verification write.');
-    const normalizedSettings = normalizeSettings(settings);
-
-    await ensureVerificationSettingsTables();
-    await ensureVerificationChallengeCatalogReady();
-    try {
-        await withVerificationSettingsTransaction(async (query) => {
-            await writeVerificationChallengeCatalogEntries(
-                normalizedGuildId,
-                normalizedChallengeId,
-                normalizedSettings,
-                options,
-                updatedBy,
-                query,
-            );
-            await replaceLegacyChallengeConfigShadow(
-                normalizedGuildId,
-                normalizedChallengeId,
-                normalizedSettings.challengeOverrides[normalizedChallengeId],
-                updatedBy,
-                query,
-            );
-            await markVerificationChallengeCatalogAuthoritative(normalizedGuildId, query);
-        });
-    }
-    catch (err) {
-        settingsCache.delete(normalizedGuildId);
-        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
-        console.error('Failed to persist catalog-native verification challenge values:', err);
-        throw err;
-    }
-
-    let catalogOverrides = normalizedSettings.challengeOverrides;
-    let catalogReadSucceeded = false;
-    try {
-        catalogOverrides = await readVerificationChallengeOverridesFromCatalog(normalizedGuildId);
-        catalogReadSucceeded = true;
-    }
-    catch (err) {
-        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
-        console.error('Catalog-native verification values were saved, but the catalog could not be refreshed:', err);
-    }
-
-    const catalogSettings = normalizeSettings({
-        ...normalizedSettings,
-        challengeOverrides: catalogOverrides,
-    });
-    if (catalogReadSucceeded) settingsCache.set(normalizedGuildId, catalogSettings);
-    else settingsCache.delete(normalizedGuildId);
-    return catalogSettings;
-}
-
-async function saveVerificationSettings(guildId, settings, updatedBy) {
-    const normalizedGuildId = normalizeGuildId(guildId);
-    const normalizedSettings = normalizeSettings(settings);
-
-    await ensureVerificationSettingsTables();
-    await ensureVerificationChallengeCatalogReady();
-    try {
-        await withVerificationSettingsTransaction(async (query) => {
-            await query(
-                `INSERT INTO verification_guild_settings (guild_id, mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE
-                    mode = VALUES(mode),
-                    active_challenge_ids_json = VALUES(active_challenge_ids_json),
-                    challenge_expiry_seconds = VALUES(challenge_expiry_seconds),
-                    cooldown_seconds = VALUES(cooldown_seconds),
-                    autokick_enabled = VALUES(autokick_enabled),
-                    autokick_seconds = VALUES(autokick_seconds),
-                    updated_by = VALUES(updated_by)`,
-                [
-                    normalizedGuildId,
-                    normalizedSettings.mode,
-                    stringifyJsonOrNull(normalizedSettings.activeChallengeIds),
-                    normalizedSettings.challengeExpirySeconds,
-                    normalizedSettings.cooldownSeconds,
-                    normalizedSettings.autokickEnabled ? 1 : 0,
-                    normalizedSettings.autokickSeconds,
-                    updatedBy ? String(updatedBy) : null,
-                ],
-            );
-
-            await query('DELETE FROM verification_challenge_config WHERE guild_id = ?', [normalizedGuildId]);
-
-            for (const [challengeId, challengeOverride] of Object.entries(normalizedSettings.challengeOverrides)) {
-                if (challengeOverride.title || challengeOverride.description) {
-                    await insertChallengeConfigRow([
-                        normalizedGuildId,
-                        challengeId,
-                        CHALLENGE_META_QUESTION_ID,
-                        null,
-                        challengeOverride.title ?? null,
-                        challengeOverride.description ?? null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        updatedBy ? String(updatedBy) : null,
-                    ], query);
-                }
-
-                for (const [questionId, questionOverride] of Object.entries(challengeOverride.questions ?? {})) {
-                    if (!questionOverrideIsEmpty(questionOverride)) {
-                        await insertChallengeConfigRow(questionConfigToRow(normalizedGuildId, challengeId, questionId, questionOverride, updatedBy), query);
-                    }
-                }
-            }
-
-            await syncVerificationChallengeCatalog(normalizedGuildId, normalizedSettings, updatedBy, query);
-            await markVerificationChallengeCatalogAuthoritative(normalizedGuildId, query);
-        });
-    }
-    catch (err) {
-        settingsCache.delete(normalizedGuildId);
-        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
-        console.error('Failed to persist authoritative verification challenge catalog values:', err);
-        throw err;
-    }
-
-    let catalogOverrides = normalizedSettings.challengeOverrides;
-    let catalogReadSucceeded = false;
-    try {
-        catalogOverrides = await readVerificationChallengeOverridesFromCatalog(normalizedGuildId);
-        catalogReadSucceeded = true;
-    }
-    catch (err) {
-        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
-        console.error('Verification settings were saved, but the catalog could not be refreshed:', err);
-    }
-
-    const catalogSettings = normalizeSettings({
-        ...normalizedSettings,
-        challengeOverrides: catalogOverrides,
-    });
-    if (catalogReadSucceeded) settingsCache.set(normalizedGuildId, catalogSettings);
-    else settingsCache.delete(normalizedGuildId);
-    return catalogSettings;
 }
 
 async function saveVerificationGuildSettingsOnly(guildId, settings, updatedBy) {
     const normalizedGuildId = normalizeGuildId(guildId);
     const normalizedSettings = normalizeSettings(settings);
-
-    await ensureVerificationSettingsTables();
+    await ensureVerificationGuildSettingsTable();
     await getDatabase().query(
         `INSERT INTO verification_guild_settings (guild_id, mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, updated_by)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -862,588 +160,28 @@ async function saveVerificationGuildSettingsOnly(guildId, settings, updatedBy) {
             updatedBy ? String(updatedBy) : null,
         ],
     );
-
     settingsCache.set(normalizedGuildId, normalizedSettings);
     return normalizedSettings;
 }
 
 async function getVerificationGuildSettings(guildId) {
     const normalizedGuildId = normalizeGuildId(guildId);
+    if (settingsCache.has(normalizedGuildId)) return settingsCache.get(normalizedGuildId);
 
-    await ensureVerificationSettingsTables();
+    await ensureVerificationGuildSettingsTable();
     const guildRows = await getDatabase().query(
-        'SELECT mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds, challenge_catalog_authoritative FROM verification_guild_settings WHERE guild_id = ? LIMIT 1',
+        'SELECT mode, active_challenge_ids_json, challenge_expiry_seconds, cooldown_seconds, autokick_enabled, autokick_seconds FROM verification_guild_settings WHERE guild_id = ? LIMIT 1',
         [normalizedGuildId],
     );
-
-    if (guildRows.length < 1) {
-        const settings = await saveVerificationSettings(normalizedGuildId, defaultVerificationSettings(), null);
-        return normalizeSettings({ ...settings, challengeOverrides: {} });
-    }
-
-    const guildSettings = parseGuildSettingsRow(guildRows[0]);
-
-    if (!normalizeBoolean(guildRows[0].challenge_catalog_authoritative)) {
-        const configRows = await getDatabase().query(
-            'SELECT * FROM verification_challenge_config WHERE guild_id = ? ORDER BY challenge_id, question_id',
-            [normalizedGuildId],
-        );
-        const legacySettings = normalizeSettings({
-            ...guildSettings,
-            challengeOverrides: normalizeChallengeConfigRows(configRows),
-        });
-        await ensureVerificationChallengeCatalogReady();
-        try {
-            await withVerificationSettingsTransaction(async (query) => {
-                await syncVerificationChallengeCatalog(normalizedGuildId, legacySettings, 'catalog-bootstrap', query);
-                await markVerificationChallengeCatalogAuthoritative(normalizedGuildId, query);
-            });
-        }
-        catch (err) {
-            settingsCache.delete(normalizedGuildId);
-            clearVerificationChallengeCatalogReadCache(normalizedGuildId);
-            throw err;
-        }
-        console.log(`[VERIFICATION] Migrated legacy challenge overrides into the authoritative catalog for guild ${normalizedGuildId}.`);
-    }
-
-    return guildSettings;
-}
-
-async function getVerificationSettings(guildId) {
-    const normalizedGuildId = normalizeGuildId(guildId);
-
-    if (settingsCache.has(normalizedGuildId)) {
-        return settingsCache.get(normalizedGuildId);
-    }
-
-    const guildSettings = await getVerificationGuildSettings(normalizedGuildId);
-    const settings = normalizeSettings({
-        ...guildSettings,
-        challengeOverrides: await readVerificationChallengeOverridesFromCatalog(normalizedGuildId),
-    });
-
+    const settings = guildRows.length > 0
+        ? parseGuildSettingsRow(guildRows[0])
+        : await saveVerificationGuildSettingsOnly(normalizedGuildId, defaultVerificationSettings(), null);
     settingsCache.set(normalizedGuildId, settings);
     return settings;
 }
 
-function buildChallengeOverrideUpdate(currentSettings, challengeId, updateChallenge) {
-    const normalizedChallengeId = normalizeString(challengeId);
-    if (!normalizedChallengeId) return normalizeChallengeOverrides(currentSettings.challengeOverrides);
-
-    const challengeOverrides = normalizeChallengeOverrides(currentSettings.challengeOverrides);
-    const currentChallenge = challengeOverrides[normalizedChallengeId] ?? { questions: {} };
-    const updatedChallenge = normalizeChallengeOverrides({
-        [normalizedChallengeId]: updateChallenge({
-            ...currentChallenge,
-            questions: { ...(currentChallenge.questions ?? {}) },
-        }),
-    })[normalizedChallengeId];
-
-    const updatedOverrides = { ...challengeOverrides };
-    if (updatedChallenge) {
-        updatedOverrides[normalizedChallengeId] = updatedChallenge;
-    }
-    else {
-        delete updatedOverrides[normalizedChallengeId];
-    }
-
-    return updatedOverrides;
-}
-
-function buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, updateQuestion) {
-    const normalizedQuestionId = normalizeString(questionId);
-    return buildChallengeOverrideUpdate(currentSettings, challengeId, (challengeOverride) => {
-        if (!normalizedQuestionId) return challengeOverride;
-        const questions = { ...(challengeOverride.questions ?? {}) };
-        const updatedQuestion = normalizeQuestionOverride(updateQuestion(questions[normalizedQuestionId] ?? {}));
-
-        if (Object.keys(updatedQuestion).length > 0) {
-            questions[normalizedQuestionId] = updatedQuestion;
-        }
-        else {
-            delete questions[normalizedQuestionId];
-        }
-
-        return { ...challengeOverride, questions };
-    });
-}
-
-function mergeQuestionOverridePatch(currentQuestion, patch) {
-    const mergeNested = (currentValue = {}, patchValue = {}) => {
-        const merged = { ...currentValue, ...patchValue };
-        for (const [key, value] of Object.entries(patchValue)) {
-            if (value === null || value === '') delete merged[key];
-        }
-        return merged;
-    };
-
-    return {
-        ...currentQuestion,
-        ...patch,
-        generatedImage: patch.generatedImage
-            ? mergeNested(currentQuestion.generatedImage, patch.generatedImage)
-            : currentQuestion.generatedImage,
-        answer: patch.answer
-            ? mergeNested(currentQuestion.answer, patch.answer)
-            : currentQuestion.answer,
-    };
-}
-
-async function updateQuestionOptionOverrides(guildId, challengeId, questionPatches, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, (currentChallenge) => {
-        const questions = { ...(currentChallenge.questions ?? {}) };
-
-        for (const [questionId, patch] of Object.entries(questionPatches ?? {})) {
-            const currentQuestion = questions[questionId] ?? {};
-            const updatedQuestion = normalizeQuestionOverride(mergeQuestionOverridePatch(currentQuestion, patch));
-            if (Object.keys(updatedQuestion).length > 0) questions[questionId] = updatedQuestion;
-            else delete questions[questionId];
-        }
-
-        return { ...currentChallenge, questions };
-    });
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: Object.keys(questionPatches ?? {}),
-    }, updatedBy);
-}
-
-async function setChallengeMetaOverride(guildId, challengeId, data, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, (currentChallenge) => ({
-        ...currentChallenge,
-        title: data?.title,
-        description: data?.description,
-        color: data?.color,
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        includeChallenge: true,
-    }, updatedBy);
-}
-
-async function updateChallengeMetaOverrides(guildId, challengeId, patch, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildChallengeOverrideUpdate(currentSettings, challengeId, (currentChallenge) => ({
-        ...currentChallenge,
-        ...(Object.prototype.hasOwnProperty.call(patch ?? {}, 'title') ? { title: patch.title } : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch ?? {}, 'description') ? { description: patch.description } : {}),
-        ...(Object.prototype.hasOwnProperty.call(patch ?? {}, 'color') ? { color: patch.color } : {}),
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        includeChallenge: true,
-    }, updatedBy);
-}
-
-async function setQuestionTextOverride(guildId, challengeId, questionId, text, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        text,
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionLabelOverride(guildId, challengeId, questionId, label, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        label,
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionSeparateStepOverride(guildId, challengeId, questionId, separateStep, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        separateStep: separateStep === true || separateStep === 'true' || separateStep === 1 || separateStep === '1',
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionCommonOverrides(guildId, challengeId, questionId, data, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'label') ? { label: data.label } : {}),
-        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'text') ? { text: data.text } : {}),
-        ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'separateStep') ? { separateStep: data.separateStep === true || data.separateStep === 'true' || data.separateStep === 1 || data.separateStep === '1' } : {}),
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionImageTextOverride(guildId, challengeId, questionId, text, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        generatedImage: {
-            ...(question.generatedImage ?? {}),
-            text,
-        },
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionAnswerOverrides(guildId, challengeId, questionId, answers, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        answer: {
-            ...(question.answer ?? {}),
-            accepted: answers,
-        },
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionImageIds(guildId, challengeId, questionId, role, imageIds, updatedBy) {
-    if (!ALLOWED_IMAGE_ROLES.has(role)) throw new Error(`Unsupported verification image role: ${role}`);
-    const currentSettings = await getVerificationSettings(guildId);
-    const normalizedImageIds = normalizeStringArray(imageIds);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        generatedImage: {
-            ...(question.generatedImage ?? {}),
-            imageIds: {
-                ...(question.generatedImage?.imageIds ?? {}),
-                [role]: normalizedImageIds,
-            },
-        },
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionImageIdOverrides(guildId, challengeId, questionId, roleImageIds, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const normalizedRoleImageIds = Object.entries(roleImageIds ?? {}).reduce((updates, [role, imageIds]) => {
-        if (!ALLOWED_IMAGE_ROLES.has(role)) throw new Error(`Unsupported verification image role: ${role}`);
-        updates[role] = normalizeStringArray(imageIds);
-        return updates;
-    }, {});
-
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        generatedImage: {
-            ...(question.generatedImage ?? {}),
-            imageIds: {
-                ...(question.generatedImage?.imageIds ?? {}),
-                ...normalizedRoleImageIds,
-            },
-        },
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function clearQuestionImageIds(guildId, challengeId, questionId, role, updatedBy) {
-    if (!ALLOWED_IMAGE_ROLES.has(role)) throw new Error(`Unsupported verification image role: ${role}`);
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
-        const imageIds = { ...(question.generatedImage?.imageIds ?? {}) };
-        delete imageIds[role];
-        return {
-            ...question,
-            generatedImage: {
-                ...(question.generatedImage ?? {}),
-                imageIds,
-            },
-        };
-    });
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionImageDirections(guildId, challengeId, questionId, imageIds, degrees, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const normalizedImageIds = normalizeStringArray(imageIds);
-    const normalizedDegrees = normalizeDirectionList(degrees);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
-        const imageDirections = { ...(question.generatedImage?.imageDirections ?? {}) };
-        for (const imageId of normalizedImageIds) {
-            imageDirections[imageId] = normalizedDegrees;
-        }
-        return {
-            ...question,
-            generatedImage: {
-                ...(question.generatedImage ?? {}),
-                imageDirections,
-            },
-        };
-    });
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-async function setQuestionImageDirectionOverrides(guildId, challengeId, questionId, imageDirectionUpdates, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const normalizedUpdates = Object.entries(imageDirectionUpdates ?? {}).reduce((updates, [imageId, degrees]) => {
-        const normalizedImageId = normalizeString(imageId);
-        if (normalizedImageId) updates[normalizedImageId] = normalizeDirectionList(degrees);
-        return updates;
-    }, {});
-
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => ({
-        ...question,
-        generatedImage: {
-            ...(question.generatedImage ?? {}),
-            imageDirections: {
-                ...(question.generatedImage?.imageDirections ?? {}),
-                ...normalizedUpdates,
-            },
-        },
-    }));
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-
-async function clearQuestionImageDirections(guildId, challengeId, questionId, imageIds, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const normalizedImageIds = normalizeStringArray(imageIds);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
-        const imageDirections = { ...(question.generatedImage?.imageDirections ?? {}) };
-        for (const imageId of normalizedImageIds) {
-            delete imageDirections[imageId];
-        }
-        return {
-            ...question,
-            generatedImage: {
-                ...(question.generatedImage ?? {}),
-                imageDirections,
-            },
-        };
-    });
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-
-function cloneQuestionForClear(question = {}) {
-    return {
-        ...question,
-        generatedImage: {
-            ...(question.generatedImage ?? {}),
-            config: { ...(question.generatedImage?.config ?? {}) },
-        },
-        answer: { ...(question.answer ?? {}) },
-    };
-}
-
-function pruneQuestionClearContainers(updatedQuestion) {
-    if (updatedQuestion.generatedImage?.config && Object.keys(updatedQuestion.generatedImage.config).length < 1) {
-        delete updatedQuestion.generatedImage.config;
-    }
-    if (Object.keys(updatedQuestion.generatedImage ?? {}).length < 1) delete updatedQuestion.generatedImage;
-    if (Object.keys(updatedQuestion.answer ?? {}).length < 1) delete updatedQuestion.answer;
-}
-
-async function clearQuestionOverrideField(guildId, challengeId, questionId, field, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
-        const updatedQuestion = cloneQuestionForClear(question);
-
-        switch (field) {
-            case 'order':
-                delete updatedQuestion.order;
-                break;
-            case 'label':
-                delete updatedQuestion.label;
-                break;
-            case 'text':
-                delete updatedQuestion.text;
-                break;
-            case 'separateStep':
-                delete updatedQuestion.separateStep;
-                break;
-            case 'generatedImage.enabled':
-                delete updatedQuestion.generatedImage.enabled;
-                break;
-            case 'generatedImage.type':
-                delete updatedQuestion.generatedImage.type;
-                break;
-            case 'generatedImage.text':
-                delete updatedQuestion.generatedImage.text;
-                break;
-            case 'generatedImage.imageIds':
-                delete updatedQuestion.generatedImage.imageIds;
-                break;
-            case 'generatedImage.imageDirections':
-                delete updatedQuestion.generatedImage.imageDirections;
-                break;
-            case 'generatedImage.imagePoolId':
-                delete updatedQuestion.generatedImage.imagePoolId;
-                break;
-            case 'generatedImage.config.imagePoolId':
-                delete updatedQuestion.generatedImage.config.imagePoolId;
-                break;
-            case 'generatedImage.gallerySize':
-                delete updatedQuestion.generatedImage.gallerySize;
-                break;
-            case 'generatedImage.compositeImageGallery':
-                delete updatedQuestion.generatedImage.compositeImageGallery;
-                break;
-            case 'generatedImage.solutionImageCount':
-                delete updatedQuestion.generatedImage.solutionImageCount;
-                break;
-            case 'generatedImage.controlImageCount':
-                delete updatedQuestion.generatedImage.controlImageCount;
-                break;
-            case 'generatedImage.maxControlImageRepeats':
-                delete updatedQuestion.generatedImage.maxControlImageRepeats;
-                break;
-            case 'generatedImage.config':
-                delete updatedQuestion.generatedImage.config;
-                break;
-            case 'generatedImage.url':
-                delete updatedQuestion.generatedImage.url;
-                break;
-            case 'answer.required':
-                delete updatedQuestion.answer.required;
-                break;
-            case 'answer.type':
-                delete updatedQuestion.answer.type;
-                break;
-            case 'answer.inputLabel':
-                delete updatedQuestion.answer.inputLabel;
-                break;
-            case 'answer.inputPlaceholder':
-                delete updatedQuestion.answer.inputPlaceholder;
-                break;
-            case 'answer.accepted':
-                delete updatedQuestion.answer.accepted;
-                break;
-            default:
-                throw new Error(`Unsupported verification question override field: ${field}`);
-        }
-
-        pruneQuestionClearContainers(updatedQuestion);
-        return updatedQuestion;
-    });
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
-}
-
-
-async function clearQuestionOverrideFields(guildId, challengeId, questionId, fields, updatedBy) {
-    const currentSettings = await getVerificationSettings(guildId);
-    const challengeOverrides = buildQuestionOverrideUpdate(currentSettings, challengeId, questionId, (question) => {
-        const updatedQuestion = cloneQuestionForClear(question);
-
-        for (const field of fields) {
-            switch (field) {
-                case 'order':
-                    delete updatedQuestion.order;
-                    break;
-                case 'label':
-                    delete updatedQuestion.label;
-                    break;
-                case 'text':
-                    delete updatedQuestion.text;
-                    break;
-                case 'separateStep':
-                    delete updatedQuestion.separateStep;
-                    break;
-                case 'generatedImage.enabled':
-                    delete updatedQuestion.generatedImage.enabled;
-                    break;
-                case 'generatedImage.type':
-                    delete updatedQuestion.generatedImage.type;
-                    break;
-                case 'generatedImage.text':
-                    delete updatedQuestion.generatedImage.text;
-                    break;
-                case 'generatedImage.imageIds':
-                    delete updatedQuestion.generatedImage.imageIds;
-                    break;
-                case 'generatedImage.imageDirections':
-                    delete updatedQuestion.generatedImage.imageDirections;
-                    break;
-                case 'generatedImage.imagePoolId':
-                    delete updatedQuestion.generatedImage.imagePoolId;
-                    break;
-                case 'generatedImage.config.imagePoolId':
-                    delete updatedQuestion.generatedImage.config.imagePoolId;
-                    break;
-                case 'generatedImage.gallerySize':
-                    delete updatedQuestion.generatedImage.gallerySize;
-                    break;
-                case 'generatedImage.compositeImageGallery':
-                    delete updatedQuestion.generatedImage.compositeImageGallery;
-                    break;
-                case 'generatedImage.solutionImageCount':
-                    delete updatedQuestion.generatedImage.solutionImageCount;
-                    break;
-                case 'generatedImage.controlImageCount':
-                    delete updatedQuestion.generatedImage.controlImageCount;
-                    break;
-                case 'generatedImage.maxControlImageRepeats':
-                    delete updatedQuestion.generatedImage.maxControlImageRepeats;
-                    break;
-                case 'generatedImage.config':
-                    delete updatedQuestion.generatedImage.config;
-                    break;
-                case 'generatedImage.url':
-                    delete updatedQuestion.generatedImage.url;
-                    break;
-                case 'answer.required':
-                    delete updatedQuestion.answer.required;
-                    break;
-                case 'answer.type':
-                    delete updatedQuestion.answer.type;
-                    break;
-                case 'answer.accepted':
-                    delete updatedQuestion.answer.accepted;
-                    break;
-                default:
-                    throw new Error(`Unsupported verification question override field: ${field}`);
-            }
-        }
-
-        pruneQuestionClearContainers(updatedQuestion);
-
-        return updatedQuestion;
-    });
-
-    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
-        questionIds: [questionId],
-    }, updatedBy);
+async function getVerificationSettings(guildId) {
+    return getVerificationGuildSettings(guildId);
 }
 
 module.exports = {
@@ -1452,38 +190,15 @@ module.exports = {
     DEFAULT_CHALLENGE_EXPIRY_SECONDS,
     DEFAULT_COOLDOWN_SECONDS,
     DEFAULT_AUTOKICK_SECONDS,
-    CHALLENGE_META_QUESTION_ID,
-    ALLOWED_IMAGE_ROLES,
-    ALLOWED_IMAGE_DIRECTION_DEGREES,
+    clearVerificationSettingsCache,
     ensureVerificationGuildSettingsTable,
-    ensureVerificationChallengeConfigTable,
-    ensureVerificationSettingsTable: ensureVerificationSettingsTables,
-    ensureVerificationSettingsTables,
+    ensureVerificationSettingsTable: ensureVerificationGuildSettingsTable,
+    ensureVerificationSettingsTables: ensureVerificationGuildSettingsTable,
     safeParseJson,
     stringifyJsonOrNull,
     normalizeActiveChallengeIds,
-    normalizeQuestionOverrideRow,
-    normalizeChallengeConfigRows,
-    clearVerificationSettingsCache,
     getVerificationGuildSettings,
     getVerificationSettings,
-    saveVerificationSettings,
     saveVerificationGuildSettingsOnly,
-    setChallengeMetaOverride,
-    updateChallengeMetaOverrides,
-    setQuestionTextOverride,
-    setQuestionLabelOverride,
-    setQuestionSeparateStepOverride,
-    setQuestionCommonOverrides,
-    setQuestionImageTextOverride,
-    setQuestionAnswerOverrides,
-    setQuestionImageIds,
-    setQuestionImageIdOverrides,
-    clearQuestionImageIds,
-    setQuestionImageDirections,
-    setQuestionImageDirectionOverrides,
-    updateQuestionOptionOverrides,
-    clearQuestionImageDirections,
-    clearQuestionOverrideField,
-    clearQuestionOverrideFields,
+    saveVerificationSettings: saveVerificationGuildSettingsOnly,
 };
