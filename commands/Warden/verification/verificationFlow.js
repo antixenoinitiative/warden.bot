@@ -6,7 +6,7 @@ const {
     VERIFICATION_MODES,
     applyVerificationConfigSafeguard,
     evaluateVerificationConfig,
-    getVerificationRuntime,
+    getVerificationSnapshot,
 } = require('./verificationService');
 const {
     buildQuestionScreens,
@@ -133,17 +133,19 @@ function getModalTextInputValue(interaction, customId) {
     }
 }
 
-function resolveVerificationMode(verificationSettings = config.Warden?.verification) {
+function resolveVerificationMode(verificationSettings) {
     const configuredMode = verificationSettings?.mode;
     return Object.values(VERIFICATION_MODES).includes(configuredMode) ? configuredMode : VERIFICATION_MODES.challenge;
 }
 
 function resolveChallengeExpiryMs(verificationSettings) {
-    return Number(verificationSettings?.challengeExpirySeconds ?? config.Warden?.verification?.challengeExpirySeconds ?? config.Warden?.verification?.expirySeconds ?? 600) * 1000;
+    const seconds = Number(verificationSettings?.challengeExpirySeconds);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : DEFAULT_CHALLENGE_EXPIRY_MS;
 }
 
 function resolveCooldownSeconds(verificationSettings) {
-    return Number(verificationSettings?.cooldownSeconds ?? config.Warden?.verification?.cooldownSeconds ?? 60);
+    const seconds = Number(verificationSettings?.cooldownSeconds);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : 60;
 }
 
 function selectVerificationChallenge(runtime) {
@@ -379,7 +381,8 @@ async function handleVerifyStart(interaction) {
         await deferEphemeralReply(interaction);
     }
 
-    const runtime = await getVerificationRuntime(interaction.guild?.id);
+    const snapshot = await getVerificationSnapshot(interaction.guild?.id);
+    const runtime = snapshot.runtime;
     const verificationMode = resolveVerificationMode(runtime);
 
     if (verificationMode === VERIFICATION_MODES.halt) {
@@ -468,7 +471,7 @@ async function handleVerifyStart(interaction) {
         completedScreens: [],
         answeredScreenIndexes: [],
         renderer,
-        runtimeGeneration: runtime.generation,
+        snapshotGeneration: snapshot.generation,
         challengeExpiryMs,
         cooldownSeconds: resolveCooldownSeconds(runtime),
         token,
@@ -692,17 +695,6 @@ async function handleVerifySubmit(interaction) {
         await deferEphemeralReply(interaction);
     }
 
-    const runtime = await getVerificationRuntime(interaction.guild?.id);
-    const verificationMode = resolveVerificationMode(runtime);
-
-    if (verificationMode === VERIFICATION_MODES.halt) {
-        return sendInitialInteractionResponse(interaction, { content: 'Verification is currently halted.', flags: Discord.MessageFlags.Ephemeral });
-    }
-
-    if (verificationMode === VERIFICATION_MODES.oneClick) {
-        return completeVerification(interaction);
-    }
-
     const session = await getActiveSessionOrReplyFast(interaction);
     if (!session) return;
 
@@ -719,7 +711,7 @@ async function handleVerifySubmit(interaction) {
     );
 
     if (!result.ok) {
-        const cooldownSeconds = session.cooldownSeconds ?? resolveCooldownSeconds(runtime);
+        const cooldownSeconds = session.cooldownSeconds ?? 60;
         const retryAt = Date.now() + (cooldownSeconds * 1000);
         clearChallenge(interaction.user.id);
         setCooldown(interaction.user.id, retryAt);

@@ -618,6 +618,118 @@ test('verification feature owns Admin component dispatch and contains unexpected
     }
 });
 
+test('verification sessions keep their catalog snapshot after start without rereading runtime on submission', async () => {
+    const flowPath = require.resolve(path.join(verificationDirectory, 'verificationFlow'));
+    const servicePath = require.resolve(path.join(verificationDirectory, 'verificationService'));
+    const challengesPath = require.resolve(path.join(verificationDirectory, 'verificationChallenges', 'verificationChallenges'));
+    const imagesPath = require.resolve(path.join(verificationDirectory, 'verificationImages'));
+    const responsesPath = require.resolve(path.join(verificationDirectory, 'verificationResponses'));
+    const interactionPath = require.resolve(path.join(verificationDirectory, 'verificationInteraction'));
+    const cachedFlow = require.cache[flowPath];
+    const cachedService = require.cache[servicePath];
+    const cachedChallenges = require.cache[challengesPath];
+    const cachedImages = require.cache[imagesPath];
+    const cachedResponses = require.cache[responsesPath];
+    const cachedInteraction = require.cache[interactionPath];
+    const outcomes = [];
+    let snapshotReads = 0;
+    let capturedSession;
+    const runtime = {
+        mode: 'challenge',
+        generation: 41,
+        challengeExpirySeconds: 123,
+        cooldownSeconds: 17,
+        activeChallenges: [{
+            id: 'catalog-question',
+            questions: [{ id: 'answer', text: 'Answer', answer: { required: true, type: 'text', accepted: ['ok'] } }],
+        }],
+    };
+
+    require.cache[servicePath] = {
+        id: servicePath, filename: servicePath, loaded: true,
+        exports: {
+            VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
+            getVerificationSnapshot: async () => {
+                snapshotReads += 1;
+                if (snapshotReads > 1) throw new Error('session submission must not reread runtime');
+                return { generation: 41, runtime };
+            },
+            evaluateVerificationConfig: () => ({ blockingIssues: [], activeBlockingIssues: [] }),
+            applyVerificationConfigSafeguard: async () => undefined,
+        },
+    };
+    require.cache[challengesPath] = {
+        id: challengesPath, filename: challengesPath, loaded: true,
+        exports: {
+            buildQuestionScreens: (challenge) => [{ index: 0, questions: challenge.questions, separate: false }],
+            validateQuestionScreens: () => [],
+            screenRequiresAnswer: () => true,
+            getScreenRequiredAnswerQuestions: (screen) => screen.questions,
+            screenAllowsBack: () => false,
+            validateScreenAnswers: () => ({ ok: false }),
+        },
+    };
+    require.cache[imagesPath] = { id: imagesPath, filename: imagesPath, loaded: true, exports: { prepareQuestionAssets: async () => ({}) } };
+    require.cache[responsesPath] = {
+        id: responsesPath, filename: responsesPath, loaded: true,
+        exports: {
+            COMPONENTS_V2_RENDERER: 'components-v2', LEGACY_RENDERER: 'legacy',
+            buildVerificationPublicResponse: () => ({}), buildVerificationInProgressResponse: () => ({}), buildVerificationExpiredResponse: () => ({}),
+            buildVerificationFailureResponse: (cooldownSeconds) => ({ kind: 'failure', cooldownSeconds }), buildVerificationErrorEmbed: () => new Discord.EmbedBuilder(),
+            buildChallengeIntroOptions: () => ({}),
+            buildQuestionScreenOptions: (_challenge, _screen, _assets, session) => { capturedSession = { ...session }; return { content: 'question' }; },
+            buildQuestionScreenLegacyPages: () => [], buildOldVersionFallbackOptions: () => ({}), buildAnswerModal: () => ({}),
+            buildAnswerInputCustomId: (index) => `answer-${index}`, buildCompletedQuestionOptions: () => ({}),
+            isComponentsV2Available: () => false,
+            parseAnswerCustomId: () => undefined, parseNextCustomId: () => undefined, parseBackCustomId: () => undefined,
+            parseOldVersionCustomId: () => undefined, parseSubmitCustomId: () => ({ screenIndex: 0, token: capturedSession.token }),
+        },
+    };
+    require.cache[interactionPath] = {
+        id: interactionPath, filename: interactionPath, loaded: true,
+        exports: {
+            deferEphemeralReply: async () => undefined, deferSourceUpdate: async () => undefined,
+            sanitizeMessageEditOptions: (value) => value, sendEphemeralNotice: async () => undefined,
+            sendInitialInteractionResponse: async (_interaction, payload) => { outcomes.push(payload); return payload; },
+        },
+    };
+    delete require.cache[flowPath];
+    const flow = require(flowPath);
+    const common = {
+        user: { id: 'snapshot-user' }, guild: { id: 'snapshot-guild' }, guildId: 'snapshot-guild', deferred: true, replied: false,
+        editReply: async () => ({ id: 'question-message' }), followUp: async () => ({ id: 'follow-up' }),
+        webhook: { editMessage: async () => ({ id: 'question-message' }) },
+    };
+
+    try {
+        await flow.handleVerificationInteraction({ ...common, customId: 'wardenVerify-start', isButton: () => true, isModalSubmit: () => false });
+        assert.equal(snapshotReads, 1);
+        assert.equal(capturedSession.snapshotGeneration, 41);
+        assert.equal(capturedSession.challengeExpiryMs, 123000);
+        assert.equal(capturedSession.cooldownSeconds, 17);
+
+        runtime.mode = 'halt';
+        runtime.cooldownSeconds = 1;
+        await flow.handleVerificationInteraction({
+            ...common,
+            customId: 'wardenVerify-submit-current',
+            isButton: () => false,
+            isModalSubmit: () => true,
+            fields: { getTextInputValue: () => 'wrong' },
+        });
+        assert.equal(snapshotReads, 1);
+        assert.deepEqual(outcomes.at(-1), { kind: 'failure', cooldownSeconds: 17 });
+    }
+    finally {
+        restoreModule(flowPath, cachedFlow);
+        restoreModule(servicePath, cachedService);
+        restoreModule(challengesPath, cachedChallenges);
+        restoreModule(imagesPath, cachedImages);
+        restoreModule(responsesPath, cachedResponses);
+        restoreModule(interactionPath, cachedInteraction);
+    }
+});
+
 test('catalog template seeding is deduplicated per guild and process version', async () => {
     const databasePath = require.resolve(path.join(repositoryRoot, 'Warden', 'db', 'database'));
     const repositoryPath = require.resolve(path.join(verificationDirectory, 'verificationChallengeRepository'));
@@ -982,6 +1094,11 @@ test('verification persistence and global interaction routing keep their public 
 
     const flowSource = fs.readFileSync(path.join(verificationDirectory, 'verificationFlow.js'), 'utf8');
     assert.doesNotMatch(flowSource, /getEnabledVerificationChallenges|getActiveVerificationChallenge|getVerificationSettings/);
+    assert.match(flowSource, /getVerificationSnapshot/);
+    assert.doesNotMatch(flowSource, /getVerificationRuntime/);
+    assert.match(flowSource, /snapshotGeneration: snapshot\.generation/);
+    assert.doesNotMatch(flowSource, /challengeExpirySeconds \?\? config\.Warden/);
+    assert.doesNotMatch(flowSource, /cooldownSeconds \?\? config\.Warden/);
 
     const adminSource = fs.readFileSync(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verification.js'), 'utf8');
     assert.doesNotMatch(adminSource, /build(?:SettingsStatus|ChallengePicker|ChallengeOverview|QuestionDetail)Embed/);
