@@ -335,6 +335,7 @@ function mergeVerificationAdminResponses(...responses) {
         .flat()
         .filter(Boolean)
         .flatMap((response) => response.components ?? []);
+    assertComponentsV2ComponentBudget(containers);
     return buildVerificationAdminPayload(containers);
 }
 

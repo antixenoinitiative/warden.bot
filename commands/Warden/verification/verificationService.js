@@ -40,6 +40,12 @@ function validateCatalogId(value, label) {
     return id;
 }
 
+function validateCatalogReferenceId(value, label) {
+    const id = String(value ?? '').trim();
+    if (!id || id.length > 100) throw new Error(`${label} ID must be 1-100 characters.`);
+    return id;
+}
+
 function requireCatalogText(value, label, maxLength) {
     const text = String(value ?? '').trim();
     if (!text || text.length > maxLength) throw new Error(`${label} must be 1-${maxLength} characters.`);
@@ -58,25 +64,27 @@ function createCustomChallenge(guildId, data, actorId) {
 }
 
 function createCustomQuestion(guildId, challengeId, data, actorId) {
+    const answerType = String(data?.answerType ?? 'none');
+    if (!['none', 'text'].includes(answerType)) throw new Error('New plain questions support No Answer or Text Answer. Set a gallery task before using position answers.');
     return verificationDb.createCustomQuestion(normalizeVerificationAdminGuildId(guildId),
-        validateCatalogId(challengeId, 'Challenge'), {
+        validateCatalogReferenceId(challengeId, 'Challenge'), {
             id: validateCatalogId(data?.id, 'Question'),
             label: requireCatalogText(data?.label, 'Question label', 128),
             text: requireCatalogText(data?.text, 'Question text', 4000),
             separateStep: data?.separateStep === true,
             generatedImage: { enabled: false, type: 'none' },
-            answer: { required: false, type: 'none' },
+            answer: { required: answerType === 'text', type: answerType },
         }, actorId);
 }
 
 function deleteOrResetChallenge(guildId, challengeId, actorId) {
     return verificationDb.deleteOrResetChallenge(normalizeVerificationAdminGuildId(guildId),
-        validateCatalogId(challengeId, 'Challenge'), actorId);
+        validateCatalogReferenceId(challengeId, 'Challenge'), actorId);
 }
 
 function deleteOrResetQuestion(guildId, challengeId, questionId, actorId) {
     return verificationDb.deleteOrResetQuestion(normalizeVerificationAdminGuildId(guildId),
-        validateCatalogId(challengeId, 'Challenge'), validateCatalogId(questionId, 'Question'), actorId);
+        validateCatalogReferenceId(challengeId, 'Challenge'), validateCatalogReferenceId(questionId, 'Question'), actorId);
 }
 
 async function getVerificationSnapshot(guildId, options) {
