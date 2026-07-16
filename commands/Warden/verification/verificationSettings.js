@@ -614,6 +614,120 @@ async function syncVerificationChallengeCatalog(guildId, settings, updatedBy, qu
     );
 }
 
+async function writeVerificationChallengeCatalogEntries(guildId, challengeId, settings, options, updatedBy, query) {
+    const { writeVerificationChallengeCatalogEntriesFromSettings } = require('./verificationChallengeRepository');
+    await writeVerificationChallengeCatalogEntriesFromSettings({
+        guildId: normalizeGuildId(guildId),
+        challengeId,
+        verificationSettings: settings,
+        includeChallenge: options?.includeChallenge === true,
+        questionIds: options?.questionIds ?? [],
+        updatedBy: updatedBy ?? 'settings-save',
+        query,
+    });
+}
+
+async function replaceLegacyChallengeConfigShadow(guildId, challengeId, challengeOverride, updatedBy, query) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = normalizeString(challengeId);
+    if (!normalizedChallengeId) throw new Error('A challenge ID is required for a catalog-native verification write.');
+
+    await query(
+        'DELETE FROM verification_challenge_config WHERE guild_id = ? AND challenge_id = ?',
+        [normalizedGuildId, normalizedChallengeId],
+    );
+
+    if (challengeOverride?.title || challengeOverride?.description) {
+        await insertChallengeConfigRow([
+            normalizedGuildId,
+            normalizedChallengeId,
+            CHALLENGE_META_QUESTION_ID,
+            null,
+            challengeOverride.title ?? null,
+            challengeOverride.description ?? null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            updatedBy ? String(updatedBy) : null,
+        ], query);
+    }
+
+    for (const [questionId, questionOverride] of Object.entries(challengeOverride?.questions ?? {})) {
+        if (!questionOverrideIsEmpty(questionOverride)) {
+            await insertChallengeConfigRow(
+                questionConfigToRow(normalizedGuildId, normalizedChallengeId, questionId, questionOverride, updatedBy),
+                query,
+            );
+        }
+    }
+}
+
+async function saveVerificationChallengeCatalogUpdate(guildId, challengeId, settings, options, updatedBy) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = normalizeString(challengeId);
+    if (!normalizedChallengeId) throw new Error('A challenge ID is required for a catalog-native verification write.');
+    const normalizedSettings = normalizeSettings(settings);
+
+    await ensureVerificationSettingsTables();
+    await ensureVerificationChallengeCatalogReady();
+    try {
+        await withVerificationSettingsTransaction(async (query) => {
+            await writeVerificationChallengeCatalogEntries(
+                normalizedGuildId,
+                normalizedChallengeId,
+                normalizedSettings,
+                options,
+                updatedBy,
+                query,
+            );
+            await replaceLegacyChallengeConfigShadow(
+                normalizedGuildId,
+                normalizedChallengeId,
+                normalizedSettings.challengeOverrides[normalizedChallengeId],
+                updatedBy,
+                query,
+            );
+            await markVerificationChallengeCatalogAuthoritative(normalizedGuildId, query);
+        });
+    }
+    catch (err) {
+        settingsCache.delete(normalizedGuildId);
+        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
+        console.error('Failed to persist catalog-native verification challenge values:', err);
+        throw err;
+    }
+
+    let catalogOverrides = normalizedSettings.challengeOverrides;
+    let catalogReadSucceeded = false;
+    try {
+        catalogOverrides = await readVerificationChallengeOverridesFromCatalog(normalizedGuildId);
+        catalogReadSucceeded = true;
+    }
+    catch (err) {
+        clearVerificationChallengeCatalogReadCache(normalizedGuildId);
+        console.error('Catalog-native verification values were saved, but the catalog could not be refreshed:', err);
+    }
+
+    const catalogSettings = normalizeSettings({
+        ...normalizedSettings,
+        challengeOverrides: catalogOverrides,
+    });
+    if (catalogReadSucceeded) settingsCache.set(normalizedGuildId, catalogSettings);
+    else settingsCache.delete(normalizedGuildId);
+    return catalogSettings;
+}
+
 async function saveVerificationSettings(guildId, settings, updatedBy) {
     const normalizedGuildId = normalizeGuildId(guildId);
     const normalizedSettings = normalizeSettings(settings);
@@ -874,7 +988,9 @@ async function updateQuestionOptionOverrides(guildId, challengeId, questionPatch
         return { ...currentChallenge, questions };
     });
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: Object.keys(questionPatches ?? {}),
+    }, updatedBy);
 }
 
 async function setChallengeMetaOverride(guildId, challengeId, data, updatedBy) {
@@ -886,7 +1002,9 @@ async function setChallengeMetaOverride(guildId, challengeId, data, updatedBy) {
         color: data?.color,
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        includeChallenge: true,
+    }, updatedBy);
 }
 
 async function updateChallengeMetaOverrides(guildId, challengeId, patch, updatedBy) {
@@ -898,7 +1016,9 @@ async function updateChallengeMetaOverrides(guildId, challengeId, patch, updated
         ...(Object.prototype.hasOwnProperty.call(patch ?? {}, 'color') ? { color: patch.color } : {}),
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        includeChallenge: true,
+    }, updatedBy);
 }
 
 async function setQuestionTextOverride(guildId, challengeId, questionId, text, updatedBy) {
@@ -908,7 +1028,9 @@ async function setQuestionTextOverride(guildId, challengeId, questionId, text, u
         text,
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionLabelOverride(guildId, challengeId, questionId, label, updatedBy) {
@@ -918,7 +1040,9 @@ async function setQuestionLabelOverride(guildId, challengeId, questionId, label,
         label,
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionSeparateStepOverride(guildId, challengeId, questionId, separateStep, updatedBy) {
@@ -928,7 +1052,9 @@ async function setQuestionSeparateStepOverride(guildId, challengeId, questionId,
         separateStep: separateStep === true || separateStep === 'true' || separateStep === 1 || separateStep === '1',
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionCommonOverrides(guildId, challengeId, questionId, data, updatedBy) {
@@ -940,7 +1066,9 @@ async function setQuestionCommonOverrides(guildId, challengeId, questionId, data
         ...(Object.prototype.hasOwnProperty.call(data ?? {}, 'separateStep') ? { separateStep: data.separateStep === true || data.separateStep === 'true' || data.separateStep === 1 || data.separateStep === '1' } : {}),
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionImageTextOverride(guildId, challengeId, questionId, text, updatedBy) {
@@ -953,7 +1081,9 @@ async function setQuestionImageTextOverride(guildId, challengeId, questionId, te
         },
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionAnswerOverrides(guildId, challengeId, questionId, answers, updatedBy) {
@@ -966,7 +1096,9 @@ async function setQuestionAnswerOverrides(guildId, challengeId, questionId, answ
         },
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionImageIds(guildId, challengeId, questionId, role, imageIds, updatedBy) {
@@ -984,7 +1116,9 @@ async function setQuestionImageIds(guildId, challengeId, questionId, role, image
         },
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionImageIdOverrides(guildId, challengeId, questionId, roleImageIds, updatedBy) {
@@ -1006,7 +1140,9 @@ async function setQuestionImageIdOverrides(guildId, challengeId, questionId, rol
         },
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function clearQuestionImageIds(guildId, challengeId, questionId, role, updatedBy) {
@@ -1024,7 +1160,9 @@ async function clearQuestionImageIds(guildId, challengeId, questionId, role, upd
         };
     });
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionImageDirections(guildId, challengeId, questionId, imageIds, degrees, updatedBy) {
@@ -1045,7 +1183,9 @@ async function setQuestionImageDirections(guildId, challengeId, questionId, imag
         };
     });
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 async function setQuestionImageDirectionOverrides(guildId, challengeId, questionId, imageDirectionUpdates, updatedBy) {
@@ -1067,7 +1207,9 @@ async function setQuestionImageDirectionOverrides(guildId, challengeId, question
         },
     }));
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 
@@ -1088,7 +1230,9 @@ async function clearQuestionImageDirections(guildId, challengeId, questionId, im
         };
     });
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 
@@ -1194,7 +1338,9 @@ async function clearQuestionOverrideField(guildId, challengeId, questionId, fiel
         return updatedQuestion;
     });
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 
@@ -1278,7 +1424,9 @@ async function clearQuestionOverrideFields(guildId, challengeId, questionId, fie
         return updatedQuestion;
     });
 
-    return saveVerificationSettings(guildId, { ...currentSettings, challengeOverrides }, updatedBy);
+    return saveVerificationChallengeCatalogUpdate(guildId, challengeId, { ...currentSettings, challengeOverrides }, {
+        questionIds: [questionId],
+    }, updatedBy);
 }
 
 module.exports = {

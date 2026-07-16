@@ -327,8 +327,8 @@ async function upsertProtectedTemplateQuestionRow(row, updatedBy = 'sync', query
     `, [row.guild_id, row.challenge_id, row.question_id, row.question_order, row.source_template_id, row.template_version, row.question_label, row.question_text, row.separate_step, row.task_enabled, row.task_type, row.task_prompt_text, row.task_image_pool_id, row.task_image_ids_json, row.task_image_directions_json, row.task_config_json, row.answer_required, row.answer_type, row.answer_input_label, row.answer_input_placeholder, row.answers_json, normalizedUpdatedBy, normalizedUpdatedBy]);
 }
 
-// Transition helper used by the one-time legacy bootstrap and compatibility
-// shadow writes. Catalog-authoritative reads must not run this on every startup,
+// Transition helper used by the one-time legacy bootstrap and full compatibility
+// saves. Catalog-authoritative reads must not run this on every startup,
 // otherwise stale legacy rows could overwrite newer catalog values.
 async function syncVerificationChallengeCatalogFromSettings(guildId, verificationSettings, updatedBy = 'sync', query = defaultQuery) {
     const normalizedGuildId = normalizeGuildId(guildId);
@@ -342,6 +342,43 @@ async function syncVerificationChallengeCatalogFromSettings(guildId, verificatio
         for (const questionRow of questionRows) {
             await upsertProtectedTemplateQuestionRow(questionRow, updatedBy, query);
         }
+    }
+
+    clearVerificationChallengeCatalogCache(normalizedGuildId);
+}
+
+async function writeVerificationChallengeCatalogEntriesFromSettings({
+    guildId,
+    challengeId,
+    verificationSettings,
+    includeChallenge = false,
+    questionIds = [],
+    updatedBy = 'settings-save',
+    query = defaultQuery,
+}) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    const staticChallenge = verificationChallenges[normalizedChallengeId];
+    if (!staticChallenge) {
+        throw new Error(`Catalog-native writes currently require a protected template challenge: ${normalizedChallengeId || '(missing ID)'}`);
+    }
+
+    await ensureVerificationChallengeCatalogTables();
+
+    const effectiveChallenge = normalizeVerificationChallenge(staticChallenge, verificationSettings);
+    const { challengeRow, questionRows } = templateChallengeToCatalogRows(effectiveChallenge, normalizedGuildId);
+    const rowsByQuestionId = new Map(questionRows.map((row) => [row.question_id, row]));
+    const normalizedQuestionIds = [...new Set(questionIds.map((questionId) => String(questionId ?? '').trim()).filter(Boolean))];
+    const missingQuestionId = normalizedQuestionIds.find((questionId) => !rowsByQuestionId.has(questionId));
+    if (missingQuestionId) {
+        throw new Error(`Unknown protected template verification question: ${normalizedChallengeId}/${missingQuestionId}`);
+    }
+
+    if (includeChallenge) {
+        await upsertProtectedTemplateChallengeRow(challengeRow, updatedBy, query);
+    }
+    for (const questionId of normalizedQuestionIds) {
+        await upsertProtectedTemplateQuestionRow(rowsByQuestionId.get(questionId), updatedBy, query);
     }
 
     clearVerificationChallengeCatalogCache(normalizedGuildId);
@@ -580,6 +617,7 @@ module.exports = {
     ensureVerificationChallengeCatalogTables,
     ensureVerificationChallengeTemplatesSeeded,
     syncVerificationChallengeCatalogFromSettings,
+    writeVerificationChallengeCatalogEntriesFromSettings,
     upsertProtectedTemplateChallengeRow,
     upsertProtectedTemplateQuestionRow,
     getVerificationChallengeCatalog,
