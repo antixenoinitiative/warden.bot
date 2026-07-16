@@ -1258,26 +1258,18 @@ function getGalleryImageExtensionFromPath(filePath) {
     return /^[a-z0-9]{1,8}$/.test(extension) ? extension : 'png';
 }
 
-const localGalleryImageBufferCache = new Map();
-
-async function readCachedLocalImageBuffer(filePath) {
-    const stat = await fs.stat(filePath);
-    const cacheKey = `${filePath}:${stat.size}:${stat.mtimeMs}`;
-
-    if (localGalleryImageBufferCache.has(cacheKey)) {
-        return localGalleryImageBufferCache.get(cacheKey);
-    }
-
-    const buffer = await fs.readFile(filePath);
-    localGalleryImageBufferCache.set(cacheKey, buffer);
-    return buffer;
+async function readLocalImageBuffer(filePath) {
+    // The operating system already caches frequently read local files. Keeping
+    // another process-wide Buffer copy retained every verification image for the
+    // lifetime of the bot and could grow after files changed on disk.
+    return fs.readFile(filePath);
 }
 
 async function readLocalGalleryImageAttachment(image) {
     const filePath = resolveLocalGalleryImagePath(image);
     const extension = getGalleryImageExtensionFromPath(filePath);
     const name = buildGalleryAttachmentName(image, extension);
-    const buffer = await readCachedLocalImageBuffer(filePath);
+    const buffer = await readLocalImageBuffer(filePath);
 
     return {
         ...image,
@@ -1382,7 +1374,7 @@ async function readGallerySourceImageBuffer(imagePool, sourceImage, position) {
     const image = { ...sourceImage, directory: imagePool.directory, position };
 
     if (isLocalGalleryImage(image)) {
-        return readCachedLocalImageBuffer(resolveLocalGalleryImagePath(image));
+        return readLocalImageBuffer(resolveLocalGalleryImagePath(image));
     }
 
     const fetched = await fetchRemoteGalleryImageAttachment(image);

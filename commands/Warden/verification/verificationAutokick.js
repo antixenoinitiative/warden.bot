@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
-const { getVerificationSettings } = require('./verificationSettings');
+const { getVerificationSettings } = require('./verificationService');
 const { buildVerificationAutoKickEmbed } = require('./verificationResponses');
 
 const AUTOKICK_DM_TO_KICK_DELAY_MS = 1000;

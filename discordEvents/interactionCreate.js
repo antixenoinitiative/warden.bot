@@ -1,6 +1,6 @@
 const { botLog, botIdent } = require('../functions')
 const { leaderboardInteraction } = require('../commands/Warden/leaderboards/leaderboard_staffApproval')
-const { handleVerificationInteraction } = require('../commands/Warden/verification/verificationFlow')
+const { handleInteraction: handleVerificationFeatureInteraction } = require('../commands/Warden/verification/verificationFeature')
 const { cleanup, AXIchallengeProof, nextTestQuestion, nextGradingQuestion, showPromotionChallenge, promotionChallengeResult } = require('../commands/GuardianAI/promotionRequest/requestpromotion')
 const { saveBulkMessages, removeBulkMessages } = require('../commands/GuardianAI/promotionRequest/prFunctions')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
@@ -121,24 +121,9 @@ async function opordInterestedModal(i) {
 }
 const exp = {
     interactionCreate: async (interaction,bot) => {
+        if (botIdent().activeBot.botName == 'Warden' && await handleVerificationFeatureInteraction(interaction, bot)) return
+
         if (interaction.isModalSubmit()) {
-            if (botIdent().activeBot.botName == 'Warden') {
-                if (await handleVerificationInteraction(interaction)) return
-
-                const command = interaction.client.commands?.get('verification')
-                    ?? bot.commands?.get('verification')
-
-                if (command?.handleModalSubmit) {
-                    try {
-                        if (await command.handleModalSubmit(interaction)) return
-                    }
-                    catch (error) {
-                        console.error('Verification admin modal submit failed:', error)
-                        await sendCommandErrorResponse(interaction, 'There was an error while handling this verification modal.')
-                        return
-                    }
-                }
-            }
             if (botIdent().activeBot.botName == 'GuardianAI') {
                 if (interaction.customId.startsWith("interestedOpord")) {
                     await interaction.deferReply({ ephemeral: true });
@@ -265,13 +250,6 @@ const exp = {
                 );
             }
         }
-        if (interaction.isStringSelectMenu?.() && botIdent().activeBot.botName == 'Warden') {
-            const command = interaction.client.commands?.get('verification')
-                ?? bot.commands?.get('verification')
-
-            if (command?.handleComponentInteraction && await command.handleComponentInteraction(interaction)) return
-            if (command?.handleButtonInteraction && await command.handleButtonInteraction(interaction)) return
-        }
         if (interaction.isButton()) {
             //! Placing function callers here allows you to not have to deal with message collectors.
             //! Message collectors have a timeout. This does not force you to use a collection timeframe.
@@ -279,13 +257,6 @@ const exp = {
             //     botLog(bot,new Discord.EmbedBuilder().setDescription(`Button triggered by user **${interaction.user.tag}** - Button ID: ${interaction.customId}`),0);
             // }
             if (botIdent().activeBot.botName == 'Warden') {
-                if (await handleVerificationInteraction(interaction)) return
-
-                const command = interaction.client.commands?.get('verification')
-                    ?? bot.commands?.get('verification')
-
-                if (command?.handleButtonInteraction && await command.handleButtonInteraction(interaction)) return
-
                 if (interaction.customId.startsWith("submission")) {
                     interaction.deferUpdate()
                     leaderboardInteraction(interaction)

@@ -14,7 +14,10 @@ const SETTINGS_TASK_KEYS = new Set([
     'maxControlImageRepeats',
     'config',
 ]);
+const SEEDED_GUILD_CACHE_MAX = 100;
 const catalogCache = new Map();
+const seededGuilds = new Map();
+const seedLoads = new Map();
 let catalogTablesReady;
 
 function getDatabase() {
@@ -219,7 +222,7 @@ async function insertQuestionRowIfMissing(row, query = defaultQuery) {
 // Insert-only foundation helper for protected template rows. It intentionally
 // preserves existing catalog values; use syncVerificationChallengeCatalogFromSettings
 // when legacy settings should be mirrored into protected template rows.
-async function ensureVerificationChallengeTemplatesSeeded(guildId = DEFAULT_GUILD_ID, query = defaultQuery) {
+async function seedVerificationChallengeTemplates(guildId, query) {
     const normalizedGuildId = normalizeGuildId(guildId);
     await ensureVerificationChallengeCatalogTables();
 
@@ -232,6 +235,35 @@ async function ensureVerificationChallengeTemplatesSeeded(guildId = DEFAULT_GUIL
     }
 
     clearVerificationChallengeCatalogCache(normalizedGuildId);
+}
+
+function markGuildTemplatesSeeded(guildId) {
+    seededGuilds.delete(guildId);
+    seededGuilds.set(guildId, true);
+    while (seededGuilds.size > SEEDED_GUILD_CACHE_MAX) {
+        seededGuilds.delete(seededGuilds.keys().next().value);
+    }
+}
+
+// Template seeding is insert-only and only needs to run once per guild for a
+// process version. Catalog snapshot expiry must not turn every read into a set
+// of redundant INSERT IGNORE statements.
+async function ensureVerificationChallengeTemplatesSeeded(guildId = DEFAULT_GUILD_ID, query = defaultQuery) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+    const canMemoize = query === defaultQuery;
+
+    if (!canMemoize) return seedVerificationChallengeTemplates(normalizedGuildId, query);
+    if (seededGuilds.has(normalizedGuildId)) {
+        markGuildTemplatesSeeded(normalizedGuildId);
+        return;
+    }
+    if (seedLoads.has(normalizedGuildId)) return seedLoads.get(normalizedGuildId);
+
+    const load = seedVerificationChallengeTemplates(normalizedGuildId, query)
+        .then(() => markGuildTemplatesSeeded(normalizedGuildId))
+        .finally(() => seedLoads.delete(normalizedGuildId));
+    seedLoads.set(normalizedGuildId, load);
+    return load;
 }
 
 async function upsertProtectedTemplateChallengeRow(row, updatedBy = 'sync', query = defaultQuery) {

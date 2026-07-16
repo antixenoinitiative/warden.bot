@@ -10,6 +10,15 @@ const {
     buildVerificationErrorEmbed,
     buildVerificationPublicEmbed,
 } = require('../verification/verificationResponses');
+const { buildVerificationConfigWarningEmbed } = require('../verification/verificationLegacyUi');
+const {
+    acknowledgePanelSubmit: deferAdminPanelModalSubmit,
+    deferEphemeralReply,
+    deferSourceUpdate,
+    sendAcknowledgedNotice: respondAdminModalError,
+    sendEphemeralNotice: respondAdminError,
+    updateSourcePanel,
+} = require('../verification/verificationInteraction');
 const { buildQuestionScreens } = require('../verification/verificationChallenges/verificationChallenges');
 const {
     getVerificationImagePool,
@@ -19,16 +28,6 @@ const {
     DEFAULT_ROTATION_ALIGNMENT_DEGREES,
 } = require('../verification/verificationChallenges/questionTasks/shared/degrees');
 const { evaluateChallengeConfigIssues } = require('../verification/verificationChallenges/verificationConfigIssues');
-const {
-    getVerificationAdminChallengeCatalog,
-    getVerificationAdminChallenge,
-    resolveVerificationAdminGuildId,
-    normalizeVerificationAdminGuildId,
-} = require('../verification/verificationAdminCatalog');
-const {
-    applyVerificationConfigSafeguard,
-    buildVerificationConfigWarningEmbed,
-} = require('../verification/verificationConfigSafeguards');
 const ADMIN_CUSTOM_ID_PREFIX = 'wVA';
 const ADMIN_CUSTOM_ID_MAX_LENGTH = 100;
 const ADMIN_CUSTOM_ID_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
@@ -105,64 +104,6 @@ function hasVerificationAdminPermission(interaction) {
     return interaction.memberPermissions?.has?.(Discord.PermissionFlagsBits.Administrator) === true;
 }
 
-function withoutEphemeralFlags(payload = {}) {
-    const response = { ...payload };
-
-    if (response.flags === Discord.MessageFlags.Ephemeral) {
-        delete response.flags;
-    }
-
-    return response;
-}
-
-async function respondAdminError(interaction, payload) {
-    const response = { flags: Discord.MessageFlags.Ephemeral, ...payload };
-
-    if (interaction.deferred) {
-        return interaction.editReply(withoutEphemeralFlags(response));
-    }
-
-    if (interaction.replied) return interaction.followUp(response);
-    return interaction.reply(response);
-}
-
-function isAdminPanelModalFromMessage(interaction) {
-    return typeof interaction.isFromMessage === 'function'
-        ? interaction.isFromMessage()
-        : Boolean(interaction.message);
-}
-
-async function deferAdminPanelModalSubmit(interaction) {
-    const canUpdateSourceMessage =
-        typeof interaction.deferUpdate === 'function'
-        && isAdminPanelModalFromMessage(interaction);
-
-    if (canUpdateSourceMessage) {
-        await interaction.deferUpdate();
-        return { mode: 'source-update' };
-    }
-
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
-    return { mode: 'reply' };
-}
-
-function isAdminPanelSourceUpdateResponse(responseMode) {
-    return responseMode?.mode === 'source-update';
-}
-
-async function respondAdminModalError(interaction, responseMode, payload) {
-    const errorPayload = {
-        ...payload,
-        flags: payload.flags ?? Discord.MessageFlags.Ephemeral,
-    };
-
-    if (isAdminPanelSourceUpdateResponse(responseMode)) {
-        return interaction.followUp(errorPayload);
-    }
-
-    return interaction.editReply(withoutEphemeralFlags(errorPayload));
-}
-
 async function sendAdminPermissionError(interaction) {
     return respondAdminError(interaction, {
         content: 'You need Administrator permission to use this verification admin panel.',
@@ -171,7 +112,12 @@ async function sendAdminPermissionError(interaction) {
 
 const {
     VERIFICATION_MODES,
+    applyVerificationConfigSafeguard,
+    getVerificationAdminChallengeCatalog,
+    getVerificationAdminChallenge,
     getVerificationSettings,
+    resolveVerificationAdminGuildId,
+    normalizeVerificationAdminGuildId,
     saveVerificationGuildSettingsOnly,
     updateChallengeMetaOverrides,
     setQuestionCommonOverrides,
@@ -181,7 +127,7 @@ const {
     setQuestionImageDirectionOverrides,
     updateQuestionOptionOverrides,
     clearQuestionOverrideFields,
-} = require('../verification/verificationSettings');
+} = require('../verification/verificationService');
 
 
 async function runAdminConfigSafeguard(interaction, { guildId, settings, changedChallengeId, changedQuestionId, reason, source }) {
@@ -565,7 +511,7 @@ async function handleChallengeSelectMenu(interaction, parts) {
     const challengeId = interaction.values?.[0];
     const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    await deferEphemeralReply(interaction);
     const verificationSettings = await getVerificationSettings(guildId);
     const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
     return sendChallengeOverview(interaction, { guildId, verificationSettings, enabledChallengeIds, challengeId, mode: 'edit' });
@@ -1229,29 +1175,15 @@ async function replyWithUpdatedAdminPanel(interaction, {
     fallback = 'panel',
     responseMode,
 }) {
-    if (isAdminPanelSourceUpdateResponse(responseMode)) {
-        return interaction.editReply(panelPayload);
-    }
-
-    let sourceUpdated = false;
-    const handleEditError = (err) => {
-        if (err?.code === 10008) {
-            console.warn('[ADMIN UX] Source admin panel message was no longer editable; using fallback response.');
-            return;
-        }
-        console.error('Failed to update admin panel message:', err);
-    };
-
-    if (preferSourceUpdate && interaction.message) {
-        await interaction.message.edit(panelPayload).then(() => { sourceUpdated = true; }).catch(handleEditError);
-    }
-    else if (preferSourceUpdate && sourceMessageId && typeof interaction.webhook?.editMessage === 'function') {
-        await interaction.webhook.editMessage(sourceMessageId, panelPayload).then(() => { sourceUpdated = true; }).catch(handleEditError);
-    }
-
-    if (sourceUpdated) return interaction.editReply(buildVerificationAdminActionCompleted(title, description));
-    if (fallback === 'ack') return interaction.editReply(buildVerificationAdminActionCompleted(title, `${description} Re-run the command to view the refreshed panel.`));
-    return interaction.editReply(panelPayload);
+    return updateSourcePanel(interaction, panelPayload, {
+        acknowledgement: responseMode,
+        sourceMessageId,
+        preferSourceUpdate,
+        successPayload: buildVerificationAdminActionCompleted(title, description),
+        fallbackPayload: fallback === 'ack'
+            ? buildVerificationAdminActionCompleted(title, `${description} Re-run the command to view the refreshed panel.`)
+            : undefined,
+    });
 }
 
 async function replyWithUpdatedSettingsPanel(interaction, { guildId, ownerUserId, sourceMessageId, verificationSettings, title = 'Settings Updated', description = 'Verification settings were updated.', responseMode }) {
@@ -1408,7 +1340,7 @@ async function validateChallengeAdminInteraction(interaction, parts) {
 async function handleChallengeQuestionsButton(interaction, parts) {
     const context = await validateChallengeAdminInteraction(interaction, parts);
     if (context.error) return;
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
     const effectiveChallenge = context.challenge;
     return interaction.editReply(buildChallengeQuestionsPanelPayload({
         challengeId: context.challengeId,
@@ -1422,7 +1354,7 @@ async function handleChallengeQuestionsButton(interaction, parts) {
 async function handleChallengeOverviewButton(interaction, parts) {
     const context = await validateChallengeAdminInteraction(interaction, parts);
     if (context.error) return;
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
     const verificationSettings = await getVerificationSettings(context.guildId);
     const enabledChallengeIds = verificationSettings.activeChallengeIds ?? [];
     return interaction.editReply(buildChallengeOverviewPanelPayload({
@@ -1451,7 +1383,7 @@ async function handleQuestionSelectOpenButton(interaction, parts) {
     }
     if (getChallengeQuestions(challenge).length < 1) return respondAdminError(interaction, { content: `No questions are configured for **${challengeId}**.` });
 
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    await deferEphemeralReply(interaction);
     const verificationSettings = await getVerificationSettings(guildId);
     const effectiveChallenge = challenge;
     return interaction.editReply(buildQuestionWorkspacePayload({
@@ -1472,7 +1404,7 @@ async function handleQuestionSelectMenu(interaction, parts) {
     if (!selectedQuestionId) return respondAdminError(interaction, { embeds: [userErrorEmbed('Please select a question.')] });
     const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, selectedQuestionId]);
     if (context.error) return;
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, selectedQuestionId) ?? context.question;
@@ -1495,7 +1427,7 @@ async function handleQuestionEditToolsButton(interaction, parts) {
     if (mode !== 'edit') {
         return respondAdminError(interaction, { embeds: [userErrorEmbed('This question workspace is read-only. Run `/verification challenges` to edit questions.')] });
     }
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
@@ -1519,7 +1451,7 @@ async function handleChallengeDetailsButton(interaction, parts) {
     const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
 
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    await deferEphemeralReply(interaction);
     const verificationSettings = await getVerificationSettings(guildId);
     const effectiveChallenge = challenge;
     const questions = effectiveChallenge.questions ?? [];
@@ -1750,7 +1682,7 @@ async function handleQuestionDetailPageButton(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
     const effectiveChallenge = challenge;
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, effectiveChallenge, effectiveChallenge.questions ?? [], Number(pageIndex) || 0);
 }
@@ -1759,7 +1691,7 @@ async function handleQuestionDetailViewButton(interaction, parts) {
     const [mode, guildId, ownerUserId, challengeId, questionId, pageIndex = '0'] = parts;
     const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
     if (context.error) return;
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
@@ -1775,7 +1707,7 @@ async function handleQuestionDetailBackButton(interaction, parts) {
     if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
     const challenge = await getVerificationAdminChallenge(guildId, challengeId);
     if (!challenge) return respondAdminError(interaction, { embeds: [userErrorEmbed(`Unknown verification challenge ID: ${challengeId}`)] });
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
     const effectiveChallenge = challenge;
     return sendQuestionDetailSelectorPage(interaction, mode, guildId, ownerUserId, challengeId, effectiveChallenge, effectiveChallenge.questions ?? [], Number(pageIndex) || 0);
 }
@@ -1863,7 +1795,7 @@ function buildQuestionEditPanelPayload(verificationSettings, guildId, userId, ch
 async function sendQuestionEditPanel(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    await deferEphemeralReply(interaction);
     const verificationSettings = await getVerificationSettings(context.guildId);
     return interaction.editReply({
         ...buildQuestionEditPanelPayload(
@@ -1881,7 +1813,7 @@ async function handleQuestionEditDoneButton(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
 
-    await interaction.deferUpdate();
+    await deferSourceUpdate(interaction);
 
     const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
@@ -2801,10 +2733,6 @@ async function sendVerificationAdminModalError(interaction) {
         embeds: [userErrorEmbed('Failed to update verification admin settings. Please try again later.')],
     };
 
-    if (interaction.deferred && isAdminPanelModalFromMessage(interaction)) {
-        return interaction.followUp(payload);
-    }
-
     return respondAdminError(interaction, payload);
 }
 
@@ -3018,7 +2946,7 @@ module.exports = {
             const subcommand = interaction.options.getSubcommand();
             let guildId;
 
-            await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+            await deferEphemeralReply(interaction);
 
             try {
                 guildId = normalizeVerificationAdminGuildId(resolveVerificationAdminGuildId(interaction));

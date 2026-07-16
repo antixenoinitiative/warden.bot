@@ -815,34 +815,6 @@ function buildCompletedQuestionOptions(message = 'Verification step completed.',
 }
 
 
-async function sendInitialInteractionResponse(interaction, options) {
-    if (interaction.deferred) {
-        return interaction.editReply(sanitizeMessageEditOptions(options));
-    }
-
-    if (interaction.replied) {
-        return interaction.followUp(options);
-    }
-
-    return interaction.reply(options);
-}
-
-function sanitizeMessageEditOptions(options = {}) {
-    const editOptions = { ...options };
-
-    delete editOptions.ephemeral;
-
-    if (typeof editOptions.flags === 'number') {
-        editOptions.flags &= ~Discord.MessageFlags.Ephemeral;
-
-        if (editOptions.flags === 0) {
-            delete editOptions.flags;
-        }
-    }
-
-    return editOptions;
-}
-
 module.exports = {
     COMPONENTS_V2_RENDERER,
     LEGACY_RENDERER,
@@ -886,6 +858,4 @@ module.exports = {
     parseOldVersionCustomId,
     parseSubmitCustomId,
     buildCompletedQuestionOptions,
-    sanitizeMessageEditOptions,
-    sendInitialInteractionResponse,
 };
