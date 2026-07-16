@@ -114,7 +114,14 @@ function buildSnapshot(guildId, guildSettings, challengeCatalog) {
         activeChallenges,
     });
 
-    const { challengeOverrides: _legacyChallengeOverrides, ...nativeGuildSettings } = guildSettings ?? {};
+    const nativeGuildSettings = {
+        mode: guildSettings?.mode,
+        activeChallengeIds: guildSettings?.activeChallengeIds,
+        challengeExpirySeconds: guildSettings?.challengeExpirySeconds,
+        cooldownSeconds: guildSettings?.cooldownSeconds,
+        autokickEnabled: guildSettings?.autokickEnabled,
+        autokickSeconds: guildSettings?.autokickSeconds,
+    };
     const snapshot = {
         guildId,
         generation,
