@@ -11,10 +11,29 @@ const {
     DEFAULT_CHALLENGE_ID,
     verificationChallenges,
 } = require('./verificationChallengesConfig');
+const {
+    getQuestionGeneratedImageForTaskType,
+    getQuestionTaskModule,
+    getQuestionTaskType,
+} = require('./questionTasks/taskRegistry');
 
 const DEFAULT_GENERATED_IMAGE = Object.freeze({ enabled: false, type: 'none' });
 const DEFAULT_ANSWER = Object.freeze({ required: false, type: 'none' });
+const SUPPORTED_REQUIRED_ANSWER_TYPES = new Set(['text', 'positions']);
 const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
+const VERIFICATION_UI_LIMITS = Object.freeze({
+    componentsPerMessage: 40,
+    attachmentsPerMessage: 10,
+    customIdLength: 100,
+    modalInputs: 5,
+    modalLabelLength: 45,
+    textInputPlaceholderLength: 100,
+});
+const GALLERY_TASK_TYPES = new Set(['gallery-standard', 'gallery-rotation-alignment']);
+
+function isSupportedRequiredAnswerType(answerType) {
+    return SUPPORTED_REQUIRED_ANSWER_TYPES.has(String(answerType ?? ''));
+}
 
 function normalizeAnswer(answer) {
     return String(answer ?? '')
@@ -162,17 +181,74 @@ function getScreenRequiredAnswerQuestions(screen) {
     return (screen?.questions ?? []).filter((question) => question.answer?.required === true && question.answer?.type !== 'none');
 }
 
-function validateQuestionScreens(screens) {
+function questionWillRenderMedia(question) {
+    const generatedImage = getQuestionGeneratedImageForTaskType(question);
+    const taskType = getQuestionTaskType(question);
+    if (GALLERY_TASK_TYPES.has(taskType)) return true;
+    if (taskType === 'prompt-text') return Boolean(generatedImage.text);
+    if (taskType === 'static-image') return Boolean(generatedImage.url);
+    return false;
+}
+
+function countQuestionScreenComponents(challenge, screens, screen) {
+    let count = 4; // Container, expiry text, action row, and primary action button.
+    const includeIntro = screens.length === 1 && screen.separate !== true;
+
+    if (includeIntro) {
+        count += 2; // Resolved challenge title and description always render.
+        count += (challenge?.fields ?? []).filter((field) => field?.content ?? field?.value ?? field?.description).length;
+    }
+    if (screens.length > 1) count += 1;
+    if (screen.index > 0 && !screenRequiresAnswer(screens[screen.index - 1])) count += 1;
+
+    for (const question of screen.questions ?? []) {
+        count += 1; // Normalization always supplies a question label.
+        if (question.text) count += 1;
+        if (questionWillRenderMedia(question)) count += 1;
+        if (GALLERY_TASK_TYPES.has(getQuestionTaskType(question))) count += 1;
+    }
+
+    return count;
+}
+
+function countQuestionScreenAttachments(screen) {
+    return (screen?.questions ?? []).reduce((count, question) => {
+        const attachmentCount = Number(getQuestionTaskModule(question)?.getAttachmentCount?.(question) ?? 0);
+        return count + (Number.isInteger(attachmentCount) && attachmentCount > 0 ? attachmentCount : 0);
+    }, 0);
+}
+
+function validateQuestionScreens(screens, challenge) {
     const issues = [];
 
     for (const screen of screens ?? []) {
         const requiredAnswers = getScreenRequiredAnswerQuestions(screen);
-        if (requiredAnswers.length > 5) {
+        if (requiredAnswers.length > VERIFICATION_UI_LIMITS.modalInputs) {
             issues.push({
                 screenIndex: screen.index,
                 code: 'too_many_modal_inputs',
-                message: `Screen ${screen.index + 1} has ${requiredAnswers.length} required answer inputs. Discord modals support at most 5. Mark some questions separateStep:true.`,
+                message: `Screen ${screen.index + 1} has ${requiredAnswers.length} required answer inputs. Discord modals support at most ${VERIFICATION_UI_LIMITS.modalInputs}. Mark some questions separateStep:true.`,
             });
+        }
+
+        if (challenge) {
+            const componentCount = countQuestionScreenComponents(challenge, screens, screen);
+            if (componentCount > VERIFICATION_UI_LIMITS.componentsPerMessage) {
+                issues.push({
+                    screenIndex: screen.index,
+                    code: 'components_v2_component_limit',
+                    message: `Screen ${screen.index + 1} requires up to ${componentCount} Discord components; the current limit is ${VERIFICATION_UI_LIMITS.componentsPerMessage}. Mark some questions separateStep:true.`,
+                });
+            }
+
+            const attachmentCount = countQuestionScreenAttachments(screen);
+            if (attachmentCount > VERIFICATION_UI_LIMITS.attachmentsPerMessage) {
+                issues.push({
+                    screenIndex: screen.index,
+                    code: 'discord_attachment_limit',
+                    message: `Screen ${screen.index + 1} can require ${attachmentCount} Discord attachments; the current limit is ${VERIFICATION_UI_LIMITS.attachmentsPerMessage}. Use composite galleries or mark some questions separateStep:true.`,
+                });
+            }
         }
     }
 
@@ -210,7 +286,8 @@ function getSubmittedValue(submittedValues, question) {
 
 function validateQuestionAnswer(question, submittedValue, questionAssets = {}) {
     const answer = question?.answer ?? DEFAULT_ANSWER;
-    if (answer.required !== true || answer.type === 'none') return { ok: true };
+    if (answer.required !== true) return { ok: true };
+    if (!isSupportedRequiredAnswerType(answer.type)) return { ok: false, reason: 'unsupported_answer_type' };
 
     if (answer.type === 'text') {
         const normalizer = answer.normalizer ?? normalizeAnswer;
@@ -284,6 +361,7 @@ function getActiveVerificationChallenge(config) {
 module.exports = {
     DEFAULT_CHALLENGE_ID,
     verificationChallenges,
+    VERIFICATION_UI_LIMITS,
 
     getVerificationChallenge,
     getEnabledVerificationChallenges,
@@ -296,10 +374,13 @@ module.exports = {
     getScreenAnswerSpec,
     screenRequiresAnswer,
     getScreenRequiredAnswerQuestions,
+    countQuestionScreenComponents,
+    countQuestionScreenAttachments,
     validateQuestionScreens,
     screenAllowsBack,
 
     normalizeAnswer,
+    isSupportedRequiredAnswerType,
     validateQuestionAnswer,
     validateScreenAnswers,
 

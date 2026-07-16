@@ -1,5 +1,6 @@
 const verificationSettings = require('./verificationSettings');
 const verificationCatalog = require('./verificationChallengeRepository');
+const { normalizeVerificationChallenge } = require('./verificationChallenges/verificationChallenges');
 
 const DEFAULT_GUILD_ID = 'global';
 const SNAPSHOT_CACHE_TTL_MS = 60 * 1000;
@@ -74,21 +75,55 @@ function buildQuestionLookup(challenges) {
     ]));
 }
 
-function buildSnapshot(guildId, settings, challengeCatalog) {
-    const challenges = Object.freeze(Object.values(challengeCatalog));
+function buildSnapshot(guildId, guildSettings, challengeCatalog) {
+    const generation = ++snapshotGeneration;
+    const challenges = Object.freeze(Object.values(challengeCatalog)
+        .map((challenge) => normalizeVerificationChallenge(challenge, { challengeOverrides: {} })));
     const challengesById = new Map(challenges.map((challenge) => [challenge.id, challenge]));
-
-    return Object.freeze({
+    const activeChallengeIds = Object.freeze([...(guildSettings.activeChallengeIds ?? [])]);
+    const activeChallenges = Object.freeze(activeChallengeIds
+        .map((challengeId) => challengesById.get(String(challengeId)))
+        .filter(Boolean));
+    const runtime = Object.freeze({
         guildId,
-        generation: ++snapshotGeneration,
+        generation,
+        mode: guildSettings.mode,
+        activeChallengeIds,
+        challengeExpirySeconds: guildSettings.challengeExpirySeconds,
+        cooldownSeconds: guildSettings.cooldownSeconds,
+        autokickEnabled: guildSettings.autokickEnabled,
+        autokickSeconds: guildSettings.autokickSeconds,
+        challenges,
+        activeChallenges,
+    });
+
+    let compatibilitySettings;
+    const snapshot = {
+        guildId,
+        generation,
         loadedAt: Date.now(),
-        settings,
+        guildSettings: Object.freeze({ ...guildSettings, challengeOverrides: {} }),
+        runtime,
         challengeCatalog,
         challenges,
         challengesById,
         questionsByChallengeId: buildQuestionLookup(challenges),
-        activeChallengeIds: Object.freeze([...(settings.activeChallengeIds ?? [])]),
+        activeChallengeIds,
+        activeChallenges,
+    };
+    Object.defineProperty(snapshot, 'settings', {
+        enumerable: true,
+        get() {
+            if (!compatibilitySettings) {
+                const challengeOverrides = typeof verificationCatalog.catalogChallengesToSettingsOverrides === 'function'
+                    ? verificationCatalog.catalogChallengesToSettingsOverrides(challengeCatalog)
+                    : (guildSettings.challengeOverrides ?? {});
+                compatibilitySettings = Object.freeze({ ...guildSettings, challengeOverrides });
+            }
+            return compatibilitySettings;
+        },
     });
+    return Object.freeze(snapshot);
 }
 
 async function loadVerificationSnapshot(guildId, options = {}) {
@@ -103,9 +138,11 @@ async function loadVerificationSnapshot(guildId, options = {}) {
     clearRepositoryCaches(normalizedGuildId);
     const load = { invalidated: false };
     load.promise = (async () => {
-        const settings = await verificationSettings.getVerificationSettings(normalizedGuildId);
+        const readGuildSettings = verificationSettings.getVerificationGuildSettings
+            ?? verificationSettings.getVerificationSettings;
+        const guildSettings = await readGuildSettings(normalizedGuildId);
         const challengeCatalog = await verificationCatalog.getVerificationChallengeCatalog(normalizedGuildId);
-        const snapshot = buildSnapshot(normalizedGuildId, settings, challengeCatalog);
+        const snapshot = buildSnapshot(normalizedGuildId, guildSettings, challengeCatalog);
         if (!load.invalidated) cacheSnapshot(normalizedGuildId, snapshot);
         else clearRepositoryCaches(normalizedGuildId);
         return snapshot;

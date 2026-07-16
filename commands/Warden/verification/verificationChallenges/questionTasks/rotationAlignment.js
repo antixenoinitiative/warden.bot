@@ -1,9 +1,13 @@
 const {
     createGalleryToken,
+    resolveGalleryImageCountOptions,
     resolveGalleryImageCounts,
     getPoolImagesByIds,
+    getGalleryAttachmentCount,
+    getImagePoolId,
     getQuestionGeneratedImage,
     getRoleImageIds,
+    validateGalleryPoolReferences,
 } = require('./shared/gallery');
 
 const {
@@ -12,6 +16,7 @@ const {
     getDegreeList,
     hasDirection,
     getWorldDirections,
+    isAllowedRotationDegree,
 } = require('./shared/degrees');
 
 const {
@@ -19,6 +24,11 @@ const {
     pickRandomItem,
     pickRandomItems,
 } = require('./shared/random');
+
+const GALLERY_ROLES = [
+    { role: 'center', label: 'Center image IDs', missingCode: 'missing_center_image_ids' },
+    { role: 'outer', label: 'Outer image IDs', missingCode: 'missing_outer_image_ids' },
+];
 
 function getRotationAlignmentDirections(imageDirections, imageId, challengeId) {
     const directions = getDegreeList(imageDirections?.[imageId], []);
@@ -31,14 +41,8 @@ function getRotationAlignmentDirections(imageDirections, imageId, challengeId) {
 }
 
 function pickClockPositionDegrees(clockDegrees, gallerySize, maxRepeats) {
-    const normalizedClockDegrees = [...new Set(clockDegrees ?? [])];
-    const limit = Math.max(1, Math.floor(Number(maxRepeats ?? gallerySize)));
+    const { normalizedClockDegrees, limit, capacity } = resolveClockPositionCapacity(clockDegrees, gallerySize, maxRepeats);
 
-    if (normalizedClockDegrees.length < 1) {
-        throw new Error('Rotation-alignment gallery requires at least one clock position degree.');
-    }
-
-    const capacity = normalizedClockDegrees.length * limit;
     if (capacity < gallerySize) {
         throw new Error(`Rotation-alignment gallery does not have enough clock-position capacity. Required ${gallerySize}, capacity ${capacity}. Increase maxImageOrientationRepeats or add clock positions.`);
     }
@@ -54,6 +58,106 @@ function pickClockPositionDegrees(clockDegrees, gallerySize, maxRepeats) {
     }
 
     return selected;
+}
+
+function resolveClockPositionCapacity(clockDegrees, gallerySize, maxRepeats) {
+    const normalizedClockDegrees = [...new Set(clockDegrees ?? [])];
+    const limit = maxRepeats === undefined || maxRepeats === null
+        ? gallerySize
+        : Math.floor(Number(maxRepeats));
+
+    if (normalizedClockDegrees.length < 1) {
+        throw new Error('Rotation-alignment gallery requires at least one clock position degree.');
+    }
+    if (!Number.isInteger(limit) || limit < 1) {
+        throw new Error('Rotation-alignment maxImageOrientationRepeats must be a positive integer.');
+    }
+
+    return {
+        normalizedClockDegrees,
+        limit,
+        capacity: normalizedClockDegrees.length * limit,
+    };
+}
+
+function getInvalidDirectionValues(value) {
+    return (Array.isArray(value) ? value : []).filter((degrees) => !isAllowedRotationDegree(degrees));
+}
+
+function validateConfig(question, context) {
+    const generatedImage = getQuestionGeneratedImage(question);
+    const validation = validateGalleryPoolReferences(generatedImage, {
+        ...context,
+        questionId: question.id,
+    }, GALLERY_ROLES);
+    const issues = [...validation.issues];
+    const prefix = `${context.challengeId}/${question.id}`;
+    const imageDirections = generatedImage.imageDirections ?? {};
+
+    const availableImageIds = new Set((validation.imagePool?.images ?? []).map((image) => String(image.id)));
+    const referencedImageIds = [...new Set([...validation.roleIds.center, ...validation.roleIds.outer])]
+        .filter((imageId) => availableImageIds.has(imageId));
+    for (const imageId of referencedImageIds) {
+        if (!Array.isArray(imageDirections[imageId]) || imageDirections[imageId].length < 1) {
+            issues.push({
+                code: 'missing_image_directions',
+                field: `generatedImage.imageDirections.${imageId}`,
+                label: 'Image directions',
+                message: `${prefix}: Rotation Alignment task requires image directions for ${imageId}.`,
+            });
+        }
+        else if (getInvalidDirectionValues(imageDirections[imageId]).length > 0) {
+            issues.push({
+                code: 'invalid_image_directions',
+                field: `generatedImage.imageDirections.${imageId}`,
+                label: 'Image directions',
+                message: `${prefix}: Rotation Alignment task has invalid image directions for ${imageId}.`,
+            });
+        }
+    }
+
+    let countOptions;
+    try {
+        countOptions = resolveGalleryImageCountOptions(generatedImage, context.challengeId);
+    }
+    catch (err) {
+        issues.push({
+            code: 'invalid_gallery_counts',
+            field: 'generatedImage.gallerySize',
+            label: 'Gallery image counts',
+            message: `${prefix}: ${err.message}`,
+        });
+    }
+
+    if (countOptions) {
+        const rotationAlignment = generatedImage.rotationAlignment ?? generatedImage;
+        const clockDegrees = getDegreeList(rotationAlignment.clockPositionDegrees);
+        try {
+            const { capacity } = resolveClockPositionCapacity(
+                clockDegrees,
+                countOptions.gallerySize,
+                rotationAlignment.maxImageOrientationRepeats,
+            );
+            if (capacity < countOptions.gallerySize) {
+                issues.push({
+                    code: 'insufficient_clock_position_capacity',
+                    field: 'generatedImage.maxImageOrientationRepeats',
+                    label: 'Clock-position capacity',
+                    message: `${prefix}: Clock positions provide ${capacity} slots, but the gallery requires ${countOptions.gallerySize}.`,
+                });
+            }
+        }
+        catch (err) {
+            issues.push({
+                code: 'invalid_rotation_generation_config',
+                field: 'generatedImage.maxImageOrientationRepeats',
+                label: 'Rotation generation settings',
+                message: `${prefix}: ${err.message}`,
+            });
+        }
+    }
+
+    return issues;
 }
 
 function isRotationAlignmentCorrect({
@@ -112,7 +216,7 @@ function createIncorrectRotationAlignmentRotations(clockPositionDegrees, centerD
 function createGalleryState(question, context) {
     const generatedImage = getQuestionGeneratedImage(question);
     const { challengeId, getVerificationImagePool } = context;
-    const imagePoolId = generatedImage.imagePoolId;
+    const imagePoolId = getImagePoolId(generatedImage);
     const imagePool = getVerificationImagePool(imagePoolId);
 
     if (!imagePool) {
@@ -204,7 +308,11 @@ async function prepareAsset(question, context) {
 module.exports = {
     type: 'gallery-rotation-alignment',
     label: 'Rotation Alignment',
+    providesPositionAnswers: true,
+    getAttachmentCount: getGalleryAttachmentCount,
+    validateConfig,
     createGalleryState,
     prepareAsset,
     isRotationAlignmentCorrect,
+    resolveClockPositionCapacity,
 };

@@ -7,6 +7,25 @@ const Discord = require('discord.js');
 const repositoryRoot = path.resolve(__dirname, '..');
 const verificationDirectory = path.join(repositoryRoot, 'commands', 'Warden', 'verification');
 const interactionDelivery = require(path.join(verificationDirectory, 'verificationInteraction'));
+const verificationResponses = require(path.join(verificationDirectory, 'verificationResponses'));
+const verificationValidation = require(path.join(verificationDirectory, 'verificationValidation'));
+const verificationChallenges = require(path.join(verificationDirectory, 'verificationChallenges', 'verificationChallenges'));
+const verificationImages = require(path.join(verificationDirectory, 'verificationImages'));
+const galleryStandard = require(path.join(verificationDirectory, 'verificationChallenges', 'questionTasks', 'galleryStandard'));
+const rotationAlignment = require(path.join(verificationDirectory, 'verificationChallenges', 'questionTasks', 'rotationAlignment'));
+const galleryShared = require(path.join(verificationDirectory, 'verificationChallenges', 'questionTasks', 'shared', 'gallery'));
+
+function buildCatalogReport(challengeId, questions) {
+    return verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: [challengeId],
+        challenges: [{ id: challengeId, enabled: true, questions }],
+    });
+}
+
+function getIssueCodes(report) {
+    return new Set(report.activeBlockingIssues.map((issue) => issue.code));
+}
 
 function restoreModule(modulePath, cachedModule) {
     delete require.cache[modulePath];
@@ -64,6 +83,492 @@ test('non-message modal acknowledgement edits its deferred ephemeral reply', asy
     assert.deepEqual(calls.map(([method]) => method), ['deferReply', 'editReply']);
     assert.equal(calls[1][1].content, 'validation error');
     assert.equal(calls[1][1].flags, undefined);
+});
+
+test('Admin responses use Components V2 while errors remain legacy embeds', () => {
+    const actionRow = new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder()
+            .setCustomId('test-admin-action')
+            .setLabel('Edit')
+            .setStyle(Discord.ButtonStyle.Primary),
+    );
+    const response = verificationResponses.buildVerificationAdminSummary(
+        'Settings',
+        'Current verification settings.',
+        'Catalog authoritative.',
+        'info',
+        {
+            fields: [{ name: 'Mode', value: 'challenge' }],
+            components: [actionRow],
+        },
+    );
+    const container = response.components[0].toJSON();
+
+    assert.equal(response.flags, Discord.MessageFlags.IsComponentsV2);
+    assert.deepEqual(response.embeds, []);
+    assert.equal(response.content, null);
+    assert.equal(container.type, Discord.ComponentType.Container);
+    assert.ok(container.components.some((component) => component.type === Discord.ComponentType.TextDisplay));
+    assert.ok(container.components.some((component) => component.type === Discord.ComponentType.ActionRow));
+
+    const error = verificationResponses.buildVerificationErrorResponse('Invalid settings.');
+    assert.equal(error.embeds.length, 1);
+    assert.equal(error.components, undefined);
+});
+
+test('catalog-native preflight validates challenges absent from static templates', () => {
+    const report = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['catalog-only'],
+        challenges: [{
+            id: 'catalog-only',
+            enabled: true,
+            questions: [{
+                id: 'answer',
+                generatedImage: { enabled: false, type: 'none' },
+                answer: { required: true, type: 'text', accepted: [], requiresConfiguredAnswers: true },
+            }],
+        }],
+    });
+
+    assert.equal(report.activeBlockingIssues.length, 1);
+    assert.equal(report.activeBlockingIssues[0].challengeId, 'catalog-only');
+    assert.equal(report.activeBlockingIssues[0].code, 'missing_accepted_answers');
+
+    const missing = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['missing-catalog-row'],
+        challenges: [],
+    });
+    assert.equal(missing.activeBlockingIssues[0].code, 'missing_active_challenge');
+
+    const empty = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['empty'],
+        challenges: [{ id: 'empty', enabled: true, questions: [] }],
+    });
+    assert.equal(empty.activeBlockingIssues[0].code, 'missing_questions');
+
+    const unsupportedTask = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['unsupported-task'],
+        challenges: [{
+            id: 'unsupported-task',
+            enabled: true,
+            questions: [{
+                id: 'task',
+                generatedImage: { enabled: true, type: 'not-registered' },
+                answer: { required: false, type: 'none', accepted: [] },
+            }],
+        }],
+    });
+    assert.equal(unsupportedTask.activeBlockingIssues[0].code, 'unsupported_task_type');
+    assert.deepEqual(unsupportedTask.unsafeActiveChallengeIds, ['unsupported-task']);
+
+    const unsupportedAnswer = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['unsupported-answer'],
+        challenges: [{
+            id: 'unsupported-answer',
+            enabled: true,
+            questions: [{
+                id: 'answer',
+                generatedImage: { enabled: false, type: 'none' },
+                answer: { required: true, type: 'not-registered', accepted: [] },
+            }],
+        }],
+    });
+    assert.equal(unsupportedAnswer.activeBlockingIssues[0].code, 'unsupported_answer_type');
+    assert.deepEqual(unsupportedAnswer.unsafeActiveChallengeIds, ['unsupported-answer']);
+});
+
+test('catalog preflight validates gallery pools and position-answer task capabilities', () => {
+    const unknownPool = buildCatalogReport('unknown-pool', [{
+        id: 'gallery',
+        text: 'Choose the solution image.',
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-standard',
+            imagePoolId: 'not-a-real-pool',
+            imageIds: { solution: ['missing-solution'], control: ['missing-control'] },
+            maxControlImageRepeats: 5,
+        },
+        answer: { required: true, type: 'positions' },
+    }]);
+    assert.ok(getIssueCodes(unknownPool).has('unknown_image_pool'));
+
+    const unknownPoolImage = buildCatalogReport('unknown-pool-image', [{
+        id: 'gallery',
+        text: 'Choose the solution image.',
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-standard',
+            imagePoolId: ' eliteVessels_c ',
+            imageIds: { solution: ['not-in-pool'], control: ['ev1'] },
+            maxControlImageRepeats: 5,
+        },
+        answer: { required: true, type: 'positions' },
+    }]);
+    assert.ok(getIssueCodes(unknownPoolImage).has('unknown_solution_image_ids'));
+
+    for (const taskType of ['none', 'prompt-text', 'static-image']) {
+        const incompatible = buildCatalogReport(`positions-${taskType}`, [{
+            id: 'answer',
+            generatedImage: { enabled: taskType !== 'none', type: taskType },
+            answer: { required: true, type: 'positions' },
+        }]);
+        assert.ok(getIssueCodes(incompatible).has('positions_answer_requires_gallery'));
+    }
+
+    const validGallery = buildCatalogReport('valid-gallery', [{
+        id: 'gallery',
+        text: 'Choose the solution image.',
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-standard',
+            imagePoolId: ' eliteVessels_c ',
+            imageIds: { solution: ['ev8'], control: ['ev1'] },
+            maxControlImageRepeats: 5,
+        },
+        answer: { required: true, type: 'positions' },
+    }]);
+    assert.equal(validGallery.activeBlockingIssues.length, 0);
+
+    const duplicateControlIds = buildCatalogReport('duplicate-control-ids', [{
+        id: 'gallery',
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-standard',
+            imagePoolId: 'eliteVessels_c',
+            imageIds: { solution: ['ev8'], control: ['ev1', 'ev1'] },
+            maxControlImageRepeats: 3,
+        },
+        answer: { required: true, type: 'positions' },
+    }]);
+    assert.ok(getIssueCodes(duplicateControlIds).has('insufficient_control_image_capacity'));
+
+    assert.equal(galleryShared.getPoolImagesByIds({ id: 'numeric', images: [{ id: '1' }] }, [1], 'solution', 'numeric-test')[0].id, '1');
+});
+
+test('rotation preflight uses runtime defaults and blocks insufficient generation capacity', () => {
+    const buildRotationQuestion = (rotationAlignment = {}) => ({
+        id: 'rotation',
+        text: 'Choose the aligned images.',
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-rotation-alignment',
+            imagePoolId: 'eliteRotationAlignmentAssets',
+            imageIds: { center: ['station1'], outer: ['ship'] },
+            imageDirections: { station1: [0], ship: [0] },
+            gallerySize: 6,
+            rotationAlignment,
+        },
+        answer: { required: true, type: 'positions' },
+    });
+
+    const insufficient = buildCatalogReport('rotation-capacity', [buildRotationQuestion({
+        clockPositionDegrees: [0],
+        maxImageOrientationRepeats: 2,
+    })]);
+    assert.ok(getIssueCodes(insufficient).has('insufficient_clock_position_capacity'));
+
+    const defaults = buildCatalogReport('rotation-defaults', [buildRotationQuestion()]);
+    assert.equal(defaults.activeBlockingIssues.length, 0);
+
+    const invalidRepeatLimit = buildCatalogReport('rotation-repeat-limit', [buildRotationQuestion({
+        clockPositionDegrees: [0],
+        maxImageOrientationRepeats: 'invalid',
+    })]);
+    assert.ok(getIssueCodes(invalidRepeatLimit).has('invalid_rotation_generation_config'));
+});
+
+test('task configurations accepted by preflight construct gallery runtime state', () => {
+    const standardQuestion = {
+        id: 'standard',
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-standard',
+            imagePoolId: ' eliteVessels_c ',
+            gallerySize: 6,
+            imageIds: { solution: ['ev8'], control: ['ev1'] },
+            maxControlImageRepeats: 5,
+        },
+        answer: { required: true, type: 'positions' },
+    };
+    const rotationQuestion = {
+        id: 'rotation',
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-rotation-alignment',
+            imagePoolId: 'eliteRotationAlignmentAssets',
+            gallerySize: 6,
+            imageIds: { center: ['station1'], outer: ['ship'] },
+            imageDirections: { station1: [0], ship: [0] },
+        },
+        answer: { required: true, type: 'positions' },
+    };
+    const context = {
+        challengeId: 'runtime-parity',
+        getVerificationImagePool: verificationImages.getVerificationImagePool,
+    };
+
+    assert.deepEqual(galleryStandard.validateConfig(standardQuestion, context), []);
+    assert.equal(galleryStandard.createGalleryState(standardQuestion, context).selectedImages.length, 6);
+    assert.deepEqual(rotationAlignment.validateConfig(rotationQuestion, context), []);
+    assert.equal(rotationAlignment.createGalleryState(rotationQuestion, context).selectedImages.length, 6);
+});
+
+test('Components V2 validation and rendering enforce the current 40-component message budget', () => {
+    const buildChallenge = (questionCount) => verificationChallenges.normalizeVerificationChallenge({
+        id: `component-budget-${questionCount}`,
+        enabled: true,
+        title: 'Component budget',
+        description: 'Boundary test.',
+        questions: Array.from({ length: questionCount }, (_, index) => ({
+            id: `question-${index}`,
+            label: `Question ${index + 1}`,
+            text: 'Read this question.',
+            generatedImage: { enabled: false, type: 'none' },
+            answer: { required: false, type: 'none' },
+        })),
+    }, {});
+
+    const fourQuestionChallenge = buildChallenge(4);
+    const fourQuestionScreens = verificationChallenges.buildQuestionScreens(fourQuestionChallenge);
+    assert.deepEqual(verificationChallenges.validateQuestionScreens(fourQuestionScreens, fourQuestionChallenge), []);
+
+    const boundaryChallenge = buildChallenge(17);
+    const boundaryScreens = verificationChallenges.buildQuestionScreens(boundaryChallenge);
+    assert.equal(verificationChallenges.countQuestionScreenComponents(boundaryChallenge, boundaryScreens, boundaryScreens[0]), 40);
+    assert.deepEqual(verificationChallenges.validateQuestionScreens(boundaryScreens, boundaryChallenge), []);
+
+    const session = {
+        challengeId: boundaryChallenge.id,
+        screenIndex: 0,
+        screens: boundaryScreens,
+        token: 'a'.repeat(32),
+        expiresAt: Date.now() + 60_000,
+    };
+    const components = verificationResponses.buildQuestionScreenComponentsV2(
+        boundaryChallenge,
+        boundaryScreens[0],
+        {},
+        session,
+        { includeIntro: true },
+    );
+    assert.equal(verificationResponses.countSerializedComponents(components.map((component) => component.toJSON())), 40);
+
+    const oversizedChallenge = buildChallenge(18);
+    const oversizedScreens = verificationChallenges.buildQuestionScreens(oversizedChallenge);
+    assert.equal(verificationChallenges.validateQuestionScreens(oversizedScreens, oversizedChallenge)[0].code, 'components_v2_component_limit');
+    assert.throws(() => verificationResponses.buildQuestionScreenComponentsV2(
+        oversizedChallenge,
+        oversizedScreens[0],
+        {},
+        { ...session, challengeId: oversizedChallenge.id, screens: oversizedScreens },
+        { includeIntro: true },
+    ), /42 Discord components/);
+
+    const laterScreenChallenge = verificationChallenges.normalizeVerificationChallenge({
+        id: 'later-screen-boundary',
+        enabled: true,
+        questions: [
+            {
+                id: 'intro-step',
+                label: 'Intro step',
+                text: 'Continue.',
+                separateStep: true,
+                generatedImage: { enabled: false, type: 'none' },
+                answer: { required: false, type: 'none' },
+            },
+            ...Array.from({ length: 17 }, (_, index) => ({
+                id: `grouped-${index}`,
+                label: `Grouped ${index + 1}`,
+                text: 'Read this question.',
+                generatedImage: { enabled: false, type: 'none' },
+                answer: { required: false, type: 'none' },
+            })),
+        ],
+    }, {});
+    const laterScreens = verificationChallenges.buildQuestionScreens(laterScreenChallenge);
+    assert.equal(verificationChallenges.countQuestionScreenComponents(laterScreenChallenge, laterScreens, laterScreens[1]), 40);
+    const laterComponents = verificationResponses.buildQuestionScreenComponentsV2(
+        laterScreenChallenge,
+        laterScreens[1],
+        {},
+        { ...session, challengeId: laterScreenChallenge.id, screenIndex: 1, screens: laterScreens },
+    );
+    assert.equal(verificationResponses.countSerializedComponents(laterComponents.map((component) => component.toJSON())), 40);
+});
+
+test('screen preflight and rendering enforce Discord attachment budgets', () => {
+    const galleryQuestion = (id, compositeImageGallery = false) => ({
+        id,
+        label: id,
+        generatedImage: {
+            enabled: true,
+            type: 'gallery-standard',
+            gallerySize: 6,
+            compositeImageGallery,
+        },
+        answer: { required: false, type: 'none' },
+    });
+    const challenge = verificationChallenges.normalizeVerificationChallenge({
+        id: 'attachment-budget',
+        enabled: true,
+        questions: [galleryQuestion('gallery-1'), galleryQuestion('gallery-2')],
+    }, {});
+    const screens = verificationChallenges.buildQuestionScreens(challenge);
+    assert.equal(verificationChallenges.countQuestionScreenAttachments(screens[0]), 12);
+    assert.ok(verificationChallenges.validateQuestionScreens(screens, challenge)
+        .some((issue) => issue.code === 'discord_attachment_limit'));
+
+    const compositeChallenge = verificationChallenges.normalizeVerificationChallenge({
+        id: 'attachment-budget-composite',
+        enabled: true,
+        questions: [galleryQuestion('gallery-1', true), galleryQuestion('gallery-2', true)],
+    }, {});
+    const compositeScreens = verificationChallenges.buildQuestionScreens(compositeChallenge);
+    assert.equal(verificationChallenges.countQuestionScreenAttachments(compositeScreens[0]), 2);
+    assert.ok(!verificationChallenges.validateQuestionScreens(compositeScreens, compositeChallenge)
+        .some((issue) => issue.code === 'discord_attachment_limit'));
+    assert.throws(() => verificationResponses.assertDiscordAttachmentBudget(Array(11).fill({})), /11 Discord attachments/);
+});
+
+test('runtime verification uses compact wire IDs and current Label components', () => {
+    const longChallengeId = 'c'.repeat(128);
+    const longQuestionId = 'q'.repeat(128);
+    const challenge = verificationChallenges.normalizeVerificationChallenge({
+        id: longChallengeId,
+        enabled: true,
+        questions: [{
+            id: longQuestionId,
+            label: 'Long identity question',
+            text: 'Enter the answer.',
+            generatedImage: { enabled: false, type: 'none' },
+            answer: {
+                required: true,
+                type: 'text',
+                accepted: ['axi'],
+                inputLabel: 'L'.repeat(45),
+                inputPlaceholder: 'P'.repeat(100),
+            },
+        }],
+    }, {});
+    const screens = verificationChallenges.buildQuestionScreens(challenge);
+    const session = {
+        challengeId: longChallengeId,
+        challenge,
+        screenIndex: 0,
+        screens,
+        token: 'a'.repeat(32),
+    };
+
+    const actionId = verificationResponses.buildScreenActionRows(session)[0].components[0].data.custom_id;
+    assert.ok(actionId.length <= 100);
+    assert.deepEqual(verificationResponses.parseAnswerCustomId(actionId), { screenIndex: 0, token: session.token });
+
+    const modal = verificationResponses.buildAnswerModal(session).toJSON();
+    assert.ok(modal.custom_id.length <= 100);
+    assert.equal(modal.components[0].type, Discord.ComponentType.Label);
+    assert.equal(modal.components[0].label.length, 45);
+    assert.equal(modal.components[0].component.custom_id, 'q:0');
+    assert.equal(modal.components[0].component.placeholder.length, 100);
+
+    const submittedFields = new Discord.ModalSubmitFields([{
+        type: Discord.ComponentType.Label,
+        label: modal.components[0].label,
+        component: {
+            type: Discord.ComponentType.TextInput,
+            customId: 'q:0',
+            value: 'axi',
+        },
+    }]);
+    assert.equal(submittedFields.getTextInputValue('q:0'), 'axi');
+
+    const invalidStrings = buildCatalogReport('invalid-input-copy', [{
+        id: 'answer',
+        generatedImage: { enabled: false, type: 'none' },
+        answer: {
+            required: true,
+            type: 'text',
+            accepted: ['axi'],
+            inputLabel: 'L'.repeat(46),
+            inputPlaceholder: 'P'.repeat(101),
+        },
+    }]);
+    const issueCodes = getIssueCodes(invalidStrings);
+    assert.ok(issueCodes.has('answer_input_label_too_long'));
+    assert.ok(issueCodes.has('answer_input_placeholder_too_long'));
+});
+
+test('safeguard reports a post-commit snapshot refresh failure without treating the write as failed', async () => {
+    const handlerPath = require.resolve(path.join(verificationDirectory, 'verificationDbHandler'));
+    const servicePath = require.resolve(path.join(verificationDirectory, 'verificationService'));
+    const cachedHandler = require.cache[handlerPath];
+    const cachedService = require.cache[servicePath];
+    const originalConsoleError = console.error;
+    const loggedErrors = [];
+    let writes = 0;
+    let invalidations = 0;
+
+    require.cache[handlerPath] = {
+        id: handlerPath,
+        filename: handlerPath,
+        loaded: true,
+        exports: {
+            VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
+            invalidateVerificationGuild: () => { invalidations += 1; },
+            loadVerificationSnapshot: async () => { throw new Error('refresh unavailable'); },
+            saveVerificationGuildSettingsOnly: async () => { writes += 1; },
+        },
+    };
+    delete require.cache[servicePath];
+    const service = require(servicePath);
+    const safeQuestion = {
+        id: 'answer',
+        generatedImage: { enabled: false, type: 'none' },
+        answer: { required: true, type: 'text', accepted: ['axi'] },
+    };
+    const snapshot = {
+        guildSettings: { mode: 'challenge', activeChallengeIds: ['unsafe'] },
+        settings: { mode: 'challenge', activeChallengeIds: ['unsafe'], challengeOverrides: {} },
+        runtime: {
+            mode: 'challenge',
+            activeChallengeIds: ['unsafe'],
+            challenges: [
+                { id: 'unsafe', questions: [{ ...safeQuestion, answer: { ...safeQuestion.answer, accepted: [] } }] },
+                { id: 'placeholder', questions: [safeQuestion] },
+            ],
+            activeChallenges: [],
+        },
+    };
+
+    try {
+        console.error = (...args) => loggedErrors.push(args);
+        const result = await service.applyVerificationConfigSafeguard({ guildId: 'guild', snapshot });
+        assert.equal(writes, 1);
+        assert.equal(invalidations, 1);
+        assert.match(result.refreshError.message, /refresh unavailable/);
+        assert.deepEqual(result.finalSettings.activeChallengeIds, ['placeholder']);
+        assert.match(String(loggedErrors[0]?.[0]), /committed.*snapshot could not be refreshed/);
+
+        const committedSettings = { mode: 'challenge', activeChallengeIds: ['safe'], challengeOverrides: {} };
+        const initialRefreshFailure = await service.applyVerificationConfigSafeguard({
+            guildId: 'guild',
+            committedSettings,
+        });
+        assert.equal(writes, 1);
+        assert.equal(invalidations, 2);
+        assert.strictEqual(initialRefreshFailure.finalSettings, committedSettings);
+        assert.match(initialRefreshFailure.refreshError.message, /refresh unavailable/);
+        assert.match(String(loggedErrors[1]?.[0]), /committed.*snapshot could not be loaded/);
+    }
+    finally {
+        console.error = originalConsoleError;
+        restoreModule(servicePath, cachedService);
+        restoreModule(handlerPath, cachedHandler);
+    }
 });
 
 test('verification feature owns Admin component dispatch and contains unexpected errors', async () => {
@@ -167,7 +672,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
         clearVerificationSettingsCache: () => undefined,
         ensureVerificationSettingsTable: async () => undefined,
-        getVerificationSettings: async () => {
+        getVerificationGuildSettings: async () => {
             settingsReads += 1;
             if (blockNextSettingsRead) {
                 blockNextSettingsRead = false;
@@ -177,6 +682,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             await Promise.resolve();
             return { mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} };
         },
+        getVerificationSettings: async () => assert.fail('snapshot reads must not reconstruct runtime settings through legacy-shaped catalog overrides'),
         updateChallengeMetaOverrides: async () => {
             if (failWrite) throw new Error('write failed');
             return { mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} };
@@ -200,6 +706,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             catalogReads += 1;
             return { alpha: { id: 'alpha', questions: [{ id: 'question-1' }] } };
         },
+        catalogChallengesToSettingsOverrides: () => ({ alpha: { questions: {} } }),
     };
 
     require.cache[settingsPath] = { id: settingsPath, filename: settingsPath, loaded: true, exports: settingsStub };
@@ -220,6 +727,8 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         assert.equal(catalogReads, 1);
         assert.equal(first.challengesById.get('alpha').id, 'alpha');
         assert.equal(first.questionsByChallengeId.get('alpha').get('question-1').id, 'question-1');
+        assert.equal(first.runtime.activeChallenges[0].id, 'alpha');
+        assert.deepEqual(first.settings.challengeOverrides, { alpha: { questions: {} } });
 
         await db.updateChallengeMetaOverrides('guild-1', 'alpha', {}, 'tester');
         await db.loadVerificationSnapshot('guild-1');
@@ -278,6 +787,12 @@ test('verification persistence and global interaction routing keep their public 
     assert.match(interactionCreateSource, /verificationFeature/);
     assert.doesNotMatch(interactionCreateSource, /verificationFlow/);
     assert.doesNotMatch(interactionCreateSource, /handleVerificationAdmin|handleModalSubmit/);
+
+    const flowSource = fs.readFileSync(path.join(verificationDirectory, 'verificationFlow.js'), 'utf8');
+    assert.doesNotMatch(flowSource, /getEnabledVerificationChallenges|getActiveVerificationChallenge|getVerificationSettings/);
+
+    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verification.js'), 'utf8');
+    assert.doesNotMatch(adminSource, /build(?:SettingsStatus|ChallengePicker|ChallengeOverview|QuestionDetail)Embed/);
 
     const imageSource = fs.readFileSync(path.join(verificationDirectory, 'verificationImages.js'), 'utf8');
     assert.doesNotMatch(imageSource, /localGalleryImageBufferCache/);

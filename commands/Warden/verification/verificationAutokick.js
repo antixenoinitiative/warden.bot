@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const config = require('../../../config.json');
 const { botLog } = require('../../../functions');
-const { getVerificationSettings } = require('./verificationService');
+const { getVerificationRuntime } = require('./verificationService');
 const { buildVerificationAutoKickEmbed } = require('./verificationResponses');
 
 const AUTOKICK_DM_TO_KICK_DELAY_MS = 1000;
@@ -32,7 +32,7 @@ async function processAutokick(member) {
     const freshMember = await guild.members.fetch(member.id).catch(() => null);
     if (!freshMember || !freshMember.roles.cache.has(unverifiedRoleId)) return;
 
-    const verificationSettings = await getVerificationSettings(guild.id);
+    const verificationSettings = await getVerificationRuntime(guild.id);
     const autoKickEmbed = buildVerificationAutoKickEmbed(freshMember, {
         autokickSeconds: verificationSettings.autokickSeconds,
     });
@@ -62,7 +62,7 @@ async function processAutokick(member) {
 async function scheduleVerificationAutokick(member) {
     if (!member?.guild || member.user?.bot) return;
 
-    const verificationSettings = await getVerificationSettings(member.guild.id);
+    const verificationSettings = await getVerificationRuntime(member.guild.id);
     if (!verificationSettings.autokickEnabled) return;
 
     const unverifiedRoleId = config.Warden?.verification?.unverifiedRoleId;

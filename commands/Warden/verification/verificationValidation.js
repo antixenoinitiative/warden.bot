@@ -3,9 +3,9 @@ const {
     resolveConfiguredActiveChallengeIds,
 } = require('./verificationChallenges/verificationConfigIssues');
 
-function evaluateVerificationConfig(settings = {}, options = {}) {
-    const activeChallengeIds = resolveConfiguredActiveChallengeIds(settings);
-    const issues = evaluateVerificationConfigIssues(settings).map((issue) => ({
+function evaluateVerificationConfig(configuration = {}, options = {}) {
+    const activeChallengeIds = resolveConfiguredActiveChallengeIds(configuration);
+    const issues = evaluateVerificationConfigIssues(configuration).map((issue) => ({
         ...issue,
         active: activeChallengeIds.includes(String(issue.challengeId)),
         changed: (!options.changedChallengeId || issue.challengeId === options.changedChallengeId)
@@ -15,7 +15,7 @@ function evaluateVerificationConfig(settings = {}, options = {}) {
     const activeBlockingIssues = blockingIssues.filter((issue) => issue.active);
 
     return Object.freeze({
-        mode: settings.mode,
+        mode: configuration.mode,
         activeChallengeIds: Object.freeze([...activeChallengeIds]),
         issues: Object.freeze(issues),
         blockingIssues: Object.freeze(blockingIssues),

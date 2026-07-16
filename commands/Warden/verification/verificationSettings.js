@@ -867,12 +867,8 @@ async function saveVerificationGuildSettingsOnly(guildId, settings, updatedBy) {
     return normalizedSettings;
 }
 
-async function getVerificationSettings(guildId) {
+async function getVerificationGuildSettings(guildId) {
     const normalizedGuildId = normalizeGuildId(guildId);
-
-    if (settingsCache.has(normalizedGuildId)) {
-        return settingsCache.get(normalizedGuildId);
-    }
 
     await ensureVerificationSettingsTables();
     const guildRows = await getDatabase().query(
@@ -881,7 +877,8 @@ async function getVerificationSettings(guildId) {
     );
 
     if (guildRows.length < 1) {
-        return saveVerificationSettings(normalizedGuildId, defaultVerificationSettings(), null);
+        const settings = await saveVerificationSettings(normalizedGuildId, defaultVerificationSettings(), null);
+        return normalizeSettings({ ...settings, challengeOverrides: {} });
     }
 
     const guildSettings = parseGuildSettingsRow(guildRows[0]);
@@ -910,6 +907,17 @@ async function getVerificationSettings(guildId) {
         console.log(`[VERIFICATION] Migrated legacy challenge overrides into the authoritative catalog for guild ${normalizedGuildId}.`);
     }
 
+    return guildSettings;
+}
+
+async function getVerificationSettings(guildId) {
+    const normalizedGuildId = normalizeGuildId(guildId);
+
+    if (settingsCache.has(normalizedGuildId)) {
+        return settingsCache.get(normalizedGuildId);
+    }
+
+    const guildSettings = await getVerificationGuildSettings(normalizedGuildId);
     const settings = normalizeSettings({
         ...guildSettings,
         challengeOverrides: await readVerificationChallengeOverridesFromCatalog(normalizedGuildId),
@@ -1457,6 +1465,7 @@ module.exports = {
     normalizeQuestionOverrideRow,
     normalizeChallengeConfigRows,
     clearVerificationSettingsCache,
+    getVerificationGuildSettings,
     getVerificationSettings,
     saveVerificationSettings,
     saveVerificationGuildSettingsOnly,
