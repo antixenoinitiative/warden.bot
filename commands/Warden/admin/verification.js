@@ -130,6 +130,10 @@ const {
     setQuestionImageDirectionOverrides,
     updateQuestionOptionOverrides,
     clearQuestionOverrideFields,
+    createCustomChallenge,
+    createCustomQuestion,
+    deleteOrResetChallenge,
+    deleteOrResetQuestion,
 } = require('../verification/verificationService');
 
 
@@ -512,7 +516,13 @@ function buildChallengesPanelPayload({ verificationSettings, challenges, enabled
         verificationSettings,
         challenges,
         enabledChallengeIds,
-        [buildChallengeSelectRow(guildId, ownerUserId, challenges)],
+        [
+            buildChallengeSelectRow(guildId, ownerUserId, challenges),
+            new Discord.ActionRowBuilder().addComponents(new Discord.ButtonBuilder()
+                .setCustomId(buildAdminCustomId('challengeCreate', guildId, ownerUserId))
+                .setLabel('Create Challenge')
+                .setStyle(Discord.ButtonStyle.Success)),
+        ],
     );
 }
 
@@ -570,6 +580,10 @@ function buildChallengeOverviewComponents(mode, guildId, userId, challengeId) {
             .setCustomId(buildAdminCustomId('challengeEdit', guildId, userId, challengeId))
             .setLabel('Edit Challenge')
             .setStyle(Discord.ButtonStyle.Primary));
+        buttons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('challengeDelete', mode, guildId, userId, challengeId))
+            .setLabel('Delete / Reset')
+            .setStyle(Discord.ButtonStyle.Danger));
     }
 
     buttons.push(new Discord.ButtonBuilder()
@@ -583,7 +597,7 @@ function buildChallengeOverviewComponents(mode, guildId, userId, challengeId) {
 function buildChallengeQuestionsComponents(mode, guildId, userId, challengeId) {
     if (!challengeId) return [];
 
-    return [new Discord.ActionRowBuilder().addComponents(
+    const buttons = [
         new Discord.ButtonBuilder()
             .setCustomId(buildAdminCustomId('questionSelectOpen', mode, guildId, userId, challengeId))
             .setLabel('Select Question')
@@ -592,7 +606,12 @@ function buildChallengeQuestionsComponents(mode, guildId, userId, challengeId) {
             .setCustomId(buildAdminCustomId('challengeOverview', mode, guildId, userId, challengeId))
             .setLabel('Challenge')
             .setStyle(Discord.ButtonStyle.Secondary),
-    )];
+    ];
+    if (mode === 'edit') buttons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionCreate', mode, guildId, userId, challengeId))
+            .setLabel('Create Question')
+            .setStyle(Discord.ButtonStyle.Success));
+    return [new Discord.ActionRowBuilder().addComponents(...buttons)];
 }
 
 function buildChallengeOverviewPanelPayload({ verificationSettings, enabledChallengeIds, mode, guildId, userId, challengeId, challenge }) {
@@ -619,6 +638,10 @@ function buildQuestionDetailComponents(mode, guildId, userId, challengeId, quest
             .setCustomId(buildAdminCustomId('questionEditTools', mode, guildId, userId, challengeId, questionId))
             .setLabel('Edit')
             .setStyle(Discord.ButtonStyle.Primary));
+        buttons.push(new Discord.ButtonBuilder()
+            .setCustomId(buildAdminCustomId('questionDelete', mode, guildId, userId, challengeId, questionId))
+            .setLabel('Delete / Reset')
+            .setStyle(Discord.ButtonStyle.Danger));
     }
 
     if (includeBack) {
@@ -2571,6 +2594,144 @@ async function handleChallengeEditModalSubmit(interaction, parts) {
     });
 }
 
+function showCreateChallengeModal(interaction, parts) {
+    const [guildId, ownerUserId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    return interaction.showModal(buildAdminModal(
+        buildAdminCustomId('challengeCreateModal', guildId, ownerUserId, interaction.message?.id ?? ''),
+        'Create Challenge',
+        buildModalTextLabel('challenge_id', 'Challenge ID', { placeholder: 'lowercase-kebab-case (max 100)', maxLength: 100, required: true }),
+        buildModalTextLabel('challenge_title', 'Challenge Title', { maxLength: 256, required: true }),
+        buildModalTextLabel('challenge_description', 'Description', { required: false, maxLength: 4000 }),
+    ));
+}
+
+function showCreateQuestionModal(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (mode !== 'edit') return respondAdminError(interaction, { embeds: [userErrorEmbed('Questions can only be created from an editable challenge panel.')] });
+    return interaction.showModal(buildAdminModal(
+        buildAdminCustomId('questionCreateModal', mode, guildId, ownerUserId, challengeId, interaction.message?.id ?? ''),
+        'Create Question',
+        buildModalTextLabel('question_id', 'Question ID', { placeholder: 'lowercase-kebab-case (max 100)', maxLength: 100, required: true }),
+        buildModalTextLabel('question_label', 'Question Label', { maxLength: 128, required: true }),
+        buildModalTextLabel('question_text', 'Question Text', { maxLength: 4000, required: true }),
+    ));
+}
+
+async function showCatalogDeleteModal(interaction, parts, type) {
+    const [mode, guildId, ownerUserId, challengeId, questionId] = parts;
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return sendAdminPanelOwnerError(interaction);
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminError(interaction, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (mode !== 'edit') return respondAdminError(interaction, { embeds: [userErrorEmbed('Catalog entries can only be changed from an editable panel.')] });
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId);
+    if (!challenge || (type === 'question' && !challenge.questions?.some((question) => question.id === questionId))) {
+        return respondAdminError(interaction, { embeds: [userErrorEmbed('This catalog entry no longer exists. Refresh the panel.')] });
+    }
+    const targetId = type === 'question' ? questionId : challengeId;
+    return interaction.showModal(buildAdminModal(
+        buildAdminCustomId(`${type}DeleteModal`, mode, guildId, ownerUserId, challengeId, questionId ?? '', interaction.message?.id ?? ''),
+        `${type === 'question' ? 'Delete / Reset Question' : 'Delete / Reset Challenge'}`,
+        buildModalTextLabel('confirmation', `Type ${targetId} to confirm`, { maxLength: 128, required: true }),
+    ));
+}
+
+async function handleCreateChallengeModal(interaction, parts) {
+    const [guildId, ownerUserId, sourceMessageId = ''] = parts;
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return respondAdminModalError(interaction, responseMode, { content: 'This admin panel belongs to another user.' });
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    let created;
+    try {
+        created = await createCustomChallenge(guildId, {
+            id: getModalTextInput(interaction, 'challenge_id'),
+            title: getModalTextInput(interaction, 'challenge_title'),
+            description: getModalTextInput(interaction, 'challenge_description'),
+        }, interaction.user.id);
+    }
+    catch (err) { return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(err.message)] }); }
+    const safeguard = await runAdminConfigSafeguard(interaction, { guildId, changedChallengeId: created.result.id,
+        reason: 'Custom challenge created.', source: 'challenge-create-modal', committedSettings: created.committedSettings });
+    if (safeguard.refreshError) { await followUpAdminConfigWarning(interaction, safeguard); return undefined; }
+    const settings = safeguard.finalSettings ?? created.committedSettings;
+    const challenges = await getVerificationAdminChallengeCatalog(guildId, { fresh: true });
+    const response = await replyWithUpdatedAdminPanel(interaction, {
+        panelPayload: buildChallengesPanelPayload({ verificationSettings: settings,
+            challenges, enabledChallengeIds: settings.activeChallengeIds ?? [], guildId, ownerUserId }),
+        sourceMessageId, title: 'Challenge Created', description: 'The custom challenge was created inactive.', responseMode,
+    });
+    await followUpAdminConfigWarning(interaction, safeguard);
+    return response;
+}
+
+async function handleCreateQuestionModal(interaction, parts) {
+    const [mode, guildId, ownerUserId, challengeId, sourceMessageId = ''] = parts;
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return respondAdminModalError(interaction, responseMode, { content: 'This admin panel belongs to another user.' });
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (mode !== 'edit') return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Questions can only be created from an editable challenge panel.')] });
+    let created;
+    try {
+        created = await createCustomQuestion(guildId, challengeId, {
+            id: getModalTextInput(interaction, 'question_id'), label: getModalTextInput(interaction, 'question_label'),
+            text: getModalTextInput(interaction, 'question_text'),
+        }, interaction.user.id);
+    }
+    catch (err) { return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(err.message)] }); }
+    const safeguard = await runAdminConfigSafeguard(interaction, { guildId, changedChallengeId: challengeId,
+        changedQuestionId: created.result.id, reason: 'Custom question created.', source: 'question-create-modal',
+        committedSettings: created.committedSettings });
+    if (safeguard.refreshError) { await followUpAdminConfigWarning(interaction, safeguard); return undefined; }
+    const challenge = await getVerificationAdminChallenge(guildId, challengeId, { fresh: true });
+    const response = await replyWithUpdatedAdminPanel(interaction, {
+        panelPayload: buildChallengeQuestionsPanelPayload({ challengeId, challenge, mode, guildId, userId: ownerUserId }),
+        sourceMessageId, title: 'Question Created', description: 'The custom question was appended.', responseMode,
+    });
+    await followUpAdminConfigWarning(interaction, safeguard);
+    return response;
+}
+
+async function handleCatalogDeleteModal(interaction, parts, type) {
+    const [mode, guildId, ownerUserId, challengeId, questionId = '', sourceMessageId = ''] = parts;
+    const responseMode = await deferAdminPanelModalSubmit(interaction);
+    if (!isAdminSessionOwner(interaction, ownerUserId)) return respondAdminModalError(interaction, responseMode, { content: 'This admin panel belongs to another user.' });
+    if (!isMatchingAdminGuild(interaction, guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
+    if (mode !== 'edit') return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Catalog entries can only be changed from an editable panel.')] });
+    const targetId = type === 'question' ? questionId : challengeId;
+    if (getModalTextInput(interaction, 'confirmation') !== targetId) {
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(`Confirmation must exactly match \`${targetId}\`.`)] });
+    }
+    let changed;
+    try {
+        changed = type === 'question'
+            ? await deleteOrResetQuestion(guildId, challengeId, questionId, interaction.user.id)
+            : await deleteOrResetChallenge(guildId, challengeId, interaction.user.id);
+    }
+    catch (err) { return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(err.message)] }); }
+    const safeguard = await runAdminConfigSafeguard(interaction, { guildId, changedChallengeId: challengeId,
+        ...(type === 'question' ? { changedQuestionId: questionId } : {}), reason: `Catalog ${type} ${changed.result.action}.`,
+        source: `${type}-delete-modal`, committedSettings: changed.committedSettings });
+    if (safeguard.refreshError) { await followUpAdminConfigWarning(interaction, safeguard); return undefined; }
+    const settings = safeguard.finalSettings ?? changed.committedSettings;
+    const result = changed.result;
+    const challenges = await getVerificationAdminChallengeCatalog(guildId, { fresh: true });
+    const panelPayload = type === 'question'
+        ? buildChallengeQuestionsPanelPayload({ challengeId, challenge: challenges[challengeId], mode, guildId, userId: ownerUserId })
+        : (result.action === 'deleted'
+            ? buildChallengesPanelPayload({ verificationSettings: settings, challenges,
+                enabledChallengeIds: settings.activeChallengeIds ?? [], guildId, ownerUserId })
+            : buildChallengeOverviewPanelPayload({ verificationSettings: settings, enabledChallengeIds: settings.activeChallengeIds ?? [],
+                mode, guildId, userId: ownerUserId, challengeId, challenge: challenges[challengeId] }));
+    const response = await replyWithUpdatedAdminPanel(interaction, { panelPayload, sourceMessageId,
+        title: result.action === 'reset' ? 'Template Reset' : `${type === 'question' ? 'Question' : 'Challenge'} Deleted`,
+        description: result.action === 'reset' ? 'Protected template values were restored; custom children were preserved.' : 'The custom catalog entry was deleted.',
+        responseMode });
+    await followUpAdminConfigWarning(interaction, safeguard);
+    return response;
+}
+
 async function handleVerificationAdminComponentInteraction(interaction) {
     const parsed = parseAdminCustomId(interaction.customId);
     if (!parsed) return false;
@@ -2595,6 +2756,18 @@ async function handleVerificationAdminComponentInteraction(interaction) {
                 return true;
             case 'challengeSelect':
                 await handleChallengeSelectMenu(interaction, parsed.parts);
+                return true;
+            case 'challengeCreate':
+                await showCreateChallengeModal(interaction, parsed.parts);
+                return true;
+            case 'questionCreate':
+                await showCreateQuestionModal(interaction, parsed.parts);
+                return true;
+            case 'challengeDelete':
+                await showCatalogDeleteModal(interaction, parsed.parts, 'challenge');
+                return true;
+            case 'questionDelete':
+                await showCatalogDeleteModal(interaction, parsed.parts, 'question');
                 return true;
             case 'challengeQuestions':
                 await handleChallengeQuestionsButton(interaction, parsed.parts);
@@ -2690,6 +2863,18 @@ async function handleVerificationAdminModalSubmit(interaction) {
                 return true;
             case 'challengeEditModal':
                 await handleChallengeEditModalSubmit(interaction, parsed.parts);
+                return true;
+            case 'challengeCreateModal':
+                await handleCreateChallengeModal(interaction, parsed.parts);
+                return true;
+            case 'questionCreateModal':
+                await handleCreateQuestionModal(interaction, parsed.parts);
+                return true;
+            case 'challengeDeleteModal':
+                await handleCatalogDeleteModal(interaction, parsed.parts, 'challenge');
+                return true;
+            case 'questionDeleteModal':
+                await handleCatalogDeleteModal(interaction, parsed.parts, 'question');
                 return true;
             case 'questionOptionsModal':
                 await handleQuestionOptionsModalSubmit(interaction, parsed.parts);
