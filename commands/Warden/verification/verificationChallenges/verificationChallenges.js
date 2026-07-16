@@ -14,7 +14,12 @@ const {
 
 const DEFAULT_GENERATED_IMAGE = Object.freeze({ enabled: false, type: 'none' });
 const DEFAULT_ANSWER = Object.freeze({ required: false, type: 'none' });
+const SUPPORTED_REQUIRED_ANSWER_TYPES = new Set(['text', 'positions']);
 const ALLOWED_IMAGE_DIRECTION_DEGREES = new Set([0, 45, 90, 135, 180, 225, 270, 315]);
+
+function isSupportedRequiredAnswerType(answerType) {
+    return SUPPORTED_REQUIRED_ANSWER_TYPES.has(String(answerType ?? ''));
+}
 
 function normalizeAnswer(answer) {
     return String(answer ?? '')
@@ -210,7 +215,8 @@ function getSubmittedValue(submittedValues, question) {
 
 function validateQuestionAnswer(question, submittedValue, questionAssets = {}) {
     const answer = question?.answer ?? DEFAULT_ANSWER;
-    if (answer.required !== true || answer.type === 'none') return { ok: true };
+    if (answer.required !== true) return { ok: true };
+    if (!isSupportedRequiredAnswerType(answer.type)) return { ok: false, reason: 'unsupported_answer_type' };
 
     if (answer.type === 'text') {
         const normalizer = answer.normalizer ?? normalizeAnswer;
@@ -300,6 +306,7 @@ module.exports = {
     screenAllowsBack,
 
     normalizeAnswer,
+    isSupportedRequiredAnswerType,
     validateQuestionAnswer,
     validateScreenAnswers,
 

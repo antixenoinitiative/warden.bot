@@ -5,6 +5,7 @@ const {
 const {
     normalizeVerificationChallenge,
     buildQuestionScreens,
+    isSupportedRequiredAnswerType,
     validateQuestionScreens,
 } = require('./verificationChallenges');
 const {
@@ -66,6 +67,9 @@ function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, act
 
         if (!getQuestionTaskModule(question)) {
             issues.push(createIssue({ ...base, code: 'unsupported_task_type', field: 'generatedImage.type', label: 'Task type', message: `${prefix}: Unsupported verification task type "${taskType}".` }));
+        }
+        if (answer.required === true && !isSupportedRequiredAnswerType(answer.type)) {
+            issues.push(createIssue({ ...base, code: 'unsupported_answer_type', field: 'answer.type', label: 'Answer type', message: `${prefix}: Required verification answer type "${answer.type}" is unsupported.` }));
         }
         if (generatedImage.requiresConfiguredText === true && !generatedImage.text) {
             issues.push(createIssue({ ...base, code: 'missing_task_prompt_text', field: 'generatedImage.text', label: 'Task prompt text', message: `${prefix}: Prompt Text task requires configured task prompt text.` }));

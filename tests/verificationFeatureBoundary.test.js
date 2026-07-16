@@ -147,6 +147,22 @@ test('catalog-native preflight validates challenges absent from static templates
     });
     assert.equal(unsupportedTask.activeBlockingIssues[0].code, 'unsupported_task_type');
     assert.deepEqual(unsupportedTask.unsafeActiveChallengeIds, ['unsupported-task']);
+
+    const unsupportedAnswer = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['unsupported-answer'],
+        challenges: [{
+            id: 'unsupported-answer',
+            enabled: true,
+            questions: [{
+                id: 'answer',
+                generatedImage: { enabled: false, type: 'none' },
+                answer: { required: true, type: 'not-registered', accepted: [] },
+            }],
+        }],
+    });
+    assert.equal(unsupportedAnswer.activeBlockingIssues[0].code, 'unsupported_answer_type');
+    assert.deepEqual(unsupportedAnswer.unsafeActiveChallengeIds, ['unsupported-answer']);
 });
 
 test('safeguard reports a post-commit snapshot refresh failure without treating the write as failed', async () => {
