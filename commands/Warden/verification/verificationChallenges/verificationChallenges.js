@@ -53,11 +53,15 @@ function normalizeGeneratedImage(generatedImage = {}) {
 }
 
 function normalizeQuestionAnswer(answer = {}) {
+    const type = answer.type ?? (answer.required ? 'text' : 'none');
     return {
         ...DEFAULT_ANSWER,
         ...answer,
-        required: answer.required === true,
-        type: answer.type ?? (answer.required ? 'text' : 'none'),
+        // Catalog rows written before answer_required became mandatory can retain a
+        // type while storing NULL for the flag. Treat that as a required answer,
+        // but preserve an explicit false as the administrator's No Answer choice.
+        required: answer.required === true || (answer.required == null && type !== 'none'),
+        type,
         accepted: Array.isArray(answer.accepted) ? answer.accepted : [],
     };
 }
