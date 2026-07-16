@@ -1420,6 +1420,7 @@ test('catalog IDs accept the Discord-safe 100-character boundary and reject long
         exports: {
             VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
             createCustomChallenge: async (...args) => { forwarded.push(args); return { result: { id: args[1].id } }; },
+            createCustomQuestion: async (...args) => { forwarded.push(args); return { result: { id: args[2].id } }; },
         },
     };
     delete require.cache[servicePath];
@@ -1434,6 +1435,18 @@ test('catalog IDs accept the Discord-safe 100-character boundary and reject long
         assert.throws(
             () => service.createCustomChallenge('guild-id-limit', { id: oversizedId, title: 'Too long' }, 'admin-id'),
             /1-100 characters/,
+        );
+        const templateParentQuestion = await service.createCustomQuestion('guild-id-limit', 'multiFieldExample', {
+            id: 'custom-text', label: 'Custom text', text: 'Answer this', answerType: 'text',
+        }, 'admin-id');
+        assert.equal(templateParentQuestion.result.id, 'custom-text');
+        assert.equal(forwarded[1][1], 'multiFieldExample');
+        assert.deepEqual(forwarded[1][2].answer, { required: true, type: 'text' });
+        assert.throws(
+            () => service.createCustomQuestion('guild-id-limit', 'multiFieldExample', {
+                id: 'custom-position', label: 'Custom position', text: 'Answer this', answerType: 'positions',
+            }, 'admin-id'),
+            /Set a gallery task/,
         );
     }
     finally {
@@ -1464,6 +1477,41 @@ test('catalog IDs accept the Discord-safe 100-character boundary and reject long
     finally {
         harness.restore();
     }
+});
+
+test('question Admin workspace keeps the list selector visible and scopes detail fields to active task configuration', () => {
+    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verification.js'), 'utf8');
+    assert.match(adminSource, /buildQuestionWorkspacePayload[\s\S]*buildQuestionListResponse/);
+    assert.match(adminSource, /buildQuestionWorkspaceListComponents[\s\S]*buildQuestionSelectRow/);
+    assert.doesNotMatch(adminSource, /setLabel\('Select Question'\)/);
+    assert.match(adminSource, /buildQuestionAnswerTypeSelectModalLabel\('none', QUESTION_CREATE_ANSWER_TYPE_OPTIONS\)/);
+    assert.match(adminSource, /Position answers require a gallery task/);
+    assert.match(adminSource, /if \(taskType === 'prompt-text'\)/);
+    assert.match(adminSource, /if \(taskUsesImageIds\(taskType\)\)/);
+    assert.match(adminSource, /if \(taskUsesDirections\(taskType\)\)/);
+    assert.match(adminSource, /compact: true/);
+    assert.match(adminSource, /chunkQuestionListLines/);
+});
+
+test('merged Admin workspaces reject Components V2 payloads over Discord’s component budget', () => {
+    const list = verificationResponses.buildVerificationAdminSummary(
+        'Questions',
+        'Question list',
+        'Summary',
+        'info',
+        { fields: Array.from({ length: 25 }, (_, index) => ({ name: `Question ${index + 1}`, value: 'Configured' })) },
+    );
+    const detail = verificationResponses.buildVerificationAdminSummary(
+        'Question',
+        'Question detail',
+        'Summary',
+        'info',
+        { fields: Array.from({ length: 12 }, (_, index) => ({ name: `Detail ${index + 1}`, value: 'Configured' })) },
+    );
+    assert.throws(
+        () => verificationResponses.mergeVerificationAdminResponses(list, detail),
+        /components/,
+    );
 });
 
 test('full protected reset reconciles current template rows, tombstones obsolete templates, and preserves custom rows', async () => {

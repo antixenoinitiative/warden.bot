@@ -599,10 +599,6 @@ function buildChallengeQuestionsComponents(mode, guildId, userId, challengeId) {
 
     const buttons = [
         new Discord.ButtonBuilder()
-            .setCustomId(buildAdminCustomId('questionSelectOpen', mode, guildId, userId, challengeId))
-            .setLabel('Select Question')
-            .setStyle(Discord.ButtonStyle.Primary),
-        new Discord.ButtonBuilder()
             .setCustomId(buildAdminCustomId('challengeOverview', mode, guildId, userId, challengeId))
             .setLabel('Challenge')
             .setStyle(Discord.ButtonStyle.Secondary),
@@ -624,9 +620,15 @@ function buildChallengeOverviewPanelPayload({ verificationSettings, enabledChall
     );
 }
 
-function buildChallengeQuestionsPanelPayload({ challengeId, challenge, mode, guildId, userId }) {
-    return buildQuestionListResponse(challengeId, challenge, {
-        components: buildChallengeQuestionsComponents(mode, guildId, userId, challengeId),
+function buildChallengeQuestionsPanelPayload({ verificationSettings, challengeId, challenge, mode, guildId, userId }) {
+    return buildQuestionWorkspacePayload({
+        verificationSettings,
+        mode,
+        guildId,
+        ownerUserId: userId,
+        challengeId,
+        challenge,
+        question: null,
     });
 }
 
@@ -687,6 +689,12 @@ const QUESTION_TASK_TYPE_OPTIONS = [
     { value: 'gallery-standard', label: 'Standard Gallery', description: 'Pick solution image positions' },
     { value: 'gallery-rotation-alignment', label: 'Rotation Alignment', description: 'Pick aligned generated tiles' },
 ];
+const QUESTION_ANSWER_TYPE_OPTIONS = [
+    { value: 'none', label: 'No Answer', description: 'Do not require an answer for this question.' },
+    { value: 'text', label: 'Text Answer', description: 'Require an accepted text answer.' },
+    { value: 'positions', label: 'Position Answer', description: 'Require gallery image position(s).' },
+];
+const QUESTION_CREATE_ANSWER_TYPE_OPTIONS = QUESTION_ANSWER_TYPE_OPTIONS.filter((option) => option.value !== 'positions');
 const POSITION_ANSWER_TASK_TYPES = new Set(['gallery-standard', 'gallery-rotation-alignment']);
 const GENERATED_IMAGE_TASK_CONFIG_FIELDS = [
     'text',
@@ -744,8 +752,13 @@ function getQuestionTaskTypeLabel(taskType) {
     return QUESTION_TASK_TYPE_OPTIONS.find((option) => option.value === normalizeTaskType(taskType))?.label ?? 'None';
 }
 
-function getDefaultAnswerTypeForTask(taskType) {
-    return POSITION_ANSWER_TASK_TYPES.has(normalizeTaskType(taskType)) ? 'positions' : 'text';
+function getQuestionAnswerType(question) {
+    if (question?.answer?.required !== true) return 'none';
+    return question.answer?.type === 'positions' ? 'positions' : 'text';
+}
+
+function isAnswerTypeSupportedByTask(answerType, taskType) {
+    return answerType !== 'positions' || POSITION_ANSWER_TASK_TYPES.has(normalizeTaskType(taskType));
 }
 
 function getKnownChallengeId(interaction, optionName = 'challenge') {
@@ -849,9 +862,29 @@ function truncateAdminFieldValue(value, maxLength = 1024) {
     return `${text.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
+function chunkQuestionListLines(lines, maxLength = 900) {
+    const chunks = [];
+    let chunk = [];
+    let length = 0;
+    for (const line of lines) {
+        const normalizedLine = truncateAdminFieldValue(line, 180);
+        const nextLength = length + normalizedLine.length + (chunk.length > 0 ? 1 : 0);
+        if (chunk.length > 0 && nextLength > maxLength) {
+            chunks.push(chunk);
+            chunk = [];
+            length = 0;
+        }
+        chunk.push(normalizedLine);
+        length += normalizedLine.length + (chunk.length > 1 ? 1 : 0);
+    }
+    if (chunk.length > 0) chunks.push(chunk);
+    return chunks;
+}
+
 function buildQuestionListResponse(challengeId, challenge, options = {}) {
     const questions = challenge.questions ?? [];
-    const fields = questions.map((question, index) => ({
+    const { compact = false, ...responseOptions } = options;
+    const detailedFields = questions.map((question, index) => ({
         name: `${index + 1} ${question.id}`,
         value: [
             question.label ? `Label: ${question.label}` : undefined,
@@ -861,26 +894,57 @@ function buildQuestionListResponse(challengeId, challenge, options = {}) {
         ].filter(Boolean).join('\n').slice(0, 1024) || 'No details',
         inline: false,
     }));
+    const fields = compact
+        ? chunkQuestionListLines(questions.map((question, index) => `${index + 1}. ${question.id} — ${question.label ?? 'Question'} (${getQuestionTaskTypeLabel(getQuestionTaskType(question))})`))
+            .map((lines, index) => ({ name: `Questions ${index + 1}`, value: lines.join('\n'), inline: false }))
+        : detailedFields;
     return buildVerificationAdminSummary(
         'Questions',
         `Questions for **${challengeId}**:`,
         `${fields.length} question${fields.length === 1 ? '' : 's'} configured.`,
         'info',
-        { fields, ...options },
+        { fields, ...responseOptions },
     );
 }
 
 function buildQuestionViewResponse(verificationSettings, challengeId, challenge, question, options = {}) {
     const override = getQuestionOverride(verificationSettings, challengeId, question.id);
     const effectiveQuestion = question;
+    const taskType = getQuestionTaskType(effectiveQuestion);
     const imageIds = effectiveQuestion.generatedImage?.imageIds ?? {};
     const imageDirections = effectiveQuestion.generatedImage?.imageDirections ?? {};
-    const imageTextStatus = effectiveQuestion.generatedImage?.text
-        ? (override.generatedImage?.text
-            ? `Override: ${override.generatedImage.text}`
-            : `Configured: ${effectiveQuestion.generatedImage.text}`)
-        : 'Not set';
     const answers = effectiveQuestion.answer?.accepted ?? [];
+    const fields = [
+        { name: 'Challenge ID', value: challengeId, inline: true },
+        { name: 'Question ID', value: question.id, inline: true },
+        { name: 'Order number', value: String(getQuestionNumber(challenge, question)), inline: true },
+        { name: 'Label', value: effectiveQuestion.label ?? 'Not set', inline: true },
+        { name: 'Separate step', value: String(effectiveQuestion.separateStep === true), inline: true },
+        { name: 'Task type', value: getQuestionTaskTypeLabel(taskType), inline: true },
+        { name: 'Text', value: effectiveQuestion.text ?? 'Not set', inline: false },
+    ];
+
+    if (taskType === 'prompt-text') {
+        fields.push({ name: 'Task prompt text', value: effectiveQuestion.generatedImage?.text ?? 'Not set', inline: false });
+    }
+    if (taskType === 'static-image') {
+        fields.push({ name: 'Static image URL', value: effectiveQuestion.generatedImage?.url ?? 'Not set', inline: false });
+    }
+    if (taskUsesImageIds(taskType)) {
+        fields.push(
+            { name: 'Image pool', value: effectiveQuestion.generatedImage?.imagePoolId ?? 'Not set', inline: false },
+            { name: 'Image IDs by role', value: formatJson(imageIds), inline: false },
+        );
+    }
+    if (taskUsesDirections(taskType)) fields.push({ name: 'Image directions', value: formatJson(imageDirections), inline: false });
+
+    if (effectiveQuestion.answer?.required === true) {
+        fields.push({ name: 'Answer type', value: getQuestionAnswerType(effectiveQuestion), inline: true });
+        if (getQuestionAnswerType(effectiveQuestion) === 'text') fields.push({ name: 'Accepted answers', value: formatList(answers), inline: false });
+    }
+    else fields.push({ name: 'Answer', value: 'Not required', inline: true });
+
+    if (override.updatedAt) fields.push({ name: 'Updated', value: `${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}`, inline: false });
 
     return buildVerificationAdminSummary(
         'Question',
@@ -888,23 +952,7 @@ function buildQuestionViewResponse(verificationSettings, challengeId, challenge,
         'Question config and overrides.',
         'info',
         {
-            fields: [
-                { name: 'Challenge ID', value: challengeId, inline: true },
-                { name: 'Question ID', value: question.id, inline: true },
-                { name: 'Order number', value: String(getQuestionNumber(challenge, question)), inline: true },
-                { name: 'Label', value: effectiveQuestion.label ?? 'Not set', inline: true },
-                { name: 'Separate step', value: String(effectiveQuestion.separateStep === true), inline: true },
-                { name: 'Task type', value: getQuestionTaskTypeLabel(getQuestionTaskType(effectiveQuestion)), inline: true },
-                { name: 'Text', value: effectiveQuestion.text ?? 'Not set', inline: false },
-                { name: 'Task prompt text', value: imageTextStatus, inline: false },
-                { name: 'Answer required', value: String(effectiveQuestion.answer?.required === true), inline: true },
-                { name: 'Answer type', value: effectiveQuestion.answer?.type ?? 'none', inline: true },
-                { name: 'Accepted answers', value: formatList(answers), inline: false },
-                { name: 'Image pool', value: effectiveQuestion.generatedImage?.imagePoolId ?? 'Not set', inline: false },
-                { name: 'Image IDs by role', value: formatJson(imageIds), inline: false },
-                { name: 'Image directions', value: formatJson(imageDirections), inline: false },
-                { name: 'Updated', value: override.updatedAt ? `${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}` : 'Not tracked', inline: false },
-            ],
+            fields,
             ...options,
         },
     );
@@ -1338,8 +1386,10 @@ async function handleChallengeQuestionsButton(interaction, parts) {
     const context = await validateChallengeAdminInteraction(interaction, parts);
     if (context.error) return;
     await deferSourceUpdate(interaction);
+    const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     return interaction.editReply(buildChallengeQuestionsPanelPayload({
+        verificationSettings,
         challengeId: context.challengeId,
         challenge: effectiveChallenge,
         mode: context.mode,
@@ -1530,26 +1580,6 @@ function getChallengeQuestions(challenge) {
     return Array.isArray(challenge?.questions) ? challenge.questions : [];
 }
 
-function buildQuestionSelectorPanel(challengeId, challenge, selectedQuestion, components = []) {
-    const questions = getChallengeQuestions(challenge);
-    const fields = [
-        { name: 'Challenge', value: String(challengeId), inline: true },
-        { name: 'Questions', value: String(questions.length), inline: true },
-    ];
-
-    if (selectedQuestion?.id) fields.push({ name: 'Selected', value: selectedQuestion.id, inline: true });
-
-    return buildVerificationAdminSummary(
-        'Choose a Question',
-        selectedQuestion?.id
-            ? `Selected: **${selectedQuestion.id}**. Select a question below to view its current configuration and edit actions.`
-            : 'Select a question below to view its current configuration and edit actions.',
-        'Question selector/editor workspace.',
-        'info',
-        { fields, components },
-    );
-}
-
 function assertQuestionSelectMenuLimit(challenge) {
     const questions = getChallengeQuestions(challenge);
     if (questions.length > QUESTION_SELECT_MENU_MAX_OPTIONS) {
@@ -1589,12 +1619,21 @@ function buildQuestionCollapsedEditComponents(mode, guildId, ownerUserId, challe
     )];
 }
 
+function buildQuestionWorkspaceListComponents(mode, guildId, ownerUserId, challengeId, challenge, selectedQuestionId) {
+    const selector = getChallengeQuestions(challenge).length > 0
+        ? [buildQuestionSelectRow(mode, guildId, ownerUserId, challengeId, challenge, selectedQuestionId)]
+        : [];
+    return [
+        ...selector,
+        ...buildChallengeQuestionsComponents(mode, guildId, ownerUserId, challengeId),
+    ];
+}
+
 function buildQuestionWorkspacePayload({ verificationSettings, mode, guildId, ownerUserId, challengeId, challenge, question, expanded = false }) {
-    const responses = [buildQuestionSelectorPanel(
+    const responses = [buildQuestionListResponse(
         challengeId,
         challenge,
-        question,
-        [buildQuestionSelectRow(mode, guildId, ownerUserId, challengeId, challenge, question?.id)],
+        { compact: true, components: buildQuestionWorkspaceListComponents(mode, guildId, ownerUserId, challengeId, challenge, question?.id) },
     )];
 
     if (question) {
@@ -1749,7 +1788,7 @@ function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
     if (hasOwnValue(questionOverride, 'label')) add('label', 'Clear Label', 'label');
     if (hasOwnValue(questionOverride, 'text')) add('text', 'Clear Text', 'text');
     if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
-        add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url', 'answer.type']);
+        add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url']);
     }
     if (hasOwnValue(generatedImageOverride, 'imagePoolId') || hasOwnValue(generatedImageOverride.config, 'imagePoolId')) {
         add('image-pool', 'Clear Image Pool', ['generatedImage.imagePoolId', 'generatedImage.config.imagePoolId']);
@@ -1757,7 +1796,7 @@ function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
     if (taskType === 'prompt-text' && hasOwnValue(generatedImageOverride, 'text')) add('image-text', 'Clear Prompt Text', 'generatedImage.text');
     if (['gallery-standard', 'gallery-rotation-alignment'].includes(taskType) && hasOwnValue(generatedImageOverride, 'imageIds')) add('image-ids', 'Clear Image IDs', 'generatedImage.imageIds');
     if (taskType === 'gallery-rotation-alignment' && hasOwnValue(generatedImageOverride, 'imageDirections')) add('directions', 'Clear Directions', 'generatedImage.imageDirections');
-    if (hasOwnValue(answerOverride, 'required')) add('answer-required', 'Clear Answer Required', 'answer.required');
+    if (hasOwnValue(answerOverride, 'required') || hasOwnValue(answerOverride, 'type')) add('answer-mode', 'Clear Answer Mode', ['answer.required', 'answer.type']);
     if (effectiveQuestion.answer?.type === 'text' && Array.isArray(answerOverride.accepted) && answerOverride.accepted.length > 0) add('answers', 'Clear Answers', 'answer.accepted');
 
     if (definitions.length >= 2) {
@@ -2031,6 +2070,25 @@ function buildQuestionTaskSelectModalLabel(currentTaskType) {
     );
 }
 
+function buildQuestionAnswerTypeSelectModalLabel(currentAnswerType, options = QUESTION_ANSWER_TYPE_OPTIONS) {
+    const normalizedAnswerType = options.some((option) => option.value === currentAnswerType)
+        ? currentAnswerType
+        : 'none';
+    return buildModalStringSelectLabel(
+        'Answer Mode',
+        buildStringSelectComponent({
+            customId: 'answer_type',
+            placeholder: `Answer: ${QUESTION_ANSWER_TYPE_OPTIONS.find((option) => option.value === normalizedAnswerType)?.label ?? 'No Answer'}`,
+            options,
+            selectedValues: [normalizedAnswerType],
+            minValues: 1,
+            maxValues: 1,
+            required: true,
+        }),
+        { description: options === QUESTION_CREATE_ANSWER_TYPE_OPTIONS ? 'Gallery tasks can enable position answers later.' : 'Position answers require a gallery task.' },
+    );
+}
+
 async function showQuestionModal(interaction, parts, buildModal) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
@@ -2065,7 +2123,7 @@ function showQuestionOptionsModal(interaction, parts) {
             'Question Options',
             buildQuestionOrderSelectField(effectiveChallenge, context.question.id),
             buildBooleanSelectField('separate_step', 'Separate Step', effectiveQuestion.separateStep === true),
-            buildBooleanSelectField('answer_required', 'Answer Required', effectiveQuestion.answer?.required === true),
+            buildQuestionAnswerTypeSelectModalLabel(getQuestionAnswerType(effectiveQuestion)),
             buildQuestionTaskSelectModalLabel(getQuestionTaskType(effectiveQuestion)),
             buildQuestionImagePoolSelectField(effectiveQuestion),
         );
@@ -2242,7 +2300,7 @@ function buildTaskTypePatch(taskType) {
         clearGeneratedImageFields(generatedImage, ['text', 'url']);
     }
 
-    return { generatedImage, answer: { type: getDefaultAnswerTypeForTask(normalizedTaskType) }, imageIdsKeepRoles };
+    return { generatedImage, imageIdsKeepRoles };
 }
 
 async function handleQuestionOptionsModalSubmit(interaction, parts) {
@@ -2261,12 +2319,12 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
 
     let orderNumber;
     let separateStep;
-    let answerRequired;
+    let selectedAnswerType;
     let selectedImagePoolId;
     try {
         orderNumber = parseUnchangedOrderSelect(getSingleModalSelectValue(interaction, 'order_number', getQuestionOrderSelectOptions(effectiveChallenge, context.question.id), 'order number'));
         separateStep = parseUnchangedBooleanSelect(getSingleModalSelectValue(interaction, 'separate_step', getBooleanSelectOptions(), 'Separate Step'));
-        answerRequired = parseUnchangedBooleanSelect(getSingleModalSelectValue(interaction, 'answer_required', getBooleanSelectOptions(), 'Answer Required'));
+        selectedAnswerType = getRequiredModalSingleSelect(interaction, 'answer_type', QUESTION_ANSWER_TYPE_OPTIONS, 'answer mode');
         selectedImagePoolId = parseImagePoolSelect(getSingleModalSelectValue(interaction, 'image_pool_id', getImagePoolModalOptions(), 'Assigned Image Pool'));
     }
     catch (err) {
@@ -2279,6 +2337,14 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown task type selected.')] });
     }
     const taskChanged = selectedTaskType !== currentTaskType;
+    const currentAnswerType = getQuestionAnswerType(effectiveQuestion);
+    if (!QUESTION_ANSWER_TYPE_OPTIONS.some((option) => option.value === selectedAnswerType)) {
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown answer mode selected.')] });
+    }
+    if (!isAnswerTypeSupportedByTask(selectedAnswerType, selectedTaskType)) {
+        return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Position answers require a gallery task. Choose Standard Gallery or Rotation Alignment first.')] });
+    }
+    const answerTypeChanged = selectedAnswerType !== currentAnswerType;
     const currentImagePoolId = getEffectiveImagePoolId(effectiveQuestion);
     const imagePoolChanged = selectedImagePoolId !== undefined
         && String(selectedImagePoolId ?? '') !== String(currentImagePoolId ?? '');
@@ -2296,7 +2362,7 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
     const currentOrder = getQuestionNumber(effectiveChallenge, effectiveQuestion);
     if (orderNumber === currentOrder) orderNumber = undefined;
 
-    if (orderNumber === undefined && separateStep === undefined && answerRequired === undefined && !taskChanged && !imagePoolChanged) {
+    if (orderNumber === undefined && separateStep === undefined && !answerTypeChanged && !taskChanged && !imagePoolChanged) {
         return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('No question option changes were submitted.')] });
     }
 
@@ -2323,7 +2389,13 @@ async function handleQuestionOptionsModalSubmit(interaction, parts) {
         delete taskPatch.imageIdsKeepRoles;
         Object.assign(selectedPatch, taskPatch);
     }
-    if (answerRequired !== undefined) selectedPatch.answer = { ...(selectedPatch.answer ?? {}), required: answerRequired };
+    if (answerTypeChanged) {
+        selectedPatch.answer = {
+            ...(selectedPatch.answer ?? {}),
+            required: selectedAnswerType !== 'none',
+            type: selectedAnswerType,
+        };
+    }
     // The modal is static, so the Image Pool select can submit the current pool even when
     // the admin only changed Task. Only apply imagePoolId when it actually changed.
     if (selectedImagePoolId !== undefined && imagePoolChanged) {
@@ -2618,6 +2690,7 @@ function showCreateQuestionModal(interaction, parts) {
         buildModalTextLabel('question_id', 'Question ID', { placeholder: 'lowercase-kebab-case (max 100)', maxLength: 100, required: true }),
         buildModalTextLabel('question_label', 'Question Label', { maxLength: 128, required: true }),
         buildModalTextLabel('question_text', 'Question Text', { maxLength: 4000, required: true }),
+        buildQuestionAnswerTypeSelectModalLabel('none', QUESTION_CREATE_ANSWER_TYPE_OPTIONS),
     ));
 }
 
@@ -2677,6 +2750,7 @@ async function handleCreateQuestionModal(interaction, parts) {
         created = await createCustomQuestion(guildId, challengeId, {
             id: getModalTextInput(interaction, 'question_id'), label: getModalTextInput(interaction, 'question_label'),
             text: getModalTextInput(interaction, 'question_text'),
+            answerType: getRequiredModalSingleSelect(interaction, 'answer_type', QUESTION_CREATE_ANSWER_TYPE_OPTIONS, 'answer mode'),
         }, interaction.user.id);
     }
     catch (err) { return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed(err.message)] }); }
@@ -2686,7 +2760,8 @@ async function handleCreateQuestionModal(interaction, parts) {
     if (safeguard.refreshError) { await followUpAdminConfigWarning(interaction, safeguard); return undefined; }
     const challenge = await getVerificationAdminChallenge(guildId, challengeId, { fresh: true });
     const response = await replyWithUpdatedAdminPanel(interaction, {
-        panelPayload: buildChallengeQuestionsPanelPayload({ challengeId, challenge, mode, guildId, userId: ownerUserId }),
+        panelPayload: buildChallengeQuestionsPanelPayload({ verificationSettings: safeguard.finalSettings ?? created.committedSettings,
+            challengeId, challenge, mode, guildId, userId: ownerUserId }),
         sourceMessageId, title: 'Question Created', description: 'The custom question was appended.', responseMode,
     });
     await followUpAdminConfigWarning(interaction, safeguard);
@@ -2718,7 +2793,7 @@ async function handleCatalogDeleteModal(interaction, parts, type) {
     const result = changed.result;
     const challenges = await getVerificationAdminChallengeCatalog(guildId, { fresh: true });
     const panelPayload = type === 'question'
-        ? buildChallengeQuestionsPanelPayload({ challengeId, challenge: challenges[challengeId], mode, guildId, userId: ownerUserId })
+        ? buildChallengeQuestionsPanelPayload({ verificationSettings: settings, challengeId, challenge: challenges[challengeId], mode, guildId, userId: ownerUserId })
         : (result.action === 'deleted'
             ? buildChallengesPanelPayload({ verificationSettings: settings, challenges,
                 enabledChallengeIds: settings.activeChallengeIds ?? [], guildId, ownerUserId })
