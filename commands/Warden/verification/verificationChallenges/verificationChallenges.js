@@ -66,37 +66,6 @@ function normalizeQuestionAnswer(answer = {}) {
     };
 }
 
-function getChallengeOverride(challengeId, verificationSettings) {
-    if (!challengeId) return undefined;
-    return verificationSettings?.challengeOverrides?.[challengeId];
-}
-
-function applyConfiguredQuestionValues(question, challengeId, verificationSettings) {
-    const challengeOverride = getChallengeOverride(challengeId, verificationSettings);
-    const questionOverride = challengeOverride?.questions?.[question.id];
-    if (!questionOverride) return question;
-
-    const generatedImage = {
-        ...question.generatedImage,
-        ...(questionOverride.generatedImage ?? {}),
-    };
-    const answer = {
-        ...question.answer,
-        ...(questionOverride.answer ?? {}),
-    };
-
-    if (questionOverride.label) question.label = questionOverride.label;
-    if (questionOverride.text) question.text = questionOverride.text;
-    if (questionOverride.order !== undefined) question.order = questionOverride.order;
-    if (questionOverride.separateStep !== undefined) question.separateStep = questionOverride.separateStep === true;
-
-    if (generatedImage.config && typeof generatedImage.config === 'object') {
-        Object.assign(generatedImage, generatedImage.config);
-    }
-
-    return { ...question, generatedImage, answer };
-}
-
 function getQuestionOrder(question, fallbackIndex) {
     const order = Math.floor(Number(question.order));
     return Number.isInteger(order) && order > 0 ? order : fallbackIndex + 1;
@@ -109,26 +78,24 @@ function sortQuestionsByOrder(questions) {
         .map(({ question }) => question);
 }
 
-function normalizeVerificationChallenge(challenge, verificationSettings) {
+function normalizeVerificationChallenge(challenge) {
     if (!challenge) return challenge;
-
-    const challengeOverride = getChallengeOverride(challenge.id, verificationSettings);
 
     return {
         id: challenge.id,
         enabled: challenge.enabled === true,
-        title: challengeOverride?.title ?? challenge.title,
-        description: challengeOverride?.description ?? challenge.description,
-        color: challengeOverride?.color ?? challenge.color,
+        title: challenge.title,
+        description: challenge.description,
+        color: challenge.color,
         fields: Array.isArray(challenge.fields) ? challenge.fields : [],
-        questions: sortQuestionsByOrder(getChallengeQuestions(challenge).map((question, index) => applyConfiguredQuestionValues({
+        questions: sortQuestionsByOrder(getChallengeQuestions(challenge).map((question, index) => ({
             ...question,
             id: question.id,
             label: question.label ?? `Question ${index + 1}`,
             separateStep: question.separateStep === true,
             generatedImage: normalizeGeneratedImage(question.generatedImage),
             answer: normalizeQuestionAnswer(question.answer),
-        }, challenge.id, verificationSettings))),
+        }))),
     };
 }
 
@@ -318,58 +285,10 @@ function validateScreenAnswers(screen, submittedValues, questionAssets = {}) {
     return { ok: true };
 }
 
-function applyVerificationChallengeOverrides(challenge, verificationSettings) {
-    return normalizeVerificationChallenge(challenge, verificationSettings);
-}
-
-function getVerificationChallenge(challengeId) {
-    if (!challengeId) return undefined;
-
-    return verificationChallenges[challengeId];
-}
-
-function getMissingChallengeOverrideRequirements(verificationSettings) {
-    const { formatMissingChallengeOverrideRequirements } = require('./verificationConfigIssues');
-    return formatMissingChallengeOverrideRequirements(verificationSettings);
-}
-
-function getEnabledVerificationChallenges(config) {
-    const verificationSettings = config?.verification ?? config;
-    const configuredChallengeIds = verificationSettings?.activeChallengeIds;
-
-    if (Array.isArray(configuredChallengeIds) && configuredChallengeIds.length > 0) {
-        return configuredChallengeIds
-            .map((challengeId) => applyVerificationChallengeOverrides(getVerificationChallenge(challengeId), verificationSettings))
-            .filter(Boolean);
-    }
-
-    const legacyChallengeId = config?.verification?.activeChallengeId
-        ?? config?.verification?.challengeId
-        ?? config?.activeChallengeId
-        ?? config?.challengeId;
-
-    if (legacyChallengeId) {
-        const legacyChallenge = getVerificationChallenge(legacyChallengeId) ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
-        return [applyVerificationChallengeOverrides(legacyChallenge, verificationSettings)];
-    }
-
-    return Object.values(verificationChallenges)
-        .filter((challenge) => challenge.enabled)
-        .map((challenge) => applyVerificationChallengeOverrides(challenge, verificationSettings));
-}
-
-function getActiveVerificationChallenge(config) {
-    return getEnabledVerificationChallenges(config)[0] ?? getVerificationChallenge(DEFAULT_CHALLENGE_ID);
-}
-
 module.exports = {
     DEFAULT_CHALLENGE_ID,
     verificationChallenges,
     VERIFICATION_UI_LIMITS,
-
-    getVerificationChallenge,
-    getEnabledVerificationChallenges,
-    getActiveVerificationChallenge,
 
     normalizeVerificationChallenge,
     getChallengeQuestion,
@@ -388,5 +307,4 @@ module.exports = {
     validateQuestionAnswer,
     validateScreenAnswers,
 
-    getMissingChallengeOverrideRequirements,
 };

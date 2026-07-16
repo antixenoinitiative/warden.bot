@@ -1,19 +1,9 @@
 const { verificationChallenges } = require('./verificationChallenges/verificationChallengesConfig');
-const { normalizeVerificationChallenge } = require('./verificationChallenges/verificationChallenges');
 let database;
 
 const DEFAULT_GUILD_ID = 'global';
 const TEMPLATE_VERSION = 1;
 const DEDICATED_TASK_KEYS = new Set(['enabled', 'type', 'text', 'imagePoolId', 'imageIds', 'imageDirections']);
-const SETTINGS_TASK_KEYS = new Set([
-    ...DEDICATED_TASK_KEYS,
-    'gallerySize',
-    'compositeImageGallery',
-    'solutionImageCount',
-    'controlImageCount',
-    'maxControlImageRepeats',
-    'config',
-]);
 const SEEDED_GUILD_CACHE_MAX = 100;
 const MAX_ACTIVE_CATALOG_CHALLENGES = 25;
 const catalogCache = new Map();
@@ -277,8 +267,7 @@ async function insertQuestionRowIfMissing(row, query = defaultQuery) {
 }
 
 // Insert-only foundation helper for protected template rows. It intentionally
-// preserves existing catalog values; use syncVerificationChallengeCatalogFromSettings
-// when legacy settings should be mirrored into protected template rows.
+// preserves existing catalog values.
 async function seedVerificationChallengeTemplates(guildId, query) {
     const normalizedGuildId = normalizeGuildId(guildId);
     await ensureVerificationChallengeCatalogTables();
@@ -414,63 +403,6 @@ async function upsertProtectedTemplateQuestionRow(row, updatedBy = 'sync', query
             source_template_id = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(source_template_id), source_template_id),
             template_version = IF(source_type = 'template' AND protected_template = 1 AND deleted_at IS NULL, VALUES(template_version), template_version)
     `, [row.guild_id, row.challenge_id, row.question_id, row.question_order, row.source_template_id, row.template_version, row.question_label, row.question_text, row.separate_step, row.task_enabled, row.task_type, row.task_prompt_text, row.task_image_pool_id, row.task_image_ids_json, row.task_image_directions_json, row.task_config_json, row.answer_required, row.answer_type, row.answer_input_label, row.answer_input_placeholder, row.answers_json, normalizedUpdatedBy, normalizedUpdatedBy]);
-}
-
-// Transition helper used by the one-time legacy bootstrap and full compatibility
-// saves. Catalog-authoritative reads must not run this on every startup,
-// otherwise stale legacy rows could overwrite newer catalog values.
-async function syncVerificationChallengeCatalogFromSettings(guildId, verificationSettings, updatedBy = 'sync', query = defaultQuery) {
-    const normalizedGuildId = normalizeGuildId(guildId);
-    await ensureVerificationChallengeCatalogTables();
-    await ensureVerificationChallengeTemplatesSeeded(normalizedGuildId, query);
-
-    for (const staticChallenge of Object.values(verificationChallenges)) {
-        const effectiveChallenge = normalizeVerificationChallenge(staticChallenge, verificationSettings);
-        const { challengeRow, questionRows } = templateChallengeToCatalogRows(effectiveChallenge, normalizedGuildId);
-        await upsertProtectedTemplateChallengeRow(challengeRow, updatedBy, query);
-        for (const questionRow of questionRows) {
-            await upsertProtectedTemplateQuestionRow(questionRow, updatedBy, query);
-        }
-    }
-
-    clearVerificationChallengeCatalogCache(normalizedGuildId);
-}
-
-async function writeVerificationChallengeCatalogEntriesFromSettings({
-    guildId,
-    challengeId,
-    verificationSettings,
-    includeChallenge = false,
-    questionIds = [],
-    updatedBy = 'settings-save',
-    query = defaultQuery,
-}) {
-    const normalizedGuildId = normalizeGuildId(guildId);
-    const normalizedChallengeId = String(challengeId ?? '').trim();
-    const staticChallenge = verificationChallenges[normalizedChallengeId];
-    if (!staticChallenge) {
-        throw new Error(`Catalog-native writes currently require a protected template challenge: ${normalizedChallengeId || '(missing ID)'}`);
-    }
-
-    await ensureVerificationChallengeCatalogTables();
-
-    const effectiveChallenge = normalizeVerificationChallenge(staticChallenge, verificationSettings);
-    const { challengeRow, questionRows } = templateChallengeToCatalogRows(effectiveChallenge, normalizedGuildId);
-    const rowsByQuestionId = new Map(questionRows.map((row) => [row.question_id, row]));
-    const normalizedQuestionIds = [...new Set(questionIds.map((questionId) => String(questionId ?? '').trim()).filter(Boolean))];
-    const missingQuestionId = normalizedQuestionIds.find((questionId) => !rowsByQuestionId.has(questionId));
-    if (missingQuestionId) {
-        throw new Error(`Unknown protected template verification question: ${normalizedChallengeId}/${missingQuestionId}`);
-    }
-
-    if (includeChallenge) {
-        await upsertProtectedTemplateChallengeRow(challengeRow, updatedBy, query);
-    }
-    for (const questionId of normalizedQuestionIds) {
-        await upsertProtectedTemplateQuestionRow(rowsByQuestionId.get(questionId), updatedBy, query);
-    }
-
-    clearVerificationChallengeCatalogCache(normalizedGuildId);
 }
 
 function catalogRowsToChallenge(challengeRow, questionRows = []) {
@@ -948,7 +880,7 @@ function getVerificationChallengeTemplate(challengeId) {
     const template = verificationChallenges[normalizedChallengeId];
     if (!template) return undefined;
 
-    const normalized = normalizeVerificationChallenge(template, { challengeOverrides: {} });
+    const normalized = template;
     return {
         ...normalized,
         questions: (normalized.questions ?? []).map((question, index) => ({
@@ -978,118 +910,6 @@ function settingsValuesEqual(left, right) {
     return JSON.stringify(normalizeComparableValue(left)) === JSON.stringify(normalizeComparableValue(right));
 }
 
-function buildSettingsValueDiff(actual = {}, baseline = {}, depth = 0) {
-    return Object.entries(actual).reduce((diff, [key, actualValue]) => {
-        const baselineValue = baseline?.[key];
-        if (settingsValuesEqual(actualValue, baselineValue)) return diff;
-
-        if (
-            depth === 0 && actualValue && baselineValue
-            && typeof actualValue === 'object' && !Array.isArray(actualValue)
-            && typeof baselineValue === 'object' && !Array.isArray(baselineValue)
-        ) {
-            // Runtime shallowly replaces generatedImage/answer members. Recurse
-            // through those containers, but retain each changed child object whole.
-            const nestedDiff = buildSettingsValueDiff(actualValue, baselineValue, depth + 1);
-            if (Object.keys(nestedDiff).length > 0) diff[key] = nestedDiff;
-            return diff;
-        }
-
-        diff[key] = actualValue;
-        return diff;
-    }, {});
-}
-
-function catalogQuestionToSettingsValues(question = {}) {
-    const generatedImageInput = question.generatedImage ?? {};
-    const additionalTaskConfig = Object.fromEntries(
-        Object.entries(generatedImageInput)
-            .filter(([key, value]) => !SETTINGS_TASK_KEYS.has(key) && value !== undefined && value !== null),
-    );
-    const taskConfig = {
-        ...(generatedImageInput.config ?? {}),
-        ...additionalTaskConfig,
-    };
-    const generatedImage = pruneNullishObject({
-        enabled: generatedImageInput.enabled,
-        type: generatedImageInput.type,
-        text: generatedImageInput.text,
-        imagePoolId: generatedImageInput.imagePoolId,
-        gallerySize: generatedImageInput.gallerySize,
-        compositeImageGallery: generatedImageInput.compositeImageGallery,
-        solutionImageCount: generatedImageInput.solutionImageCount,
-        controlImageCount: generatedImageInput.controlImageCount,
-        maxControlImageRepeats: generatedImageInput.maxControlImageRepeats,
-        imageIds: generatedImageInput.imageIds,
-        imageDirections: generatedImageInput.imageDirections,
-        ...(Object.keys(taskConfig).length > 0 ? { config: taskConfig } : {}),
-    });
-    if (Object.prototype.hasOwnProperty.call(generatedImageInput, 'imagePoolId') && generatedImageInput.imagePoolId === null) {
-        generatedImage.imagePoolId = null;
-    }
-    const answer = pruneNullishObject({
-        required: question.answer?.required,
-        type: question.answer?.type,
-        inputLabel: question.answer?.inputLabel,
-        inputPlaceholder: question.answer?.inputPlaceholder,
-        accepted: question.answer?.accepted,
-    });
-
-    return pruneNullishObject({
-        order: question.order,
-        label: question.label,
-        text: question.text,
-        separateStep: question.separateStep,
-        ...(Object.keys(generatedImage).length > 0 ? { generatedImage } : {}),
-        ...(Object.keys(answer).length > 0 ? { answer } : {}),
-    });
-}
-
-function catalogQuestionToSettingsOverride(question = {}, templateQuestion) {
-    const settingsValues = catalogQuestionToSettingsValues(question);
-    const configOverride = templateQuestion
-        ? buildSettingsValueDiff(settingsValues, catalogQuestionToSettingsValues(templateQuestion))
-        : settingsValues;
-
-    return pruneNullishObject({
-        ...configOverride,
-        updatedBy: question.updatedBy,
-        updatedAt: question.updatedAt,
-    });
-}
-
-function catalogChallengeToSettingsOverride(challenge = {}) {
-    const staticChallenge = verificationChallenges[challenge.id];
-    const templateChallenge = staticChallenge
-        ? normalizeVerificationChallenge(staticChallenge, { challengeOverrides: {} })
-        : undefined;
-    const templateQuestions = new Map((templateChallenge?.questions ?? []).map((question, index) => [
-        question.id,
-        { ...question, order: index + 1 },
-    ]));
-    const challengeOverride = {};
-
-    for (const key of ['title', 'description', 'color']) {
-        if (!templateChallenge || !settingsValuesEqual(challenge[key], templateChallenge[key])) {
-            challengeOverride[key] = challenge[key];
-        }
-    }
-
-    challengeOverride.questions = Object.fromEntries((challenge.questions ?? []).map((question) => [
-        question.id,
-        catalogQuestionToSettingsOverride(question, templateQuestions.get(question.id)),
-    ]));
-
-    return pruneNullishObject(challengeOverride);
-}
-
-function catalogChallengesToSettingsOverrides(catalog = {}) {
-    return Object.fromEntries(Object.values(catalog).map((challenge) => [
-        challenge.id,
-        catalogChallengeToSettingsOverride(challenge),
-    ]));
-}
-
 async function getVerificationChallengeCatalog(guildId = DEFAULT_GUILD_ID) {
     const normalizedGuildId = normalizeGuildId(guildId);
     if (catalogCache.has(normalizedGuildId)) return catalogCache.get(normalizedGuildId);
@@ -1117,10 +937,6 @@ async function getVerificationChallengeFromCatalog(guildId, challengeId) {
     return catalog[String(challengeId)];
 }
 
-async function getVerificationChallengeOverridesFromCatalog(guildId = DEFAULT_GUILD_ID) {
-    return catalogChallengesToSettingsOverrides(await getVerificationChallengeCatalog(guildId));
-}
-
 function clearVerificationChallengeCatalogCache(guildId) {
     if (guildId === undefined || guildId === null) {
         catalogCache.clear();
@@ -1138,13 +954,10 @@ function clearVerificationChallengeCatalogCache(guildId) {
 module.exports = {
     ensureVerificationChallengeCatalogTables,
     ensureVerificationChallengeTemplatesSeeded,
-    syncVerificationChallengeCatalogFromSettings,
-    writeVerificationChallengeCatalogEntriesFromSettings,
     upsertProtectedTemplateChallengeRow,
     upsertProtectedTemplateQuestionRow,
     getVerificationChallengeCatalog,
     getVerificationChallengeFromCatalog,
-    getVerificationChallengeOverridesFromCatalog,
     templateChallengeToCatalogRows,
     catalogRowsToChallenge,
     catalogRowToQuestion,
@@ -1155,7 +968,5 @@ module.exports = {
     createVerificationQuestionCatalogEntry,
     deleteOrResetVerificationChallengeCatalogEntry,
     deleteOrResetVerificationQuestionCatalogEntry,
-    catalogQuestionToSettingsOverride,
-    catalogChallengesToSettingsOverrides,
     clearVerificationChallengeCatalogCache,
 };
