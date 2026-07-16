@@ -95,8 +95,7 @@ function attachCatalogMetadata(normalized, catalogEntry) {
 function buildSnapshot(guildId, guildSettings, challengeCatalog) {
     const generation = ++snapshotGeneration;
     const challenges = Object.freeze(Object.values(challengeCatalog)
-        .map((challenge) => attachCatalogMetadata(
-            normalizeVerificationChallenge(challenge, { challengeOverrides: {} }), challenge)));
+        .map((challenge) => attachCatalogMetadata(normalizeVerificationChallenge(challenge), challenge)));
     const challengesById = new Map(challenges.map((challenge) => [challenge.id, challenge]));
     const activeChallengeIds = Object.freeze([...(guildSettings.activeChallengeIds ?? [])]);
     const activeChallenges = Object.freeze(activeChallengeIds
@@ -115,12 +114,12 @@ function buildSnapshot(guildId, guildSettings, challengeCatalog) {
         activeChallenges,
     });
 
-    let compatibilitySettings;
+    const { challengeOverrides: _legacyChallengeOverrides, ...nativeGuildSettings } = guildSettings ?? {};
     const snapshot = {
         guildId,
         generation,
         loadedAt: Date.now(),
-        guildSettings: Object.freeze({ ...guildSettings, challengeOverrides: {} }),
+        guildSettings: Object.freeze(nativeGuildSettings),
         runtime,
         challengeCatalog,
         challenges,
@@ -129,19 +128,77 @@ function buildSnapshot(guildId, guildSettings, challengeCatalog) {
         activeChallengeIds,
         activeChallenges,
     };
-    Object.defineProperty(snapshot, 'settings', {
-        enumerable: true,
-        get() {
-            if (!compatibilitySettings) {
-                const challengeOverrides = typeof verificationCatalog.catalogChallengesToSettingsOverrides === 'function'
-                    ? verificationCatalog.catalogChallengesToSettingsOverrides(challengeCatalog)
-                    : (guildSettings.challengeOverrides ?? {});
-                compatibilitySettings = Object.freeze({ ...guildSettings, challengeOverrides });
-            }
-            return compatibilitySettings;
-        },
-    });
     return Object.freeze(snapshot);
+}
+
+function normalizeComparableValue(value) {
+    if (value === null || value === undefined) return undefined;
+    if (Array.isArray(value)) {
+        if (value.length < 1) return undefined;
+        return value.map(normalizeComparableValue);
+    }
+    if (typeof value === 'object') {
+        const entries = Object.entries(value)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, entry]) => [key, normalizeComparableValue(entry)])
+            .filter(([, entry]) => entry !== undefined);
+        return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+    }
+    return value;
+}
+
+function comparableValuesEqual(left, right) {
+    return JSON.stringify(normalizeComparableValue(left)) === JSON.stringify(normalizeComparableValue(right));
+}
+
+function buildQuestionChangeSet(question = {}, templateQuestion) {
+    // Custom Questions have no protected baseline. Their explicit delete/reset
+    // action is the safe way to remove them; Clear Selector is template-only.
+    if (!templateQuestion) return {};
+    const values = Object.fromEntries(['order', 'label', 'text', 'separateStep', 'generatedImage', 'answer']
+        .filter((key) => Object.prototype.hasOwnProperty.call(question, key)
+            || Object.prototype.hasOwnProperty.call(templateQuestion, key))
+        .map((key) => [key, cloneCatalogValue(question[key])]));
+
+    return Object.entries(values).reduce((changes, [key, value]) => {
+        const templateValue = templateQuestion[key];
+        if (comparableValuesEqual(value, templateValue)) return changes;
+        if (
+            (key === 'generatedImage' || key === 'answer')
+            && value && templateValue
+            && typeof value === 'object' && !Array.isArray(value)
+            && typeof templateValue === 'object' && !Array.isArray(templateValue)
+        ) {
+            const nestedChanges = [...new Set([...Object.keys(value), ...Object.keys(templateValue)])]
+                .reduce((nested, nestedKey) => {
+                const nestedValue = value[nestedKey];
+                if (!comparableValuesEqual(nestedValue, templateValue[nestedKey])) {
+                    nested[nestedKey] = cloneCatalogValue(nestedValue);
+                }
+                return nested;
+            }, {});
+            if (Object.keys(nestedChanges).length > 0) changes[key] = nestedChanges;
+            return changes;
+        }
+        changes[key] = value;
+        return changes;
+    }, {});
+}
+
+function getCatalogQuestionChanges(snapshot, challengeId, questionId) {
+    const normalizedChallengeId = String(challengeId ?? '').trim();
+    const normalizedQuestionId = normalizeQuestionId(questionId);
+    const question = snapshot?.questionsByChallengeId?.get(normalizedChallengeId)?.get(normalizedQuestionId);
+    if (!question) return undefined;
+
+    const templateQuestion = verificationCatalog.getVerificationChallengeTemplate(normalizedChallengeId)?.questions
+        ?.find((candidate) => candidate.id === normalizedQuestionId);
+    return Object.freeze({
+        changes: Object.freeze(buildQuestionChangeSet(question, templateQuestion)),
+        updatedAt: question.updatedAt,
+        updatedBy: question.updatedBy,
+        protectedTemplate: question.protectedTemplate === true,
+    });
 }
 
 async function loadVerificationSnapshot(guildId, options = {}) {
@@ -514,4 +571,5 @@ module.exports = {
     createCustomQuestion,
     deleteOrResetChallenge,
     deleteOrResetQuestion,
+    getCatalogQuestionChanges,
 };

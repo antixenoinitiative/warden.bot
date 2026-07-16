@@ -163,7 +163,7 @@ function mainOperation(){
 				const { getVerificationSettings, applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationService')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
 
-				const verificationSettings = verificationSnapshot?.settings
+				const verificationSettings = verificationSnapshot?.guildSettings
 					?? await getVerificationSettings(verificationGuildId)
 				console.log('[STARTUP] Loaded catalog-authoritative verification challenge settings.')
 
