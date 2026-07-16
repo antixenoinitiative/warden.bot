@@ -92,7 +92,13 @@ async function getVerificationSnapshot(guildId, options) {
 }
 
 async function getVerificationSettings(guildId, options) {
-    return (await getVerificationSnapshot(guildId, options)).settings;
+    return (await getVerificationSnapshot(guildId, options)).guildSettings;
+}
+
+async function getVerificationQuestionChanges(guildId, challengeId, questionId, options) {
+    return verificationDb.getCatalogQuestionChanges(
+        await getVerificationSnapshot(guildId, options), challengeId, questionId,
+    );
 }
 
 async function getVerificationRuntime(guildId, options) {
@@ -150,7 +156,7 @@ async function applyVerificationConfigSafeguard({
             staffNotified: false,
         };
     }
-    const originalSettings = originalSnapshot.settings;
+    const originalSettings = originalSnapshot.guildSettings;
     const originalRuntime = originalSnapshot.runtime;
     const report = evaluateVerificationConfig(originalRuntime, { changedChallengeId, changedQuestionId });
     const disabledChallengeIds = deactivateUnsafeActiveChallenges ? report.unsafeActiveChallengeIds : [];
@@ -186,7 +192,7 @@ async function applyVerificationConfigSafeguard({
 
         try {
             const finalSnapshot = await getVerificationSnapshot(guildId);
-            finalSettings = finalSnapshot.settings;
+            finalSettings = finalSnapshot.guildSettings;
             finalRuntime = finalSnapshot.runtime;
             finalReport = evaluateVerificationConfig(finalRuntime, { changedChallengeId, changedQuestionId });
         }
@@ -242,6 +248,7 @@ module.exports = {
     getVerificationAdminChallengeCatalog,
     getVerificationRuntime,
     getVerificationSettings,
+    getVerificationQuestionChanges,
     getVerificationSnapshot,
     initializeVerificationData: verificationDb.initializeVerificationData,
     normalizeVerificationAdminGuildId,

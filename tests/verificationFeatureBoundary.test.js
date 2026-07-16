@@ -816,7 +816,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             catalogReads += 1;
             return { alpha: { id: 'alpha', questions: [{ id: 'question-1' }] } };
         },
-        catalogChallengesToSettingsOverrides: () => ({ alpha: { questions: {} } }),
+        catalogQuestionToSettingsOverride: () => ({ label: 'Changed label' }),
         getVerificationChallengeTemplate: () => ({
             id: 'alpha',
             questions: [{
@@ -866,7 +866,9 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         assert.equal(first.challengesById.get('alpha').id, 'alpha');
         assert.equal(first.questionsByChallengeId.get('alpha').get('question-1').id, 'question-1');
         assert.equal(first.runtime.activeChallenges[0].id, 'alpha');
-        assert.deepEqual(first.settings.challengeOverrides, { alpha: { questions: {} } });
+        assert.equal('settings' in first, false);
+        assert.deepEqual(first.guildSettings, { mode: 'challenge', activeChallengeIds: ['alpha'] });
+        assert.deepEqual(db.getCatalogQuestionChanges(first, 'alpha', 'question-1'), { label: 'Changed label' });
 
         await db.updateChallengeMetaOverrides('guild-1', 'alpha', {}, 'tester');
         await db.loadVerificationSnapshot('guild-1');
@@ -881,7 +883,8 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             },
         }, 'tester');
         assert.equal(mutatedQuestion.order, 2);
-        assert.equal(mutatedQuestion.generatedImage.type, 'prompt-text');
+        assert.equal(mutatedQuµ¨¥zºè¯
+â¶)à²Ö§uªÝ¢ëiºÐk¢G§¦*^estion.generatedImage.type, 'prompt-text');
         assert.equal(mutatedQuestion.generatedImage.imageIds, undefined);
         assert.equal(mutatedQuestion.answer.type, 'text');
 

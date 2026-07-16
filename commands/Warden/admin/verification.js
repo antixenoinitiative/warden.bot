@@ -119,6 +119,7 @@ const {
     getVerificationAdminChallengeCatalog,
     getVerificationAdminChallenge,
     getVerificationSettings,
+    getVerificationQuestionChanges,
     resolveVerificationAdminGuildId,
     normalizeVerificationAdminGuildId,
     saveVerificationGuildSettingsOnly,
@@ -757,7 +758,8 @@ function getQuestionAnswerType(question) {
     return question.answer?.type === 'positions' ? 'positions' : 'text';
 }
 
-function isAnswerTypeSupportedByTask(answerType, taskType) {
+function isAnswerTypeSupportedByTask(answerµ¨¥zºè¯
+â¶)à²Ö§uªÝ¢ëiºÐk¢G§¦*^Type, taskType) {
     return answerType !== 'positions' || POSITION_ANSWER_TASK_TYPES.has(normalizeTaskType(taskType));
 }
 
@@ -789,10 +791,6 @@ function getKnownQuestion(interaction, challenge, required = true) {
         return { error: userErrorEmbed('Please provide a valid `question` ID or number.') };
     }
     return { question };
-}
-
-function getQuestionOverride(verificationSettings, challengeId, questionId) {
-    return verificationSettings.challengeOverrides?.[challengeId]?.questions?.[questionId] ?? {};
 }
 
 function getQuestionImagePool(question) {
@@ -907,8 +905,7 @@ function buildQuestionListResponse(challengeId, challenge, options = {}) {
     );
 }
 
-function buildQuestionViewResponse(verificationSettings, challengeId, challenge, question, options = {}) {
-    const override = getQuestionOverride(verificationSettings, challengeId, question.id);
+function buildQuestionViewResponse(challengeId, challenge, question, options = {}) {
     const effectiveQuestion = question;
     const taskType = getQuestionTaskType(effectiveQuestion);
     const imageIds = effectiveQuestion.generatedImage?.imageIds ?? {};
@@ -944,7 +941,7 @@ function buildQuestionViewResponse(verificationSettings, challengeId, challenge,
     }
     else fields.push({ name: 'Answer', value: 'Not required', inline: true });
 
-    if (override.updatedAt) fields.push({ name: 'Updated', value: `${override.updatedAt}${override.updatedBy ? ` by <@${override.updatedBy}>` : ''}`, inline: false });
+    if (question.updatedAt) fields.push({ name: 'Updated', value: `${question.updatedAt}${question.updatedBy ? ` by <@${question.updatedBy}>` : ''}`, inline: false });
 
     return buildVerificationAdminSummary(
         'Question',
@@ -965,7 +962,8 @@ function validateQuestionImageIds(question, role, imageIds) {
     }
 
     const imagePool = getQuestionImagePool(question);
-    if (!imagePool) return `Question **${question.id}** does not define an image pool.`;
+    if (!imagePool) return `Question **${question.iµ¨¥zºè¯
+â¶)à²Ö§uªÝ¢ëiºÐk¢G§¦*^d}** does not define an image pool.`;
 
     const unknownImageIds = validateImageIdsInPool(imageIds, imagePool);
     if (unknownImageIds.length > 0) {
@@ -1643,7 +1641,6 @@ function buildQuestionWorkspacePayload({ verificationSettings, mode, guildId, ow
                 : buildQuestionCollapsedEditComponents(mode, guildId, ownerUserId, challengeId, question.id))
             : [];
         responses.push(buildQuestionViewResponse(
-            verificationSettings,
             challengeId,
             challenge,
             question,
@@ -1719,11 +1716,9 @@ async function handleQuestionDetailViewButton(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, [guildId, ownerUserId, challengeId, questionId]);
     if (context.error) return;
     await deferSourceUpdate(interaction);
-    const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
     return interaction.editReply(buildQuestionViewResponse(
-        verificationSettings,
         context.challengeId,
         effectiveChallenge,
         effectiveQuestion,
@@ -1776,17 +1771,17 @@ function hasAnyOwnValue(object, keys) {
     return keys.some((key) => hasOwnValue(object, key));
 }
 
-function getQuestionClearDefinitions(effectiveQuestion, questionOverride = {}) {
+function getQuestionClearDefinitions(effectiveQuestion, questionChanges = {}) {
     const definitions = [];
     const add = (field, label, paths) => definitions.push({ field, label, paths: Array.isArray(paths) ? paths : [paths] });
-    const generatedImageOverride = questionOverride.generatedImage ?? {};
-    const answerOverride = questionOverride.answer ?? {};
+    const generatedImageOverride = questionChanges.generatedImage ?? {};
+    const answerOverride = questionChanges.answer ?? {};
     const taskType = getQuestionTaskType(effectiveQuestion);
 
-    if (hasOwnValue(questionOverride, 'order')) add('order', 'Clear Order', 'order');
-    if (hasOwnValue(questionOverride, 'separateStep')) add('separate-step', 'Clear Separate Step', 'separateStep');
-    if (hasOwnValue(questionOverride, 'label')) add('label', 'Clear Label', 'label');
-    if (hasOwnValue(questionOverride, 'text')) add('text', 'Clear Text', 'text');
+    if (hasOwnValue(questionChanges, 'order')) add('order', 'Clear Order', 'order');
+    if (hasOwnValue(questionChanges, 'separateStep')) add('separate-step', 'Clear Separate Step', 'separateStep');
+    if (hasOwnValue(questionChanges, 'label')) add('label', 'Clear Label', 'label');
+    if (hasOwnValue(questionChanges, 'text')) add('text', 'Clear Text', 'text');
     if (hasAnyOwnValue(generatedImageOverride, ['enabled', 'type', 'gallerySize', 'compositeImageGallery', 'solutionImageCount', 'controlImageCount', 'maxControlImageRepeats', 'config', 'url'])) {
         add('task', 'Clear Task Override', ['generatedImage.enabled', 'generatedImage.type', 'generatedImage.gallerySize', 'generatedImage.compositeImageGallery', 'generatedImage.solutionImageCount', 'generatedImage.controlImageCount', 'generatedImage.maxControlImageRepeats', 'generatedImage.config', 'generatedImage.url']);
     }
@@ -1839,11 +1834,10 @@ async function handleQuestionEditDoneButton(interaction, parts) {
 async function showQuestionClearSelectorModal(interaction, parts) {
     const context = await validateQuestionAdminInteraction(interaction, parts);
     if (context.error) return;
-    const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
-    const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
-    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
+    const questionChanges = await getVerificationQuestionChanges(context.guildId, context.challengeId, context.question.id);
+    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionChanges);
 
     if (definitions.length < 1) {
         return respondAdminError(interaction, {
@@ -2593,13 +2587,12 @@ async function handleQuestionClearModalSubmit(interaction, parts = []) {
     }
 
     if (!isMatchingAdminGuild(interaction, context.guildId)) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('This admin panel belongs to another server.')] });
-    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or question.')] });
+    if (!context.challenge || !context.question) return respondAdminModalError(interaction, responseMode, { embeds: [userErrorEmbed('Unknown challenge or questioµ¨¥Â¸­yêë¢°k¢G§¦*^n.')] });
 
-    const verificationSettings = await getVerificationSettings(context.guildId);
     const effectiveChallenge = context.challenge;
     const effectiveQuestion = resolveQuestion(effectiveChallenge, context.question.id) ?? context.question;
-    const questionOverride = getQuestionOverride(verificationSettings, context.challengeId, context.question.id);
-    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionOverride);
+    const questionChanges = await getVerificationQuestionChanges(context.guildId, context.challengeId, context.question.id);
+    const definitions = getQuestionClearDefinitions(effectiveQuestion, questionChanges);
     const clearMap = Object.fromEntries(definitions.map((definition) => [definition.field, definition.paths]));
 
     let selectedField;

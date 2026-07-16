@@ -93,34 +93,34 @@ function attachCatalogMetadata(normalized, catalogEntry) {
 }
 
 function buildSnapshot(guildId, guildSettings, challengeCatalog) {
+    const { challengeOverrides: _legacyChallengeOverrides, ...nativeGuildSettings } = guildSettings ?? {};
     const generation = ++snapshotGeneration;
     const challenges = Object.freeze(Object.values(challengeCatalog)
         .map((challenge) => attachCatalogMetadata(
             normalizeVerificationChallenge(challenge, { challengeOverrides: {} }), challenge)));
     const challengesById = new Map(challenges.map((challenge) => [challenge.id, challenge]));
-    const activeChallengeIds = Object.freeze([...(guildSettings.activeChallengeIds ?? [])]);
+    const activeChallengeIds = Object.freeze([...(nativeGuildSettings.activeChallengeIds ?? [])]);
     const activeChallenges = Object.freeze(activeChallengeIds
         .map((challengeId) => challengesById.get(String(challengeId)))
         .filter(Boolean));
     const runtime = Object.freeze({
         guildId,
         generation,
-        mode: guildSettings.mode,
+        mode: nativeGuildSettings.mode,
         activeChallengeIds,
-        challengeExpirySeconds: guildSettings.challengeExpirySeconds,
-        cooldownSeconds: guildSettings.cooldownSeconds,
-        autokickEnabled: guildSettings.autokickEnabled,
-        autokickSeconds: guildSettings.autokickSeconds,
+        challengeExpirySeconds: nativeGuildSettings.challengeExpirySeconds,
+        cooldownSeconds: nativeGuildSettings.cooldownSeconds,
+        autokickEnabled: nativeGuildSettings.autokickEnabled,
+        autokickSeconds: nativeGuildSettings.autokickSeconds,
         challenges,
         activeChallenges,
     });
 
-    let compatibilitySettings;
-    const snapshot = {
+    return Object.freeze({
         guildId,
         generation,
         loadedAt: Date.now(),
-        guildSettings: Object.freeze({ ...guildSettings, challengeOverrides: {} }),
+        guildSettings: Object.freeze(nativeGuildSettings),
         runtime,
         challengeCatalog,
         challenges,
@@ -128,20 +128,17 @@ function buildSnapshot(guildId, guildSettings, challengeCatalog) {
         questionsByChallengeId: buildQuestionLookup(challenges),
         activeChallengeIds,
         activeChallenges,
-    };
-    Object.defineProperty(snapshot, 'settings', {
-        enumerable: true,
-        get() {
-            if (!compatibilitySettings) {
-                const challengeOverrides = typeof verificationCatalog.catalogChallengesToSettingsOverrides === 'function'
-                    ? verificationCatalog.catalogChallengesToSettingsOverrides(challengeCatalog)
-                    : (guildSettings.challengeOverrides ?? {});
-                compatibilitySettings = Object.freeze({ ...guildSettings, challengeOverrides });
-            }
-            return compatibilitySettings;
-        },
     });
-    return Object.freeze(snapshot);
+}
+
+function getCatalogQuestionChanges(snapshot, challengeId, questionId) {
+    const challenge = snapshot?.challengeCatalog?.[String(challengeId ?? '').trim()];
+    const question = challenge?.questions?.find((candidate) => String(candidate.id) === String(questionId ?? '').trim());
+    if (!question) return {};
+
+    const templateQuestion = verificationCatalog.getVerificationChallengeTemplate(challenge.id)?.questions
+        ?.find((candidate) => String(candidate.id) === String(question.id));
+    return verificationCatalog.catalogQuestionToSettingsOverride(question, templateQuestion);
 }
 
 async function loadVerificationSnapshot(guildId, options = {}) {
@@ -501,6 +498,7 @@ module.exports = {
     initializeVerificationData,
     invalidateVerificationGuild,
     loadVerificationSnapshot,
+    getCatalogQuestionChanges,
     saveVerificationGuildSettingsOnly,
     updateChallengeMetaOverrides,
     setQuestionCommonOverrides,
