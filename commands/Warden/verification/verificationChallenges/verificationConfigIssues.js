@@ -1,8 +1,4 @@
 const {
-    DEFAULT_CHALLENGE_ID,
-    verificationChallenges,
-} = require('./verificationChallengesConfig');
-const {
     VERIFICATION_UI_LIMITS,
     normalizeVerificationChallenge,
     buildQuestionScreens,
@@ -23,13 +19,12 @@ function resolveConfiguredActiveChallengeIds(verificationSettings = {}) {
     if (Array.isArray(verificationSettings.activeChallengeIds) && verificationSettings.activeChallengeIds.length > 0) {
         return verificationSettings.activeChallengeIds.map(String);
     }
-    const legacy = verificationSettings.activeChallengeId ?? verificationSettings.challengeId;
-    return legacy ? [String(legacy)] : [DEFAULT_CHALLENGE_ID];
+    return [];
 }
 
-function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, activeChallengeIds = resolveConfiguredActiveChallengeIds(verificationSettings)) {
+function evaluateChallengeConfigIssues(challenge, activeChallengeIds = []) {
     const activeSet = new Set(activeChallengeIds.map(String));
-    const normalizedChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
+    const normalizedChallenge = normalizeVerificationChallenge(challenge);
     if (!normalizedChallenge) return [];
     const active = activeSet.has(String(normalizedChallenge.id));
     const screens = buildQuestionScreens(normalizedChallenge);
@@ -101,7 +96,7 @@ function evaluateVerificationConfigIssues(verificationSettings = {}) {
     if (catalogChallenges) {
         const catalogById = new Map(catalogChallenges.map((challenge) => [String(challenge.id), challenge]));
         const issues = catalogChallenges.flatMap((challenge) =>
-            evaluateChallengeConfigIssues(challenge, {}, activeChallengeIds));
+            evaluateChallengeConfigIssues(challenge, activeChallengeIds));
 
         for (const challengeId of activeChallengeIds) {
             if (catalogById.has(String(challengeId))) continue;
@@ -117,17 +112,13 @@ function evaluateVerificationConfigIssues(verificationSettings = {}) {
         return issues;
     }
 
-    const challengeIds = [...new Set([...Object.keys(verificationChallenges), ...activeChallengeIds])];
-    return challengeIds.flatMap((challengeId) => evaluateChallengeConfigIssues(verificationChallenges[challengeId], verificationSettings, activeChallengeIds));
-}
-
-function formatMissingChallengeOverrideRequirements(verificationSettings = {}) {
-    const grouped = new Map();
-    for (const issue of evaluateVerificationConfigIssues(verificationSettings).filter((item) => item.active)) {
-        if (!grouped.has(issue.challengeId)) grouped.set(issue.challengeId, []);
-        grouped.get(issue.challengeId).push(issue.label ?? issue.message);
-    }
-    return [...grouped.entries()].map(([challengeId, missing]) => ({ challengeId, missing }));
+    return activeChallengeIds.map((challengeId) => createIssue({
+        code: 'missing_active_challenge',
+        challengeId,
+        label: 'Active challenge',
+        message: `${challengeId}: Active verification challenge is missing from the authoritative catalog.`,
+        active: true,
+    }));
 }
 
 module.exports = {
@@ -135,5 +126,4 @@ module.exports = {
     getQuestionTaskType,
     evaluateChallengeConfigIssues,
     evaluateVerificationConfigIssues,
-    formatMissingChallengeOverrideRequirements,
 };

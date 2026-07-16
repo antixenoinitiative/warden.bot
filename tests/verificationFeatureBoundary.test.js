@@ -1134,10 +1134,14 @@ test('verification persistence and global interaction routing keep their public 
 
     const dbHandlerSource = fs.readFileSync(path.join(verificationDirectory, 'verificationDbHandler.js'), 'utf8');
     const settingsSource = fs.readFileSync(path.join(verificationDirectory, 'verificationSettings.js'), 'utf8');
+    const catalogRepositorySource = fs.readFileSync(path.join(verificationDirectory, 'verificationChallengeRepository.js'), 'utf8');
+    const challengeNormalizerSource = fs.readFileSync(path.join(verificationDirectory, 'verificationChallenges', 'verificationChallenges.js'), 'utf8');
     assert.doesNotMatch(dbHandlerSource, /verificationSettings\.(?:updateChallengeMetaOverrides|setQuestion|updateQuestionOptionOverrides|clearQuestionOverrideFields)/);
     assert.doesNotMatch(dbHandlerSource, /snapshot\.settings/);
     assert.doesNotMatch(dbHandlerSource, /challengeOverrides/);
     assert.doesNotMatch(settingsSource, /verification_challenge_config|challengeOverrides|challenge_catalog_authoritative/);
+    assert.doesNotMatch(catalogRepositorySource, /syncVerificationChallengeCatalogFromSettings|writeVerificationChallengeCatalogEntriesFromSettings|catalogChallengesToSettingsOverrides/);
+    assert.doesNotMatch(challengeNormalizerSource, /challengeOverrides|applyVerificationChallengeOverrides|getEnabledVerificationChallenges|getActiveVerificationChallenge/);
 
     const verificationServiceSource = fs.readFileSync(path.join(verificationDirectory, 'verificationService.js'), 'utf8');
     const startupSource = fs.readFileSync(path.join(repositoryRoot, 'index.js'), 'utf8');
@@ -1510,7 +1514,7 @@ test('custom question deletion and protected reset both restore contiguous templ
     }
 });
 
-test('catalog CRUD returns the pre-write committed settings without compatibility projection or eager refresh', async () => {
+test('catalog CRUD returns the pre-write committed settings without eager refresh', async () => {
     const settingsPath = require.resolve(path.join(verificationDirectory, 'verificationSettings'));
     const catalogPath = require.resolve(path.join(verificationDirectory, 'verificationChallengeRepository'));
     const handlerPath = require.resolve(path.join(verificationDirectory, 'verificationDbHandler'));
@@ -1519,9 +1523,8 @@ test('catalog CRUD returns the pre-write committed settings without compatibilit
     const cachedHandler = require.cache[handlerPath];
     let settingsReads = 0;
     let catalogReads = 0;
-    let compatibilityProjections = 0;
     let writes = 0;
-    const committedSettings = { mode: 'challenge', activeChallengeIds: [], challengeOverrides: {} };
+    const committedSettings = { mode: 'challenge', activeChallengeIds: [] };
 
     require.cache[settingsPath] = {
         id: settingsPath, filename: settingsPath, loaded: true,
@@ -1536,7 +1539,6 @@ test('catalog CRUD returns the pre-write committed settings without compatibilit
         exports: {
             clearVerificationChallengeCatalogCache: () => undefined,
             getVerificationChallengeCatalog: async () => { catalogReads += 1; return {}; },
-            catalogChallengesToSettingsOverrides: () => { compatibilityProjections += 1; return {}; },
             createVerificationChallengeCatalogEntry: async ({ challengeId }) => {
                 writes += 1;
                 return { id: challengeId, sourceType: 'admin', protectedTemplate: false };
@@ -1550,7 +1552,6 @@ test('catalog CRUD returns the pre-write committed settings without compatibilit
         assert.equal(writes, 1);
         assert.equal(settingsReads, 1);
         assert.equal(catalogReads, 1);
-        assert.equal(compatibilityProjections, 0);
         assert.strictEqual(result.committedSettings.mode, committedSettings.mode);
         assert.equal(result.result.id, 'custom');
 

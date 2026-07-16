@@ -559,7 +559,7 @@ function buildChallengeOverviewPanel(verificationSettings, enabledChallengeIds, 
         { name: 'Challenge Title', value: truncateAdminFieldValue(effectiveChallenge.title ?? 'Not set'), inline: false },
         { name: 'Challenge Description', value: truncateAdminFieldValue(effectiveChallenge.description ?? 'Not set'), inline: false },
         { name: 'Questions', value: (effectiveChallenge.questions ?? []).map((question, index) => `${index + 1}. ${question.id} — ${question.label ?? 'Question'}`).join('\n') || 'None', inline: false },
-        ...buildChallengeAuditFields(challenge, verificationSettings, enabledChallengeIds),
+        ...buildChallengeAuditFields(challenge, enabledChallengeIds),
     ];
 
     return buildVerificationAdminConfiguration(
@@ -1008,17 +1008,17 @@ function validatePendingQuestionImageIds(question, role, imageIds) {
     return undefined;
 }
 
-function getChallengeAuditIssues(challenge, verificationSettings) {
-    return [...new Set(evaluateChallengeConfigIssues(challenge, verificationSettings)
+function getChallengeAuditIssues(challenge, enabledChallengeIds) {
+    return [...new Set(evaluateChallengeConfigIssues(challenge, enabledChallengeIds)
         .map((issue) => issue.message ?? issue.label)
         .filter(Boolean))];
 }
 
 
-function buildChallengeAuditFields(challenge, verificationSettings, enabledChallengeIds) {
+function buildChallengeAuditFields(challenge, enabledChallengeIds) {
     const effectiveChallenge = challenge;
     const screens = buildQuestionScreens(effectiveChallenge);
-    const issues = getChallengeAuditIssues(challenge, verificationSettings);
+    const issues = getChallengeAuditIssues(challenge, enabledChallengeIds);
 
     return [
         { name: `${challenge.id} status`, value: enabledChallengeIds.includes(challenge.id) ? 'Active/enabled' : 'Not active', inline: true },
