@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:verification": "node --test tests/verificationFeatureBoundary.test.js",
     "start": "node --no-deprecation ."
   },
   "author": "",

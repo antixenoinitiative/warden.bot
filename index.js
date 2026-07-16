@@ -144,27 +144,27 @@ function mainOperation(){
 			warden_vars = database
 
 			const verificationGuildId = process.env.GUILDID || guild?.id
+			let verificationSnapshot
 
 			if (!verificationGuildId) {
 				console.warn('[STARTUP] Skipped verification challenge catalog sync because no verification guild ID is configured.')
 			}
 			else try {
-				const { ensureVerificationChallengeTemplatesSeeded } = require('./commands/Warden/verification/verificationChallengeRepository')
+				const { initializeVerificationData } = require('./commands/Warden/verification/verificationService')
 
-				await ensureVerificationChallengeTemplatesSeeded(verificationGuildId)
+				verificationSnapshot = await initializeVerificationData(verificationGuildId)
 				console.log('[STARTUP] Checked verification challenge catalog templates.')
 			}
 			catch (err) {
-				console.error('[STARTUP] Failed to seed verification challenge catalog templates:', err)
+				console.error('[STARTUP] Failed to initialize verification data:', err)
 			}
 
 			if (verificationGuildId) try {
-				const { ensureVerificationSettingsTable, getVerificationSettings } = require('./commands/Warden/verification/verificationSettings')
+				const { getVerificationSettings, applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationService')
 				const { getLocalVerificationImagePoolIssues } = require('./commands/Warden/verification/verificationImages')
-				const { applyVerificationConfigSafeguard } = require('./commands/Warden/verification/verificationConfigSafeguards')
 
-				await ensureVerificationSettingsTable()
-				const verificationSettings = await getVerificationSettings(verificationGuildId)
+				const verificationSettings = verificationSnapshot?.settings
+					?? await getVerificationSettings(verificationGuildId)
 				console.log('[STARTUP] Loaded catalog-authoritative verification challenge settings.')
 
 				await applyVerificationConfigSafeguard({

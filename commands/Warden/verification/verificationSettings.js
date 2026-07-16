@@ -31,6 +31,15 @@ function normalizeGuildId(guildId) {
     return String(guildId ?? DEFAULT_GUILD_ID);
 }
 
+function clearVerificationSettingsCache(guildId) {
+    if (guildId === undefined || guildId === null) {
+        settingsCache.clear();
+        return;
+    }
+
+    settingsCache.delete(normalizeGuildId(guildId));
+}
+
 function safeParseJson(value, fallback) {
     if (value === null || value === undefined || value === '') return fallback;
 
@@ -1447,6 +1456,7 @@ module.exports = {
     normalizeActiveChallengeIds,
     normalizeQuestionOverrideRow,
     normalizeChallengeConfigRows,
+    clearVerificationSettingsCache,
     getVerificationSettings,
     saveVerificationSettings,
     saveVerificationGuildSettingsOnly,
