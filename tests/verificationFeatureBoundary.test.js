@@ -532,7 +532,6 @@ test('safeguard reports a post-commit snapshot refresh failure without treating 
     };
     const snapshot = {
         guildSettings: { mode: 'challenge', activeChallengeIds: ['unsafe'] },
-        settings: { mode: 'challenge', activeChallengeIds: ['unsafe'], challengeOverrides: {} },
         runtime: {
             mode: 'challenge',
             activeChallengeIds: ['unsafe'],
@@ -814,18 +813,25 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         ensureVerificationChallengeTemplatesSeeded: async () => undefined,
         getVerificationChallengeCatalog: async () => {
             catalogReads += 1;
-            return { alpha: { id: 'alpha', questions: [{ id: 'question-1' }] } };
+            return {
+                alpha: {
+                    id: 'alpha',
+                    questions: [{
+                        id: 'question-1', order: 1, label: 'Catalog label', text: 'Template text', separateStep: false,
+                        generatedImage: { enabled: false, type: 'none', imageIds: { solution: ['template-solution'] } },
+                        answer: { required: false, type: 'none' },
+                        updatedAt: '2026-07-16T00:00:00.000Z', updatedBy: 'catalog-editor',
+                    }],
+                },
+            };
         },
-        catalogChallengesToSettingsOverrides: () => ({ alpha: { questions: {} } }),
-        getVerificationChallengeTemplate: () => ({
+        getVerificationChallengeTemplate: (challengeId) => (challengeId === 'alpha' ? {
             id: 'alpha',
             questions: [{
-                id: 'question-1',
-                order: 1,
-                label: 'Template label',
-                generatedImage: { imageIds: { solution: ['template-solution'] } },
+                id: 'question-1', order: 1, label: 'Template label', text: 'Template text', separateStep: false,
+                generatedImage: { enabled: false, type: 'none', imageIds: { solution: ['template-solution'] } }, answer: { required: false, type: 'none' },
             }],
-        }),
+        } : undefined),
         mutateVerificationChallengeCatalogEntry: async ({ challengeId, mutate }) => {
             if (failWrite) throw new Error('write failed');
             return mutate({ id: challengeId, enabled: true, questions: [] });
@@ -866,7 +872,30 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         assert.equal(first.challengesById.get('alpha').id, 'alpha');
         assert.equal(first.questionsByChallengeId.get('alpha').get('question-1').id, 'question-1');
         assert.equal(first.runtime.activeChallenges[0].id, 'alpha');
-        assert.deepEqual(first.settings.challengeOverrides, { alpha: { questions: {} } });
+        assert.equal(Object.hasOwn(first, 'settings'), false);
+        assert.equal(Object.hasOwn(first.guildSettings, 'challengeOverrides'), false);
+        assert.equal(first.guildSettings.mode, 'challenge');
+        assert.deepEqual(db.getCatalogQuestionChanges(first, 'alpha', 'question-1'), {
+            changes: { label: 'Catalog label' },
+            updatedAt: '2026-07-16T00:00:00.000Z',
+            updatedBy: 'catalog-editor',
+            protectedTemplate: false,
+        });
+        const missingCatalogChild = {
+            ...first.questionsByChallengeId.get('alpha').get('question-1'),
+            generatedImage: { enabled: false, type: 'none' },
+        };
+        const missingChildSnapshot = {
+            questionsByChallengeId: new Map([['alpha', new Map([['question-1', missingCatalogChild]])]]),
+        };
+        const missingChildChanges = db.getCatalogQuestionChanges(missingChildSnapshot, 'alpha', 'question-1');
+        assert.equal(Object.hasOwn(missingChildChanges.changes.generatedImage, 'imageIds'), true);
+        assert.equal(missingChildChanges.changes.generatedImage.imageIds, undefined);
+
+        const customSnapshot = {
+            questionsByChallengeId: new Map([['custom', new Map([['question-1', missingCatalogChild]])]]),
+        };
+        assert.deepEqual(db.getCatalogQuestionChanges(customSnapshot, 'custom', 'question-1').changes, {});
 
         await db.updateChallengeMetaOverrides('guild-1', 'alpha', {}, 'tester');
         await db.loadVerificationSnapshot('guild-1');
@@ -1105,6 +1134,13 @@ test('verification persistence and global interaction routing keep their public 
 
     const dbHandlerSource = fs.readFileSync(path.join(verificationDirectory, 'verificationDbHandler.js'), 'utf8');
     assert.doesNotMatch(dbHandlerSource, /verificationSettings\.(?:updateChallengeMetaOverrides|setQuestion|updateQuestionOptionOverrides|clearQuestionOverrideFields)/);
+    assert.doesNotMatch(dbHandlerSource, /snapshot\.settings/);
+
+    const verificationServiceSource = fs.readFileSync(path.join(verificationDirectory, 'verificationService.js'), 'utf8');
+    const startupSource = fs.readFileSync(path.join(repositoryRoot, 'index.js'), 'utf8');
+    assert.doesNotMatch(verificationServiceSource, /snapshot\.settings/);
+    assert.doesNotMatch(startupSource, /verificationSnapshot\?\.settings/);
+    assert.doesNotMatch(adminSource, /challengeOverrides|getQuestionOverride/);
 
     const imageSource = fs.readFileSync(path.join(verificationDirectory, 'verificationImages.js'), 'utf8');
     assert.doesNotMatch(imageSource, /localGalleryImageBufferCache/);
