@@ -6,11 +6,9 @@ const {
     VERIFICATION_MODES,
     applyVerificationConfigSafeguard,
     evaluateVerificationConfig,
-    getVerificationSettings,
+    getVerificationRuntime,
 } = require('./verificationService');
 const {
-    getActiveVerificationChallenge,
-    getEnabledVerificationChallenges,
     buildQuestionScreens,
     validateQuestionScreens,
     screenRequiresAnswer,
@@ -146,13 +144,13 @@ function resolveCooldownSeconds(verificationSettings) {
     return Number(verificationSettings?.cooldownSeconds ?? config.Warden?.verification?.cooldownSeconds ?? 60);
 }
 
-function selectVerificationChallenge(verificationSettings) {
-    const enabledChallenges = getEnabledVerificationChallenges({ verification: verificationSettings });
-    if (enabledChallenges.length < 2) {
-        return enabledChallenges[0] ?? getActiveVerificationChallenge({ verification: verificationSettings });
+function selectVerificationChallenge(runtime) {
+    const activeChallenges = runtime?.activeChallenges ?? [];
+    if (activeChallenges.length < 2) {
+        return activeChallenges[0];
     }
 
-    return enabledChallenges[Math.floor(Math.random() * enabledChallenges.length)];
+    return activeChallenges[Math.floor(Math.random() * activeChallenges.length)];
 }
 
 function createSessionToken() {
@@ -383,8 +381,8 @@ async function handleVerifyStart(interaction) {
         await deferEphemeralReply(interaction);
     }
 
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const verificationMode = resolveVerificationMode(verificationSettings);
+    const runtime = await getVerificationRuntime(interaction.guild?.id);
+    const verificationMode = resolveVerificationMode(runtime);
 
     if (verificationMode === VERIFICATION_MODES.halt) {
         return sendInitialInteractionResponse(interaction, { content: 'Verification is currently halted.', flags: Discord.MessageFlags.Ephemeral });
@@ -400,21 +398,38 @@ async function handleVerifyStart(interaction) {
         return sendInitialInteractionResponse(interaction, { content: `Please wait before trying verification again. You can retry <t:${retryAt}:R>.`, flags: Discord.MessageFlags.Ephemeral });
     }
 
-    const challengeExpiryMs = resolveChallengeExpiryMs(verificationSettings);
+    const challengeExpiryMs = resolveChallengeExpiryMs(runtime);
     const existingChallenge = getChallenge(interaction.user.id, challengeExpiryMs);
     if (existingChallenge) {
         return sendInitialInteractionResponse(interaction, buildVerificationInProgressResponse(existingChallenge.expiresAt));
     }
 
-    const challenge = selectVerificationChallenge(verificationSettings);
-    const configReport = evaluateVerificationConfig(verificationSettings);
-    const challengeBlockingIssues = configReport.blockingIssues.filter((issue) => issue.challengeId === challenge.id);
+    const challenge = selectVerificationChallenge(runtime);
+    const configReport = evaluateVerificationConfig(runtime);
+    const challengeBlockingIssues = challenge
+        ? configReport.blockingIssues.filter((issue) => issue.challengeId === challenge.id)
+        : configReport.activeBlockingIssues;
+    if (!challenge) {
+        console.warn('[VERIFY START] No active verification challenge exists in the authoritative catalog.');
+        await applyVerificationConfigSafeguard({
+            guildId: interaction.guildId,
+            guild: interaction.guild,
+            source: 'runtime-verify-start',
+            actorId: 'system',
+            reason: 'Runtime verification start could not resolve an active catalog challenge.',
+            notifyStaff: true,
+            deactivateUnsafeActiveChallenges: true,
+        });
+        return sendInitialInteractionResponse(interaction, {
+            content: 'Verification is temporarily unavailable. Please contact staff.',
+            flags: Discord.MessageFlags.Ephemeral,
+        });
+    }
     if (challengeBlockingIssues.length > 0) {
         console.warn('[VERIFY START] Selected verification challenge has blocking configuration issues:', challengeBlockingIssues.map((issue) => issue.message).join(' | '));
         await applyVerificationConfigSafeguard({
             guildId: interaction.guildId,
             guild: interaction.guild,
-            settings: verificationSettings,
             source: 'runtime-verify-start',
             actorId: 'system',
             reason: 'Runtime verification start found an unsafe active challenge.',
@@ -455,6 +470,9 @@ async function handleVerifyStart(interaction) {
         completedScreens: [],
         answeredScreenIndexes: [],
         renderer,
+        runtimeGeneration: runtime.generation,
+        challengeExpiryMs,
+        cooldownSeconds: resolveCooldownSeconds(runtime),
         token,
         introMessageId: undefined,
         questionMessageId: undefined,
@@ -470,7 +488,7 @@ async function handleVerifyStart(interaction) {
     setChallenge(interaction.user.id, session, challengeExpiryMs);
 
     try {
-        session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
+        session.screenAssets = await prepareSessionScreenAssets(session);
     }
     catch (err) {
         clearChallenge(interaction.user.id);
@@ -507,21 +525,6 @@ async function handleVerifyStart(interaction) {
         : await sendOldVersionPromptIfNeeded(interaction, challenge, session);
 
     setChallenge(interaction.user.id, session, challengeExpiryMs);
-}
-
-async function getActiveSessionOrReply(interaction, verificationSettings) {
-    const session = getChallenge(interaction.user.id, resolveChallengeExpiryMs(verificationSettings));
-    if (!session) {
-        await sendInitialInteractionResponse(interaction, buildVerificationExpiredResponse());
-        return undefined;
-    }
-
-    if (session.pending) {
-        await sendInitialInteractionResponse(interaction, buildVerificationInProgressResponse(session.expiresAt));
-        return undefined;
-    }
-
-    return session;
 }
 
 function getActiveSession(userId) {
@@ -592,8 +595,7 @@ async function handleVerifyNext(interaction) {
     }
 
     await deferSourceUpdate(interaction);
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    await advanceToScreen(interaction, session, verificationSettings, session.screenIndex + 1, { forceStoredMessage: true });
+    await advanceToScreen(interaction, session, session.screenIndex + 1, { forceStoredMessage: true });
 }
 
 async function handleVerifyBack(interaction) {
@@ -610,8 +612,7 @@ async function handleVerifyBack(interaction) {
     }
 
     await deferSourceUpdate(interaction);
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    await advanceToScreen(interaction, session, verificationSettings, session.screenIndex - 1, { forceStoredMessage: true });
+    await advanceToScreen(interaction, session, session.screenIndex - 1, { forceStoredMessage: true });
 }
 
 async function handleVerifyOldVersion(interaction) {
@@ -624,8 +625,8 @@ async function handleVerifyOldVersion(interaction) {
     }
 
     await deferSourceUpdate(interaction);
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
+    const challenge = session.challenge;
+    if (!challenge) throw new Error('The active verification session has no catalog challenge snapshot.');
     const legacySession = {
         ...session,
         challenge,
@@ -651,19 +652,20 @@ async function handleVerifyOldVersion(interaction) {
 
     legacySession.questionMessageId = firstLegacyMessage.id;
     legacySession.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
-    setChallenge(interaction.user.id, legacySession, resolveChallengeExpiryMs(verificationSettings));
+    setChallenge(interaction.user.id, legacySession, session.challengeExpiryMs);
 }
 
-async function advanceToScreen(interaction, session, verificationSettings, targetScreenIndex, options = {}) {
+async function advanceToScreen(interaction, session, targetScreenIndex, options = {}) {
     const { forceStoredMessage = false } = options;
-    const challenge = session.challenge ?? getActiveVerificationChallenge({ verification: verificationSettings });
+    const challenge = session.challenge;
+    if (!challenge) throw new Error('The active verification session has no catalog challenge snapshot.');
 
     if (session.renderer === LEGACY_RENDERER) {
         await deactivateLegacyFollowUpPages(interaction, session);
     }
 
     session.screenIndex = targetScreenIndex;
-    session.screenAssets = await prepareSessionScreenAssets(session, verificationSettings);
+    session.screenAssets = await prepareSessionScreenAssets(session);
     session.token = createSessionToken();
 
     if (session.renderer === LEGACY_RENDERER) {
@@ -673,7 +675,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
         session.questionMessageId = questionMessageId;
         session.legacyPageMessageIds = await sendLegacyFollowUpPages(interaction, pages);
         await resolveModalSubmitAfterScreenReplace(interaction);
-        setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
+        setChallenge(interaction.user.id, session, session.challengeExpiryMs);
         return;
     }
 
@@ -684,7 +686,7 @@ async function advanceToScreen(interaction, session, verificationSettings, targe
     session.oldVersionPromptMessageId = session.splitMessages
         ? session.introMessageId
         : await sendOldVersionPromptIfNeeded(interaction, challenge, session);
-    setChallenge(interaction.user.id, session, resolveChallengeExpiryMs(verificationSettings));
+    setChallenge(interaction.user.id, session, session.challengeExpiryMs);
 }
 
 async function handleVerifySubmit(interaction) {
@@ -692,8 +694,8 @@ async function handleVerifySubmit(interaction) {
         await deferEphemeralReply(interaction);
     }
 
-    const verificationSettings = await getVerificationSettings(interaction.guild?.id);
-    const verificationMode = resolveVerificationMode(verificationSettings);
+    const runtime = await getVerificationRuntime(interaction.guild?.id);
+    const verificationMode = resolveVerificationMode(runtime);
 
     if (verificationMode === VERIFICATION_MODES.halt) {
         return sendInitialInteractionResponse(interaction, { content: 'Verification is currently halted.', flags: Discord.MessageFlags.Ephemeral });
@@ -703,7 +705,7 @@ async function handleVerifySubmit(interaction) {
         return completeVerification(interaction);
     }
 
-    const session = await getActiveSessionOrReply(interaction, verificationSettings);
+    const session = await getActiveSessionOrReplyFast(interaction);
     if (!session) return;
 
     const submitted = parseSubmitCustomId(interaction.customId);
@@ -719,7 +721,7 @@ async function handleVerifySubmit(interaction) {
     );
 
     if (!result.ok) {
-        const cooldownSeconds = resolveCooldownSeconds(verificationSettings);
+        const cooldownSeconds = session.cooldownSeconds ?? resolveCooldownSeconds(runtime);
         const retryAt = Date.now() + (cooldownSeconds * 1000);
         clearChallenge(interaction.user.id);
         setCooldown(interaction.user.id, retryAt);
@@ -735,7 +737,7 @@ async function handleVerifySubmit(interaction) {
         return completeVerification(interaction, session);
     }
 
-    await advanceToScreen(interaction, session, verificationSettings, session.screenIndex + 1);
+    await advanceToScreen(interaction, session, session.screenIndex + 1);
 }
 
 function getVerificationRoute(interaction) {

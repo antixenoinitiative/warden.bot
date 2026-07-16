@@ -170,7 +170,7 @@ function mainOperation(){
 				await applyVerificationConfigSafeguard({
 					guildId: verificationGuildId,
 					guild,
-					settings: verificationSettings,
+					snapshot: verificationSnapshot,
 					source: 'startup',
 					actorId: 'startup',
 					reason: 'Startup verification configuration preflight.',

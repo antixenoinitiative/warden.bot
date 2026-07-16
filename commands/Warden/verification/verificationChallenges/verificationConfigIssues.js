@@ -42,14 +42,22 @@ function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, act
     const normalizedChallenge = normalizeVerificationChallenge(challenge, verificationSettings);
     if (!normalizedChallenge) return [];
     const active = activeSet.has(String(normalizedChallenge.id));
-    const issues = validateQuestionScreens(buildQuestionScreens(normalizedChallenge)).map((issue) => createIssue({
+    const screens = buildQuestionScreens(normalizedChallenge);
+    const issues = screens.length < 1 ? [createIssue({
+        code: 'missing_questions',
+        challengeId: normalizedChallenge.id,
+        label: 'Questions',
+        message: `${normalizedChallenge.id}: Verification challenge requires at least one question.`,
+        active,
+    })] : [];
+    issues.push(...validateQuestionScreens(screens).map((issue) => createIssue({
         code: 'invalid_screen_answers',
         challengeId: normalizedChallenge.id,
         questionId: null,
         label: 'Screen answers',
         message: issue.message,
         active,
-    }));
+    })));
 
     for (const question of normalizedChallenge.questions ?? []) {
         const generatedImage = question.generatedImage ?? {};
@@ -88,6 +96,29 @@ function evaluateChallengeConfigIssues(challenge, verificationSettings = {}, act
 
 function evaluateVerificationConfigIssues(verificationSettings = {}) {
     const activeChallengeIds = resolveConfiguredActiveChallengeIds(verificationSettings);
+    const catalogChallenges = Array.isArray(verificationSettings.challenges)
+        ? verificationSettings.challenges
+        : undefined;
+
+    if (catalogChallenges) {
+        const catalogById = new Map(catalogChallenges.map((challenge) => [String(challenge.id), challenge]));
+        const issues = catalogChallenges.flatMap((challenge) =>
+            evaluateChallengeConfigIssues(challenge, {}, activeChallengeIds));
+
+        for (const challengeId of activeChallengeIds) {
+            if (catalogById.has(String(challengeId))) continue;
+            issues.push(createIssue({
+                code: 'missing_active_challenge',
+                challengeId: String(challengeId),
+                label: 'Active challenge',
+                message: `${challengeId}: Active verification challenge is missing from the authoritative catalog.`,
+                active: true,
+            }));
+        }
+
+        return issues;
+    }
+
     const challengeIds = [...new Set([...Object.keys(verificationChallenges), ...activeChallengeIds])];
     return challengeIds.flatMap((challengeId) => evaluateChallengeConfigIssues(verificationChallenges[challengeId], verificationSettings, activeChallengeIds));
 }

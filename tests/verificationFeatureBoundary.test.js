@@ -7,6 +7,8 @@ const Discord = require('discord.js');
 const repositoryRoot = path.resolve(__dirname, '..');
 const verificationDirectory = path.join(repositoryRoot, 'commands', 'Warden', 'verification');
 const interactionDelivery = require(path.join(verificationDirectory, 'verificationInteraction'));
+const verificationResponses = require(path.join(verificationDirectory, 'verificationResponses'));
+const verificationValidation = require(path.join(verificationDirectory, 'verificationValidation'));
 
 function restoreModule(modulePath, cachedModule) {
     delete require.cache[modulePath];
@@ -64,6 +66,129 @@ test('non-message modal acknowledgement edits its deferred ephemeral reply', asy
     assert.deepEqual(calls.map(([method]) => method), ['deferReply', 'editReply']);
     assert.equal(calls[1][1].content, 'validation error');
     assert.equal(calls[1][1].flags, undefined);
+});
+
+test('Admin responses use Components V2 while errors remain legacy embeds', () => {
+    const actionRow = new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder()
+            .setCustomId('test-admin-action')
+            .setLabel('Edit')
+            .setStyle(Discord.ButtonStyle.Primary),
+    );
+    const response = verificationResponses.buildVerificationAdminSummary(
+        'Settings',
+        'Current verification settings.',
+        'Catalog authoritative.',
+        'info',
+        {
+            fields: [{ name: 'Mode', value: 'challenge' }],
+            components: [actionRow],
+        },
+    );
+    const container = response.components[0].toJSON();
+
+    assert.equal(response.flags, Discord.MessageFlags.IsComponentsV2);
+    assert.deepEqual(response.embeds, []);
+    assert.equal(response.content, null);
+    assert.equal(container.type, Discord.ComponentType.Container);
+    assert.ok(container.components.some((component) => component.type === Discord.ComponentType.TextDisplay));
+    assert.ok(container.components.some((component) => component.type === Discord.ComponentType.ActionRow));
+
+    const error = verificationResponses.buildVerificationErrorResponse('Invalid settings.');
+    assert.equal(error.embeds.length, 1);
+    assert.equal(error.components, undefined);
+});
+
+test('catalog-native preflight validates challenges absent from static templates', () => {
+    const report = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['catalog-only'],
+        challenges: [{
+            id: 'catalog-only',
+            enabled: true,
+            questions: [{
+                id: 'answer',
+                generatedImage: { enabled: false, type: 'none' },
+                answer: { required: true, type: 'text', accepted: [], requiresConfiguredAnswers: true },
+            }],
+        }],
+    });
+
+    assert.equal(report.activeBlockingIssues.length, 1);
+    assert.equal(report.activeBlockingIssues[0].challengeId, 'catalog-only');
+    assert.equal(report.activeBlockingIssues[0].code, 'missing_accepted_answers');
+
+    const missing = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['missing-catalog-row'],
+        challenges: [],
+    });
+    assert.equal(missing.activeBlockingIssues[0].code, 'missing_active_challenge');
+
+    const empty = verificationValidation.evaluateVerificationConfig({
+        mode: 'challenge',
+        activeChallengeIds: ['empty'],
+        challenges: [{ id: 'empty', enabled: true, questions: [] }],
+    });
+    assert.equal(empty.activeBlockingIssues[0].code, 'missing_questions');
+});
+
+test('safeguard reports a post-commit snapshot refresh failure without treating the write as failed', async () => {
+    const handlerPath = require.resolve(path.join(verificationDirectory, 'verificationDbHandler'));
+    const servicePath = require.resolve(path.join(verificationDirectory, 'verificationService'));
+    const cachedHandler = require.cache[handlerPath];
+    const cachedService = require.cache[servicePath];
+    const originalConsoleError = console.error;
+    const loggedErrors = [];
+    let writes = 0;
+    let invalidations = 0;
+
+    require.cache[handlerPath] = {
+        id: handlerPath,
+        filename: handlerPath,
+        loaded: true,
+        exports: {
+            VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
+            invalidateVerificationGuild: () => { invalidations += 1; },
+            loadVerificationSnapshot: async () => { throw new Error('refresh unavailable'); },
+            saveVerificationGuildSettingsOnly: async () => { writes += 1; },
+        },
+    };
+    delete require.cache[servicePath];
+    const service = require(servicePath);
+    const safeQuestion = {
+        id: 'answer',
+        generatedImage: { enabled: false, type: 'none' },
+        answer: { required: true, type: 'text', accepted: ['axi'] },
+    };
+    const snapshot = {
+        guildSettings: { mode: 'challenge', activeChallengeIds: ['unsafe'] },
+        settings: { mode: 'challenge', activeChallengeIds: ['unsafe'], challengeOverrides: {} },
+        runtime: {
+            mode: 'challenge',
+            activeChallengeIds: ['unsafe'],
+            challenges: [
+                { id: 'unsafe', questions: [{ ...safeQuestion, answer: { ...safeQuestion.answer, accepted: [] } }] },
+                { id: 'placeholder', questions: [safeQuestion] },
+            ],
+            activeChallenges: [],
+        },
+    };
+
+    try {
+        console.error = (...args) => loggedErrors.push(args);
+        const result = await service.applyVerificationConfigSafeguard({ guildId: 'guild', snapshot });
+        assert.equal(writes, 1);
+        assert.equal(invalidations, 1);
+        assert.match(result.refreshError.message, /refresh unavailable/);
+        assert.deepEqual(result.finalSettings.activeChallengeIds, ['placeholder']);
+        assert.match(String(loggedErrors[0]?.[0]), /committed.*snapshot could not be refreshed/);
+    }
+    finally {
+        console.error = originalConsoleError;
+        restoreModule(servicePath, cachedService);
+        restoreModule(handlerPath, cachedHandler);
+    }
 });
 
 test('verification feature owns Admin component dispatch and contains unexpected errors', async () => {
@@ -167,7 +292,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
         clearVerificationSettingsCache: () => undefined,
         ensureVerificationSettingsTable: async () => undefined,
-        getVerificationSettings: async () => {
+        getVerificationGuildSettings: async () => {
             settingsReads += 1;
             if (blockNextSettingsRead) {
                 blockNextSettingsRead = false;
@@ -177,6 +302,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             await Promise.resolve();
             return { mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} };
         },
+        getVerificationSettings: async () => assert.fail('snapshot reads must not reconstruct runtime settings through legacy-shaped catalog overrides'),
         updateChallengeMetaOverrides: async () => {
             if (failWrite) throw new Error('write failed');
             return { mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} };
@@ -200,6 +326,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             catalogReads += 1;
             return { alpha: { id: 'alpha', questions: [{ id: 'question-1' }] } };
         },
+        catalogChallengesToSettingsOverrides: () => ({ alpha: { questions: {} } }),
     };
 
     require.cache[settingsPath] = { id: settingsPath, filename: settingsPath, loaded: true, exports: settingsStub };
@@ -220,6 +347,8 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         assert.equal(catalogReads, 1);
         assert.equal(first.challengesById.get('alpha').id, 'alpha');
         assert.equal(first.questionsByChallengeId.get('alpha').get('question-1').id, 'question-1');
+        assert.equal(first.runtime.activeChallenges[0].id, 'alpha');
+        assert.deepEqual(first.settings.challengeOverrides, { alpha: { questions: {} } });
 
         await db.updateChallengeMetaOverrides('guild-1', 'alpha', {}, 'tester');
         await db.loadVerificationSnapshot('guild-1');
@@ -278,6 +407,12 @@ test('verification persistence and global interaction routing keep their public 
     assert.match(interactionCreateSource, /verificationFeature/);
     assert.doesNotMatch(interactionCreateSource, /verificationFlow/);
     assert.doesNotMatch(interactionCreateSource, /handleVerificationAdmin|handleModalSubmit/);
+
+    const flowSource = fs.readFileSync(path.join(verificationDirectory, 'verificationFlow.js'), 'utf8');
+    assert.doesNotMatch(flowSource, /getEnabledVerificationChallenges|getActiveVerificationChallenge|getVerificationSettings/);
+
+    const adminSource = fs.readFileSync(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verification.js'), 'utf8');
+    assert.doesNotMatch(adminSource, /build(?:SettingsStatus|ChallengePicker|ChallengeOverview|QuestionDetail)Embed/);
 
     const imageSource = fs.readFileSync(path.join(verificationDirectory, 'verificationImages.js'), 'utf8');
     assert.doesNotMatch(imageSource, /localGalleryImageBufferCache/);

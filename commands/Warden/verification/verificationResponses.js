@@ -244,9 +244,53 @@ function buildVerificationFailureResponse(cooldownSeconds, retryAt, options = {}
     }, options);
 }
 
-// For editReply() after an already-ephemeral deferReply().
+function addAdminTextDisplay(container, content) {
+    const text = String(content ?? '').trim();
+    if (!text) return;
+    container.addTextDisplayComponents(new Discord.TextDisplayBuilder().setContent(truncateText(text, 4000)));
+}
+
+function buildVerificationAdminContainer(embed, actionRows = []) {
+    assertComponentsV2Support();
+    const data = embed.toJSON();
+    const container = new Discord.ContainerBuilder()
+        .setAccentColor(resolveComponentAccentColor(data.color));
+
+    if (data.title) addAdminTextDisplay(container, `# ${data.title}`);
+    if (data.description) addAdminTextDisplay(container, data.description);
+
+    for (const field of data.fields ?? []) {
+        addAdminTextDisplay(container, `### ${field.name}\n${field.value}`);
+    }
+
+    if (data.footer?.text) addAdminTextDisplay(container, `-# ${data.footer.text}`);
+    if (actionRows.length > 0) container.addActionRowComponents(...actionRows);
+    return container;
+}
+
+function buildVerificationAdminPayload(containers = []) {
+    return {
+        content: null,
+        embeds: [],
+        components: containers,
+        flags: Discord.MessageFlags.IsComponentsV2,
+    };
+}
+
+function mergeVerificationAdminResponses(...responses) {
+    const containers = responses
+        .flat()
+        .filter(Boolean)
+        .flatMap((response) => response.components ?? []);
+    return buildVerificationAdminPayload(containers);
+}
+
+// Admin responses share the legacy template configuration, but are rendered as
+// Components V2. The deferred interaction already owns the Ephemeral flag.
 function buildVerificationAdminResponse(templateKey, replacements = {}, options = {}) {
-    return buildVerificationResponse(templateKey, replacements, { includeFlags: false, ...options });
+    const { components = [], ...embedOptions } = options;
+    const embed = buildVerificationEmbed(templateKey, replacements, embedOptions);
+    return buildVerificationAdminPayload([buildVerificationAdminContainer(embed, components)]);
 }
 
 function buildVerificationAdminSettingUpdated(label, message, options = {}) {
@@ -836,6 +880,7 @@ module.exports = {
     buildVerificationAdminConfiguration,
     buildVerificationAdminActionCompleted,
     buildVerificationAdminSummary,
+    mergeVerificationAdminResponses,
     buildVerificationErrorEmbed,
     buildVerificationErrorResponse,
     buildVerificationAutoKickEmbed,

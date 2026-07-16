@@ -4,17 +4,17 @@ const { evaluateVerificationConfig: evaluateVerificationConfigUncached } = requi
 const { buildVerificationConfigWarningEmbed } = require('./verificationLegacyUi');
 const { DEFAULT_CHALLENGE_ID } = require('./verificationChallenges/verificationChallengesConfig');
 const { VERIFICATION_MODES } = verificationDb;
-const preflightBySettings = new WeakMap();
+const preflightByConfiguration = new WeakMap();
 
-function evaluateVerificationConfig(settings = {}, options = {}) {
+function evaluateVerificationConfig(configuration = {}, options = {}) {
     const hasScopedChange = Boolean(options.changedChallengeId || options.changedQuestionId);
-    if (hasScopedChange || !settings || typeof settings !== 'object') {
-        return evaluateVerificationConfigUncached(settings, options);
+    if (hasScopedChange || !configuration || typeof configuration !== 'object') {
+        return evaluateVerificationConfigUncached(configuration, options);
     }
 
-    if (preflightBySettings.has(settings)) return preflightBySettings.get(settings);
-    const report = evaluateVerificationConfigUncached(settings, options);
-    preflightBySettings.set(settings, report);
+    if (preflightByConfiguration.has(configuration)) return preflightByConfiguration.get(configuration);
+    const report = evaluateVerificationConfigUncached(configuration, options);
+    preflightByConfiguration.set(configuration, report);
     return report;
 }
 
@@ -38,6 +38,10 @@ async function getVerificationSettings(guildId, options) {
     return (await getVerificationSnapshot(guildId, options)).settings;
 }
 
+async function getVerificationRuntime(guildId, options) {
+    return (await getVerificationSnapshot(guildId, options)).runtime;
+}
+
 async function getVerificationChallengeCatalog(guildId, options) {
     return (await getVerificationSnapshot(guildId, options)).challengeCatalog;
 }
@@ -58,7 +62,7 @@ async function getVerificationAdminChallenge(guildId, challengeId, options) {
 async function applyVerificationConfigSafeguard({
     guildId,
     guild,
-    settings,
+    snapshot,
     source = 'unknown',
     actorId = null,
     changedChallengeId = null,
@@ -67,12 +71,16 @@ async function applyVerificationConfigSafeguard({
     notifyStaff = false,
     deactivateUnsafeActiveChallenges = true,
 } = {}) {
-    const originalSettings = settings ?? await getVerificationSettings(guildId);
-    const report = evaluateVerificationConfig(originalSettings, { changedChallengeId, changedQuestionId });
+    const originalSnapshot = snapshot ?? await getVerificationSnapshot(guildId);
+    const originalSettings = originalSnapshot.settings;
+    const originalRuntime = originalSnapshot.runtime;
+    const report = evaluateVerificationConfig(originalRuntime, { changedChallengeId, changedQuestionId });
     const disabledChallengeIds = deactivateUnsafeActiveChallenges ? report.unsafeActiveChallengeIds : [];
     let finalSettings = originalSettings;
+    let finalRuntime = originalRuntime;
     let finalReport = report;
     let fallbackApplied = false;
+    let refreshError;
 
     if (disabledChallengeIds.length > 0) {
         const unsafe = new Set(disabledChallengeIds.map(String));
@@ -84,12 +92,31 @@ async function applyVerificationConfigSafeguard({
             activeChallengeIds = [DEFAULT_CHALLENGE_ID];
             fallbackApplied = true;
         }
-        finalSettings = await verificationDb.saveVerificationGuildSettingsOnly(
+        await verificationDb.saveVerificationGuildSettingsOnly(
             guildId,
-            { ...originalSettings, activeChallengeIds },
+            { ...originalSnapshot.guildSettings, activeChallengeIds },
             actorId ?? 'system',
         );
-        finalReport = evaluateVerificationConfig(finalSettings, { changedChallengeId, changedQuestionId });
+        finalSettings = Object.freeze({ ...originalSettings, activeChallengeIds: Object.freeze([...activeChallengeIds]) });
+        const challengesById = new Map(originalRuntime.challenges.map((challenge) => [challenge.id, challenge]));
+        finalRuntime = Object.freeze({
+            ...originalRuntime,
+            activeChallengeIds: finalSettings.activeChallengeIds,
+            activeChallenges: Object.freeze(activeChallengeIds.map((challengeId) => challengesById.get(String(challengeId))).filter(Boolean)),
+        });
+        finalReport = evaluateVerificationConfig(finalRuntime, { changedChallengeId, changedQuestionId });
+
+        try {
+            const finalSnapshot = await getVerificationSnapshot(guildId);
+            finalSettings = finalSnapshot.settings;
+            finalRuntime = finalSnapshot.runtime;
+            finalReport = evaluateVerificationConfig(finalRuntime, { changedChallengeId, changedQuestionId });
+        }
+        catch (err) {
+            refreshError = err;
+            verificationDb.invalidateVerificationGuild(guildId);
+            console.error('Verification safeguard was committed, but the verification snapshot could not be refreshed:', err);
+        }
     }
 
     let staffNotified = false;
@@ -117,11 +144,14 @@ async function applyVerificationConfigSafeguard({
 
     return {
         originalSettings,
+        originalRuntime,
         finalSettings,
+        finalRuntime,
         report,
         finalReport,
         disabledChallengeIds,
         fallbackApplied,
+        refreshError,
         staffNotified,
     };
 }
@@ -132,6 +162,7 @@ module.exports = {
     evaluateVerificationConfig,
     getVerificationAdminChallenge,
     getVerificationAdminChallengeCatalog,
+    getVerificationRuntime,
     getVerificationSettings,
     getVerificationSnapshot,
     initializeVerificationData: verificationDb.initializeVerificationData,
