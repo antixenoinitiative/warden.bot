@@ -72,19 +72,15 @@ function defaultVerificationSettings() {
     const verificationConfig = config.Warden?.verification ?? {};
     const activeChallengeIds = normalizeActiveChallengeIds(
         verificationConfig.activeChallengeIds
-        ?? verificationConfig.activeChallengeId
-        ?? verificationConfig.challengeId
-        ?? verificationConfig.activeCaptchaId
-        ?? verificationConfig.captchaId
         ?? 'placeholder',
     );
     return {
         mode: normalizeVerificationMode(verificationConfig.mode, VERIFICATION_MODES.challenge),
         activeChallengeIds: activeChallengeIds.length > 0 ? activeChallengeIds : ['placeholder'],
-        challengeExpirySeconds: normalizeTimerSeconds(verificationConfig.challengeExpirySeconds ?? verificationConfig.expirySeconds, DEFAULT_CHALLENGE_EXPIRY_SECONDS),
+        challengeExpirySeconds: normalizeTimerSeconds(verificationConfig.challengeExpirySeconds, DEFAULT_CHALLENGE_EXPIRY_SECONDS),
         cooldownSeconds: normalizeTimerSeconds(verificationConfig.cooldownSeconds, DEFAULT_COOLDOWN_SECONDS),
         autokickEnabled: verificationConfig.autokickEnabled === true,
-        autokickSeconds: normalizeTimerSeconds(verificationConfig.autokickSeconds ?? verificationConfig.autokickTimerSeconds, DEFAULT_AUTOKICK_SECONDS),
+        autokickSeconds: normalizeTimerSeconds(verificationConfig.autokickSeconds, DEFAULT_AUTOKICK_SECONDS),
     };
 }
 
@@ -180,25 +176,12 @@ async function getVerificationGuildSettings(guildId) {
     return settings;
 }
 
-async function getVerificationSettings(guildId) {
-    return getVerificationGuildSettings(guildId);
-}
-
 module.exports = {
     VERIFICATION_MODES,
-    VALID_VERIFICATION_MODES,
-    DEFAULT_CHALLENGE_EXPIRY_SECONDS,
-    DEFAULT_COOLDOWN_SECONDS,
-    DEFAULT_AUTOKICK_SECONDS,
     clearVerificationSettingsCache,
     ensureVerificationGuildSettingsTable,
-    ensureVerificationSettingsTable: ensureVerificationGuildSettingsTable,
-    ensureVerificationSettingsTables: ensureVerificationGuildSettingsTable,
     safeParseJson,
     stringifyJsonOrNull,
-    normalizeActiveChallengeIds,
     getVerificationGuildSettings,
-    getVerificationSettings,
     saveVerificationGuildSettingsOnly,
-    saveVerificationSettings: saveVerificationGuildSettingsOnly,
 };

@@ -1,5 +1,6 @@
 const Discord = require('discord.js');
 const { DEFAULT_CHALLENGE_ID } = require('./verificationChallenges/verificationChallengesConfig');
+const { PRESENTATION_SURFACES, PRESENTATION_TONES, resolvePresentationPreset } = require('./verificationPresentation');
 
 function formatVerificationConfigIssues(issues = [], limit = 10) {
     const lines = issues.slice(0, limit).map((issue) => {
@@ -21,9 +22,12 @@ function buildVerificationConfigWarningEmbed({
     finalActiveChallengeIds,
 } = {}) {
     const issues = report.issues ?? report.blockingIssues ?? [];
+    // This embed is delivered through botLog, which supplies the shared staff-log
+    // metadata and destination. Keep the warning's renderer policy explicit here.
+    const warningPreset = resolvePresentationPreset(PRESENTATION_SURFACES.staffLog, PRESENTATION_TONES.warning);
     const embed = new Discord.EmbedBuilder()
         .setTitle(title)
-        .setColor(0xffa500)
+        .setColor(warningPreset.color)
         .setDescription(description ?? 'One or more verification challenges require additional configuration before they can safely be active.');
 
     if (source) embed.addFields({ name: 'Source', value: String(source), inline: true });

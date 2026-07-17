@@ -2,6 +2,12 @@ const Discord = require('discord.js');
 const { botIdent } = require('../../../functions');
 const verificationEmbedConfig = require('./verificationEmbedConfig.json');
 const {
+    PRESENTATION_SURFACES,
+    PRESENTATION_TONES,
+    buildVerificationNotice,
+    resolvePresentationPreset,
+} = require('./verificationPresentation');
+const {
     VERIFICATION_UI_LIMITS,
     screenRequiresAnswer,
     getScreenRequiredAnswerQuestions,
@@ -18,6 +24,7 @@ const FIELD_VALUE_LIMIT = 1024;
 const MAX_FIELDS = 25;
 const COMPONENTS_V2_RENDERER = 'components-v2';
 const LEGACY_RENDERER = 'legacy';
+const DISCORD_TEXT_INPUT_MAX_LENGTH = 4000;
 
 function resolveColorAlias(color) {
     if (typeof color !== 'string') {
@@ -95,6 +102,10 @@ function buildModalTextInputComponent(customId, {
     minLength,
     maxLength,
 } = {}) {
+    const resolvedMaxLength = maxLength === undefined ? undefined : Number(maxLength);
+    if (resolvedMaxLength !== undefined && (!Number.isInteger(resolvedMaxLength) || resolvedMaxLength < 1 || resolvedMaxLength > DISCORD_TEXT_INPUT_MAX_LENGTH)) {
+        throw new Error(`Verification text input max length must be between 1 and ${DISCORD_TEXT_INPUT_MAX_LENGTH}.`);
+    }
     const input = new Discord.TextInputBuilder()
         .setCustomId(customId)
         .setStyle(style)
@@ -102,16 +113,39 @@ function buildModalTextInputComponent(customId, {
 
     if (placeholder) input.setPlaceholder(String(placeholder).slice(0, VERIFICATION_UI_LIMITS.textInputPlaceholderLength));
 
-    if (value !== undefined && value !== null && String(value).length > 0) {
+    if (value !== undefined && value !== null) {
         const textValue = String(value);
-        const maxValueLength = style === Discord.TextInputStyle.Short ? 100 : 3500;
-        if (textValue.length <= maxValueLength) input.setValue(textValue);
+        const maxValueLength = resolvedMaxLength ?? DISCORD_TEXT_INPUT_MAX_LENGTH;
+        if (textValue.length > maxValueLength) {
+            throw new Error(`Existing verification field value exceeds its ${maxValueLength}-character editor limit.`);
+        }
+        if (textValue.length > 0) input.setValue(textValue);
     }
 
     if (minLength !== undefined) input.setMinLength(minLength);
-    if (maxLength !== undefined) input.setMaxLength(maxLength);
+    if (resolvedMaxLength !== undefined) input.setMaxLength(resolvedMaxLength);
 
     return input;
+}
+
+function buildExistingTextField({
+    customId,
+    label,
+    currentValue,
+    style = Discord.TextInputStyle.Short,
+    maxLength,
+    required = false,
+    description = 'Edit the current value. Use the explicit reset action to restore template values.',
+    placeholder = 'Edit current value…',
+} = {}) {
+    return buildModalTextLabel(customId, label, {
+        style,
+        value: currentValue ?? '',
+        maxLength,
+        required,
+        description,
+        placeholder,
+    });
 }
 
 function buildModalTextLabel(customId, label, options = {}) {
@@ -131,7 +165,7 @@ function resolveActiveBotIconURL() {
     try {
         return botIdent().activeBot?.icon;
     }
-    catch (err) {
+    catch (_err) {
         return undefined;
     }
 }
@@ -303,6 +337,50 @@ function addAdminTextDisplay(container, content) {
     container.addTextDisplayComponents(new Discord.TextDisplayBuilder().setContent(truncateText(text, 4000)));
 }
 
+function isCompactAdminField(field) {
+    return field?.inline === true
+        && String(field.name ?? '').trim().length > 0
+        && String(field.value ?? '').trim().length > 0;
+}
+
+function formatCompactAdminField(field) {
+    return `**${String(field.name).trim()}:** ${String(field.value).trim()}`;
+}
+
+function canUseThreeCompactAdminFields(fields) {
+    return fields.length === 3
+        && fields.every((field) => formatCompactAdminField(field).length <= 48)
+        && fields.reduce((length, field) => length + formatCompactAdminField(field).length, 0) <= 126;
+}
+
+function addAdminFields(container, fields = []) {
+    for (let index = 0; index < fields.length;) {
+        const field = fields[index];
+        if (!isCompactAdminField(field)) {
+            addAdminTextDisplay(container, `### ${field.name}\n${field.value}`);
+            index += 1;
+            continue;
+        }
+
+        const compactFields = [];
+        while (index < fields.length && isCompactAdminField(fields[index])) {
+            compactFields.push(fields[index]);
+            index += 1;
+        }
+
+        for (let compactIndex = 0; compactIndex < compactFields.length;) {
+            const remaining = compactFields.slice(compactIndex, compactIndex + 3);
+            const remainingCount = compactFields.length - compactIndex;
+            // Keep four related values as two balanced rows, never a three-plus-one split.
+            const rowSize = remainingCount !== 4 && canUseThreeCompactAdminFields(remaining)
+                ? 3
+                : Math.min(2, remaining.length);
+            addAdminTextDisplay(container, remaining.slice(0, rowSize).map(formatCompactAdminField).join('  •  '));
+            compactIndex += rowSize;
+        }
+    }
+}
+
 function buildVerificationAdminContainer(embed, actionRows = []) {
     assertComponentsV2Support();
     const data = embed.toJSON();
@@ -312,9 +390,7 @@ function buildVerificationAdminContainer(embed, actionRows = []) {
     if (data.title) addAdminTextDisplay(container, `# ${data.title}`);
     if (data.description) addAdminTextDisplay(container, data.description);
 
-    for (const field of data.fields ?? []) {
-        addAdminTextDisplay(container, `### ${field.name}\n${field.value}`);
-    }
+    addAdminFields(container, data.fields ?? []);
 
     if (data.footer?.text) addAdminTextDisplay(container, `-# ${data.footer.text}`);
     if (actionRows.length > 0) container.addActionRowComponents(...actionRows);
@@ -343,8 +419,35 @@ function mergeVerificationAdminResponses(...responses) {
 // Components V2. The deferred interaction already owns the Ephemeral flag.
 function buildVerificationAdminResponse(templateKey, replacements = {}, options = {}) {
     const { components = [], ...embedOptions } = options;
-    const embed = buildVerificationEmbed(templateKey, replacements, embedOptions);
+    const preset = resolvePresentationPreset(PRESENTATION_SURFACES.admin, embedOptions.tone ?? PRESENTATION_TONES.info);
+    const embed = buildVerificationEmbed(templateKey, replacements, {
+        footer: { enabled: preset.footer },
+        timestamp: preset.timestamp,
+        ...embedOptions,
+    });
     return buildVerificationAdminPayload([buildVerificationAdminContainer(embed, components)]);
+}
+
+function buildVerificationAdminNotice(title, message, tone = PRESENTATION_TONES.info, options = {}) {
+    const notice = buildVerificationNotice({
+        surface: PRESENTATION_SURFACES.admin,
+        tone,
+        title,
+        message,
+        fields: options.fields ?? [],
+        actions: options.components ?? [],
+    });
+    const embed = new Discord.EmbedBuilder()
+        .setColor(resolveEmbedColor(notice.presentation.color))
+        .setTitle(truncateText(notice.title, 256))
+        .setDescription(truncateText(notice.message, DESCRIPTION_LIMIT));
+
+    for (const field of notice.fields.slice(0, MAX_FIELDS)) applyFieldToEmbed(embed, field);
+    return buildVerificationAdminPayload([buildVerificationAdminContainer(embed, notice.actions)]);
+}
+
+function buildVerificationAdminNeutralNotice(title, message, options = {}) {
+    return buildVerificationAdminNotice(title, message, PRESENTATION_TONES.neutral, options);
 }
 
 function buildVerificationAdminSettingUpdated(label, message, options = {}) {
@@ -469,7 +572,14 @@ function parseBackCustomId(customId) {
 }
 
 function parseOldVersionCustomId(customId) {
-    return parseSessionComponentCustomId(customId, 'wardenVerify-oldVersion-');
+    const prefix = 'wardenVerify-oldVersion-';
+    if (!String(customId ?? '').startsWith(prefix)) return undefined;
+
+    const legacyParsed = parseSessionComponentCustomId(String(customId), prefix);
+    if (legacyParsed) return legacyParsed;
+
+    const fallbackToken = String(customId).slice(prefix.length);
+    return fallbackToken ? { fallbackToken } : undefined;
 }
 
 function parseSubmitCustomId(customId) {
@@ -589,17 +699,13 @@ function truncateEmbedText(value, fallback = 'Not set') {
     return text.length > DESCRIPTION_LIMIT ? `${text.slice(0, DESCRIPTION_LIMIT - 3)}...` : text;
 }
 
-function applyQuestionFields(embed, question) {
-    if (question.text) {
-        embed.addFields({ name: question.label ?? question.id, value: truncateEmbedText(question.text), inline: false });
-    }
-}
-
 function buildOldVersionActionRows(session) {
+    const fallbackToken = session?.fallbackToken ?? session?.token;
+    if (!fallbackToken) throw new Error('Verification fallback controls require a session fallback token.');
     return [
         new Discord.ActionRowBuilder().addComponents(
             new Discord.ButtonBuilder()
-                .setCustomId(buildSessionComponentCustomId('wardenVerify-oldVersion-', session.screenIndex, session.token))
+                .setCustomId(`wardenVerify-oldVersion-${fallbackToken}`)
                 .setLabel(verificationEmbedConfig.oldVersionFallbackEmbed?.buttonLabel ?? 'Old Version')
                 .setStyle(Discord.ButtonStyle.Secondary),
         ),
@@ -764,7 +870,7 @@ function getOldVersionFallbackEmbedConfig(challenge) {
     };
 }
 
-function addOldVersionFallbackField(embed, challenge, session) {
+function addOldVersionFallbackField(embed, challenge, _session) {
     const fallbackConfig = getOldVersionFallbackEmbedConfig(challenge);
     const value = fallbackConfig.description;
     embed.addFields({
@@ -964,6 +1070,7 @@ module.exports = {
     assertModalLabelSupport,
     buildModalTextInputComponent,
     buildModalTextLabel,
+    buildExistingTextField,
     buildVerificationEmbed,
     buildVerificationResponse,
     buildVerificationPublicEmbed,
@@ -972,6 +1079,8 @@ module.exports = {
     buildVerificationExpiredResponse,
     buildVerificationFailureResponse,
     buildVerificationAdminResponse,
+    buildVerificationAdminNotice,
+    buildVerificationAdminNeutralNotice,
     buildVerificationAdminSettingUpdated,
     buildVerificationAdminStatus,
     buildVerificationAdminConfiguration,

@@ -220,9 +220,7 @@ async function loadVerificationSnapshot(guildId, options = {}) {
     clearRepositoryCaches(normalizedGuildId);
     const load = { invalidated: false };
     load.promise = (async () => {
-        const readGuildSettings = verificationSettings.getVerificationGuildSettings
-            ?? verificationSettings.getVerificationSettings;
-        const guildSettings = await readGuildSettings(normalizedGuildId);
+        const guildSettings = await verificationSettings.getVerificationGuildSettings(normalizedGuildId);
         const challengeCatalog = await verificationCatalog.getVerificationChallengeCatalog(normalizedGuildId);
         const snapshot = buildSnapshot(normalizedGuildId, guildSettings, challengeCatalog);
         if (!load.invalidated) cacheSnapshot(normalizedGuildId, snapshot);
@@ -240,7 +238,7 @@ async function loadVerificationSnapshot(guildId, options = {}) {
 
 async function initializeVerificationData(guildId) {
     const normalizedGuildId = normalizeGuildId(guildId);
-    await verificationSettings.ensureVerificationSettingsTable();
+    await verificationSettings.ensureVerificationGuildSettingsTable();
     return loadVerificationSnapshot(normalizedGuildId, { fresh: true });
 }
 
@@ -375,7 +373,7 @@ async function runCatalogWrite(guildId, write) {
     });
 }
 
-function updateChallengeMetaOverrides(guildId, challengeId, patch, updatedBy) {
+function updateCatalogChallengeMetadata(guildId, challengeId, patch, updatedBy) {
     return runCatalogWrite(guildId, (normalizedGuildId) =>
         verificationCatalog.mutateVerificationChallengeCatalogEntry({
             guildId: normalizedGuildId,
@@ -401,7 +399,7 @@ function mutateQuestionEntries(guildId, challengeId, questionIds, updatedBy, mut
         }));
 }
 
-function setQuestionCommonOverrides(guildId, challengeId, questionId, data, updatedBy) {
+function updateCatalogQuestionFields(guildId, challengeId, questionId, data, updatedBy) {
     const normalizedQuestionId = normalizeQuestionId(questionId);
     return mutateQuestionEntries(guildId, challengeId, [questionId], updatedBy, (questions) => {
         const question = questions.get(normalizedQuestionId);
@@ -415,7 +413,7 @@ function setQuestionCommonOverrides(guildId, challengeId, questionId, data, upda
     });
 }
 
-function setQuestionImageTextOverride(guildId, challengeId, questionId, text, updatedBy) {
+function updateCatalogQuestionPrompt(guildId, challengeId, questionId, text, updatedBy) {
     const normalizedQuestionId = normalizeQuestionId(questionId);
     return mutateQuestionEntries(guildId, challengeId, [questionId], updatedBy, (questions) => {
         const question = questions.get(normalizedQuestionId);
@@ -427,7 +425,7 @@ function setQuestionImageTextOverride(guildId, challengeId, questionId, text, up
     });
 }
 
-function setQuestionAnswerOverrides(guildId, challengeId, questionId, answers, updatedBy) {
+function updateCatalogQuestionAnswers(guildId, challengeId, questionId, answers, updatedBy) {
     const normalizedQuestionId = normalizeQuestionId(questionId);
     return mutateQuestionEntries(guildId, challengeId, [questionId], updatedBy, (questions) => {
         const question = questions.get(normalizedQuestionId);
@@ -439,7 +437,7 @@ function setQuestionAnswerOverrides(guildId, challengeId, questionId, answers, u
     });
 }
 
-function setQuestionImageIdOverrides(guildId, challengeId, questionId, roleImageIds, updatedBy) {
+function updateCatalogQuestionImageIds(guildId, challengeId, questionId, roleImageIds, updatedBy) {
     const normalizedQuestionId = normalizeQuestionId(questionId);
     const normalizedRoleImageIds = Object.entries(roleImageIds ?? {}).reduce((updates, [role, imageIds]) => {
         if (!ALLOWED_IMAGE_ROLES.has(role)) throw new Error(`Unsupported verification image role: ${role}`);
@@ -460,7 +458,7 @@ function setQuestionImageIdOverrides(guildId, challengeId, questionId, roleImage
     });
 }
 
-function setQuestionImageDirectionOverrides(guildId, challengeId, questionId, imageDirectionUpdates, updatedBy) {
+function updateCatalogQuestionImageDirections(guildId, challengeId, questionId, imageDirectionUpdates, updatedBy) {
     const normalizedQuestionId = normalizeQuestionId(questionId);
     const normalizedUpdates = Object.entries(imageDirectionUpdates ?? {}).reduce((updates, [imageId, degrees]) => {
         const normalizedImageId = String(imageId ?? '').trim();
@@ -481,7 +479,7 @@ function setQuestionImageDirectionOverrides(guildId, challengeId, questionId, im
     });
 }
 
-function updateQuestionOptionOverrides(guildId, challengeId, questionPatches, updatedBy) {
+function updateCatalogQuestionOptions(guildId, challengeId, questionPatches, updatedBy) {
     const normalizedPatches = Object.fromEntries(Object.entries(questionPatches ?? {})
         .map(([questionId, patch]) => [normalizeQuestionId(questionId), patch])
         .filter(([questionId]) => questionId));
@@ -496,7 +494,7 @@ function updateQuestionOptionOverrides(guildId, challengeId, questionPatches, up
     });
 }
 
-function clearQuestionOverrideFields(guildId, challengeId, questionId, fields, updatedBy) {
+function resetCatalogQuestionFieldsToTemplate(guildId, challengeId, questionId, fields, updatedBy) {
     const normalizedQuestionId = normalizeQuestionId(questionId);
     const baseline = getTemplateQuestion(challengeId, normalizedQuestionId) ?? {};
     return mutateQuestionEntries(guildId, challengeId, [questionId], updatedBy, (questions) => {
@@ -566,14 +564,14 @@ module.exports = {
     invalidateVerificationGuild,
     loadVerificationSnapshot,
     saveVerificationGuildSettingsOnly,
-    updateChallengeMetaOverrides,
-    setQuestionCommonOverrides,
-    setQuestionImageTextOverride,
-    setQuestionAnswerOverrides,
-    setQuestionImageIdOverrides,
-    setQuestionImageDirectionOverrides,
-    updateQuestionOptionOverrides,
-    clearQuestionOverrideFields,
+    updateCatalogChallengeMetadata,
+    updateCatalogQuestionFields,
+    updateCatalogQuestionPrompt,
+    updateCatalogQuestionAnswers,
+    updateCatalogQuestionImageIds,
+    updateCatalogQuestionImageDirections,
+    updateCatalogQuestionOptions,
+    resetCatalogQuestionFieldsToTemplate,
     createCustomChallenge,
     createCustomQuestion,
     deleteOrResetChallenge,

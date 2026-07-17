@@ -85,7 +85,7 @@ test('non-message modal acknowledgement edits its deferred ephemeral reply', asy
     assert.equal(calls[1][1].flags, undefined);
 });
 
-test('Admin responses use Components V2 while errors remain legacy embeds', () => {
+test('Admin responses and notices use Components V2 while public errors remain legacy embeds', () => {
     const actionRow = new Discord.ActionRowBuilder().addComponents(
         new Discord.ButtonBuilder()
             .setCustomId('test-admin-action')
@@ -111,9 +111,117 @@ test('Admin responses use Components V2 while errors remain legacy embeds', () =
     assert.ok(container.components.some((component) => component.type === Discord.ComponentType.TextDisplay));
     assert.ok(container.components.some((component) => component.type === Discord.ComponentType.ActionRow));
 
+    const adminError = verificationResponses.buildVerificationAdminNotice('Validation failed', 'Invalid settings.', 'error');
+    assert.equal(adminError.flags, Discord.MessageFlags.IsComponentsV2);
+    assert.deepEqual(adminError.embeds, []);
+
     const error = verificationResponses.buildVerificationErrorResponse('Invalid settings.');
     assert.equal(error.embeds.length, 1);
     assert.equal(error.components, undefined);
+});
+
+test('Admin Components V2 preserves compact inline metadata as short horizontal rows', () => {
+    const response = verificationResponses.buildVerificationAdminSummary(
+        'Question',
+        'Catalog entry.',
+        'Current configuration.',
+        'info',
+        {
+            fields: [
+                { name: 'Challenge', value: 'onboarding', inline: true },
+                { name: 'ID', value: 'q-1', inline: true },
+                { name: 'Order', value: '1', inline: true },
+                { name: 'Prompt', value: 'This intentionally remains full-width.', inline: false },
+            ],
+        },
+    );
+    const text = response.components[0].toJSON().components
+        .filter((component) => component.type === Discord.ComponentType.TextDisplay)
+        .map((component) => component.content);
+
+    assert.ok(text.includes('**Challenge:** onboarding  •  **ID:** q-1  •  **Order:** 1'));
+    assert.ok(text.includes('### Prompt\nThis intentionally remains full-width.'));
+});
+
+test('Admin interaction session and form-state helpers preserve scoped baseline data', () => {
+    const adminSessions = require(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verificationAdminSessions'));
+    const adminFormState = require(path.join(repositoryRoot, 'commands', 'Warden', 'admin', 'verificationAdminFormState'));
+    const customId = adminSessions.buildAdminFormCustomId('questionTextModal', ['guild', 'user', 'challenge', 'question'], {
+        label: 'Opening label',
+    });
+    const parsed = adminSessions.parseAdminCustomId(customId);
+
+    assert.equal(parsed.action, 'questionTextModal');
+    assert.deepEqual(parsed.parts, ['guild', 'user', 'challenge', 'question']);
+    assert.deepEqual(parsed.state.baseline, { label: 'Opening label' });
+    assert.deepEqual(
+        adminFormState.resolveBaselineEdit('label', { label: 'Opening label' }, 'Opening label', 'Updated label'),
+        { changed: true, value: 'Updated label' },
+    );
+    assert.throws(
+        () => adminFormState.resolveBaselineEdit('label', { label: 'Opening label' }, 'Concurrent label', 'Updated label'),
+        /changed by another administrator/,
+    );
+});
+
+test('presentation presets keep Admin notices V2 and public verification content legacy without metadata drift', () => {
+    const adminNotice = verificationResponses.buildVerificationAdminNeutralNotice(
+        'No changes made',
+        'The submitted values already match the current configuration.',
+    );
+    const publicHelp = verificationResponses.buildVerificationPublicResponse('verificationHelpEmbed');
+    const adminContainer = adminNotice.components[0].toJSON();
+
+    assert.ok(adminNotice.flags & Discord.MessageFlags.IsComponentsV2);
+    assert.equal(adminNotice.embeds.length, 0);
+    assert.ok(adminContainer.components.every((component) => !String(component.content ?? '').startsWith('-# Warden Verification')));
+    assert.equal(publicHelp.embeds.length, 1);
+    assert.equal(publicHelp.components, undefined);
+    assert.equal(publicHelp.embeds[0].data.footer, undefined);
+    assert.equal(publicHelp.embeds[0].data.timestamp, undefined);
+});
+
+test('verification service exposes only catalog-oriented mutation APIs', () => {
+    const service = require(path.join(verificationDirectory, 'verificationService'));
+    for (const name of [
+        'updateCatalogChallengeMetadata',
+        'updateCatalogQuestionFields',
+        'updateCatalogQuestionPrompt',
+        'updateCatalogQuestionAnswers',
+        'updateCatalogQuestionImageIds',
+        'updateCatalogQuestionImageDirections',
+        'updateCatalogQuestionOptions',
+        'resetCatalogQuestionFieldsToTemplate',
+    ]) {
+        assert.equal(typeof service[name], 'function', `${name} must remain a public service boundary`);
+    }
+    for (const legacyName of [
+        'updateChallengeMetaOverrides',
+        'setQuestionCommonOverrides',
+        'setQuestionImageTextOverride',
+        'setQuestionAnswerOverrides',
+        'setQuestionImageIdOverrides',
+        'setQuestionImageDirectionOverrides',
+        'updateQuestionOptionOverrides',
+        'clearQuestionOverrideFields',
+    ]) {
+        assert.equal(Object.hasOwn(service, legacyName), false, `${legacyName} must not remain a public service boundary`);
+    }
+});
+
+test('verification settings expose only canonical guild settings APIs and bootstrap keys', () => {
+    const settings = require(path.join(verificationDirectory, 'verificationSettings'));
+    for (const legacyName of [
+        'ensureVerificationSettingsTable',
+        'ensureVerificationSettingsTables',
+        'getVerificationSettings',
+        'saveVerificationSettings',
+    ]) {
+        assert.equal(Object.hasOwn(settings, legacyName), false, `${legacyName} must not remain a public settings boundary`);
+    }
+
+    const settingsSource = fs.readFileSync(path.join(verificationDirectory, 'verificationSettings.js'), 'utf8');
+    assert.doesNotMatch(settingsSource, /verificationConfig\.(?:activeChallengeId|challengeId|activeCaptchaId|captchaId|expirySeconds|autokickTimerSeconds)(?![A-Za-z0-9_])/);
 });
 
 test('catalog-native preflight validates challenges absent from static templates', () => {
@@ -783,7 +891,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
     const settingsStub = {
         VERIFICATION_MODES: { challenge: 'challenge', halt: 'halt', oneClick: 'one-click' },
         clearVerificationSettingsCache: () => undefined,
-        ensureVerificationSettingsTable: async () => undefined,
+        ensureVerificationGuildSettingsTable: async () => undefined,
         getVerificationGuildSettings: async () => {
             settingsReads += 1;
             if (blockNextSettingsRead) {
@@ -794,20 +902,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
             await Promise.resolve();
             return { mode: 'challenge', activeChallengeIds: ['alpha'], challengeOverrides: {} };
         },
-        getVerificationSettings: async () => assert.fail('snapshot reads must not reconstruct runtime settings through legacy-shaped catalog overrides'),
     };
-    for (const methodName of [
-        'updateChallengeMetaOverrides',
-        'setQuestionCommonOverrides',
-        'setQuestionImageTextOverride',
-        'setQuestionAnswerOverrides',
-        'setQuestionImageIdOverrides',
-        'setQuestionImageDirectionOverrides',
-        'updateQuestionOptionOverrides',
-        'clearQuestionOverrideFields',
-    ]) {
-        settingsStub[methodName] = async () => assert.fail(`catalog-native writes must not call verificationSettings.${methodName}`);
-    }
     const catalogStub = {
         clearVerificationChallengeCatalogCache: () => undefined,
         ensureVerificationChallengeTemplatesSeeded: async () => undefined,
@@ -897,12 +992,12 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         };
         assert.deepEqual(db.getCatalogQuestionChanges(customSnapshot, 'custom', 'question-1').changes, {});
 
-        await db.updateChallengeMetaOverrides('guild-1', 'alpha', {}, 'tester');
+        await db.updateCatalogChallengeMetadata('guild-1', 'alpha', {}, 'tester');
         await db.loadVerificationSnapshot('guild-1');
         assert.equal(settingsReads, 2);
         assert.equal(catalogReads, 2);
 
-        await db.updateQuestionOptionOverrides('guild-1', 'alpha', {
+        await db.updateCatalogQuestionOptions('guild-1', 'alpha', {
             'question-1': {
                 order: 2,
                 generatedImage: { enabled: true, type: 'prompt-text', imageIds: null },
@@ -914,7 +1009,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
         assert.equal(mutatedQuestion.generatedImage.imageIds, undefined);
         assert.equal(mutatedQuestion.answer.type, 'text');
 
-        await db.clearQuestionOverrideFields(
+        await db.resetCatalogQuestionFieldsToTemplate(
             'guild-1',
             'alpha',
             'question-1',
@@ -926,7 +1021,7 @@ test('verification DB handler deduplicates snapshots and invalidates success and
 
         failWrite = true;
         await assert.rejects(
-            db.updateChallengeMetaOverrides('guild-1', 'alpha', {}, 'tester'),
+            db.updateCatalogChallengeMetadata('guild-1', 'alpha', {}, 'tester'),
             /write failed/,
         );
         await db.loadVerificationSnapshot('guild-1');
@@ -1137,6 +1232,7 @@ test('verification persistence and global interaction routing keep their public 
     const catalogRepositorySource = fs.readFileSync(path.join(verificationDirectory, 'verificationChallengeRepository.js'), 'utf8');
     const challengeNormalizerSource = fs.readFileSync(path.join(verificationDirectory, 'verificationChallenges', 'verificationChallenges.js'), 'utf8');
     assert.doesNotMatch(dbHandlerSource, /verificationSettings\.(?:updateChallengeMetaOverrides|setQuestion|updateQuestionOptionOverrides|clearQuestionOverrideFields)/);
+    assert.doesNotMatch(dbHandlerSource, /updateChallengeMetaOverrides|setQuestion(?:Common|ImageText|Answer|ImageId|ImageDirection)Overrides|updateQuestionOptionOverrides|clearQuestionOverrideFields/);
     assert.doesNotMatch(dbHandlerSource, /snapshot\.settings/);
     assert.doesNotMatch(dbHandlerSource, /challengeOverrides/);
     assert.doesNotMatch(settingsSource, /verification_challenge_config|challengeOverrides|challenge_catalog_authoritative/);
@@ -1146,6 +1242,7 @@ test('verification persistence and global interaction routing keep their public 
     const verificationServiceSource = fs.readFileSync(path.join(verificationDirectory, 'verificationService.js'), 'utf8');
     const startupSource = fs.readFileSync(path.join(repositoryRoot, 'index.js'), 'utf8');
     assert.doesNotMatch(verificationServiceSource, /snapshot\.settings/);
+    assert.doesNotMatch(verificationServiceSource, /updateChallengeMetaOverrides|setQuestion(?:Common|ImageText|Answer|ImageId|ImageDirection)Overrides|updateQuestionOptionOverrides|clearQuestionOverrideFields/);
     assert.doesNotMatch(startupSource, /verificationSnapshot\?\.settings/);
     assert.doesNotMatch(adminSource, /challengeOverrides|getQuestionOverride/);
 
@@ -1691,6 +1788,18 @@ test('question Admin workspace keeps the list selector visible and scopes detail
     assert.match(adminSource, /if \(taskUsesDirections\(taskType\)\)/);
     assert.match(adminSource, /compact: true/);
     assert.match(adminSource, /chunkQuestionListLines/);
+    assert.match(adminSource, /const ADMIN_COMPONENT_ACTIONS = Object\.freeze/);
+    assert.match(adminSource, /const ADMIN_MODAL_ACTIONS = Object\.freeze/);
+    assert.match(adminSource, /buildAdminFormCustomId\('questionOptionsModal'/);
+    assert.match(adminSource, /buildAdminFormCustomId\('questionImageIdsModal'/);
+    assert.match(adminSource, /buildAdminFormCustomId\('questionDirectionsModal'/);
+    assert.match(adminSource, /buildAdminFormCustomId\('settingsOptionsModal'/);
+    assert.match(adminSource, /buildAdminFormCustomId\('settingsTimersModal'/);
+    assert.match(adminSource, /buildAdminFormCustomId\('questionClearModal'/);
+    assert.match(adminSource, /respondAdminNoChanges\(interaction, responseMode\)/);
+    assert.match(adminSource, /effectiveTargetTaskType/);
+    assert.match(adminSource, /buildQuestionResetRevision/);
+    assert.match(adminSource, /function buildAdminErrorPayload/);
 });
 
 test('merged Admin workspaces reject Components V2 payloads over Discord’s component budget', () => {

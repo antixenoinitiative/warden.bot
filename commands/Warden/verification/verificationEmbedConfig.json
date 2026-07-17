@@ -1,16 +1,37 @@
 {
     "responseDefaults": {
-        "timestamp": true,
-        "footer": {
-            "enabled": true,
-            "text": "Warden Verification"
-        },
         "colors": {
             "success": "#57F287",
             "error": "#E74C3C",
             "warning": "#F1C40F",
             "info": "#ff7100",
             "neutral": "#1f1f1f"
+        }
+    },
+    "presentationPresets": {
+        "admin": {
+            "renderer": "components-v2",
+            "footer": false,
+            "timestamp": false
+        },
+        "runtimeNotice": {
+            "renderer": "legacy",
+            "footer": false,
+            "timestamp": false
+        },
+        "publicContent": {
+            "renderer": "legacy",
+            "footer": false,
+            "timestamp": false
+        },
+        "legacyFallback": {
+            "renderer": "legacy",
+            "footer": false,
+            "timestamp": false
+        },
+        "staffLog": {
+            "renderer": "legacy",
+            "transport": "botLog"
         }
     },
     "imageGeneration": {

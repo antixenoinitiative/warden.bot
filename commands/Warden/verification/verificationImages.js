@@ -796,44 +796,6 @@ function drawPromptLargeDecoyGlyphs(context, width, height, palette, promptConfi
     }
 }
 
-function drawPromptOcclusionLines(context, width, height, palette, promptConfig) {
-    for (let index = 0; index < promptConfig.occlusionLineCount; index += 1) {
-        const y = Math.random() * height;
-        const curveAmount = promptConfig.occlusionLineCurveAmount;
-
-        context.save();
-        context.globalAlpha = randomBetween(promptConfig.occlusionLineAlphaMin, promptConfig.occlusionLineAlphaMax);
-        if (promptConfig.occlusionLineUsePaletteColors) {
-            const occlusionPalette = [
-                ...palette.background,
-                ...palette.curve,
-                ...palette.glyph,
-            ];
-            context.strokeStyle = pickRandomItem(occlusionPalette);
-        }
-        else {
-            context.strokeStyle = index % 2 === 0 ? '#07111f' : '#ffffff';
-        }
-        context.lineWidth = randomBetween(promptConfig.occlusionLineWidthMin, promptConfig.occlusionLineWidthMax);
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-
-
-        context.beginPath();
-        context.moveTo(0, y);
-        context.bezierCurveTo(
-            width * 0.25,
-            y + randomBetween(-curveAmount, curveAmount),
-            width * 0.75,
-            y + randomBetween(-curveAmount, curveAmount),
-            width,
-            y + randomBetween(-curveAmount * 0.5, curveAmount * 0.5),
-        );
-        context.stroke();
-        context.restore();
-    }
-}
-
 function getObfuscationLineAlphaForWidth(lineWidth, promptConfig) {
     const minWidth = promptConfig.obfuscationLineWidthMin;
     const maxWidth = Math.max(minWidth, promptConfig.obfuscationLineWidthMax);
@@ -1225,7 +1187,7 @@ function getGalleryImageExtension(imageUrl, contentType) {
             return extensionMatch[1].toLowerCase();
         }
     }
-    catch (err) {
+    catch (_err) {
         // Fall back to png below when the configured image URL is not parseable.
     }
 
@@ -1522,7 +1484,7 @@ async function prepareGalleryImageAttachments(galleryState) {
     const compositeImage = galleryState.useCompositeImage
         ? await createGalleryCompositeAttachment(fetchedImages)
         : undefined;
-    const selectedImages = fetchedImages.map(({ buffer, attachment, ...image }) => {
+    const selectedImages = fetchedImages.map(({ attachment, ...image }) => {
         if (galleryState.useCompositeImage) {
             return image;
         }
@@ -1601,10 +1563,21 @@ async function prepareQuestionImageAsset(question, challengeId) {
 async function prepareQuestionAssets(screen, challengeId) {
     const questionAssets = {};
 
-    for (const question of screen?.questions ?? []) {
-        const asset = await prepareQuestionImageAsset(question, challengeId);
-        if (asset) questionAssets[question.id] = asset;
-    }
+    const questions = screen?.questions ?? [];
+    // Image tasks can involve remote fetches and image processing. Prepare a
+    // small fixed batch concurrently so multi-image screens do not serialize
+    // their latency or open an unbounded number of network/image jobs.
+    const workerCount = Math.min(3, questions.length);
+    let nextQuestionIndex = 0;
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (nextQuestionIndex < questions.length) {
+            const question = questions[nextQuestionIndex];
+            nextQuestionIndex += 1;
+            const asset = await prepareQuestionImageAsset(question, challengeId);
+            if (asset) questionAssets[question.id] = asset;
+        }
+    }));
 
     return questionAssets;
 }
@@ -1636,7 +1609,7 @@ async function getLocalVerificationImagePoolIssues() {
             try {
                 await fs.access(filePath);
             }
-            catch (err) {
+            catch (_err) {
                 issues.push(`${pool.id}/${image.id}: missing local file ${filePath}`);
             }
         }
