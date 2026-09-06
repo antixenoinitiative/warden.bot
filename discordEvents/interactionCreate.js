@@ -19,6 +19,9 @@ const handleLeaderboardInteraction = isWarden
 const handleLeaderboardSettingsInteraction = isWarden
     ? require('../Warden/leaderboards').handleInteraction
     : undefined
+const handleScheduledEventInteraction = isWarden
+    ? require('../Warden/scheduledEvents/admin').handleInteraction
+    : undefined
 const handleRanksInteraction = isWarden
     ? require('../commands/Warden/info/rankstats').handleInteraction
     : undefined
@@ -159,6 +162,7 @@ const exp = {
             && await handleLeaderboardInteraction(interaction)
         ) return
         if (handleLeaderboardSettingsInteraction && await handleLeaderboardSettingsInteraction(interaction)) return
+        if (handleScheduledEventInteraction && await handleScheduledEventInteraction(interaction)) return
         if (await handleLoggingSettingsInteraction(interaction)) return
         if (handleRanksInteraction && await handleRanksInteraction(interaction)) return
         if (handleHelpInteraction && await handleHelpInteraction(interaction)) return

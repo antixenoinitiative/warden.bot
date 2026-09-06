@@ -147,8 +147,14 @@ function mainOperation(){
 		const wardenLeaderboards = activeBotName === 'Warden'
 			? require('./Warden/leaderboards')
 			: undefined
+		const wardenScheduledEvents = activeBotName === 'Warden'
+			? require('./Warden/scheduledEvents')
+			: undefined
 		const leaderboardLifecycleReport = activeBotName === 'Warden'
 			? createConsoleReporter('Leaderboard').forSubsystem('Lifecycle')
+			: undefined
+		const scheduledEventLifecycleReport = activeBotName === 'Warden'
+			? createConsoleReporter('Scheduled Events').forSubsystem('Lifecycle')
 			: undefined
 		const loggingSettings = require('./logging/loggingSettings')
 		try {
@@ -238,6 +244,11 @@ function mainOperation(){
 			void Promise.resolve().then(async () => {
 				await wardenLeaderboards.initializeLeaderboardWebsite({ guild, guildId: configuredGuildId })
 			}).catch((err) => leaderboardLifecycleReport.warn('Website startup sync failed', err))
+		}
+		if (wardenScheduledEvents) {
+			void Promise.resolve().then(() => (
+				wardenScheduledEvents.initialize({ guild, guildId: configuredGuildId })
+			)).catch((err) => scheduledEventLifecycleReport.warn('Startup reconciliation failed', err))
 		}
 	})
 	if (process.env.MODE != "PROD") {
