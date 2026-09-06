@@ -3,7 +3,7 @@
 const Discord = require('discord.js');
 
 const DISCORD_ADMIN_UI_LIMITS = Object.freeze({
-    modalFields: 5,
+    modalComponents: 5,
     customIdLength: 100,
     modalLabelLength: 45,
     selectOptions: 25,
@@ -32,6 +32,49 @@ function assertModalLabelSupport() {
     if (typeof Discord.LabelBuilder !== 'function') {
         throw new Error('This discord.js version cannot safely render labeled admin modals.');
     }
+}
+
+function buildModalTextDisplay(content) {
+    if (typeof Discord.TextDisplayBuilder !== 'function') {
+        throw new Error('This discord.js version cannot safely render modal text displays.');
+    }
+    const normalized = String(content ?? '').trim();
+    if (!normalized) throw new Error('Modal text displays cannot be empty.');
+    return new Discord.TextDisplayBuilder().setContent(
+        normalized.slice(0, DISCORD_ADMIN_UI_LIMITS.textInputLength),
+    );
+}
+
+function buildModalCheckboxField({
+    label,
+    description,
+    customId,
+    checked = false,
+} = {}) {
+    assertModalLabelSupport();
+    if (typeof Discord.CheckboxBuilder !== 'function') {
+        throw new Error('This discord.js version cannot safely render modal checkboxes.');
+    }
+    assertCustomId(customId, 'Checkbox');
+    const checkbox = new Discord.CheckboxBuilder()
+        .setCustomId(customId)
+        .setDefault(Boolean(checked));
+    const modalLabel = new Discord.LabelBuilder()
+        .setLabel(truncateModalLabel(label))
+        .setCheckboxComponent(checkbox);
+    if (description) {
+        modalLabel.setDescription(
+            String(description).slice(0, DISCORD_ADMIN_UI_LIMITS.textInputPlaceholderLength),
+        );
+    }
+    return modalLabel;
+}
+
+function getModalCheckbox(interaction, customId) {
+    if (typeof interaction.fields?.getCheckbox !== 'function') {
+        throw new Error('This discord.js version cannot read modal checkboxes.');
+    }
+    return interaction.fields.getCheckbox(customId) === true;
 }
 
 function buildModalTextInputComponent(customId, {
@@ -313,32 +356,41 @@ function getRequiredModalSingleSelect(interaction, customId, options, fieldLabel
     return value;
 }
 
-function buildModal(customId, title, ...labels) {
+function buildModal(customId, title, ...components) {
     assertModalLabelSupport();
-    const modalLabels = labels.flat().filter(Boolean);
+    const modalComponents = components.flat().filter(Boolean);
     assertCustomId(customId, 'Modal');
     if (!String(title ?? '').trim()) throw new Error('Discord modals require a title.');
-    if (modalLabels.length < 1 || modalLabels.length > DISCORD_ADMIN_UI_LIMITS.modalFields) {
+    if (modalComponents.length < 1 || modalComponents.length > DISCORD_ADMIN_UI_LIMITS.modalComponents) {
         throw new Error(
-            `Discord modals require 1-${DISCORD_ADMIN_UI_LIMITS.modalFields} fields; "${title}" has ${modalLabels.length}.`,
+            `Discord modals require 1-${DISCORD_ADMIN_UI_LIMITS.modalComponents} components; "${title}" has ${modalComponents.length}.`,
         );
     }
-    return new Discord.ModalBuilder()
+    const modal = new Discord.ModalBuilder()
         .setCustomId(customId)
-        .setTitle(String(title).slice(0, 45))
-        .addLabelComponents(...modalLabels);
+        .setTitle(String(title).slice(0, 45));
+    for (const component of modalComponents) {
+        const data = component?.toJSON?.() ?? component;
+        if (data?.type === Discord.ComponentType.Label) modal.addLabelComponents(component);
+        else if (data?.type === Discord.ComponentType.TextDisplay) modal.addTextDisplayComponents(component);
+        else throw new Error('Discord modals support label and text-display components in this helper.');
+    }
+    return modal;
 }
 
 module.exports = {
     buildExistingTextField,
     buildModal,
+    buildModalCheckboxField,
     buildModalChannelSelectField,
     buildModalRoleSelectField,
     buildModalStringSelectField,
     buildModalTextLabel,
+    buildModalTextDisplay,
     buildModalUserSelectField,
     buildStringSelectComponent,
     getAllowedOptionValues,
+    getModalCheckbox,
     getModalSelectedChannel,
     getModalSelectedRole,
     getModalSelectedUser,

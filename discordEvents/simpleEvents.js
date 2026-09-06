@@ -2,6 +2,7 @@ const { botLog, botIdent, getRankEmoji, hasSpecifiedRole } = require('../functio
 const Discord = require('discord.js')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
+const { createMessageDeletionLogger } = require('./messageDeletionLogging')
 
 const MESSAGE_EMBED_DESCRIPTION_LIMIT = 4096
 
@@ -21,12 +22,15 @@ function buildCopyableMessageEmbeds({
     content,
     author,
     messageLink,
+    contentFooter,
     firstChunkOnlyMetadata = false,
     numberChunksWithTotal = false,
 }) {
     const normalizedContent = neutralizeCodeFences(content)
     const codeBlockOverhead = wrapCodeBlock('').length
-    const messageLinkFooter = messageLink ? `\n\n**Message Link:** ${messageLink}` : ''
+    const messageLinkFooter = messageLink ? `\nLink: ${messageLink}` : ''
+    const contentFooterText = contentFooter ? `\n${contentFooter}` : ''
+    const finalFooter = `${messageLinkFooter}${contentFooterText}`
 
     function buildChunks(totalPages) {
         const chunks = []
@@ -46,7 +50,7 @@ function buildCopyableMessageEmbeds({
             const chunkLimit = MESSAGE_EMBED_DESCRIPTION_LIMIT
                 - header.length
                 - codeBlockOverhead
-                - messageLinkFooter.length
+                - finalFooter.length
 
             if (chunkLimit < 1) {
                 throw new Error('Message log metadata exceeds the Discord embed description limit.')
@@ -85,7 +89,7 @@ function buildCopyableMessageEmbeds({
     const embeds = []
     for (const { author: chunkAuthor, chunk, header, page } of chunks) {
         const isFinalChunk = page === chunks.length
-        const description = `${header}${wrapCodeBlock(chunk)}${isFinalChunk ? messageLinkFooter : ''}`
+        const description = `${header}${wrapCodeBlock(chunk)}${isFinalChunk ? finalFooter : ''}`
         const embed = new Discord.EmbedBuilder()
             .setTitle(page === 1 ? title : `${title} (continued ${page})`)
             .setDescription(description)
@@ -114,6 +118,11 @@ function buildMessageAuthorHeader(message) {
             : undefined
     return iconURL ? { name, iconURL } : { name }
 }
+
+const messageDeletionLogger = createMessageDeletionLogger({
+    botLog,
+    buildCopyableMessageEmbeds,
+})
 
 
 //xsf stuff
@@ -1004,65 +1013,9 @@ const exp = {
             } 
         }
     },
-    messageDelete: async (message) => {
-        const authorId = message.author?.id
-        try {
-            let deletedBy = null
-            const fetchedLogs = await message.guild.fetchAuditLogs({
-                type: 72, // 72 is MESSAGE_DELETE
-                limit: 1
-            })
-            const deletionLog = fetchedLogs.entries.first()
-            if (!deletionLog) {
-                // console.log(`${message.author.tag} deleted their own message.`)
-                deletedBy = message.author ?? 'Unknown'
-                sendEmbed(deletedBy)
-                return
-            }
-            const { executor, target, createdTimestamp } = deletionLog
-            if (!authorId || target.id !== authorId || Date.now() - createdTimestamp > 5000) {
-                if (message.author?.tag) console.log(`${message.author.tag} deleted their own message.`)
-                deletedBy = message.author ?? 'Unknown'
-                sendEmbed(deletedBy)
-                return
-            }
-            if (executor.id === authorId) {
-                console.log(`${executor.tag} (a mod) deleted their own message.`)
-                deletedBy = executor
-                sendEmbed(deletedBy)
-            } else {
-                console.log(`${executor.tag} deleted a message from ${message.author.tag}.`)
-                deletedBy = executor
-                sendEmbed(deletedBy)
-            }
-            function sendEmbed(deletedBy) {
-                const messageContent =
-                    message.content != null
-                    ? message.content
-                    : "Cache Empty"
-
-                const deletedByValue = deletedBy?.id ? `<@${deletedBy.id}>` : String(deletedBy ?? 'Unknown')
-                const authorValue = authorId ? `<@${authorId}>` : 'Unknown'
-                const deletedEmbeds = buildCopyableMessageEmbeds({
-                    title: 'Message Deleted 🗑️',
-                    searchableText: `Message deleted by user: ${deletedByValue}\nMessage Author: ${authorValue}`,
-                    contentLabel: 'Message',
-                    content: messageContent,
-                    author: buildMessageAuthorHeader(message),
-                })
-
-                for (const embed of deletedEmbeds) {
-                    botLog(message.guild,
-                        embed,
-                        1,
-                        'messages',
-                    )
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching audit logs:", error)
-        }
-    },
+    guildAuditLogEntryCreate: async (auditLogEntry, guild) => messageDeletionLogger.recordAuditEntry(auditLogEntry, guild),
+    messageDelete: async (message) => messageDeletionLogger.recordSingleDeletion(message),
+    messageDeleteBulk: async (messages, channel) => messageDeletionLogger.recordBulkDeletion(messages, channel),
     messageUpdate: async (oldMessage, newMessage, bot) => {
         if (newMessage.author.bot) return
         try {
@@ -1094,7 +1047,7 @@ const exp = {
 
             const updatedByValue = `<@${newMessage.author.id}>`
             const messageAuthor = buildMessageAuthorHeader(newMessage)
-            const searchableText = `Message updated by user: ${updatedByValue}`
+            const searchableText = `Message updated by: ${updatedByValue}`
             const oldEmbeds = buildCopyableMessageEmbeds({
                 title: 'Message Updated 📝',
                 searchableText,
