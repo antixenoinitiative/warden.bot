@@ -289,6 +289,7 @@ const exp = {
             }
             catch (error) {
                 console.error(error);
+                if (Number(error?.code) === 10062) return;
                 await sendCommandErrorResponse(
                     interaction,
                     'There was an error while executing this command!',

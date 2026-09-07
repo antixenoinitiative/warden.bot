@@ -1,5 +1,6 @@
 'use strict';
 
+const { Routes } = require('discord.js');
 const { botIdent } = require('../../functions');
 const { createConsoleReporter } = require('../../logging/consoleReporting');
 const { normalizeScheduledEvent } = require('./eventPayload');
@@ -39,11 +40,9 @@ async function resolveCreatorDisplayName(event) {
     const creatorId = String(event?.creatorId ?? event?.creator?.id ?? '').trim();
     const members = event?.guild?.members;
     if (!creatorId || !members) return undefined;
-    const cached = members.cache?.get?.(creatorId);
-    if (cached?.displayName) return cached.displayName;
     if (typeof members.fetch !== 'function') return undefined;
     try {
-        const member = await members.fetch(creatorId);
+        const member = await members.fetch({ user: creatorId, force: true, cache: false });
         return member?.displayName || undefined;
     }
     catch {
@@ -107,6 +106,19 @@ async function handleUpdate(_oldEvent, newEvent) {
         let normalized = resolved.event;
         const existing = await repository.getEvent(guildId, normalized.eventId);
         if (existing?.status === 'Ended' && normalized.status !== 'Ended') return existing;
+        try {
+            const fresh = await newEvent.client.rest.get(Routes.guildScheduledEvent(guildId, normalized.eventId), {
+                query: new URLSearchParams({ with_user_count: 'true' }),
+            });
+            if (!Number.isSafeInteger(fresh.user_count) || fresh.user_count < 0) {
+                throw new Error('Discord returned an invalid scheduled event interested count.');
+            }
+            normalized = { ...normalized, interestedCount: fresh.user_count };
+        }
+        catch (error) {
+            normalized = { ...normalized, interestedCount: existing?.interestedCount ?? null };
+            report.warn('Interested count refresh failed; retaining stored count', error);
+        }
         normalized = preserveCreatorDisplayName(normalized, resolved.resolvedCreatorName, existing);
         const next = await repository.upsertEvent(normalized);
         if (next.status === 'Ended' && (!next.publicationState || next.publicationState === 'deleted')) {
@@ -147,8 +159,7 @@ async function applyInterestedCount(event, delta) {
             : Number.isSafeInteger(event?.userCount) && event.userCount >= 0 ? event.userCount : null;
         if (baseCount === null) return existing;
         return repository.upsertEvent({
-            ...normalized,
-            creatorName: existing.creatorName ?? normalized.creatorName,
+            ...existing,
             interestedCount: Math.max(0, baseCount + delta),
         });
     });
