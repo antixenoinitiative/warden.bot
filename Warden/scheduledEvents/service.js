@@ -40,11 +40,9 @@ async function resolveCreatorDisplayName(event) {
     const creatorId = String(event?.creatorId ?? event?.creator?.id ?? '').trim();
     const members = event?.guild?.members;
     if (!creatorId || !members) return undefined;
-    const cached = members.cache?.get?.(creatorId);
-    if (cached?.displayName) return cached.displayName;
     if (typeof members.fetch !== 'function') return undefined;
     try {
-        const member = await members.fetch(creatorId);
+        const member = await members.fetch({ user: creatorId, force: true, cache: false });
         return member?.displayName || undefined;
     }
     catch {
@@ -161,8 +159,7 @@ async function applyInterestedCount(event, delta) {
             : Number.isSafeInteger(event?.userCount) && event.userCount >= 0 ? event.userCount : null;
         if (baseCount === null) return existing;
         return repository.upsertEvent({
-            ...normalized,
-            creatorName: existing.creatorName ?? normalized.creatorName,
+            ...existing,
             interestedCount: Math.max(0, baseCount + delta),
         });
     });
