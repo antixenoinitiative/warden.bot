@@ -1,5 +1,6 @@
 'use strict';
 
+const { Routes } = require('discord.js');
 const { botIdent } = require('../../functions');
 const { createConsoleReporter } = require('../../logging/consoleReporting');
 const { normalizeScheduledEvent } = require('./eventPayload');
@@ -107,6 +108,19 @@ async function handleUpdate(_oldEvent, newEvent) {
         let normalized = resolved.event;
         const existing = await repository.getEvent(guildId, normalized.eventId);
         if (existing?.status === 'Ended' && normalized.status !== 'Ended') return existing;
+        try {
+            const fresh = await newEvent.client.rest.get(Routes.guildScheduledEvent(guildId, normalized.eventId), {
+                query: new URLSearchParams({ with_user_count: 'true' }),
+            });
+            if (!Number.isSafeInteger(fresh.user_count) || fresh.user_count < 0) {
+                throw new Error('Discord returned an invalid scheduled event interested count.');
+            }
+            normalized = { ...normalized, interestedCount: fresh.user_count };
+        }
+        catch (error) {
+            normalized = { ...normalized, interestedCount: existing?.interestedCount ?? null };
+            report.warn('Interested count refresh failed; retaining stored count', error);
+        }
         normalized = preserveCreatorDisplayName(normalized, resolved.resolvedCreatorName, existing);
         const next = await repository.upsertEvent(normalized);
         if (next.status === 'Ended' && (!next.publicationState || next.publicationState === 'deleted')) {
