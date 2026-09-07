@@ -754,11 +754,12 @@ const router = createInteractionRouter({
 });
 
 async function execute(interaction) {
+    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     let flow;
     try {
         flow = initialFlow(interaction);
     } catch (error) {
-        return privateError(interaction, error.message);
+        return interaction.editReply({ content: error.message });
     }
     flow.guildId = String(interaction.guildId);
     flow.ownerUserId = String(interaction.user.id);
@@ -768,7 +769,7 @@ async function execute(interaction) {
         state: { flow },
     });
     try {
-        return await interaction.reply(renderPanel(flow, panelSession, undefined, { initial: true }));
+        return await interaction.editReply(renderPanel(flow, panelSession));
     } catch (error) {
         panelSession.dispose();
         throw error;
