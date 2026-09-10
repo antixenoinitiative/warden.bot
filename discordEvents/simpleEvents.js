@@ -5,6 +5,7 @@ const config = require('../config.json')
 const { createMessageDeletionLogger } = require('./messageDeletionLogging')
 const { messageText, attachmentsChanged, attachmentLinks } = require('./messageLogContent')
 const { isBackgroundMessageUpdate } = require('../logging/messageUpdateFilter')
+const { isBotLogDeletion } = require('../logging/botLogDeletionFilter')
 
 const MESSAGE_EMBED_DESCRIPTION_LIMIT = 4096
 
@@ -140,6 +141,13 @@ function buildMessageAuthorHeader(message) {
 const messageDeletionLogger = createMessageDeletionLogger({
     botLog,
     buildCopyableMessageEmbeds,
+    shouldSuppressDeletion: (message, channel) => {
+        const guildId = message?.guild?.id ?? channel?.guild?.id
+        const channels = guildId
+            ? require('../logging/loggingSettings/service').getCached(guildId)?.channels
+            : undefined
+        return isBotLogDeletion(message, channel, { botName: botIdent().activeBot.botName, channels })
+    },
 })
 
 

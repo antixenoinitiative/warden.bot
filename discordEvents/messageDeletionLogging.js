@@ -153,6 +153,7 @@ function createMessageDeletionLogger({
     reconciliationDelays = AUDIT_RECONCILIATION_DELAYS_MS,
     now = Date.now,
     setCleanupTimer = setTimeout,
+    shouldSuppressDeletion = () => false,
 } = {}) {
     if (typeof botLog !== 'function') throw new Error('A botLog function is required.')
     if (typeof buildCopyableMessageEmbeds !== 'function') throw new Error('A message embed builder is required.')
@@ -164,7 +165,7 @@ function createMessageDeletionLogger({
         const currentTime = now()
         for (const [guildId, state] of guildStates) {
             pruneState(state, currentTime)
-            if (!state.records.size && !state.summaries.size && !state.events.length && !state.queue && !state.worker) guildStates.delete(guildId)
+            if (!state.records.size && !state.summaries.size && !state.suppressed.size && !state.events.length && !state.queue && !state.worker) guildStates.delete(guildId)
         }
         return guildStates.size
     }
@@ -181,7 +182,7 @@ function createMessageDeletionLogger({
 
     function stateForGuild(guildId) {
         const existing = guildStates.get(guildId)
-        const state = existing ?? { records: new Map(), summaries: new Map(), events: [], order: 0, queue: null, worker: null }
+        const state = existing ?? { records: new Map(), summaries: new Map(), suppressed: new Map(), events: [], order: 0, queue: null, worker: null }
         guildStates.set(guildId, state)
         if (!existing) scheduleCleanup()
         pruneState(state, now())
@@ -189,6 +190,8 @@ function createMessageDeletionLogger({
     }
 
     function pruneState(state, currentTime) {
+        for (const [key, record] of state.suppressed) if (record.expiresAt <= currentTime) state.suppressed.delete(key)
+        while (state.suppressed.size > AUDIT_BUFFER_MAX_ENTRIES) state.suppressed.delete(state.suppressed.keys().next().value)
         for (const [key, record] of state.records) if (record.expiresAt <= currentTime) state.records.delete(key)
         const recent = [...state.records.entries()].sort(([, left], [, right]) => (
             right.expiresAt - left.expiresAt || entryTimestamp(right.entry) - entryTimestamp(left.entry)))
@@ -197,6 +200,41 @@ function createMessageDeletionLogger({
         while (state.summaries.size > AUDIT_BUFFER_MAX_ENTRIES) state.summaries.delete(state.summaries.keys().next().value)
         for (const summary of state.summaries.values()) summary.segments = summary.segments
             .filter((segment) => segment.remaining > 0).slice(-AUDIT_BUFFER_MAX_ENTRIES)
+    }
+
+    function suppressionKey(type, channelId, target) {
+        return `${type}:${channelId}:${target}`
+    }
+
+    function suppressionMatches(state, type, channelId, target, observedAt) {
+        const keys = [suppressionKey(type, channelId, target)]
+        if (type === 72) keys.push(suppressionKey(type, channelId, '*'))
+        return keys.some(key => {
+            const record = state.suppressed.get(key)
+            return record && record.expiresAt > now()
+                && Math.abs(observedAt - record.createdAt) <= AUDIT_ENTRY_MAX_AGE_MS
+        })
+    }
+
+    function quarantineSuppressedCapacity(state) {
+        for (const summary of state.summaries.values()) {
+            for (const segment of summary.segments) {
+                if (suppressionMatches(state, 72, summary.channelId, summary.targetId, segment.observedAt)) segment.remaining = 0
+            }
+        }
+        for (const record of state.records.values()) {
+            if (suppressionMatches(state, 73, bulkAuditChannelId(record.entry), record.count, entryTimestamp(record.entry))) record.bulkConsumed = true
+        }
+    }
+
+    function rememberSuppressedDeletion(guildId, type, channelId, target) {
+        if (!guildId || !channelId || target == null) return
+        const state = stateForGuild(guildId)
+        const key = suppressionKey(type, channelId, target)
+        state.suppressed.delete(key)
+        state.suppressed.set(key, { createdAt: now(), expiresAt: now() + AUDIT_BUFFER_TTL_MS })
+        quarantineSuppressedCapacity(state)
+        pruneState(state, now())
     }
 
     function mergeSummaries(state, entries, currentTime) {
@@ -237,6 +275,7 @@ function createMessageDeletionLogger({
         const currentTime = now()
         if (type === 72) {
             mergeSummaries(state, entries, currentTime)
+            quarantineSuppressedCapacity(state)
             pruneState(state, currentTime)
             scheduleCleanup()
             return
@@ -252,6 +291,7 @@ function createMessageDeletionLogger({
             record.expiresAt = currentTime + AUDIT_BUFFER_TTL_MS
             state.records.set(key, record)
         }
+        quarantineSuppressedCapacity(state)
         pruneState(state, currentTime)
         scheduleCleanup()
     }
@@ -393,6 +433,10 @@ function createMessageDeletionLogger({
     }
 
     function recordSingleDeletion(message) {
+        if (shouldSuppressDeletion(message)) {
+            rememberSuppressedDeletion(message?.guild?.id, 72, messageChannelId(message), message?.author?.id ?? '*')
+            return Promise.resolve()
+        }
         const guild = message?.guild
         if (!guild?.id) return Promise.resolve()
         if (!message?.author?.id || !messageChannelId(message)) {
@@ -451,18 +495,23 @@ function createMessageDeletionLogger({
     }
 
     async function recordBulkDeletion(messages, channel) {
-        const records = collectionValues(messages)
-        if (!records.length) return
-        const guild = channel?.guild ?? records[0]?.guild
+        const allRecords = collectionValues(messages)
+        if (!allRecords.length) return
+        const records = allRecords.filter(message => !shouldSuppressDeletion(message, channel))
+        const guild = channel?.guild ?? allRecords[0]?.guild
         if (!guild?.id) return
-        const channelId = channel?.id ?? messageChannelId(records[0])
+        const channelId = channel?.id ?? messageChannelId(allRecords[0])
+        if (!records.length) {
+            rememberSuppressedDeletion(guild.id, 73, channelId, allRecords.length)
+            return
+        }
         const state = stateForGuild(guild.id)
         await wait(batchDelay)
-        let executor = resolveBulk(state, channelId, records.length)
+        let executor = resolveBulk(state, channelId, allRecords.length)
         if (!executor) {
             try {
                 await fetchEntries(guild, state, 73)
-                executor = resolveBulk(state, channelId, records.length)
+                executor = resolveBulk(state, channelId, allRecords.length)
             } catch (error) {
                 console.error('Bulk message deletion audit reconciliation failed:', error)
             }
@@ -475,7 +524,7 @@ function createMessageDeletionLogger({
             : 'record unavailable'
         const description = [
             `Deleted by: ${executor?.id ? `<@${executor.id}>` : 'record unavailable'}`,
-            `Messages deleted: ${records.length}`,
+            `${records.length === allRecords.length ? 'Messages deleted' : 'Messages logged'}: ${records.length}`,
             `Message records recovered: ${recovered.length}`,
             `Records unavailable: ${records.length - recovered.length}`,
             '', `Message Authors: ${authorText}`, '',
