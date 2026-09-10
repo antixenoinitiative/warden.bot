@@ -3,6 +3,7 @@ const Discord = require('discord.js')
 const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
 const { createMessageDeletionLogger } = require('./messageDeletionLogging')
+const { messageText, attachmentsChanged, attachmentLinks } = require('./messageLogContent')
 
 const MESSAGE_EMBED_DESCRIPTION_LIMIT = 4096
 
@@ -23,6 +24,7 @@ function buildCopyableMessageEmbeds({
     author,
     messageLink,
     contentFooter,
+    attachments = [],
     firstChunkOnlyMetadata = false,
     numberChunksWithTotal = false,
 }) {
@@ -30,7 +32,8 @@ function buildCopyableMessageEmbeds({
     const codeBlockOverhead = wrapCodeBlock('').length
     const messageLinkFooter = messageLink ? `\nLink: ${messageLink}` : ''
     const contentFooterText = contentFooter ? `\n${contentFooter}` : ''
-    const finalFooter = `${messageLinkFooter}${contentFooterText}`
+    const footerText = `${messageLinkFooter}${contentFooterText}`
+    const finalFooter = attachments.length && footerText ? `\n${footerText}` : footerText
 
     function buildChunks(totalPages) {
         const chunks = []
@@ -88,8 +91,7 @@ function buildCopyableMessageEmbeds({
 
     const embeds = []
     for (const { author: chunkAuthor, chunk, header, page } of chunks) {
-        const isFinalChunk = page === chunks.length
-        const description = `${header}${wrapCodeBlock(chunk)}${isFinalChunk ? finalFooter : ''}`
+        const description = `${header}${wrapCodeBlock(chunk)}`
         const embed = new Discord.EmbedBuilder()
             .setTitle(page === 1 ? title : `${title} (continued ${page})`)
             .setDescription(description)
@@ -99,6 +101,21 @@ function buildCopyableMessageEmbeds({
         embeds.push(embed)
     }
 
+    let lastEmbed = embeds[embeds.length - 1]
+    let attachmentHeader = '\n**Attachments:**'
+    for (const link of attachments) {
+        const addition = `${attachmentHeader}\n${link}`
+        if (lastEmbed.data.description.length + addition.length + finalFooter.length <= MESSAGE_EMBED_DESCRIPTION_LIMIT) {
+            lastEmbed.setDescription(lastEmbed.data.description + addition)
+        } else {
+            lastEmbed = new Discord.EmbedBuilder()
+                .setTitle(`${title} (attachments)`)
+                .setDescription(`**${contentLabel} attachments:**\n${link}`)
+            embeds.push(lastEmbed)
+        }
+        attachmentHeader = ''
+    }
+    if (finalFooter) lastEmbed.setDescription(lastEmbed.data.description + finalFooter)
     return embeds
 }
 
@@ -1017,16 +1034,8 @@ const exp = {
     messageDelete: async (message) => messageDeletionLogger.recordSingleDeletion(message),
     messageDeleteBulk: async (messages, channel) => messageDeletionLogger.recordBulkDeletion(messages, channel),
     messageUpdate: async (oldMessage, newMessage, bot) => {
-        if (newMessage.author.bot) return
+        if (newMessage.author?.bot) return
         try {
-            if (oldMessage && oldMessage.partial) {
-            try {
-                oldMessage = await oldMessage.fetch()
-            } catch (e) {
-                oldMessage = null
-            }
-            }
-
             if (newMessage && newMessage.partial) {
             try {
                 newMessage = await newMessage.fetch()
@@ -1037,15 +1046,12 @@ const exp = {
 
             const rawOld = typeof oldMessage?.content === 'string' ? oldMessage.content : ''
             const rawNew = typeof newMessage?.content === 'string' ? newMessage.content : ''
-            if (rawOld === rawNew) return
+            if (rawOld === rawNew && !attachmentsChanged(oldMessage, newMessage)) return
 
-            let oldContent = typeof oldMessage?.content === 'string' ? oldMessage.content : ''
-            let newContent = typeof newMessage?.content === 'string' ? newMessage.content : ''
+            const oldContent = messageText(oldMessage)
+            const newContent = messageText(newMessage)
 
-            if (!newContent) newContent = 'No new content.'
-            if (!oldMessage || oldMessage.partial || !oldContent) oldContent = 'Bot: Cache Unvailable'
-
-            const updatedByValue = `<@${newMessage.author.id}>`
+            const updatedByValue = newMessage.author?.id ? `<@${newMessage.author.id}>` : 'record unavailable'
             const messageAuthor = buildMessageAuthorHeader(newMessage)
             const searchableText = `Message updated by: ${updatedByValue}`
             const oldEmbeds = buildCopyableMessageEmbeds({
@@ -1053,6 +1059,7 @@ const exp = {
                 searchableText,
                 contentLabel: 'Old Message',
                 content: oldContent,
+                attachments: attachmentLinks(oldMessage),
                 author: messageAuthor,
                 firstChunkOnlyMetadata: true,
                 numberChunksWithTotal: true,
@@ -1061,6 +1068,7 @@ const exp = {
                 title: 'Message Updated 📝',
                 contentLabel: 'New Message',
                 content: newContent,
+                attachments: attachmentLinks(newMessage),
                 messageLink: newMessage.url,
             })
 
