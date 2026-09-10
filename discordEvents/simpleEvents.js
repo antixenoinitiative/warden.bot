@@ -4,6 +4,7 @@ const database = require(`../${botIdent().activeBot.botName}/db/database`)
 const config = require('../config.json')
 const { createMessageDeletionLogger } = require('./messageDeletionLogging')
 const { messageText, attachmentsChanged, attachmentLinks } = require('./messageLogContent')
+const { isBackgroundMessageUpdate } = require('../logging/messageUpdateFilter')
 
 const MESSAGE_EMBED_DESCRIPTION_LIMIT = 4096
 
@@ -1036,6 +1037,7 @@ const exp = {
     messageUpdate: async (oldMessage, newMessage, bot) => {
         if (newMessage.author?.bot) return
         try {
+            if (isBackgroundMessageUpdate(oldMessage, newMessage, attachmentsChanged(oldMessage, newMessage))) return
             if (newMessage && newMessage.partial) {
             try {
                 newMessage = await newMessage.fetch()
