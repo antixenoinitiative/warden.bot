@@ -285,6 +285,7 @@ const thisBotFunctions = {
 				}
 			}
             //Load Discord JS Event Listeners.
+            require('./logging/messageUpdateFilter').installMessageUpdateEvidence(client)
             loadEventHandlers(client, path.join(__dirname, 'discordEvents'))
             function loadEventHandlers(client, directory) {
                 try {
