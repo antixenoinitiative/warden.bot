@@ -1,4 +1,5 @@
 const Discord = require('discord.js')
+const { messageText, attachmentLinks } = require('./messageLogContent')
 
 const RECONCILIATION_DELAY_MS = 1_500
 const AUDIT_RECONCILIATION_DELAYS_MS = [500, 1_000, 1_500]
@@ -123,7 +124,8 @@ function makeNormalDeletionEmbeds({ buildCopyableMessageEmbeds, message, deleted
     return buildCopyableMessageEmbeds({
         title: 'Message Deleted 🗑️',
         searchableText: `Deleted by: ${deletedByText}\nMessage Author: ${author?.id ? `<@${author.id}>` : 'record unavailable'}`,
-        contentLabel: 'Message', content: message?.content != null ? message.content : 'Cache Empty',
+        contentLabel: 'Message', content: messageText(message),
+        attachments: attachmentLinks(message),
         contentFooter,
         author: iconURL ? { name, iconURL } : { name },
     })
