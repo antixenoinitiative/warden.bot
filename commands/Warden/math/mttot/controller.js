@@ -75,7 +75,7 @@ function initialFlow(interaction) {
         calculated: false,
         brandColor: resolveMttotBrandColor(),
         cooldownUntilMs: null,
-        interceptor: null,
+        interceptor: interaction.options.getString('variant'),
         identityName: resolveMttotIdentityName(),
         pendingWeapon: weapons.length === 0 ? createPendingWeapon() : null,
         publicationAttempt: null,
@@ -84,6 +84,13 @@ function initialFlow(interaction) {
         verbose: interaction.options.getBoolean('verbose') ?? false,
         weapons,
     };
+}
+
+function hasAllCalculationInputs(interaction) {
+    return interaction.options.getString('variant') !== null
+        && interaction.options.getString('weapon_codes') !== null
+        && interaction.options.getInteger('range') !== null
+        && interaction.options.getInteger('accuracy') !== null;
 }
 
 function completedWeapon(weapon) {
@@ -756,13 +763,36 @@ const router = createInteractionRouter({
 async function execute(interaction) {
     await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
     let flow;
+    let directCalculation;
     try {
+        directCalculation = hasAllCalculationInputs(interaction);
         flow = initialFlow(interaction);
     } catch (error) {
         return interaction.editReply({ content: error.message });
     }
     flow.guildId = String(interaction.guildId);
     flow.ownerUserId = String(interaction.user.id);
+    if (directCalculation) {
+        try {
+            const attempt = createPublicationAttempt(flow, interaction);
+            const published = await interaction.channel.send(attempt.messageOptions);
+            await interaction.deleteReply().catch((error) => {
+                report.error('Direct calculation acknowledgement cleanup failed', error, {
+                    channelId: interaction.channelId,
+                    guildId: interaction.guildId,
+                    messageId: published?.id,
+                    userId: interaction.user?.id,
+                });
+            });
+            return published;
+        } catch (error) {
+            reportUnexpectedInteractionError(report, 'Direct calculation failed', error);
+            const content = isDefinitePublicSendFailure(error)
+                ? `Unable to publish the MTToT calculation: ${error.message}`
+                : 'Discord did not confirm whether the MTToT calculation was published. Check the channel before running the command again to avoid posting a duplicate.';
+            return interaction.editReply({ content });
+        }
+    }
     const panelSession = sessions.create({
         guildId: flow.guildId,
         ownerUserId: flow.ownerUserId,
@@ -789,6 +819,7 @@ module.exports = {
     allWeaponsComplete,
     completedWeapon,
     execute,
+    hasAllCalculationInputs,
     handleInteraction,
     initialFlow,
     readyToCalculate,
