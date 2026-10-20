@@ -87,10 +87,9 @@ function initialFlow(interaction) {
 }
 
 function hasAllCalculationInputs(interaction) {
-    return interaction.options.getString('variant') !== null
-        && interaction.options.getString('weapon_codes') !== null
-        && interaction.options.getInteger('range') !== null
-        && interaction.options.getInteger('accuracy') !== null;
+    const supplied = new Set((interaction.options?.data ?? []).map((option) => option.name));
+    return ['variant', 'weapon_codes', 'range', 'accuracy']
+        .every((name) => supplied.has(name));
 }
 
 function completedWeapon(weapon) {
@@ -761,11 +760,21 @@ const router = createInteractionRouter({
 });
 
 async function execute(interaction) {
-    await interaction.deferReply({ flags: Discord.MessageFlags.Ephemeral });
+    const directCalculation = hasAllCalculationInputs(interaction);
+    if (directCalculation) {
+        const weaponCodesOption = interaction.options.data
+            .find((option) => option.name === 'weapon_codes');
+        try {
+            parseWeaponPrefill(weaponCodesOption.value);
+        } catch (error) {
+            return privateError(interaction, error.message);
+        }
+    }
+    await interaction.deferReply(directCalculation
+        ? {}
+        : { flags: Discord.MessageFlags.Ephemeral });
     let flow;
-    let directCalculation;
     try {
-        directCalculation = hasAllCalculationInputs(interaction);
         flow = initialFlow(interaction);
     } catch (error) {
         return interaction.editReply({ content: error.message });
@@ -773,24 +782,25 @@ async function execute(interaction) {
     flow.guildId = String(interaction.guildId);
     flow.ownerUserId = String(interaction.user.id);
     if (directCalculation) {
+        let replyOptions;
         try {
             const attempt = createPublicationAttempt(flow, interaction);
-            const published = await interaction.channel.send(attempt.messageOptions);
-            await interaction.deleteReply().catch((error) => {
-                report.error('Direct calculation acknowledgement cleanup failed', error, {
-                    channelId: interaction.channelId,
-                    guildId: interaction.guildId,
-                    messageId: published?.id,
-                    userId: interaction.user?.id,
-                });
-            });
-            return published;
+            const { nonce: _nonce, enforceNonce: _enforceNonce, ...editable } = attempt.messageOptions;
+            replyOptions = editable;
         } catch (error) {
-            reportUnexpectedInteractionError(report, 'Direct calculation failed', error);
-            const content = isDefinitePublicSendFailure(error)
-                ? `Unable to publish the MTToT calculation: ${error.message}`
-                : 'Discord did not confirm whether the MTToT calculation was published. Check the channel before running the command again to avoid posting a duplicate.';
-            return interaction.editReply({ content });
+            reportUnexpectedInteractionError(report, 'Direct calculation construction failed', error);
+            return interaction.editReply({ content: `Unable to publish the MTToT calculation: ${error.message}` });
+        }
+        try {
+            return await interaction.editReply(replyOptions);
+        } catch (error) {
+            report.warn('Direct calculation edit was not confirmed; retrying the same payload', error);
+            try {
+                return await interaction.editReply(replyOptions);
+            } catch (retryError) {
+                reportUnexpectedInteractionError(report, 'Direct calculation edit retry failed', retryError);
+                return undefined;
+            }
         }
     }
     const panelSession = sessions.create({
