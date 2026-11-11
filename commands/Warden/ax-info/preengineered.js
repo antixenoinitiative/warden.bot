@@ -18,7 +18,7 @@ module.exports = {
             {name: "Sirius AX Missile Rack, Sirius Heat Sinks", value: "Can be found at Sirius Tech Brokers (see image below).", inline: false},
             {name: "Frame Shift Drive (SCO)", value: "Can be found at Human Tech Brokers (see image below).", inline: false},   
         )
-        .setImage('https://wiki.antixenoinitiative.com/img/techbrokers.png');
+        .setImage('https://wiki.antixenoinitiative.com/_files/img/techbrokers.png');
 
         const actionRow = new Discord.ActionRowBuilder()
         .addComponents(
