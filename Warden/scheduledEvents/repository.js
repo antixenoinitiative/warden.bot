@@ -14,6 +14,7 @@ const PAYLOAD_CONTEXT = 'warden:scheduled-events:event-payload';
 const GUILD_LOOKUP_CONTEXT = 'warden:scheduled-events:guild';
 const EVENT_LOOKUP_CONTEXT = 'warden:scheduled-events:event';
 const SYNC_STATE_EVENT_LOOKUP = Buffer.alloc(32);
+const SYNC_PAUSED_STATE = 'sync_paused';
 
 let schemaReady;
 
@@ -264,6 +265,23 @@ async function listSnapshotItems(guildId) {
     return rows.map(decodeRow);
 }
 
+async function isWebsiteSyncPaused(guildId) {
+    await ensureSchema();
+    const rows = await database.query(`
+        SELECT publication_state FROM ${PUBLICATIONS_TABLE} WHERE guild_lookup = ? AND event_lookup = ?
+    `, [guildLookup(guildId), SYNC_STATE_EVENT_LOOKUP]);
+    return rows[0]?.publication_state === SYNC_PAUSED_STATE;
+}
+
+async function setWebsiteSyncPaused(guildId, paused) {
+    await ensureSchema();
+    await database.query(`
+        INSERT INTO ${PUBLICATIONS_TABLE} (guild_lookup, event_lookup, publication_state)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE publication_state = VALUES(publication_state)
+    `, [guildLookup(guildId), SYNC_STATE_EVENT_LOOKUP, paused ? SYNC_PAUSED_STATE : 'sync_state']);
+}
+
 async function reservePublicationRevision(guildId) {
     await ensureSchema();
     const lookup = guildLookup(guildId);
@@ -329,6 +347,7 @@ module.exports = {
     completeWebsiteDeletions,
     ensureSchema,
     getEvent,
+    isWebsiteSyncPaused,
     listCurrentEvents,
     listSnapshotItems,
     markEventEnded,
@@ -337,5 +356,6 @@ module.exports = {
     removeTerminalEvent,
     requestWebsiteDeletion,
     reservePublicationRevision,
+    setWebsiteSyncPaused,
     upsertEvent,
 };

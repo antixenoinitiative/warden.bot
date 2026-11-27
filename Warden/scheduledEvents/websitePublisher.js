@@ -12,6 +12,14 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const RESPONSE_LIMIT_BYTES = 64 * 1024;
 const PAYLOAD_LIMIT_BYTES = 1024 * 1024;
 const AUTOMATIC_DEBOUNCE_MS = 15_000;
+const RETRYABLE_HTTP_STATUS = new Set([408, 429, 500, 502, 503, 504, 508]);
+const RETRYABLE_NETWORK_ERRORS = new Set([
+    'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'EPIPE',
+    'ENETUNREACH', 'EHOSTUNREACH', 'ERR_STREAM_PREMATURE_CLOSE',
+]);
+const PERMANENT_BRIDGE_ERRORS = new Set([
+    'bridge_unconfigured', 'invalid_target', 'invalid_additional_taxonomy', 'invalid_additional_terms', 'trash_unavailable',
+]);
 const report = createConsoleReporter('Scheduled Events').forSubsystem('Website');
 const operations = new Map();
 
@@ -44,6 +52,20 @@ function isWebsiteSyncConfigured() {
     return Boolean(requiredEnvironment());
 }
 
+function websiteHttpError(response, responseChunks) {
+    const error = new Error(`Scheduled event website returned HTTP ${response.statusCode}.`);
+    let bridgeCode;
+    try { bridgeCode = JSON.parse(Buffer.concat(responseChunks).toString('utf8'))?.code; }
+    catch { bridgeCode = undefined; }
+    error.retryable = RETRYABLE_HTTP_STATUS.has(response.statusCode) && !PERMANENT_BRIDGE_ERRORS.has(bridgeCode);
+    const header = response.headers?.['retry-after'];
+    if (error.retryable && typeof header === 'string') {
+        const delayMs = (/^\d+$/u).test(header) ? Number(header) * 1000 : Date.parse(header) - Date.now();
+        if (Number.isFinite(delayMs) && delayMs > 0) error.retryAfterMs = delayMs;
+    }
+    return error;
+}
+
 async function buildSnapshot(guildId, revision) {
     const items = await repository.listSnapshotItems(guildId);
     const events = items
@@ -62,7 +84,7 @@ async function buildSnapshot(guildId, revision) {
     };
 }
 
-function sendSignedPayload(config, payload) {
+function sendSignedPayload(config, payload, signal) {
     const rawBody = Buffer.from(JSON.stringify(payload), 'utf8');
     if (rawBody.length > PAYLOAD_LIMIT_BYTES) throw new Error('Scheduled event website payload exceeds the 1 MiB endpoint limit.');
     const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -83,6 +105,7 @@ function sendSignedPayload(config, payload) {
                 'X-AXI-Signature': signature,
             },
             timeout: REQUEST_TIMEOUT_MS,
+            signal,
         }, (response) => {
             let responseBytes = 0;
             const responseChunks = [];
@@ -91,9 +114,10 @@ function sendSignedPayload(config, payload) {
                 if (responseBytes > RESPONSE_LIMIT_BYTES) request.destroy(new Error('Scheduled event website response exceeded 64 KiB.'));
                 else responseChunks.push(chunk);
             });
+            response.once('error', reject);
             response.on('end', () => {
                 if (response.statusCode < 200 || response.statusCode >= 300) {
-                    reject(new Error(`Scheduled event website returned HTTP ${response.statusCode}.`));
+                    reject(websiteHttpError(response, responseChunks));
                 }
                 else {
                     let body;
@@ -101,7 +125,9 @@ function sendSignedPayload(config, payload) {
                         body = JSON.parse(Buffer.concat(responseChunks).toString('utf8'));
                     }
                     catch {
-                        reject(new Error('Scheduled event website returned an invalid success response.'));
+                        reject(Object.assign(new Error('Scheduled event website returned an invalid success response.'), {
+                            retryable: true,
+                        }));
                         return;
                     }
                     if (body?.success !== true || Number(body?.revision) !== Number(payload.revision)) {
@@ -112,13 +138,16 @@ function sendSignedPayload(config, payload) {
                 }
             });
         });
-        request.once('timeout', () => request.destroy(new Error('Scheduled event website request timed out.')));
+        request.once('timeout', () => request.destroy(Object.assign(
+            new Error('Scheduled event website request timed out.'), { code: 'ETIMEDOUT' },
+        )));
         request.once('error', reject);
         request.end(rawBody);
     });
 }
 
-async function publishSnapshot(guildId, { reason = 'manual' } = {}) {
+async function publishSnapshot(guildId, { reason, signal }) {
+    if (await repository.isWebsiteSyncPaused(guildId) || signal.aborted) return { skipped: 'paused' };
     const config = requiredEnvironment();
     if (!config) return { skipped: 'unconfigured' };
     const initial = await repository.listSnapshotItems(guildId);
@@ -126,7 +155,16 @@ async function publishSnapshot(guildId, { reason = 'manual' } = {}) {
     const revision = await repository.reservePublicationRevision(guildId);
     if (revision == null) return { skipped: 'no-publications' };
     const snapshot = await buildSnapshot(guildId, revision);
-    const response = await sendSignedPayload(config, snapshot);
+    if (await repository.isWebsiteSyncPaused(guildId) || signal.aborted) return { skipped: 'paused' };
+    let response;
+    try {
+        response = await sendSignedPayload(config, snapshot, signal);
+    }
+    catch (error) {
+        if (signal.aborted) return { skipped: 'paused' };
+        if (RETRYABLE_NETWORK_ERRORS.has(error.code)) error.retryable = true;
+        throw error;
+    }
     const completedDeletions = await repository.completeWebsiteDeletions(guildId, snapshot.deletions);
     const cleanedTerminalEvents = await repository.cleanupDeliveredTerminalEvents(
         guildId,
@@ -164,6 +202,7 @@ function requestWebsiteSync(guildId, { reason = 'automatic', debounceMs = 0 } = 
         pending: false,
         running: false,
         cancelled: false,
+        controller: new AbortController(),
         timer: undefined,
         promise: undefined,
         run: undefined,
@@ -177,7 +216,7 @@ function requestWebsiteSync(guildId, { reason = 'automatic', debounceMs = 0 } = 
                 let lastResult;
                 do {
                     state.pending = false;
-                    lastResult = await publishSnapshot(key, { reason: state.reason });
+                    lastResult = await publishSnapshot(key, { reason: state.reason, signal: state.controller.signal });
                 } while (state.pending && !state.cancelled);
                 resolve(lastResult);
             }
@@ -185,12 +224,13 @@ function requestWebsiteSync(guildId, { reason = 'automatic', debounceMs = 0 } = 
                 reject(error);
             }
         };
-        state.cancel = () => {
-            if (state.running || state.cancelled) return;
+        state.cancel = (reason = 'shutdown') => {
+            if (state.cancelled || (state.running && reason === 'shutdown')) return;
             state.cancelled = true;
             if (state.timer) clearTimeout(state.timer);
             state.timer = undefined;
-            resolve({ skipped: 'shutdown' });
+            if (state.running) state.controller.abort();
+            else resolve({ skipped: reason });
         };
         if (requestedDebounceMs > 0) {
             state.timer = setTimeout(() => {
@@ -211,6 +251,10 @@ function requestAutomaticWebsiteSync(guildId, reason = 'event update') {
     return requestWebsiteSync(guildId, { reason, debounceMs: AUTOMATIC_DEBOUNCE_MS });
 }
 
+function pauseWebsiteSync(guildId) {
+    operations.get(String(guildId))?.cancel('paused');
+}
+
 async function shutdown() {
     const pending = [...operations.values()];
     for (const state of pending) state.cancel?.();
@@ -225,6 +269,7 @@ module.exports = {
     REQUEST_TIMEOUT_MS,
     buildSnapshot,
     isWebsiteSyncConfigured,
+    pauseWebsiteSync,
     requestAutomaticWebsiteSync,
     requestWebsiteSync,
     sendSignedPayload,

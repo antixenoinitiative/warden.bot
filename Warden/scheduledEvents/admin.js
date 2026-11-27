@@ -55,8 +55,8 @@ function discordTimestamp(value, style = 'f') {
         : 'Not specified';
 }
 
-function publicationLabel(event) {
-    if (event.publicationState === 'published') return 'Published and syncing';
+function publicationLabel(event, syncPaused) {
+    if (event.publicationState === 'published') return syncPaused ? 'Published (sync paused)' : 'Published and syncing';
     if (event.publicationState === 'delete_pending') return 'Website deletion pending';
     if (event.publicationState === 'deleted') return 'Not published';
     return 'Not published';
@@ -68,7 +68,7 @@ function eventLocation(event) {
     return 'Not specified';
 }
 
-function eventButton(session, event) {
+function eventButton(session, event, syncPaused) {
     if (event.publicationState === 'delete_pending') {
         return new Discord.ButtonBuilder()
             .setCustomId(session.build('pending', event.eventId))
@@ -80,10 +80,11 @@ function eventButton(session, event) {
     return new Discord.ButtonBuilder()
         .setCustomId(session.build(published ? 'confirmDelete' : 'confirmPublish', event.eventId))
         .setLabel(published ? 'Delete Website Post' : 'Publish to Website')
-        .setStyle(published ? Discord.ButtonStyle.Danger : Discord.ButtonStyle.Success);
+        .setStyle(published ? Discord.ButtonStyle.Danger : Discord.ButtonStyle.Success)
+        .setDisabled(syncPaused);
 }
 
-function eventSection(session, event) {
+function eventSection(session, event, syncPaused) {
     const interested = Number.isInteger(event.interestedCount) && event.interestedCount >= 0
         ? String(event.interestedCount)
         : 'Unavailable';
@@ -95,13 +96,13 @@ function eventSection(session, event) {
             + `Starts: ${discordTimestamp(event.scheduledStartAtMs)}\n`
             + `Location: ${eventLocation(event)}\n`
             + `Interested: **${interested}**\n`
-            + `Website: **${publicationLabel(event)}**`,
+            + `Website: **${publicationLabel(event, syncPaused)}**`,
         ],
-        accessory: eventButton(session, event),
+        accessory: eventButton(session, event, syncPaused),
     };
 }
 
-function buildPanel(events, guildId, ownerUserId) {
+function buildPanel(events, guildId, ownerUserId, { syncPaused = false } = {}) {
     const panelSession = sessions.create({ guildId, ownerUserId, state: { events } });
     const paginationSession = pagination.createSession({
         guildId,
@@ -115,10 +116,16 @@ function buildPanel(events, guildId, ownerUserId) {
                 .setCustomId(panelSession.build('refresh'))
                 .setLabel('Refresh Events')
                 .setStyle(Discord.ButtonStyle.Primary),
+            new Discord.ButtonBuilder()
+                .setCustomId(panelSession.build(syncPaused ? 'enableSync' : 'pauseSync'))
+                .setLabel(syncPaused ? 'Enable Syncing' : 'Pause Syncing')
+                .setStyle(syncPaused ? Discord.ButtonStyle.Success : Discord.ButtonStyle.Danger),
         );
         const document = createUXPanelDocument({
             title: 'Scheduled Event Publishing',
-            description: 'Publish and synchronize Discord Scheduled Events with the AXI website.',
+            description: syncPaused
+                ? '**Website syncing is paused.** Existing posts stay as they are until syncing resumes.'
+                : 'Publish and synchronize Discord Scheduled Events with the AXI website.',
             accentColor: getIdentityBrandColor('Warden'),
             ephemeral: true,
             editorBlocks: [
@@ -126,11 +133,11 @@ function buildPanel(events, guildId, ownerUserId) {
                 { kind: 'separator', divider: true, spacing: 'Large' },
                 {
                     kind: 'text',
-                    content: events.length > 0
-                        ? '## Discord Events\nPublished events continue syncing when their Discord details or status change.'
-                        : '## Discord Events\nNo current Discord Scheduled Events were found.',
+                    content: events.length === 0
+                        ? '## Discord Events\nNo current Discord Scheduled Events were found.'
+                        : '## Discord Events',
                 },
-                ...events.map((event) => eventSection(panelSession, event)),
+                ...events.map((event) => eventSection(panelSession, event, syncPaused)),
             ],
             pagination: { key: `events:${guildId}` },
         });
@@ -189,10 +196,18 @@ function showDeleteConfirmation(interaction, parts, state) {
     return showConfirmation(interaction, parts, state, 'delete');
 }
 
+async function loadPanel(interaction) {
+    const { guildId, user } = interaction;
+    const [events, syncPaused] = await Promise.all([
+        scheduledEvents.listCurrentEvents(guildId),
+        scheduledEvents.isWebsiteSyncPaused(guildId),
+    ]);
+    return buildPanel(events, guildId, user.id, { syncPaused });
+}
+
 async function replacePanel(interaction, state) {
-    const events = await scheduledEvents.listCurrentEvents(interaction.guildId);
     const visibleState = pagination.getVisibleState(interaction.message);
-    const payload = buildPanel(events, interaction.guildId, interaction.user.id);
+    const payload = await loadPanel(interaction);
     pagination.selectPayloadPageFromState(payload, visibleState);
     completePanelInteraction(interaction);
     state.panelSession.dispose();
@@ -227,12 +242,39 @@ async function deleteWebsitePost(interaction, parts, state) {
 
 async function refresh(interaction, _parts, state) {
     await interaction.deferUpdate();
-    await scheduledEvents.reconcile(interaction.guild, { reason: 'manual' });
+    const { sync } = await scheduledEvents.reconcile(interaction.guild, { reason: 'manual' });
     await replacePanel(interaction, state);
     return interaction.followUp({
-        content: '✅ Discord events and published website posts were refreshed.',
+        content: sync.skipped
+            ? `Discord events refreshed. Website sync: ${sync.skipped}.`
+            : '✅ Discord events and published website posts were refreshed.',
         flags: Discord.MessageFlags.Ephemeral,
     });
+}
+
+async function setSyncPaused(interaction, state, paused) {
+    await interaction.deferUpdate();
+    await scheduledEvents.setWebsiteSyncPaused(interaction.guildId, paused);
+    const result = paused ? undefined : syncAfterEnabling(interaction.guildId);
+    await replacePanel(interaction, state);
+    const content = paused ? 'Website syncing paused.' : await result;
+    return interaction.followUp({ content, flags: Discord.MessageFlags.Ephemeral });
+}
+
+async function syncAfterEnabling(guildId) {
+    try {
+        const sync = await scheduledEvents.requestWebsiteSync(guildId, { reason: 'sync enabled' });
+        switch (sync.skipped) {
+            case 'unconfigured': return 'Website syncing enabled. The website connection still needs to be configured.';
+            case 'paused': return 'Website syncing was paused again.';
+            case 'retry scheduled': return 'Website syncing enabled. A website retry is already scheduled.';
+            case undefined: return 'Website syncing enabled. The website confirmed the latest event snapshot.';
+            default: return 'Website syncing enabled.';
+        }
+    }
+    catch (error) {
+        return `Website syncing enabled. The catch-up sync failed: ${error.message}`;
+    }
 }
 
 async function respondError(interaction, message, acknowledgement) {
@@ -246,6 +288,8 @@ const router = createInteractionRouter({
     componentActions: {
         page: pagination.handleInteraction,
         refresh,
+        pauseSync: (interaction, _parts, state) => setSyncPaused(interaction, state, true),
+        enableSync: (interaction, _parts, state) => setSyncPaused(interaction, state, false),
         confirmPublish: showPublishConfirmation,
         confirmDelete: showDeleteConfirmation,
     },
@@ -277,8 +321,7 @@ const router = createInteractionRouter({
 async function execute(interaction) {
     await deferEphemeralReply(interaction);
     try {
-        const events = await scheduledEvents.listCurrentEvents(interaction.guildId);
-        return interaction.editReply(buildPanel(events, interaction.guildId, interaction.user.id));
+        return interaction.editReply(await loadPanel(interaction));
     }
     catch (error) {
         return interaction.editReply({ embeds: [errorEmbed(error.message)] });
